@@ -11,6 +11,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="sync.js"></script>
 <script src="topics.js"></script>
 <script src="card.js"></script>
 <script src="pako.min.js"></script>
@@ -227,6 +228,8 @@ const store = {
   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
 };
 function toast(m){ const t = F('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('show'), 3000); }
+window.hubToast = toast;
+window.hubApply = ()=>{ saved = store.get('lhq_saved', []); LOG = store.get('lhq_logs', {e:{}, imports:[]}); try{ render(); }catch(e){} };
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick = ()=>b.closest('dialog').close());
 
 /* ---------- dates ---------- */

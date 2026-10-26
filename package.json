@@ -4,6 +4,7 @@
   "type": "module",
   "description": "LHQ Learning Solutions quote and invoice app",
   "dependencies": {
+    "@netlify/blobs": "11.1.6",
     "nodemailer": "10.0.10"
   }
 }

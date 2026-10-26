@@ -12,6 +12,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="sync.js"></script>
 <script src="topics.js"></script>
 <script src="card.js"></script>
 <script src="pako.min.js"></script>
@@ -615,7 +616,7 @@ dialog::backdrop{background:rgba(7,25,45,.55)}
       </details>
       <details id="backupSetup">
         <summary>Backup &amp; restore</summary>
-        <p class="hint" style="margin:0 0 8px">Everything is saved in this browser on this device only. A backup is one file with all your quotes, invoices, receipts, tuition cards, numbering, lists and messages. Keep it in Google Drive or send it to yourself on WhatsApp.</p>
+        <p class="hint" style="margin:0 0 8px">Everything is stored online in LHQ Hub and shared between your devices. A backup is an extra copy: one file with all your quotes, invoices, receipts, tuition cards, numbering, lists and messages. Keep it in Google Drive or send it to yourself on WhatsApp.</p>
         <p class="svc" id="bkStatus"><span class="dot"></span><span></span></p>
         <p class="svc" id="bkPersist"><span class="dot"></span><span></span></p>
         <div style="display:flex;flex-wrap:wrap;gap:8px">
@@ -2087,6 +2088,22 @@ function fitPreview(){
 window.addEventListener('resize', fitPreview);
 
 function toast(msg){ const t=F('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2600); }
+/* LHQ Hub sync (sync.js): reload from the shared copy, and take a number the server changed */
+window.hubToast = toast;
+window.hubApply = ()=>{
+  saved = store.get('lhq_saved', []);
+  settings = Object.assign({}, DEFAULT_SETTINGS, store.get('lhq_settings', {}));
+  templates = Object.assign({}, DEFAULT_TEMPLATES, store.get('lhq_templates', {}));
+  const open = doc.id && saved.find(s=>s.id===doc.id);
+  if(open && open.savedAt > (doc.savedAt||0) && open.updatedBy){ toast(`${open.number} was updated by ${open.updatedBy}. Open it again to see the changes.`); }
+  renderSaved(); fillStudentList(); fillBackup(); fillNumbering(); fillSettings(); fillTemplates();
+  if(!doc.id && doc.number === nextNumber(doc.type)) {} else if(!doc.id){ doc.number = nextNumber(doc.type); F('f_number').value = doc.number; update(); }
+};
+window.hubRemap = (id, number)=>{
+  saved = store.get('lhq_saved', []);
+  if(doc.id===id){ doc.number = number; F('f_number').value = number; update(); try{ localStorage.setItem('lhq_draft', JSON.stringify(doc)); }catch(e){} }
+  renderSaved(); fillNumbering();
+};
 
 initCard();
 /* ================= backup & restore =================
@@ -2135,6 +2152,7 @@ function fillBackup(){
   setSvc('bkStatus', !last || d>=7 ? 'warn' : 'ok', `${when} · ${countText(countDocs(saved))} on this device`);
   // reminder: something saved, and no backup in 7 days (or never), and not snoozed today
   const snooze = store.get('lhq_bkSnooze', 0);
+  if(store.get('lhq_session', null)){ setSvc('bkStatus','ok',`Stored online in LHQ Hub · ${countText(countDocs(saved))}. ${last?when+'.':''}`); F('bkBanner').hidden = true; return; }
   const due = n > 0 && (!last || d >= 7) && Date.now() > snooze;
   F('bkBanner').hidden = !due;
   if(due) F('bkBannerText').textContent = !last ? `Your ${n} saved document${n>1?'s are':' is'} only on this device and ha${n>1?'ve':'s'} never been backed up.` : `Last backup was ${d} days ago. Back up so nothing is lost if this browser's data is cleared.`;

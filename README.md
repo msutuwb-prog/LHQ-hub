@@ -236,3 +236,12 @@ Saved documents live in the browser on each device. Open **Backup & restore** (i
 **Admin** taps the link in the tutor's message on the tablet that has the app's data; the log is imported into Reports (repeats are ignored, edits and deletions are applied). Reports shows which tutors have logged this period, each student's status, and flags (absences, grade drops, late or missing SRAs, missing logs, and home SRA scores far above topical tests). **Preview & share** produces the parent report: weekly or 2-weekly (one page) or monthly (at-a-glance page + detailed report with SRAs by topic and a section per subject). The overall comment is drafted from the results and can be edited; tutors' lines and comments can be edited before sending. Share as an image (page 1) or PDF.
 
 Working grade = average of topical assessments in the tuition period (LHQ scale A* 90+, A 80–89, B 70–79, C 60–69, D 50–59). SRA scores are never shown to parents; only SRAs handed in on time are. Set "Topical assessments: Every 2 weeks" on a tuition card subject where tests are fortnightly.
+
+## LHQ Hub: sign-in and online storage (step 1)
+
+- `netlify/functions/hub.mjs` is the server (`/api/hub/*`). It signs people in with personal PINs and stores everything in Netlify Blobs (store `lhq-hub`): people, every quote/invoice/receipt/card (`doc/<id>`), previous versions (`hist/…`), deleted documents (`trash/…`), and shared settings (`kv/…`).
+- Netlify needs the environment variable **`LHQ_SECRET`** (a long random string). Without it the Hub shows "isn't set up yet".
+- `site/sync.js` runs before each page's own script. It shows the sign-in screen, fills the page's local copy from the server, and uploads every change (it watches `localStorage` writes, so the existing pages work unchanged). Offline changes upload when the device is back online.
+- Invoice, receipt, quote and card numbers are checked on the server: if two devices save the same number, the second gets the next free one and is told.
+- The first person to open the Hub sets it up and becomes admin. Admins add people and reset PINs under their name → People & access. Five wrong PINs lock that person out for 15 minutes.
+- Tutors' session-log links (`/t#…`) don't need sign-in yet; that comes in step 2.
