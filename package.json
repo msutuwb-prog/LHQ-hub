@@ -1,0 +1,9 @@
+{
+  "name": "lhq-quotes-invoices",
+  "private": true,
+  "type": "module",
+  "description": "LHQ Learning Solutions quote and invoice app",
+  "dependencies": {
+    "nodemailer": "10.0.10"
+  }
+}

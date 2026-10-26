@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#073763">
+<title>LHQ Topic Checklist</title>
+<meta name="description" content="Tell LHQ Learning Solutions which subjects and topics you want help with.">
+<link rel="icon" href="arrow.png">
+<link rel="apple-touch-icon" href="logo.png">
+<script src="topics.js"></script>
+<script src="card.js"></script>
+<script src="schools.js"></script>
+<style>
+:root{--navy:#073763;--gold:#f4b223;--ink:#1d2433;--muted:#5f6b7d;--line:#dde2ea;--bg:#eef1f5;--field:#f6f8fb;--wa:#1f9d55}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+[hidden]{display:none!important}
+header{background:var(--navy);color:#fff;padding:14px 16px 16px;padding-top:calc(14px + env(safe-area-inset-top,0px))}
+.hwrap{max-width:640px;margin:0 auto;display:flex;align-items:center;gap:12px}
+header img{height:34px;background:#fff;border-radius:7px;padding:4px 7px}
+header h1{margin:0;font-size:18px;line-height:1.2}
+header p{margin:2px 0 0;font-size:13px;opacity:.85}
+main{max-width:640px;margin:0 auto;padding:14px 16px calc(110px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+.panel{background:#fff;border:1px solid var(--line);border-radius:14px;padding:16px;min-width:0}
+.panel h2{display:flex;align-items:center;gap:10px;margin:0 0 12px;font-size:17px}
+.panel h2 .n{width:26px;height:26px;border-radius:50%;background:var(--navy);color:#fff;display:grid;place-items:center;font-size:13px;flex:none}
+label,.fld{display:block;font-size:13px;color:var(--muted);margin-bottom:12px;min-width:0}
+label > span,.fld > .lbl{display:block;margin-bottom:4px}
+.req{color:#b42318}
+input,textarea{width:100%;font:inherit;font-size:16px;color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:9px;padding:10px 12px;min-height:46px}
+input:focus,textarea:focus{background:#fff;outline:2px solid #4d7fc0;outline-offset:1px}
+textarea{resize:vertical}
+.grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.grade-grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px}
+.grade-grid > :last-child{grid-column:1 / -1}
+@media (max-width:440px){.grid2{grid-template-columns:minmax(0,1fr);gap:0}.grid2 .fld{margin-bottom:12px}}
+button{font:inherit;cursor:pointer;border-radius:10px;border:1px solid var(--line);background:#fff;color:var(--ink);padding:9px 14px;min-height:44px}
+button:focus-visible{outline:2px solid #4d7fc0;outline-offset:1px}
+/* dropdown button (same look as the LHQ app) */
+.dd{width:100%;display:flex;align-items:center;gap:8px;text-align:left;background:var(--field);border:1px solid var(--line);border-radius:9px;padding:9px 10px 9px 12px;min-height:46px;font-size:15.5px;font-weight:600;color:var(--navy)}
+.dd .dot{width:8px;height:8px;border-radius:50%;background:var(--gold);flex:none}
+.dd .tx{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.dd.empty .dot{background:var(--line)}
+.dd.empty .tx{color:var(--muted);font-weight:400}
+.dd svg{flex:none;color:var(--muted)}
+.dd.big{min-height:52px}
+/* bottom sheet */
+.sheet-bg{position:fixed;inset:0;background:rgba(7,25,45,.45);z-index:20}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:21;background:#fff;border-radius:18px 18px 0 0;max-height:80dvh;display:flex;flex-direction:column;
+  max-width:560px;margin:0 auto;padding-bottom:env(safe-area-inset-bottom,0px);animation:up .2s ease-out;box-shadow:0 -10px 40px rgba(7,25,45,.2)}
+@keyframes up{from{transform:translateY(24px);opacity:.6}to{transform:none;opacity:1}}
+.grab{width:40px;height:4px;border-radius:99px;background:var(--line);margin:8px auto 0}
+.sh-head{display:flex;align-items:center;justify-content:space-between;padding:8px 16px}
+.sh-head b{font-size:16.5px}
+.sh-head button{width:38px;height:38px;min-height:0;padding:0}
+.sh-search{padding:0 16px 6px}.sh-search input{min-height:44px}
+.sh-opt small{display:block;font-size:13px;color:var(--muted);font-weight:400}
+.sh-sep{font-size:12px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:700;padding:12px 12px 4px}
+.sh-list{list-style:none;margin:0;padding:4px 10px 10px;overflow:auto;flex:1;overscroll-behavior:contain}
+.sh-opt{display:flex;align-items:center;gap:12px;padding:13px 12px;border-radius:9px;font-size:16px;cursor:pointer}
+.sh-opt:hover{background:#f3f6fa}
+.sh-opt.sel{color:var(--navy);font-weight:600;background:#eef3f9}
+.sh-opt small{display:block;color:var(--muted);font-weight:400;font-size:12.5px}
+.sh-opt .ck{margin-left:auto;color:var(--navy);visibility:hidden;flex:none}
+.sh-opt.sel .ck{visibility:visible}
+.sh-sep{font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;padding:12px 12px 4px}
+.sh-foot{padding:10px 16px 14px;border-top:1px solid var(--line)}
+.sh-foot button{width:100%}
+/* subject cards */
+.subj{border:1px solid var(--line);border-left:5px solid var(--c);border-radius:12px;margin-top:10px;background:#fff}
+.subj-head{width:100%;display:flex;align-items:center;gap:10px;border:0;background:transparent;text-align:left;padding:11px 12px;min-height:58px;border-radius:12px}
+.subj-head .cdot{width:10px;height:10px;border-radius:50%;background:var(--c);flex:none}
+.subj-head .tt{flex:1;min-width:0;display:flex;flex-direction:column}
+.subj-head .tt b{font-size:16px}
+.subj-head .tt small{color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.subj-head svg{flex:none;color:var(--muted)}
+.subj-body{padding:12px 12px 14px;border-top:1px solid var(--line)}
+.sline{padding:0}
+.sl-head{display:flex;align-items:baseline;gap:8px;padding:11px 12px 4px}
+.sl-head .cdot{width:10px;height:10px;border-radius:50%;background:var(--c);flex:none;align-self:center}
+.sl-head b{font-size:16px}.sl-head small{color:var(--muted);font-size:12.5px}
+.sl-body{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:0 10px;padding:4px 12px 2px}
+.sl-body .fld{margin-bottom:10px}
+@media (max-width:440px){.sl-body{grid-template-columns:minmax(0,1fr)}}
+.cl-chap{padding-left:12px}
+.cl-chap .cl-arrow{width:30px;height:30px;border-radius:8px;background:#eef3f9;color:var(--navy);display:grid;place-items:center;flex:none}
+.cl-chap[aria-expanded="true"] .cl-arrow{background:var(--navy);color:#fff}
+.cl-chap[aria-expanded="true"] .cl-arrow svg{color:#fff}
+.cl-all{font-weight:600;color:var(--navy);border-bottom:1px dashed var(--line)}
+.cl-all .cl-t{color:var(--navy)}
+.note{background:#fff7e0;border-radius:9px;padding:10px 12px;font-size:13.5px;color:#5c4300;margin:0 0 12px}
+.cl{border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:12px}
+.cl-head{display:flex;justify-content:space-between;gap:8px;background:#f3f5f8;padding:8px 10px;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.cl-tip{font-size:12.5px;color:var(--muted);padding:7px 10px 2px}
+.cl-grp{font-size:12px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.05em;padding:12px 10px 2px}
+.cl-item{border-top:1px solid #eef1f5}
+.cl-row{width:100%;display:flex;align-items:center;gap:10px;border:0;border-radius:0;background:transparent;text-align:left;padding:9px 10px;min-height:48px;font-size:15px;color:var(--ink)}
+.cl-row.sel .cl-t{font-weight:600;color:var(--navy)}
+.cl-box{width:24px;height:24px;border-radius:6px;border:1.5px solid #b9c1cd;background:#fff;display:grid;place-items:center;flex:none}
+.cl-box.on{background:var(--navy);border-color:var(--navy)}
+.cl-n{min-width:28px;color:var(--muted);font-size:13px;font-variant-numeric:tabular-nums;flex:none}
+.cl-t{flex:1;min-width:0}
+.cl-e{font-size:11px;font-weight:700;color:#7a5400;background:#fdf1d6;border-radius:99px;padding:1px 7px;flex:none}
+.cl-chrow{display:flex;align-items:stretch}
+.cl-tickbtn{border:0;border-radius:0;background:transparent;padding:0 4px 0 10px;min-height:48px;display:grid;place-items:center}
+.cl-open{padding-left:6px}
+.cl-count{font-size:12.5px;color:var(--muted);white-space:nowrap;flex:none}
+.cl-row.sel .cl-count{color:var(--navy);font-weight:600}
+.cl-sub{padding-left:44px;min-height:46px;font-size:14.5px;background:#fafbfc}
+.cl-ch.open{background:#fafbfc}
+.own{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.own span{display:inline-flex;align-items:center;gap:4px;background:#e6edf6;color:var(--navy);border-radius:99px;padding:3px 4px 3px 12px;font-size:14px;font-weight:600}
+.own span button{border:0;background:transparent;min-height:30px;width:30px;padding:0;color:var(--navy);border-radius:50%}
+.add{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+.days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:6px}
+.days button{padding:0;border-radius:10px;font-weight:600;background:var(--field);min-height:46px}
+.days button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+.hint{font-size:13px;color:var(--muted);margin:6px 0 0}
+.err{color:#b42318;font-size:13px;margin:6px 0 0}
+.empty-subj{border:1.5px dashed var(--line);border-radius:12px;padding:14px;text-align:center;color:var(--muted);font-size:14px;margin-top:10px}
+.sendbar{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid var(--line);padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));z-index:5}
+.sendbar .in{max-width:640px;margin:0 auto;display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:8px}
+.btn-wa{background:var(--wa);border-color:var(--wa);color:#fff;font-weight:600;min-height:50px}
+.btn-navy{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:600;min-height:50px}
+details.pv summary{cursor:pointer;color:var(--navy);font-weight:600;font-size:14px;padding:4px 0}
+.preview{white-space:pre-wrap;word-break:break-word;background:#e7f6e9;border-radius:10px;padding:12px;font-size:14px;max-height:340px;overflow:auto;margin-top:8px}
+.done{text-align:center}
+.done svg{color:var(--wa)}
+.toast{position:fixed;bottom:calc(84px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 16px;border-radius:9px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:30;max-width:90vw;text-align:center}
+.toast.show{opacity:1}
+footer{text-align:center;font-size:12.5px;color:var(--muted);padding:6px 16px 0}
+</style>
+</head>
+<body>
+<header><div class="hwrap">
+  <img src="logo.png" alt="LHQ Learning Solutions">
+  <div><h1>Topic checklist</h1><p>Tell us what you'd like help with. It takes about 3 minutes.</p></div>
+</div></header>
+
+<main id="form">
+  <section class="panel">
+    <h2><span class="n">1</span>About you</h2>
+    <label><span>Your name <span class="req">*</span></span><input id="name" autocomplete="name" placeholder="First and last name"></label>
+    <div class="grid2">
+      <div class="fld"><span class="lbl">Year <span class="req">*</span></span><button type="button" class="dd" id="ddYear"></button></div>
+      <div class="fld"><span class="lbl">Exams</span><button type="button" class="dd" id="ddExam"></button></div>
+    </div>
+    <div class="fld" style="margin-bottom:0"><span class="lbl">School</span><button type="button" class="dd" id="ddSchool"></button></div>
+  </section>
+
+  <section class="panel">
+    <h2><span class="n">2</span>Your subjects</h2>
+    <button type="button" class="dd big" id="ddSubjects"></button>
+    <div id="subjects"></div>
+  </section>
+
+  <section class="panel" id="topicsPanel">
+    <h2><span class="n">3</span>Topics</h2>
+    <div id="topics"></div>
+  </section>
+
+  <section class="panel">
+    <h2><span class="n">4</span>When and where</h2>
+    <div class="fld"><span class="lbl">Days you could usually come</span><div class="days" id="days" role="group" aria-label="Days"></div></div>
+    <div class="fld" style="margin-bottom:0"><span class="lbl">Where</span><button type="button" class="dd" id="ddWhere"></button></div>
+  </section>
+
+  <section class="panel">
+    <h2><span class="n">5</span>Anything else?</h2>
+    <label><span>Anything we should know (optional)</span><textarea id="notes" rows="3" placeholder="e.g. I have a mock exam on 9 November."></textarea></label>
+    <details class="pv"><summary>See the message LHQ will get</summary><div class="preview" id="preview"></div></details>
+    <p class="err" id="err" role="alert"></p>
+  </section>
+  <footer>Your checklist goes only to LHQ Learning Solutions · 0992 525 250 · learnhqes@gmail.com</footer>
+</main>
+
+<main id="thanks" hidden>
+  <section class="panel done">
+    <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M7 12.5l3.2 3.2L17 9"/></svg>
+    <h2 style="justify-content:center">Almost done</h2>
+    <p>Press <b>Send</b> in WhatsApp or your email app to finish. LHQ will get back to you to confirm your tutor and times.</p>
+    <p class="hint">Didn't open? Use the buttons below again, or copy the message and send it to 0992 525 250.</p>
+    <div style="display:grid;gap:8px;margin-top:14px">
+      <button type="button" id="btnCopy">Copy the message</button>
+      <button type="button" id="btnEdit">Go back and change something</button>
+      <button type="button" id="btnFresh">Start a new checklist</button>
+    </div>
+  </section>
+</main>
+
+<div class="sendbar"><div class="in">
+  <button type="button" class="btn-wa" id="btnWa">Send on WhatsApp</button>
+  <button type="button" class="btn-navy" id="btnEmail">Send by email</button>
+</div></div>
+
+<div class="sheet-bg" id="sheetBg" hidden></div>
+<div class="sheet" id="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="shTitle">
+  <div class="grab"></div>
+  <div class="sh-head"><b id="shTitle"></b><button type="button" id="shClose" aria-label="Close">✕</button></div>
+  <div class="sh-search" id="shSearchWrap" hidden><input id="shSearch" type="search" placeholder="Search" autocomplete="off" enterkeyhint="done"></div>
+  <ul class="sh-list" id="shList"></ul>
+  <div class="sh-foot" id="shFoot" hidden><button type="button" class="btn-navy" id="shDone">Done</button></div>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const F = id => document.getElementById(id);
+const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const LHQ_WA = '265992525250', LHQ_EMAIL = 'learnhqes@gmail.com';
+const LEVELS = ['Year 5','Year 6 · Primary Checkpoint','Year 7','Year 8','Year 9 · Checkpoint','Year 10 · IGCSE','Year 11 · IGCSE','Year 12 · AS Level','Year 13 · A Level'];
+const LEVEL_SHORT = {'Year 6 · Primary Checkpoint':'Year 6 (Checkpoint)','Year 9 · Checkpoint':'Year 9 (Checkpoint)','Year 10 · IGCSE':'Year 10 (IGCSE)','Year 11 · IGCSE':'Year 11 (IGCSE)','Year 12 · AS Level':'Year 12 (AS Level)','Year 13 · A Level':'Year 13 (A Level)'};
+const GRADES = ['A*','A','B','C','D','E','F','G','U'];
+const BASIS = ['End of term results','Mid-term results','Mock exam','Class test','School report','Checkpoint results','My own estimate'];
+const WHERE = ['At LHQ','Online','Either'];
+const COVER = [{v:'selected', l:'Some topics', s:'Tick the ones you want'}, {v:'full', l:'The whole course', s:'Start from the beginning'}, {v:'unsure', l:'Not sure yet', s:'Your tutor will check in the first session'}];
+const TIERS = [{v:'Extended', l:'Extended'}, {v:'Core', l:'Core'}, {v:'', l:'Not sure'}];
+const CHEV = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>';
+const CK = '<svg class="ck" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12l5 5 9-10"/></svg>';
+
+function examSeries(){   // the next few Cambridge exam series, from today
+  const d = new Date(), y = d.getFullYear(), m = d.getMonth(), out = [];
+  for(let yy=y; out.length<4; yy++){
+    if(yy>y || m<5) out.push(`May/June ${yy}`);
+    if(out.length<4 && (yy>y || m<10)) out.push(`Oct/Nov ${yy}`);
+  }
+  return out.concat(['School exams only', 'Not sure']);
+}
+function months(){ const out = [], d = new Date(); d.setDate(1); for(let i=0;i<18;i++){ out.push(`${MON[d.getMonth()]} ${d.getFullYear()}`); d.setMonth(d.getMonth()-1); } return out; }
+
+/* ---------- state (kept in this browser so a half-filled checklist isn't lost) ---------- */
+const KEY = 'lhq_checklist2';
+const blank = () => ({id: Date.now().toString(36), name:'', level:'', school:'', exam:'', subjects:[], days:[], where:'', notes:''});
+let st; try{ st = Object.assign(blank(), JSON.parse(localStorage.getItem(KEY)||'null')||{}); }catch(e){ st = blank(); }
+let openSub = -1;
+function persist(){ try{ localStorage.setItem(KEY, JSON.stringify(st)); }catch(e){} }
+const lvSet = () => cardLevelSet(st.level);
+const subjectsAtLevel = () => { const lv = lvSet(); return lv && TOPICS[lv] ? Object.keys(TOPICS[lv]) : []; };
+const newSubj = (name, key) => ({name, list:key||'', tier:'', mode:'selected', picks:{}, custom:[], grade:'', basis:'', when:'', note:'', openCh:''});
+
+/* ---------- bottom-sheet dropdown ---------- */
+const sh = {opts:[], multi:false, sel:[], onDone:null, btn:null};
+function openSheet({title, options, multi=false, selected, onDone, btn, search=null}){
+  sh.search = search; F('shSearchWrap').hidden = !search; F('shSearch').value = '';
+  if(search){ F('shSearch').placeholder = search.placeholder; options = search.build(''); }
+  sh.opts = options; sh.multi = multi; sh.onDone = onDone; sh.btn = btn;
+  sh.sel = multi ? (selected||[]).slice() : [selected ?? null];
+  F('shTitle').textContent = title; F('shFoot').hidden = !multi;
+  renderSheet(); F('sheet').hidden = false; F('sheetBg').hidden = false;
+  const s = F('shList').querySelector('.sel'); if(s) s.scrollIntoView({block:'center'}); else F('shList').scrollTop = 0;
+}
+function renderSheet(){
+  F('shList').innerHTML = sh.opts.map((o,i)=>{
+    if(o.sep) return `<li class="sh-sep" role="presentation">${esc(o.sep)}</li>`;
+    const on = sh.sel.includes(o.v);
+    const box = sh.multi ? cardTick(on?'on':'') : '';
+    return `<li class="sh-opt${on?' sel':''}" role="option" aria-selected="${on}" data-i="${i}">${box}<span>${esc(o.l)}${o.s?`<small>${esc(o.s)}</small>`:''}</span>${sh.multi?'':CK}</li>`;
+  }).join('');
+}
+F('shSearch').addEventListener('input', ()=>{ sh.opts = sh.search.build(F('shSearch').value.trim()); renderSheet(); });
+F('shSearch').addEventListener('keydown', e=>{ if(e.key==='Enter'){ e.preventDefault(); const o = sh.opts.find(x=>!x.sep); if(o){ closeSheet(); sh.onDone(o.v); } } });
+function closeSheet(){ F('sheet').hidden = true; F('sheetBg').hidden = true; if(sh.btn) sh.btn.focus(); }
+F('shList').addEventListener('click', e=>{
+  const li = e.target.closest('[data-i]'); if(!li) return;
+  const v = sh.opts[+li.dataset.i].v;
+  if(sh.multi){ sh.sel = sh.sel.includes(v) ? sh.sel.filter(x=>x!==v) : sh.sel.concat(v); renderSheet(); return; }
+  closeSheet(); sh.onDone(v);
+});
+F('shDone').onclick = ()=>{ closeSheet(); sh.onDone(sh.sel); };
+F('shClose').onclick = closeSheet; F('sheetBg').onclick = ()=>{ if(sh.multi){ closeSheet(); sh.onDone(sh.sel); } else closeSheet(); };
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !F('sheet').hidden) closeSheet(); });
+function setDD(btn, text, placeholder){ btn.className = btn.className.replace(/\s*empty/,'') + (text?'':' empty'); btn.innerHTML = `<span class="dot"></span><span class="tx">${esc(text||placeholder)}</span>${CHEV}`; }
+const ddHTML = (act, text, placeholder) => `<button type="button" class="dd${text?'':' empty'}" data-act="${act}"><span class="dot"></span><span class="tx">${esc(text||placeholder)}</span>${CHEV}</button>`;
+
+/* ---------- section 1 ---------- */
+F('ddYear').onclick = e=>openSheet({title:'Your year', btn:e.currentTarget, selected:st.level,
+  options:LEVELS.map(l=>({v:l, l:LEVEL_SHORT[l]||l})), onDone:v=>{
+    st.level = v; const lv = lvSet();   // keep subjects, re-match their topic lists
+    st.subjects.forEach(s=>{ const k = lv && TOPICS[lv] && TOPICS[lv][s.name] ? lv+'|'+s.name : ''; if(k!==s.list){ s.list = k; s.picks = {}; s.openCh=''; } if(!cardTiered(s.list)) s.tier=''; });
+    renderAll(); }});
+F('ddExam').onclick = e=>openSheet({title:'When are your exams?', btn:e.currentTarget, selected:st.exam,
+  options:examSeries().map(x=>({v:x, l:x})), onDone:v=>{ st.exam = v; renderAll(); }});
+
+/* ---------- section 2 ---------- */
+F('ddSubjects').onclick = e=>{
+  if(!st.level){ toast('Choose your year first'); F('ddYear').click(); return; }
+  const list = subjectsAtLevel(), extra = st.subjects.filter(s=>!list.includes(s.name)).map(s=>s.name);
+  openSheet({title:'Your subjects', multi:true, btn:e.currentTarget, selected:st.subjects.map(s=>s.name),
+    options:[...list.map(n=>({v:n, l:n})), ...extra.map(n=>({v:n, l:n, s:'Typed in'})), {sep:'Not listed?'}, {v:'__other', l:'Another subject…', s:'Type it in'}],
+    onDone:sel=>{
+      const want = sel.filter(x=>x!=='__other');
+      const drop = st.subjects.filter(s=>!want.includes(s.name) && subjHasData(s));
+      if(drop.length && !confirm(`Remove ${drop.map(s=>s.name).join(', ')} and the topics you ticked?`)) want.push(...drop.map(s=>s.name));
+      const before = st.subjects.length;
+      st.subjects = st.subjects.filter(s=>want.includes(s.name));
+      want.forEach(n=>{ if(!st.subjects.some(s=>s.name===n)) st.subjects.push(newSubj(n, lvSet()+'|'+n)); });
+      if(sel.includes('__other')){ const v = (prompt('Which subject?')||'').trim(); if(v && !st.subjects.some(s=>s.name.toLowerCase()===v.toLowerCase())) st.subjects.push(newSubj(v,'')); }
+      if(openSub < 0) openSub = 0;
+      renderAll();
+    }});
+};
+const subjHasData = s => Object.keys(s.picks).length || s.custom.length || s.grade || s.note || s.tier;
+const tierOf = s => cardTiered(s.list) ? s.tier : '';
+
+function checklist(s){
+  const set = cardTopicSet(s.list); if(!set) return '';
+  const tier = tierOf(s), entries = cardEntries(set), hasCh = entries.some(e=>e.kind==='chapter');
+  const rows = entries.map(e=>{
+    if(e.kind==='group') return `<div class="cl-grp">${esc(e.label)}</div>`;
+    if(e.kind==='topic'){ const on = s.picks[e.key]===true;
+      return `<div class="cl-item"><button type="button" class="cl-row${on?' sel':''}" data-act="topic" data-key="${e.key}" aria-pressed="${on}">${cardTick(on?'on':'')}<span class="cl-n">${e.n}</span><span class="cl-t">${esc(e.t)}</span></button></div>`; }
+    // a chapter with topics inside: tapping the row opens it; no tick box on the chapter itself
+    const subs = cardSubsFor(e, tier), v = s.picks[e.key], whole = v==='all', part = Array.isArray(v) ? v.filter(n=>subs.some(x=>x.n===n)) : [];
+    const count = whole ? subs.length : part.length, open = s.openCh===e.key;
+    let h = `<div class="cl-item cl-ch${open?' open':''}">
+      <button type="button" class="cl-row cl-chap${count?' sel':''}" data-act="chopen" data-key="${e.key}" aria-expanded="${open}"><span class="cl-n">${e.n}</span><span class="cl-t">${esc(e.t)}</span><span class="cl-count">${count ? (whole?'All':`${count} of ${subs.length}`) : `${subs.length} topics`}</span><span class="cl-arrow">${cardChev(open)}</span></button>`;
+    if(open){
+      h += `<button type="button" class="cl-row cl-sub cl-all${whole?' sel':''}" data-act="chap" data-key="${e.key}" aria-pressed="${whole}">${cardTick(whole?'on':part.length?'mixed':'')}<span class="cl-t">All of ${esc(e.t)}</span></button>`;
+      h += subs.map(x=>{ const on = whole || part.includes(x.n);
+        return `<button type="button" class="cl-row cl-sub${on?' sel':''}" data-act="sub" data-key="${e.key}" data-n="${x.n}" aria-pressed="${on}">${cardTick(on?'on':'')}<span class="cl-n">${x.n}</span><span class="cl-t">${esc(x.t)}</span>${x.ext?'<span class="cl-e" title="Extended only">E</span>':''}</button>`; }).join('');
+    }
+    return h + '</div>';
+  }).join('');
+  const hasE = tier!=='Core' && entries.some(e=>e.sub && e.sub.some(x=>x.ext));
+  return `<div class="cl"><div class="cl-head"><span>${esc(set.code)} ${hasCh?'chapters':'topics'}${tier?` · ${tier}`:''}</span>${hasE?'<span>E = Extended only</span>':''}</div>
+    <div class="cl-tip">${hasCh?'Tap a chapter to see its topics, then tick the ones you want.':'Tick the topics you want.'}</div>${rows}</div>`;
+}
+function topicSummary(s){
+  const n = Object.values(s.picks).filter(v=>v===true||v==='all'||(Array.isArray(v)&&v.length)).length + s.custom.length;
+  return s.mode==='full' ? 'Whole course' : s.mode==='unsure' ? 'Not sure yet' : n ? `${n} chosen` : 'Tap to choose topics';
+}
+const codeOf = s => { const set = cardTopicSet(s.list); return set ? set.code : ''; };
+/* step 2: the subjects, each with its paper and latest grade */
+function renderSubjects(){
+  setDD(F('ddSubjects'), st.subjects.length ? `${st.subjects.length} subject${st.subjects.length>1?'s':''}: ${st.subjects.map(s=>s.name).join(', ')}` : '', st.level ? 'Choose your subjects' : 'Choose your year first');
+  F('subjects').innerHTML = !st.subjects.length ? `<div class="empty-subj">Tap above to choose the subjects you want help with.</div>`
+  : st.subjects.map((s,i)=>{
+    const [c] = CARD_COLORS[i % CARD_COLORS.length];
+    return `<div class="subj sline" style="--c:${c}" data-i="${i}">
+      <div class="sl-head"><span class="cdot"></span><b>${esc(s.name)}</b>${codeOf(s)?`<small>${esc(codeOf(s))}</small>`:''}</div>
+      <div class="sl-body">
+        ${cardTiered(s.list) ? `<div class="fld"><span class="lbl">Paper</span>${ddHTML('tier', s.tier, 'Not sure')}</div>` : ''}
+        <div class="fld"><span class="lbl">Latest grade (optional)</span>${ddHTML('grade', s.grade, 'Grade')}</div>
+        ${s.grade ? `<div class="fld"><span class="lbl">When</span>${ddHTML('when', s.when, 'Choose')}</div>
+        <div class="fld"><span class="lbl">Where the grade came from</span>${ddHTML('basis', s.basis, 'Choose')}</div>` : ''}
+      </div></div>`;
+  }).join('');
+  renderTopics();
+}
+/* step 3: topics for each subject, one subject open at a time */
+function renderTopics(){
+  F('topicsPanel').hidden = false;
+  if(!st.subjects.length){ F('topics').innerHTML = `<div class="empty-subj">Choose your subjects in step 2 first.</div>`; return; }
+  if(openSub < 0 || openSub >= st.subjects.length) openSub = openSub===-2 ? -2 : 0;
+  F('topics').innerHTML = st.subjects.map((s,i)=>{
+    const [c] = CARD_COLORS[i % CARD_COLORS.length], set = cardTopicSet(s.list), open = i===openSub;
+    let h = `<div class="subj" style="--c:${c}" data-i="${i}">
+      <button type="button" class="subj-head" data-act="toggle" aria-expanded="${open}"><span class="cdot"></span><span class="tt"><b>${esc(s.name)}${tierOf(s)?` <small style="display:inline;font-weight:400">${esc(tierOf(s))}</small>`:''}</b><small>${esc(topicSummary(s))}</small></span>${cardChev(open)}</button>`;
+    if(open){
+      const cover = COVER.find(x=>x.v===s.mode);
+      h += `<div class="subj-body">
+        <div class="fld"><span class="lbl">What to cover</span>${ddHTML('mode', cover.l, '')}</div>
+        ${s.mode==='full' ? `<p class="note">Your tutor will start from the beginning and work through ${set?`all ${cardEntries(set).filter(e=>e.kind!=='group').length} chapters`:'the whole course'}${tierOf(s)?` (${tierOf(s)})`:''}.</p>`
+          : s.mode==='unsure' ? `<p class="note">That's fine. Your tutor will check where you are in the first session.</p>`
+          : (set ? checklist(s) : '')}
+        ${s.mode==='selected' ? `<div class="fld"><span class="lbl">${set?'Anything not on the list?':'Which topics?'}</span>
+          ${s.custom.length?`<div class="own">${s.custom.map((t,ci)=>`<span>${esc(t)}<button type="button" data-act="rmown" data-ci="${ci}" aria-label="Remove ${esc(t)}">✕</button></span>`).join('')}</div>`:''}
+          <div class="add"><input data-act="own" placeholder="Type a topic"><button type="button" data-act="addown">Add</button></div></div>` : ''}
+        <label style="margin-bottom:0"><span>Anything else about ${esc(s.name)}? (optional)</span><textarea data-k="note" rows="2" placeholder="e.g. I struggle with graphs">${esc(s.note)}</textarea></label>
+      </div>`;
+    }
+    return h + '</div>';
+  }).join('');
+}
+function subjClick(e){
+  const b = e.target.closest('[data-act]'); if(!b || b.tagName==='INPUT') return;
+  const box = b.closest('[data-i]'), i = +box.dataset.i, s = st.subjects[i], act = b.dataset.act;
+  const after = ()=>{ renderSubjects(); renderPreview(); persist(); };
+  if(act==='toggle'){ openSub = openSub===i ? -2 : i; }
+  else if(act==='tier') return openSheet({title:`${s.name}: which paper?`, btn:b, selected:s.tier, options:TIERS.map(t=>({v:t.v, l:t.l, s:t.v==='Core'?'Grades C to G':t.v==='Extended'?'Grades A* to E, includes all Core topics':'Your tutor will check'})), onDone:v=>{ s.tier = v; after(); }});
+  else if(act==='mode') return openSheet({title:`${s.name}: what to cover`, btn:b, selected:s.mode, options:COVER.map(c=>({v:c.v, l:c.l, s:c.s})), onDone:v=>{ s.mode = v; after(); }});
+  else if(act==='grade') return openSheet({title:`${s.name}: latest grade`, btn:b, selected:s.grade, options:[...GRADES.map(g=>({v:g, l:g})), {v:'', l:'I don\'t know'}], onDone:v=>{ s.grade = v; if(!v){ s.basis=''; s.when=''; } after(); }});
+  else if(act==='basis') return openSheet({title:'Where the grade came from', btn:b, selected:s.basis, options:BASIS.map(x=>({v:x, l:x})), onDone:v=>{ s.basis = v; after(); }});
+  else if(act==='when') return openSheet({title:'When was that?', btn:b, selected:s.when, options:months().map(x=>({v:x, l:x})), onDone:v=>{ s.when = v; after(); }});
+  else if(act==='topic'){ if(s.picks[b.dataset.key]) delete s.picks[b.dataset.key]; else s.picks[b.dataset.key] = true; }
+  else if(act==='chopen') s.openCh = s.openCh===b.dataset.key ? '' : b.dataset.key;
+  else if(act==='chap'){ const k = b.dataset.key; if(s.picks[k]==='all') delete s.picks[k]; else s.picks[k] = 'all'; }
+  else if(act==='sub'){
+    const k = b.dataset.key, n = b.dataset.n, ch = cardEntries(cardTopicSet(s.list)).find(x=>x.key===k), all = cardSubsFor(ch, tierOf(s)).map(x=>x.n);
+    let arr = s.picks[k]==='all' ? all.slice() : (s.picks[k]||[]).filter(x=>all.includes(x));
+    arr = arr.includes(n) ? arr.filter(x=>x!==n) : all.filter(x=>x===n || arr.includes(x));
+    if(!arr.length) delete s.picks[k]; else s.picks[k] = arr.length===all.length ? 'all' : arr;
+  }
+  else if(act==='addown'){ const inp = b.parentElement.querySelector('input'); const v = inp.value.trim(); if(!v) return; s.custom.push(v); }
+  else if(act==='rmown') s.custom.splice(+b.dataset.ci, 1);
+  else return;
+  after();
+}
+['subjects','topics'].forEach(id=>{
+  F(id).addEventListener('click', subjClick);
+  F(id).addEventListener('input', e=>{ const t = e.target, box = t.closest('[data-i]'); if(!box || !t.dataset.k) return; st.subjects[+box.dataset.i][t.dataset.k] = t.value; renderPreview(); persist(); });
+  F(id).addEventListener('keydown', e=>{ if(e.target.dataset.act==='own' && e.key==='Enter'){ e.preventDefault(); e.target.parentElement.querySelector('[data-act="addown"]').click(); } });
+});
+
+/* ---------- section 3 ---------- */
+function renderWhen(){
+  F('days').innerHTML = CARD_DAYS.map(d=>`<button type="button" data-d="${d}" class="${st.days.includes(d)?'on':''}" aria-pressed="${st.days.includes(d)}" aria-label="${CARD_DAYNAME[d]}">${d}</button>`).join('');
+  setDD(F('ddWhere'), st.where, 'Choose');
+}
+F('days').addEventListener('click', e=>{ const b = e.target.closest('[data-d]'); if(!b) return; const d = b.dataset.d;
+  st.days = st.days.includes(d) ? st.days.filter(x=>x!==d) : CARD_DAYS.filter(x=>x===d||st.days.includes(x)); renderWhen(); renderPreview(); persist(); });
+function schoolOptions(q){
+  const out = []; let area = '';
+  SCHOOLS.filter(x=>schoolMatch(x, q)).forEach(x=>{ if(x.a!==area){ area = x.a; out.push({sep:area}); } out.push({v:x.n, l:x.n}); });
+  if(q && !SCHOOLS.some(x=>x.n.toLowerCase()===q.toLowerCase())) out.push({sep:'Not listed'}, {v:q, l:`Use “${q}”`, s:'My school isn’t on the list'});
+  else if(!q) out.push({sep:'Not listed'}, {v:'__other', l:'My school isn’t listed', s:'Type its name in the search box above'});
+  return out;
+}
+F('ddSchool').onclick = e=>openSheet({title:'Your school', btn:e.currentTarget, selected:st.school,
+  search:{placeholder:'Search or type your school', build:schoolOptions},
+  onDone:v=>{ if(v==='__other'){ setTimeout(()=>{ F('ddSchool').click(); F('shSearch').focus(); }, 50); return; } st.school = v; setDD(F('ddSchool'), st.school, 'Choose'); renderPreview(); persist(); }});
+F('ddWhere').onclick = e=>openSheet({title:'Where would you like your sessions?', btn:e.currentTarget, selected:st.where,
+  options:[{v:'At LHQ', l:'At LHQ', s:'Area 47, Sector 4, Lilongwe'}, {v:'Online', l:'Online'}, {v:'Either', l:'Either is fine'}], onDone:v=>{ st.where = v; renderWhen(); renderPreview(); persist(); }});
+
+/* ---------- the message ---------- */
+function topicLines(s){
+  const set = cardTopicSet(s.list), out = [];
+  if(s.mode==='full') return ['• The whole course, from the beginning'];
+  if(s.mode==='unsure') return ['• Not sure yet'];
+  if(set) cardEntries(set).forEach(e=>{
+    const v = s.picks[e.key]; if(!v || (Array.isArray(v) && !v.length)) return;
+    if(e.kind==='topic') out.push(`• ${e.t}`);
+    else if(v==='all') out.push(`• ${e.t} (whole chapter)`);
+    else { const ok = cardSubsFor(e, tierOf(s)).map(x=>x.n), list = v.filter(n=>ok.includes(n)); if(list.length) out.push(`• ${e.t}: ${list.join(', ')}`); }
+  });
+  s.custom.forEach(t=>out.push(`• ${t}`));
+  return out.length ? out : ['• No topics chosen'];
+}
+function payload(){
+  const subj = st.subjects.map(s=>{
+    const o = {n:s.name};
+    if(s.list) o.k = s.list;
+    if(tierOf(s)) o.r = tierOf(s);
+    if(s.mode!=='selected') o.m = s.mode==='full' ? 'f' : 'u';
+    if(s.mode==='selected' && Object.keys(s.picks).length){
+      const set = cardTopicSet(s.list), p = {};
+      Object.entries(s.picks).forEach(([k,v])=>{ if(!Array.isArray(v)){ p[k] = v; return; }
+        const e = set && cardEntries(set).find(x=>x.key===k), ok = e ? cardSubsFor(e, tierOf(s)).map(x=>x.n) : v, keep = v.filter(n=>ok.includes(n));
+        if(keep.length) p[k] = keep; });
+      if(Object.keys(p).length) o.p = p;
+    }
+    if(s.mode==='selected' && s.custom.length) o.c = s.custom;
+    if(s.grade){ o.g = s.grade; if(s.basis) o.b = s.basis; if(s.when) o.w = s.when; }
+    if(s.note.trim()) o.o = s.note.trim();
+    return o;
+  });
+  const p = {v:1, id:st.id, n:st.name.trim(), l:st.level, s:subj};
+  if(st.school.trim()) p.sc = st.school.trim();
+  if(st.exam && st.exam!=='Not sure') p.ex = st.exam;
+  if(st.days.length) p.d = st.days;
+  if(st.where) p.wh = st.where;
+  if(st.notes.trim()) p.no = st.notes.trim();
+  return p;
+}
+function b64url(bytes){ let s=''; bytes.forEach(b=>s+=String.fromCharCode(b)); return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,''); }
+async function encode(obj){
+  const raw = new TextEncoder().encode(JSON.stringify(obj));
+  if(window.CompressionStream){
+    try{ const buf = await new Response(new Blob([raw]).stream().pipeThrough(new CompressionStream('deflate-raw'))).arrayBuffer(); return 'z' + b64url(new Uint8Array(buf)); }catch(e){}
+  }
+  return 'j' + b64url(raw);
+}
+function messageText(link){
+  const L = [`Hello LHQ, here is my topic checklist.`, ''];
+  L.push(`Student: ${st.name.trim() || '-'}`);
+  L.push([LEVEL_SHORT[st.level]||st.level, st.school.trim()].filter(Boolean).join(' · ') || '-');
+  if(st.exam && st.exam!=='Not sure') L.push(`Exams: ${st.exam}`);
+  st.subjects.forEach(s=>{
+    const set = cardTopicSet(s.list);
+    L.push('', `*${s.name.toUpperCase()}*${set?` (${set.code}${tierOf(s)?', '+tierOf(s):''})`:''}`);
+    L.push(...topicLines(s));
+    if(s.grade) L.push(`Latest grade: ${s.grade}${[s.basis,s.when].filter(Boolean).length?` (${[s.basis,s.when].filter(Boolean).join(', ')})`:''}`);
+    if(s.note.trim()) L.push(`Note: ${s.note.trim()}`);
+  });
+  const when = [st.days.map(d=>CARD_DAYNAME[d]).join(', '), st.where].filter(Boolean);
+  if(when.length) L.push('', `Available: ${when.join(' · ')}`);
+  if(st.notes.trim()) L.push('', `Notes: ${st.notes.trim()}`);
+  if(link) L.push('', `For LHQ admin (opens the tuition card): ${link}`);
+  return L.join('\n');
+}
+function check(){
+  if(!st.name.trim()) return ['Please add your name.', 'name'];
+  if(!st.level) return ['Please choose your year.', 'ddYear'];
+  if(!st.subjects.length) return ['Please choose at least one subject.', 'ddSubjects'];
+  return null;
+}
+function renderPreview(){ F('preview').textContent = messageText('[link]'); if(F('err').textContent && !check()) F('err').textContent = ''; }
+async function build(){
+  const bad = check();
+  if(bad){ F('err').textContent = bad[0]; const el = F(bad[1]); el.scrollIntoView({behavior:'smooth', block:'center'}); if(el.tagName==='INPUT') el.focus(); toast(bad[0]); return null; }
+  F('err').textContent = '';
+  const link = new URL('./', location.href).href + '#import=' + await encode(payload());
+  return messageText(link);
+}
+let lastMsg = '';
+F('btnWa').onclick = async ()=>{
+  const msg = await build(); if(!msg) return; lastMsg = msg;
+  const url = `https://wa.me/${LHQ_WA}?text=${encodeURIComponent(msg)}`;
+  showThanks(); const w = window.open(url, '_blank'); if(!w) location.href = url;
+};
+F('btnEmail').onclick = async ()=>{
+  const msg = await build(); if(!msg) return; lastMsg = msg;
+  const subject = `Topic checklist: ${st.name.trim()} (${LEVEL_SHORT[st.level]||st.level})`;
+  showThanks(); location.href = `mailto:${LHQ_EMAIL}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(msg)}`;
+};
+function showThanks(){ F('form').hidden = true; F('thanks').hidden = false; window.scrollTo(0,0); }
+F('btnEdit').onclick = ()=>{ F('thanks').hidden = true; F('form').hidden = false; };
+F('btnFresh').onclick = ()=>{ if(!confirm('Clear this checklist and start a new one?')) return; st = blank(); openSub = -1; ['name','notes'].forEach(k=>F(k).value=''); renderAll(); F('thanks').hidden = true; F('form').hidden = false; window.scrollTo(0,0); };
+F('btnCopy').onclick = async ()=>{
+  const msg = lastMsg || await build(); if(!msg) return;
+  try{ await navigator.clipboard.writeText(msg); toast('Copied. Paste it into WhatsApp or an email to LHQ.'); }
+  catch(e){ toast('Couldn\'t copy here. Please use the Send buttons.'); }
+};
+['name','notes'].forEach(k=>{ F(k).value = st[k]; F(k).addEventListener('input', e=>{ st[k] = e.target.value; renderPreview(); persist(); }); });
+function toast(m){ const t = F('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('show'), 2800); }
+function renderAll(){
+  setDD(F('ddYear'), LEVEL_SHORT[st.level]||st.level, 'Choose'); setDD(F('ddSchool'), st.school, 'Choose'); setDD(F('ddExam'), st.exam, 'Choose');
+  renderSubjects(); renderWhen(); renderPreview(); persist();
+}
+renderAll();
+</script>
+</body>
+</html>

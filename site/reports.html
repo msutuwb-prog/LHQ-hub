@@ -1,0 +1,442 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#073763">
+<title>LHQ Reports</title>
+<link rel="icon" href="arrow.png">
+<link rel="apple-touch-icon" href="logo.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script src="topics.js"></script>
+<script src="card.js"></script>
+<script src="pako.min.js"></script>
+<script src="codec.js"></script>
+<style>
+:root{--navy:#073763;--gold:#f4b223;--ink:#1d2433;--muted:#5f6b7d;--line:#dde2ea;--bg:#eef1f5;--field:#f6f8fb;--wa:#1f9d55;--ok:#1f7a4d;--red:#b42318}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+[hidden]{display:none!important}
+.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;padding:10px 20px;padding-top:calc(10px + env(safe-area-inset-top,0px));background:var(--navy);color:#fff}
+.topbar img{height:30px;background:#fff;border-radius:6px;padding:3px 6px}
+.topbar h1{font-size:16px;font-weight:600;margin:0;flex:1}
+button{font:inherit;cursor:pointer;border-radius:9px;border:1px solid var(--line);background:#fff;color:var(--ink);padding:8px 13px;min-height:38px}
+button:disabled{opacity:.5;cursor:default}
+button.ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.35)}
+button.navy{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:600}
+button.wa{background:var(--wa);border-color:var(--wa);color:#fff;font-weight:600}
+button.small{padding:5px 10px;font-size:13px;min-height:32px}
+a.ghost{color:#fff;text-decoration:none;border:1px solid rgba(255,255,255,.35);border-radius:9px;padding:7px 13px}
+main{max-width:1000px;margin:0 auto;padding:16px;display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+.panel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px;min-width:0}
+.h2{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:0 0 10px;font-weight:600}
+.hint{font-size:12.5px;color:var(--muted);margin:6px 0 0}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.seg{display:inline-grid;grid-auto-flow:column;border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.seg button{border:0;border-radius:0;border-left:1px solid var(--line);padding:8px 16px;font-weight:600;color:#3b4555}
+.seg button:first-child{border-left:0}.seg button.on{background:var(--navy);color:#fff}
+.nav{display:flex;align-items:center;gap:6px}
+.nav b{min-width:190px;text-align:center;font-size:15px}
+.nav button{width:38px;padding:0}
+.tag{font-size:11.5px;font-weight:700;border-radius:99px;padding:2px 9px;white-space:nowrap;display:inline-block}
+.t-ok{background:#e3f4ea;color:var(--ok)}.t-amb{background:#fdf1d6;color:#7a5400}.t-red{background:#fde8e6;color:var(--red)}.t-blue{background:#e6edf6;color:var(--navy)}
+.tags{display:flex;flex-wrap:wrap;gap:6px}
+.srow{display:grid;grid-template-columns:minmax(150px,1.1fr) minmax(0,2.4fr) auto auto;gap:10px;align-items:center;padding:11px 0;border-top:1px solid #eef1f5}
+.srow:first-of-type{border-top:0}
+.srow small{display:block;color:var(--muted);font-size:12.5px}
+@media (max-width:700px){ .srow{grid-template-columns:minmax(0,1fr) auto} .srow .tags{grid-column:1 / -1;order:3} .srow > span.tag{order:2} }
+.flag{display:flex;gap:10px;align-items:baseline;padding:6px 0;border-top:1px solid #eef1f5;font-size:13.5px}
+.flag:first-child{border-top:0}
+.banner{background:#eef6ee;border:1px solid #cfe6d3;border-radius:12px;padding:12px 14px;font-size:14px}
+.banner.err{background:#fde8e6;border-color:#f3c2bc}
+.empty{color:var(--muted);font-size:13.5px;margin:0}
+dialog{border:0;border-radius:14px;padding:0;width:min(1100px,calc(100vw - 16px));max-height:calc(100dvh - 16px);box-shadow:0 20px 60px rgba(0,0,0,.25)}
+dialog::backdrop{background:rgba(7,25,45,.55)}
+.dlg{display:flex;flex-direction:column;max-height:calc(100dvh - 16px)}
+.dlg-head{display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
+.dlg-head h3{margin:0;font-size:16px;flex:1}
+.dlg-body{overflow:auto;padding:14px 16px;background:var(--bg)}
+.dlg-foot{display:flex;flex-wrap:wrap;gap:8px;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);background:#fafbfc}
+.dlg-foot button{flex:1 1 150px}
+.pv-grid{display:grid;grid-template-columns:minmax(0,340px) minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:860px){ .pv-grid{grid-template-columns:minmax(0,1fr)} }
+.edit label{display:block;font-size:12.5px;color:var(--muted);margin-bottom:10px}
+.edit label span{display:block;margin-bottom:3px}
+.edit textarea,.edit input{width:100%;font:inherit;font-size:14.5px;color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:8px;padding:8px 10px}
+.edit textarea{resize:vertical;line-height:1.45}
+.edit h4{margin:14px 0 6px;font-size:13px;color:var(--navy)}
+.pv-wrap{overflow:hidden}
+.pv-scale{transform-origin:top left}
+.pv-pages > .rp{box-shadow:0 2px 14px rgba(0,0,0,.12);margin-bottom:12px}
+table.log{width:100%;border-collapse:collapse;font-size:13px}
+table.log th{text-align:left;font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);padding:6px 8px;border-bottom:1px solid var(--line)}
+table.log td{padding:6px 8px;border-bottom:1px solid #eef1f5;vertical-align:top}
+.links-row{display:flex;flex-wrap:wrap;align-items:center;gap:8px;padding:9px 0;border-top:1px solid #eef1f5}
+.links-row:first-child{border-top:0}
+.links-row b{flex:1;min-width:160px}
+.toast{position:fixed;bottom:calc(20px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:9px 16px;border-radius:9px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:99;max-width:90vw;text-align:center}
+.toast.show{opacity:1}
+#stage{position:fixed;left:-10000px;top:0;pointer-events:none}
+
+/* ================= the report (quote styling: navy, gold, Carlito) ================= */
+.rp{background:#fff;color:#1d2433;font-family:Carlito,Calibri,'Segoe UI',sans-serif;-webkit-font-smoothing:antialiased;position:relative;overflow:hidden}
+.rp.wk{width:720px;padding:34px 42px 28px}
+.rp.a4{width:794px;height:1122px;padding:30px 42px 0}
+.rp .hd{display:flex;align-items:center;justify-content:space-between;gap:20px}
+.rp .hd img{height:42px;display:block}
+.rp .hd .ttl{text-align:right}
+.rp .hd .ttl b{display:block;color:#073763;font-size:13px;letter-spacing:2.6px;font-weight:700}
+.rp .hd .ttl span{display:block;color:#5f6b7d;font-size:12.5px;margin-top:2px}
+.rp .rule{height:2px;background:#f4b223;margin:13px 0 18px}
+.rp .glance{font-size:10px;letter-spacing:1.4px;color:#a86a00;font-weight:700;text-transform:uppercase;margin:0 0 4px}
+.rp .who h1{margin:0;color:#073763;font-size:29px;line-height:1.1;font-weight:700}
+.rp .who p{margin:4px 0 0;color:#5f6b7d;font-size:14px}
+.rp .figs{display:grid;grid-template-columns:repeat(4,1fr);margin:18px 0 20px}
+.rp .figs div{padding:2px 14px;border-left:1px solid #dde2ea}
+.rp .figs div:first-child{padding-left:0;border-left:0}
+.rp .figs b{display:block;color:#073763;font-size:26px;line-height:1.05;font-weight:700}
+.rp .figs small{display:block;color:#5f6b7d;font-size:10.5px;letter-spacing:1px;text-transform:uppercase;margin-top:5px}
+.rp .sec{color:#5f6b7d;font-size:10.5px;letter-spacing:1.6px;text-transform:uppercase;font-weight:700;margin:0 0 6px;padding-bottom:6px;border-bottom:1px solid #073763}
+.rp table{width:100%;border-collapse:collapse;font-size:13.5px}
+.rp th{color:#5f6b7d;font-size:10px;letter-spacing:1.1px;text-transform:uppercase;font-weight:700;text-align:left;padding:0 6px 6px}
+.rp th:first-child,.rp td:first-child{padding-left:0}
+.rp td{padding:8px 6px;border-top:1px solid #e6eaf0;vertical-align:top}
+.rp .c{text-align:center}
+.rp .sub{display:block;color:#7a8494;font-size:12px;margin-top:1px}
+.rp .gr{font-weight:700;color:#073763;font-size:15px}
+.rp .up{color:#1f7a4d}.rp .dn{color:#b42318}.rp .fl{color:#9aa3b1}
+.rp .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-left:6px;vertical-align:1px}
+.rp .g{background:#1f9d55}.rp .a{background:#d99a00}.rp .r{background:#c0392b}
+.rp .watch{margin:0;padding:0;list-style:none}
+.rp .watch li{display:flex;gap:10px;align-items:baseline;font-size:13.5px;padding:6px 0;border-top:1px solid #eef1f5;color:#2b3442}
+.rp .watch li:first-child{border-top:0}
+.rp .watch i{width:8px;height:8px;border-radius:50%;flex:none;transform:translateY(-1px)}
+.rp .notes{font-size:13.5px;line-height:1.5;color:#3b4555}
+.rp .notes p{margin:0 0 5px}.rp .notes b{color:#073763}
+.rp .cmt{font-size:13.5px;line-height:1.55;color:#2b3442;margin:0}
+.rp .ft{display:flex;justify-content:space-between;gap:24px;border-top:1px solid #dde2ea;margin-top:20px;padding-top:9px;font-size:10px;color:#7a8494;line-height:1.45}
+.rp.a4 .ft{position:absolute;left:42px;right:42px;bottom:22px;margin:0}
+.rp .ft span:last-child{text-align:right;max-width:58%}
+.rp .mini{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #dde2ea;padding-bottom:10px;margin-bottom:18px}
+.rp .mini img{height:26px}.rp .mini span{font-size:11.5px;color:#5f6b7d}
+.rp .spark{display:inline-flex;align-items:flex-end;gap:3px;height:22px;vertical-align:middle}
+.rp .spark i{display:block;width:7px;background:#b9c9dc}.rp .spark i:last-child{background:#073763}
+.rp .srag{display:grid;grid-template-columns:repeat(3,1fr);gap:0 24px}
+.rp .srag table{font-size:12.5px}
+.rp .srag th{font-size:9.5px;padding:0 3px 5px}
+.rp .srag td{padding:3px 3px;border-top:1px solid #eef1f5}
+.rp .srag td:first-child{padding-left:0}
+.rp .srag td:last-child,.rp .srag th:last-child{text-align:right;white-space:nowrap}
+.rp .srag tr.sh td,.rp .srag tr.sh td:last-child{text-align:left;border-top:0;padding:7px 0 2px;color:#073763;font-weight:700;font-size:10px;letter-spacing:1.1px;text-transform:uppercase}
+.rp .ok{color:#1f7a4d;font-weight:700}.rp .bad{color:#b42318;font-weight:700}
+.rp .subj{padding:2px 0 14px;margin-bottom:12px;border-bottom:1px solid #e6eaf0}
+.rp .subj h3{margin:0;display:flex;align-items:baseline;gap:10px;color:#073763;font-size:18px}
+.rp .subj h3 small{color:#7a8494;font-size:12.5px;font-weight:400}
+.rp .subj h3 em{margin-left:auto;font-style:normal;font-size:12.5px;color:#5f6b7d;font-weight:400}
+.rp .subj h3 em b{color:#1d2433}
+.rp .sfig{display:flex;margin:7px 0 6px}
+.rp .sfig div{padding:0 14px;border-left:1px solid #dde2ea}.rp .sfig div:first-child{padding-left:0;border-left:0}
+.rp .sfig b{display:block;color:#073763;font-size:17px;line-height:1.15}.rp .sfig small{color:#7a8494;font-size:10px;letter-spacing:.9px;text-transform:uppercase}
+.rp .tp{font-size:12.5px;color:#3b4555;margin-bottom:7px}.rp .tp b{color:#1d2433}
+.rp .cols{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;font-size:12.5px;line-height:1.45}
+.rp .cols h4{margin:0 0 3px;font-size:10px;letter-spacing:1.2px;text-transform:uppercase;color:#073763}
+.rp .cols ul{margin:0;padding-left:14px;color:#3b4555}.rp .cols li{margin-bottom:2px}
+</style>
+</head>
+<body>
+<header class="topbar">
+  <img src="logo.png" alt="LHQ">
+  <h1>Reports</h1>
+  <button class="ghost small" id="btnLinks">Tutor links</button>
+  <a class="ghost" href="./">Quotes &amp; Invoices</a>
+</header>
+
+<main>
+  <div class="banner" id="importBanner" hidden></div>
+
+  <section class="panel">
+    <div class="row" style="justify-content:space-between">
+      <div class="seg" id="freqSeg" role="group" aria-label="Report type">
+        <button type="button" data-f="w" class="on">Weekly</button><button type="button" data-f="2">2-weekly</button><button type="button" data-f="m">Monthly</button>
+      </div>
+      <div class="nav"><button type="button" id="prev" aria-label="Earlier">‹</button><b id="periodLbl"></b><button type="button" id="next" aria-label="Later">›</button></div>
+    </div>
+    <p class="hint" id="periodHint"></p>
+  </section>
+
+  <section class="panel">
+    <div class="h2">Tutor logs for this period</div>
+    <div class="tags" id="tutorTags"></div>
+    <p class="hint">Tutors send their log on WhatsApp. Tap the link in their message <b>on this device</b> to bring it in. Nothing is counted twice.</p>
+  </section>
+
+  <section class="panel">
+    <div class="h2">Students</div>
+    <div id="students"></div>
+  </section>
+
+  <section class="panel">
+    <div class="h2">Flags for LHQ (not shown to parents)</div>
+    <div id="flags"></div>
+  </section>
+</main>
+
+<!-- tutor links -->
+<dialog id="linksDlg"><div class="dlg">
+  <div class="dlg-head"><h3>Tutor session-log links</h3><button class="small" data-close>✕</button></div>
+  <div class="dlg-body" style="background:#fff">
+    <p class="hint" style="margin:0 0 10px">Each tutor gets their own link listing the students and subjects on saved tuition cards with their name. Send it again whenever you add a student or change a card.</p>
+    <div id="linksList"></div>
+  </div>
+</div></dialog>
+
+<!-- report preview -->
+<dialog id="pvDlg"><div class="dlg">
+  <div class="dlg-head"><h3 id="pvTitle">Report</h3><button class="small" data-close>✕</button></div>
+  <div class="dlg-body">
+    <div class="pv-grid">
+      <div class="panel edit" id="pvEdit"></div>
+      <div class="pv-wrap" id="pvWrap"><div class="pv-scale" id="pvScale"><div class="pv-pages" id="pvPages"></div></div></div>
+    </div>
+  </div>
+  <div class="dlg-foot">
+    <button class="wa" id="pvShareImg">Share image (page 1)</button>
+    <button class="navy" id="pvSharePdf">Share PDF</button>
+    <button id="pvDownload">Download</button>
+  </div>
+</div></dialog>
+
+<!-- log details -->
+<dialog id="logDlg"><div class="dlg">
+  <div class="dlg-head"><h3 id="logTitle">Log</h3><button class="small" data-close>✕</button></div>
+  <div class="dlg-body" style="background:#fff" id="logBody"></div>
+</div></dialog>
+
+<div id="stage" aria-hidden="true"></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+const F = id => document.getElementById(id);
+const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+function toast(m){ const t = F('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('show'), 3000); }
+document.querySelectorAll('[data-close]').forEach(b=>b.onclick = ()=>b.closest('dialog').close());
+
+/* ---------- dates ---------- */
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTH = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const isoOf = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+const parseISO = s => { const [y,m,d] = s.split('-').map(Number); return new Date(y, m-1, d); };
+const today = () => isoOf(new Date());
+const addDays = (s,n) => { const d = parseISO(s); d.setDate(d.getDate()+n); return isoOf(d); };
+const monday = s => { const d = parseISO(s); d.setDate(d.getDate() - ((d.getDay()+6)%7)); return isoOf(d); };
+const nice = s => { const d = parseISO(s); return `${WD[d.getDay()]} ${d.getDate()} ${MON[d.getMonth()]}`; };
+const longDate = s => { const d = parseISO(s); return `${d.getDate()} ${MON[d.getMonth()]} ${d.getFullYear()}`; };
+function range(a, b, long){
+  const A = parseISO(a), B = parseISO(b), M = long ? MONTH : MON;
+  if(A.getFullYear()!==B.getFullYear()) return `${A.getDate()} ${M[A.getMonth()]} ${A.getFullYear()} – ${B.getDate()} ${M[B.getMonth()]} ${B.getFullYear()}`;
+  return A.getMonth()===B.getMonth() ? `${A.getDate()} – ${B.getDate()} ${M[B.getMonth()]} ${B.getFullYear()}` : `${A.getDate()} ${M[A.getMonth()]} – ${B.getDate()} ${M[B.getMonth()]} ${B.getFullYear()}`;
+}
+
+/* ---------- data ---------- */
+const norm = s => String(s||'').trim().toLowerCase().replace(/\s+/g,' ');
+const settings = Object.assign({tutors:''}, store.get('lhq_settings', {}));
+let saved = store.get('lhq_saved', []);
+let LOG = store.get('lhq_logs', {e:{}, imports:[]});
+const saveLog = () => store.set('lhq_logs', LOG);
+const GRADES = [[90,'A*'],[80,'A'],[70,'B'],[60,'C'],[50,'D'],[40,'E'],[30,'F'],[20,'G'],[0,'U']];
+const letter = p => p==null ? '' : GRADES.find(([m])=>p >= m)[1];
+const rank = l => GRADES.findIndex(([,g])=>g===l);
+const avg = xs => xs.length ? Math.round(xs.reduce((a,b)=>a+b,0) / xs.length) : null;
+const pct = e => e.sc!=null && e.mx>0 ? Math.round(e.sc / e.mx * 100) : null;
+const shortLevel = l => String(l||'').replace(' · ', ' · ');
+
+const cardSubjects = () => cardRosterSubjects(saved);
+const entries = () => Object.values(LOG.e).filter(e=>!e.x);
+
+/* ---------- importing a tutor's log (link …/reports.html#log=…) ---------- */
+async function importFromHash(){
+  const m = location.hash.match(/^#log=(.+)$/); if(!m) return;
+  history.replaceState(null, '', location.pathname + location.search);
+  const B = F('importBanner');
+  try{
+    const p = await lhqDecode(m[1]);
+    if(!p || !p.t || !Array.isArray(p.e)) throw new Error('bad');
+    let added = 0, updated = 0, removed = 0, same = 0;
+    p.e.forEach(e=>{
+      const cur = LOG.e[e.id];
+      if(cur && (cur.at||0) >= (e.at||0)){ same++; return; }
+      if(e.x){ if(cur && !cur.x) removed++; LOG.e[e.id] = {id:e.id, x:1, at:e.at, tutor:p.t}; return; }
+      cur ? updated++ : added++;
+      LOG.e[e.id] = Object.assign({}, e, {tutor:p.t});
+    });
+    LOG.imports.unshift({t:p.t, at:Date.now(), n:p.e.length}); LOG.imports = LOG.imports.slice(0, 200);
+    saveLog();
+    B.className = 'banner'; B.hidden = false;
+    B.innerHTML = `<b>Log from ${esc(p.t)} imported.</b> ${[added && `${added} new`, updated && `${updated} updated`, removed && `${removed} deleted`, same && `${same} already here`].filter(Boolean).join(', ') || 'Nothing new'}.`;
+    // jump to the week of the newest entry in the log
+    const last = p.e.filter(e=>!e.x).map(e=>e.d).sort().pop();
+    if(last){ state.end = addDays(monday(last), 6); }
+  }catch(err){
+    console.error(err); B.className = 'banner err'; B.hidden = false;
+    B.textContent = 'That log link is incomplete. Ask the tutor to send it again.';
+  }
+}
+
+/* ---------- period ---------- */
+const state = {freq:'w', end: addDays(monday(today()), 6)};
+const weeks = () => state.freq==='m' ? 4 : state.freq==='2' ? 2 : 1;
+const period = () => ({a: addDays(state.end, -7*weeks() + 1), b: state.end});
+F('freqSeg').addEventListener('click', e=>{ const b = e.target.closest('[data-f]'); if(!b) return; state.freq = b.dataset.f; render(); });
+F('prev').onclick = ()=>{ state.end = addDays(state.end, -7); render(); };
+F('next').onclick = ()=>{ state.end = addDays(state.end, 7); render(); };
+
+/* ---------- the numbers for one student over a period ---------- */
+function studentModel(name, a, b){
+  const subs = cardSubjects().filter(s=>norm(s.student)===norm(name));
+  const E = entries().filter(e=>norm(e.st)===norm(name));
+  // subjects only seen in tutor logs still count
+  E.forEach(e=>{ if(!subs.some(s=>norm(s.name)===norm(e.sub))) subs.push({key:norm(name)+'|'+norm(e.sub), student:name, name:e.sub, tier:'', code:'', tutor:e.tutor, tf:1, level:'', periodStart:'', topics:[]}); });
+  const info = subs[0] || {student:name};
+  const ps = subs.map(s=>s.periodStart).filter(Boolean).sort()[0] || '';   // grades count from the tuition period start
+  const res = subs.map(s=>{
+    const X = E.filter(e=>norm(e.sub)===norm(s.name));
+    const inP = e => e.d >= a && e.d <= b;
+    const sess = X.filter(e=>e.ty==='s' && inP(e)).sort((x,y)=>x.d.localeCompare(y.d));
+    const attended = sess.filter(e=>e.a!=='absent').length, absences = sess.filter(e=>e.a==='absent').map(e=>e.d);
+    const tests = sess.filter(e=>pct(e)!=null).map(pct);
+    const gradeTo = end => avg(X.filter(e=>e.ty==='s' && pct(e)!=null && e.d <= end && (!ps || e.d >= ps)).map(pct));
+    const gNow = gradeTo(b), gPrev = gradeTo(addDays(a, -1));
+    const weeklyG = [3,2,1,0].map(k=>gradeTo(addDays(b, -7*k)));
+    const sras = X.filter(e=>e.ty==='r' && inP(e));
+    const sraAll = X.filter(e=>e.ty==='r' && (!ps || e.d >= ps) && e.d <= b && pct(e)!=null).map(pct);
+    const topicTests = avg(X.filter(e=>e.ty==='s' && pct(e)!=null && (!ps || e.d >= ps) && e.d <= b).map(pct));
+    const notes = sess.filter(e=>e.n).map(e=>e.n);
+    const cm = X.filter(e=>e.ty==='c' && e.d <= b && e.d >= addDays(a, -21)).sort((x,y)=>y.d.localeCompare(x.d))[0] || null;
+    const byTopic = {};
+    sras.forEach(e=>{ const t = byTopic[e.tk] || (byTopic[e.tk] = {due:0, on:0, late:0, miss:0}); t.due++; if(e.h==='o') t.on++; else if(e.h==='l') t.late++; else t.miss++; });
+    return Object.assign({}, s, {
+      sessions:sess.length, attended, absences, tests, testAvg:avg(tests), lastTest: tests.length ? tests[tests.length-1] : null,
+      gNow, gPrev, weeklyG, trend: gNow==null || gPrev==null ? 0 : Math.sign(rank(letter(gPrev)) - rank(letter(gNow))),
+      topicsCovered:[...new Set(sess.flatMap(e=>e.tp||[]))],
+      sraDue:sras.length, sraOn:sras.filter(e=>e.h==='o').length, sraLate:sras.filter(e=>e.h==='l').length, sraMiss:sras.filter(e=>e.h==='m').length,
+      sraAvgAdmin:avg(sraAll), testAvgAdmin:topicTests, sraTopics:byTopic,
+      note: notes.length ? notes[notes.length-1] : '', comments: cm, logged: X.some(inP), tutorsSeen:[...new Set(X.filter(inP).map(e=>e.tutor))]
+    });
+  });
+  const T = k => res.reduce((x,s)=>x + s[k], 0);
+  const allTests = res.flatMap(s=>s.tests);
+  const grades = res.map(s=>s.gNow).filter(x=>x!=null);
+  return {name: info.student || name, level: info.level || '', exam: info.exam || '', periodStart: info.periodStart || '', periodEnd: info.periodEnd || '',
+    subjects: res, a, b, sessions:T('sessions'), attended:T('attended'), testAvg:avg(allTests), testCount:allTests.length,
+    sraDue:T('sraDue'), sraOn:T('sraOn'), overall: avg(grades)};
+}
+function watchItems(m){   // for parents: at most 3, most important first
+  const out = [];
+  m.subjects.forEach(s=>{ if(s.trend < 0) out.push([0, 'r', `<b>${esc(s.name)}</b> · working grade slipped from ${letter(s.gPrev)} to ${letter(s.gNow)}.`]); });
+  m.subjects.forEach(s=>{ if(s.sraMiss) out.push([1, 'r', `<b>${esc(s.name)}</b> · ${s.sraMiss} SRA${s.sraMiss>1?'s':''} not handed in.`]); });
+  m.subjects.forEach(s=>{ if(s.absences.length) out.push([2, 'a', `<b>${esc(s.name)}</b> · ${s.absences.length} session${s.absences.length>1?'s':''} missed (${s.absences.map(nice).join(', ')}).`]); });
+  m.subjects.forEach(s=>{ if(s.sraLate){ const topics = Object.entries(s.sraTopics).filter(([,t])=>t.late).map(([k])=>k); out.push([3, 'a', `<b>${esc(s.name)}</b> · ${s.sraLate} SRA${s.sraLate>1?'s':''} handed in late${topics.length?` (${esc(topics.join(', '))})`:''}.`]); } });
+  return out.sort((x,y)=>x[0]-y[0]).slice(0, 3);
+}
+function adminFlags(m){
+  const out = [];
+  m.subjects.forEach(s=>{
+    const who = `<b>${esc(m.name)}</b> · ${esc(s.name)}`;
+    if(!s.logged) out.push(['t-red','No log', `${who}: nothing logged by ${esc(s.tutor || 'the tutor')} this period`]);
+    if(s.absences.length) out.push(['t-red','Absent', `${who}: missed ${s.absences.map(nice).join(', ')}`]);
+    if(s.trend < 0) out.push(['t-red','Grade ↓', `${who}: ${letter(s.gPrev)} → ${letter(s.gNow)}`]);
+    if(s.sraMiss) out.push(['t-red','SRA', `${who}: ${s.sraMiss} not handed in`]);
+    if(s.sraLate) out.push(['t-amb','SRA', `${who}: ${s.sraLate} late`]);
+    if(s.sraAvgAdmin!=null && s.testAvgAdmin!=null && s.sraAvgAdmin - s.testAvgAdmin >= 20)
+      out.push(['t-amb','Check SRAs', `${who}: home SRAs average ${s.sraAvgAdmin}% but topical tests ${s.testAvgAdmin}%`]);
+  });
+  return out;
+}
+
+/* ---------- main screen ---------- */
+function studentNames(){
+  const names = new Map();
+  cardSubjects().forEach(s=>names.set(norm(s.student), s.student));
+  entries().forEach(e=>{ if(!names.has(norm(e.st))) names.set(norm(e.st), e.st); });
+  return [...names.values()].sort((x,y)=>x.localeCompare(y));
+}
+function render(){
+  const {a, b} = period();
+  document.querySelectorAll('#freqSeg button').forEach(x=>x.classList.toggle('on', x.dataset.f===state.freq));
+  F('periodLbl').textContent = range(a, b);
+  F('periodHint').textContent = state.freq==='w' ? 'Weekly: one page, numbers first. Sent as an image.'
+    : state.freq==='2' ? 'Every 2 weeks: the same one-page layout covering two weeks.'
+    : 'Monthly (4 weeks): the at-a-glance page plus the detailed report, with an overall comment you can edit.';
+  // tutors
+  const cs = cardSubjects(), tutors = [...new Set(cs.map(s=>s.tutor).filter(Boolean))].sort();
+  const inP = entries().filter(e=>e.d >= a && e.d <= b);
+  F('tutorTags').innerHTML = tutors.map(t=>{
+    const n = inP.filter(e=>e.tutor===t).length, imp = LOG.imports.find(i=>i.t===t);
+    return n ? `<span class="tag t-ok">${esc(t)} ✓ ${n} entr${n===1?'y':'ies'}</span>` : `<span class="tag t-red">${esc(t)} · nothing this period</span>`;
+  }).join('') || '<p class="empty">No tutors yet. Put tutors\' names on tuition cards and save them, then send each tutor their link (Tutor links, top right).</p>';
+  // students
+  const names = studentNames(), models = names.map(n=>studentModel(n, a, b));
+  F('students').innerHTML = models.map((m,i)=>{
+    const chips = m.subjects.map(s=>`<span class="tag ${s.logged?'t-ok':'t-red'}">${esc(s.name)} ${s.logged?'✓':'· no log'}</span>`).join('');
+    const missing = m.subjects.filter(s=>!s.logged).length, any = m.subjects.some(s=>s.logged);
+    const status = !any ? '<span class="tag t-red">No logs</span>' : missing ? '<span class="tag t-amb">Waiting</span>' : (watchItems(m).length ? `<span class="tag t-amb">Ready · ${watchItems(m).length} to watch</span>` : '<span class="tag t-ok">Ready</span>');
+    return `<div class="srow"><div><b>${esc(m.name)}</b><small>${esc(m.level)}</small></div><div class="tags">${chips}</div>${status}
+      <div class="row" style="gap:6px;justify-content:flex-end"><button class="small" data-log="${i}">Log</button><button class="small ${any?'navy':''}" data-pv="${i}" ${any?'':'disabled'}>Preview &amp; share</button></div></div>`;
+  }).join('') || '<p class="empty">No students yet. Students appear here from saved tuition cards and tutor logs.</p>';
+  F('students').onclick = e=>{
+    const p = e.target.closest('[data-pv]'); if(p){ openPreview(models[+p.dataset.pv]); return; }
+    const l = e.target.closest('[data-log]'); if(l) openLog(models[+l.dataset.log]);
+  };
+  // flags
+  const fl = models.flatMap(adminFlags);
+  F('flags').innerHTML = fl.map(([c,t,x])=>`<div class="flag"><span class="tag ${c}">${t}</span><span>${x}</span></div>`).join('') || '<p class="empty">Nothing flagged for this period.</p>';
+}
+
+/* ---------- tutor links ---------- */
+F('btnLinks').onclick = async ()=>{
+  const cs = cardSubjects(), tutors = [...new Set(cs.map(s=>s.tutor).filter(Boolean))].sort();
+  F('linksList').innerHTML = tutors.map((t,i)=>{ const n = cs.filter(s=>s.tutor===t);
+    return `<div class="links-row"><b>${esc(t)}<small style="display:block;font-weight:400;color:var(--muted);font-size:12.5px">${n.length} subject${n.length===1?'':'s'}: ${esc(n.map(s=>`${s.student} (${s.name})`).join(', '))} · ${esc(cardTutorSentText(t))}</small></b>
+      <button class="small wa" data-send="${i}">Send on WhatsApp</button><button class="small" data-copy="${i}">Copy link</button></div>`; }).join('')
+    || '<p class="empty">No tuition cards with a tutor yet. Open a tuition card in the app, choose a tutor for each subject, and save it.</p>';
+  F('linksList').onclick = async e=>{
+    const b = e.target.closest('[data-send],[data-copy]'); if(!b) return;
+    const t = tutors[+(b.dataset.send ?? b.dataset.copy)], link = await tutorLink(t);
+    if(b.dataset.copy!==undefined){ try{ await navigator.clipboard.writeText(link); toast('Link copied'); }catch(err){ prompt('Copy this link', link); } return; }
+    const msg = cardTutorMessage(t, link); cardMarkTutorSent(t);
+    const url = 'https://wa.me/?text=' + encodeURIComponent(msg); const w = window.open(url, '_blank'); if(!w) location.href = url;
+  };
+  F('linksDlg').showModal();
+};
+const tutorLink = t => cardTutorLink(saved, t);
+
+/* ---------- log details (admin sees everything, including SRA scores) ---------- */
+function openLog(m){
+  const E = entries().filter(e=>norm(e.st)===norm(m.name) && e.d >= m.a && e.d <= m.b).sort((x,y)=>x.d.localeCompare(y.d));
+  F('logTitle').textContent = `${m.name} · ${range(m.a, m.b)}`;
+  F('logBody').innerHTML = E.length ? `<table class="log"><tr><th>Date</th><th>Subject</th><th>Entry</th><th>Tutor</th></tr>${E.map(e=>{
+    let w = '';
+    if(e.ty==='s') w = (e.a==='absent' ? '<span class="tag t-red">Absent</span>' : e.a==='late' ? 'Attended (late)' : 'Attended') + (pct(e)!=null ? ` · topical test ${e.sc}/${e.mx} (${pct(e)}%)` : '') + (e.tp&&e.tp.length ? `<br><small>${esc(e.tp.join(', '))}</small>` : '') + (e.n ? `<br><i>${esc(e.n)}</i>` : '');
+    else if(e.ty==='r') w = `SRA · ${esc(e.tk)} · review ${e.rv} · ${e.h==='m'?'<span class="tag t-red">not handed in</span>':e.h==='l'?'<span class="tag t-amb">late</span>':'on time'}${pct(e)!=null ? ` · ${e.sc}/${e.mx} (${pct(e)}%)` : ''}`;
+    else w = `Monthly comments<br><small>${esc([e.cs,e.ci,e.cn].filter(Boolean).join(' / '))}</small>`;
+    return `<tr><td>${nice(e.d)}</td><td>${esc(e.sub)}</td><td>${w}</td><td>${esc(e.tutor)}</td></tr>`; }).join('')}</table>`
+    : '<p class="empty">Nothing logged for this student in this period.</p>';
+  F('logDlg').showModal();
+}
+</script>
+<script src="report-render.js"></script>
+<script>
+(async ()=>{ await importFromHash(); render(); })();
+window.addEventListener('hashchange', async ()=>{ await importFromHash(); render(); });
+</script>
+</body>
+</html>

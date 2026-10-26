@@ -1,0 +1,1338 @@
+/* Topic checklists for LHQ tuition cards. Main headings from the official Cambridge syllabuses (IGCSE, A Level)
+   and curriculum frameworks (Years 6–9), checked October 2026. Edit with care: the app reads this as-is. */
+window.TOPICS = {
+ "Primary (Year 6)": {
+  "Mathematics": {
+   "code": "0096",
+   "years": "Primary curriculum framework (2020), Stage 6 · Primary Checkpoint",
+   "topics": [
+    {
+     "group": "Number"
+    },
+    "Counting and sequences",
+    "Integers and powers",
+    "Money",
+    "Place value, ordering and rounding",
+    "Fractions, decimals, percentages, ratio and proportion",
+    {
+     "group": "Geometry and Measure"
+    },
+    "Time",
+    "Geometrical reasoning, shapes and measurements",
+    "Position and transformation",
+    {
+     "group": "Statistics and Probability"
+    },
+    "Statistics",
+    "Probability",
+    {
+     "group": "Across all strands"
+    },
+    "Thinking and Working Mathematically"
+   ]
+  },
+  "English": {
+   "code": "0058",
+   "years": "Primary curriculum framework (2020), Stage 6 · Primary Checkpoint",
+   "skills": true,
+   "topics": [
+    {
+     "group": "Reading"
+    },
+    "Vocabulary and language",
+    "Grammar and punctuation",
+    "Structure of texts",
+    "Interpretation of texts",
+    "Appreciation and reflection",
+    {
+     "group": "Writing"
+    },
+    "Word structure (spelling)",
+    "Vocabulary and language (writing)",
+    "Grammar and punctuation (writing)",
+    "Structure of texts (writing)",
+    "Creation of texts",
+    "Presentation and reflection",
+    {
+     "group": "Speaking and Listening"
+    },
+    "Making yourself understood",
+    "Showing understanding",
+    "Group work and discussion",
+    "Performance",
+    "Reflection and evaluation"
+   ]
+  },
+  "Science": {
+   "code": "0097",
+   "years": "Primary curriculum framework (2020), Stage 6 · Primary Checkpoint",
+   "topics": [
+    {
+     "group": "Biology"
+    },
+    "Structure and function",
+    "Life processes",
+    "Ecosystems",
+    {
+     "group": "Chemistry"
+    },
+    "Properties of materials",
+    "Changes to materials",
+    {
+     "group": "Physics"
+    },
+    "Forces and energy",
+    "Light and sound",
+    "Electricity and magnetism",
+    {
+     "group": "Earth and Space"
+    },
+    "Planet Earth",
+    "Earth in space",
+    "Cycles on Earth",
+    {
+     "group": "Thinking and Working Scientifically"
+    },
+    "Models and representations",
+    "Scientific enquiry: purpose and planning",
+    "Carrying out scientific enquiry",
+    "Scientific enquiry: analysis, evaluation and conclusions",
+    {
+     "group": "Context"
+    },
+    "Science in Context"
+   ]
+  }
+ },
+ "Lower Secondary (Years 7–9)": {
+  "Mathematics": {
+   "code": "0862",
+   "years": "Lower Secondary curriculum framework (2020, v2 2021), Stages 7–9 · Checkpoint at Stage 9",
+   "topics": [
+    {
+     "group": "Number"
+    },
+    "Integers, powers and roots",
+    "Place value, ordering and rounding",
+    "Fractions, decimals, percentages, ratio and proportion",
+    {
+     "group": "Algebra"
+    },
+    "Expressions, equations and formulae",
+    "Sequences, functions and graphs",
+    {
+     "group": "Geometry and Measure"
+    },
+    "Geometrical reasoning, shapes and measurements",
+    "Position and transformation",
+    {
+     "group": "Statistics and Probability"
+    },
+    "Statistics",
+    "Probability",
+    {
+     "group": "Across all strands"
+    },
+    "Thinking and Working Mathematically"
+   ]
+  },
+  "English": {
+   "code": "0861",
+   "years": "Lower Secondary curriculum framework (2020), Stages 7–9 · Checkpoint at Stage 9",
+   "skills": true,
+   "topics": [
+    {
+     "group": "Reading"
+    },
+    "Vocabulary and language",
+    "Grammar and punctuation",
+    "Structure of texts",
+    "Interpretation of texts",
+    "Appreciation and reflection",
+    {
+     "group": "Writing"
+    },
+    "Word structure (spelling)",
+    "Vocabulary and language (writing)",
+    "Grammar and punctuation (writing)",
+    "Structure of texts (writing)",
+    "Creation of texts",
+    "Presentation and reflection",
+    {
+     "group": "Speaking and Listening"
+    },
+    "Making yourself understood",
+    "Showing understanding",
+    "Group work and discussion",
+    "Performance",
+    "Reflection and evaluation"
+   ]
+  },
+  "Science": {
+   "code": "0893",
+   "years": "Lower Secondary curriculum framework (2020), Stages 7–9 · Checkpoint at Stage 9",
+   "topics": [
+    {
+     "group": "Biology"
+    },
+    "Structure and function",
+    "Life processes",
+    "Ecosystems",
+    {
+     "group": "Chemistry"
+    },
+    "Materials and their structure",
+    "Properties of materials",
+    "Changes to materials",
+    {
+     "group": "Physics"
+    },
+    "Forces and energy",
+    "Light and sound",
+    "Electricity and magnetism",
+    {
+     "group": "Earth and Space"
+    },
+    "Planet Earth",
+    "Cycles on Earth",
+    "Earth in space",
+    {
+     "group": "Thinking and Working Scientifically"
+    },
+    "Models and representations",
+    "Scientific enquiry: purpose and planning",
+    "Carrying out scientific enquiry",
+    "Scientific enquiry: analysis, evaluation and conclusions",
+    {
+     "group": "Context"
+    },
+    "Science in Context"
+   ]
+  }
+ },
+ "IGCSE": {
+  "Mathematics": {
+   "code": "0580",
+   "years": "2025–2027 syllabus · sub-topics numbered as in the syllabus (E = Extended only)",
+   "topics": [
+    {
+     "t": "Number",
+     "sub": [
+      {
+       "n": "1.1",
+       "t": "Types of number"
+      },
+      {
+       "n": "1.2",
+       "t": "Sets"
+      },
+      {
+       "n": "1.3",
+       "t": "Powers and roots"
+      },
+      {
+       "n": "1.4",
+       "t": "Fractions, decimals and percentages"
+      },
+      {
+       "n": "1.5",
+       "t": "Ordering"
+      },
+      {
+       "n": "1.6",
+       "t": "The four operations"
+      },
+      {
+       "n": "1.7",
+       "t": "Indices I"
+      },
+      {
+       "n": "1.8",
+       "t": "Standard form"
+      },
+      {
+       "n": "1.9",
+       "t": "Estimation"
+      },
+      {
+       "n": "1.10",
+       "t": "Limits of accuracy"
+      },
+      {
+       "n": "1.11",
+       "t": "Ratio and proportion"
+      },
+      {
+       "n": "1.12",
+       "t": "Rates"
+      },
+      {
+       "n": "1.13",
+       "t": "Percentages"
+      },
+      {
+       "n": "1.14",
+       "t": "Using a calculator"
+      },
+      {
+       "n": "1.15",
+       "t": "Time"
+      },
+      {
+       "n": "1.16",
+       "t": "Money"
+      },
+      {
+       "n": "1.17",
+       "t": "Exponential growth and decay",
+       "ext": true
+      },
+      {
+       "n": "1.18",
+       "t": "Surds",
+       "ext": true
+      }
+     ]
+    },
+    {
+     "t": "Algebra and graphs",
+     "sub": [
+      {
+       "n": "2.1",
+       "t": "Introduction to algebra"
+      },
+      {
+       "n": "2.2",
+       "t": "Algebraic manipulation"
+      },
+      {
+       "n": "2.3",
+       "t": "Algebraic fractions",
+       "ext": true
+      },
+      {
+       "n": "2.4",
+       "t": "Indices II"
+      },
+      {
+       "n": "2.5",
+       "t": "Equations"
+      },
+      {
+       "n": "2.6",
+       "t": "Inequalities"
+      },
+      {
+       "n": "2.7",
+       "t": "Sequences"
+      },
+      {
+       "n": "2.8",
+       "t": "Proportion",
+       "ext": true
+      },
+      {
+       "n": "2.9",
+       "t": "Graphs in practical situations"
+      },
+      {
+       "n": "2.10",
+       "t": "Graphs of functions"
+      },
+      {
+       "n": "2.11",
+       "t": "Sketching curves"
+      },
+      {
+       "n": "2.12",
+       "t": "Differentiation",
+       "ext": true
+      },
+      {
+       "n": "2.13",
+       "t": "Functions",
+       "ext": true
+      }
+     ]
+    },
+    {
+     "t": "Coordinate geometry",
+     "sub": [
+      {
+       "n": "3.1",
+       "t": "Coordinates"
+      },
+      {
+       "n": "3.2",
+       "t": "Drawing linear graphs"
+      },
+      {
+       "n": "3.3",
+       "t": "Gradient of linear graphs"
+      },
+      {
+       "n": "3.4",
+       "t": "Length and midpoint",
+       "ext": true
+      },
+      {
+       "n": "3.5",
+       "t": "Equations of linear graphs"
+      },
+      {
+       "n": "3.6",
+       "t": "Parallel lines"
+      },
+      {
+       "n": "3.7",
+       "t": "Perpendicular lines",
+       "ext": true
+      }
+     ]
+    },
+    {
+     "t": "Geometry",
+     "sub": [
+      {
+       "n": "4.1",
+       "t": "Geometrical terms"
+      },
+      {
+       "n": "4.2",
+       "t": "Geometrical constructions"
+      },
+      {
+       "n": "4.3",
+       "t": "Scale drawings"
+      },
+      {
+       "n": "4.4",
+       "t": "Similarity"
+      },
+      {
+       "n": "4.5",
+       "t": "Symmetry"
+      },
+      {
+       "n": "4.6",
+       "t": "Angles"
+      },
+      {
+       "n": "4.7",
+       "t": "Circle theorems I"
+      },
+      {
+       "n": "4.8",
+       "t": "Circle theorems II",
+       "ext": true
+      }
+     ]
+    },
+    {
+     "t": "Mensuration",
+     "sub": [
+      {
+       "n": "5.1",
+       "t": "Units of measure"
+      },
+      {
+       "n": "5.2",
+       "t": "Area and perimeter"
+      },
+      {
+       "n": "5.3",
+       "t": "Circles, arcs and sectors"
+      },
+      {
+       "n": "5.4",
+       "t": "Surface area and volume"
+      },
+      {
+       "n": "5.5",
+       "t": "Compound shapes and parts of shapes"
+      }
+     ]
+    },
+    {
+     "t": "Trigonometry",
+     "sub": [
+      {
+       "n": "6.1",
+       "t": "Pythagoras' theorem"
+      },
+      {
+       "n": "6.2",
+       "t": "Right-angled triangles"
+      },
+      {
+       "n": "6.3",
+       "t": "Exact trigonometric values",
+       "ext": true
+      },
+      {
+       "n": "6.4",
+       "t": "Trigonometric functions",
+       "ext": true
+      },
+      {
+       "n": "6.5",
+       "t": "Non-right-angled triangles",
+       "ext": true
+      },
+      {
+       "n": "6.6",
+       "t": "Pythagoras' theorem and trigonometry in 3D",
+       "ext": true
+      }
+     ]
+    },
+    {
+     "t": "Transformations and vectors",
+     "sub": [
+      {
+       "n": "7.1",
+       "t": "Transformations"
+      },
+      {
+       "n": "7.2",
+       "t": "Vectors in two dimensions",
+       "ext": true
+      },
+      {
+       "n": "7.3",
+       "t": "Magnitude of a vector",
+       "ext": true
+      },
+      {
+       "n": "7.4",
+       "t": "Vector geometry",
+       "ext": true
+      }
+     ]
+    },
+    {
+     "t": "Probability",
+     "sub": [
+      {
+       "n": "8.1",
+       "t": "Introduction to probability"
+      },
+      {
+       "n": "8.2",
+       "t": "Relative and expected frequencies"
+      },
+      {
+       "n": "8.3",
+       "t": "Probability of combined events"
+      },
+      {
+       "n": "8.4",
+       "t": "Conditional probability",
+       "ext": true
+      }
+     ]
+    },
+    {
+     "t": "Statistics",
+     "sub": [
+      {
+       "n": "9.1",
+       "t": "Classifying statistical data"
+      },
+      {
+       "n": "9.2",
+       "t": "Interpreting statistical data"
+      },
+      {
+       "n": "9.3",
+       "t": "Averages and measures of spread"
+      },
+      {
+       "n": "9.4",
+       "t": "Statistical charts and diagrams"
+      },
+      {
+       "n": "9.5",
+       "t": "Scatter diagrams"
+      },
+      {
+       "n": "9.6",
+       "t": "Cumulative frequency diagrams",
+       "ext": true
+      },
+      {
+       "n": "9.7",
+       "t": "Histograms",
+       "ext": true
+      }
+     ]
+    }
+   ]
+  },
+  "Biology": {
+   "code": "0610",
+   "years": "2026–2028 syllabus",
+   "topics": [
+    "Characteristics and classification of living organisms",
+    "Organisation of the organism",
+    "Movement into and out of cells",
+    "Biological molecules",
+    "Enzymes",
+    "Plant nutrition",
+    "Human nutrition",
+    "Transport in plants",
+    "Transport in animals",
+    "Diseases and immunity",
+    "Gas exchange in humans",
+    "Respiration",
+    "Excretion in humans",
+    "Coordination and response",
+    "Drugs",
+    "Reproduction",
+    "Inheritance",
+    "Variation and selection",
+    "Organisms and their environment",
+    "Human influences on ecosystems",
+    "Biotechnology and genetic modification"
+   ]
+  },
+  "Chemistry": {
+   "code": "0620",
+   "years": "2026–2028 syllabus",
+   "topics": [
+    "States of matter",
+    "Atoms, elements and compounds",
+    "Stoichiometry",
+    "Electrochemistry",
+    "Chemical energetics",
+    "Chemical reactions",
+    "Acids, bases and salts",
+    "The Periodic Table",
+    "Metals",
+    "Chemistry of the environment",
+    "Organic chemistry",
+    "Experimental techniques and chemical analysis"
+   ]
+  },
+  "Physics": {
+   "code": "0625",
+   "years": "2026–2028 syllabus",
+   "topics": [
+    "Motion, forces and energy",
+    "Thermal physics",
+    "Waves",
+    "Electricity and magnetism",
+    "Nuclear physics",
+    "Space physics"
+   ]
+  },
+  "Business Studies": {
+   "code": "0264",
+   "years": "IGCSE Business 0264, 2027–2029 syllabus (replaces Business Studies 0450 from 2027; same content)",
+   "topics": [
+    "Understanding business activity",
+    "People in business",
+    "Marketing",
+    "Operations management",
+    "Financial information and decisions",
+    "External influences on business activity"
+   ]
+  },
+  "Economics": {
+   "code": "0455",
+   "years": "2027–2029 syllabus",
+   "topics": [
+    "The basic economic problem",
+    "The allocation of resources",
+    "Microeconomic decision-makers",
+    "Government and the macroeconomy",
+    "Economic development",
+    "International trade and globalisation"
+   ]
+  },
+  "English Language": {
+   "code": "0500",
+   "years": "First Language English, 2027–2029 syllabus",
+   "skills": true,
+   "topics": [
+    {
+     "group": "Paper 1 Reading"
+    },
+    "Understanding written texts",
+    "Developing and evaluating facts, ideas and opinions",
+    "Linguistic devices, figurative language and imagery",
+    "Summary writing",
+    {
+     "group": "Paper 2 Directed Writing and Composition"
+    },
+    "Directed writing: letter, report, article, journal, speech, interview",
+    "Descriptive writing",
+    "Narrative writing",
+    "Discursive and argumentative writing",
+    "Persuasive writing",
+    {
+     "group": "Other components"
+    },
+    "Coursework portfolio (Component 3)",
+    "Speaking and listening (Component 4)"
+   ]
+  },
+  "English Literature": {
+   "code": "0475",
+   "years": "2027 syllabus (set texts change each year)",
+   "skills": true,
+   "topics": [
+    "Poetry (Paper 1, set text)",
+    "Prose (Paper 1, set text)",
+    "Drama (Paper 2, two set texts)",
+    "Drama open text (Paper 3)",
+    "Unseen prose or poetry (Paper 4)",
+    "Coursework (Component 5)"
+   ]
+  },
+  "Geography": {
+   "code": "0460",
+   "years": "2027–2029 syllabus",
+   "topics": [
+    {
+     "group": "Paper 1 Physical Geography"
+    },
+    "Changing river environments",
+    "Changing coastal environments",
+    "Changing ecosystems",
+    "Tectonic hazards",
+    "Climate change",
+    {
+     "group": "Paper 2 Human Geography"
+    },
+    "Changing populations",
+    "Changing towns and cities",
+    "Development",
+    "Changing economies",
+    "Resource provision"
+   ]
+  },
+  "History": {
+   "code": "0470",
+   "years": "2027–2028 syllabus",
+   "topics": [
+    {
+     "group": "Core Option A: the nineteenth century, 1848–1914"
+    },
+    "Were the revolutions of 1848 important?",
+    "How was Italy unified?",
+    "How was Germany unified?",
+    "Why was there a civil war in the United States and what were its results?",
+    "Why, and with what effects, did nations gain and expand their overseas empires in the nineteenth century?",
+    "What caused the First World War?",
+    {
+     "group": "Core Option B: the twentieth century, international relations since 1919"
+    },
+    "Was the Treaty of Versailles fair?",
+    "To what extent was the League of Nations a success?",
+    "How far was Hitler's foreign policy to blame for the outbreak of war in Europe in 1939?",
+    "Who was to blame for the Cold War?",
+    "How effectively did the United States contain the spread of communism?",
+    "How secure was the USSR's control over Eastern Europe, 1948–c.1989?",
+    {
+     "group": "Depth studies"
+    },
+    "The First World War, 1914–18",
+    "Germany, 1918–45",
+    "Russia, 1905–41",
+    "The United States, 1919–41",
+    "The Second World War in Europe and the Asia–Pacific, 1939–c.1945"
+   ]
+  },
+  "Accounting": {
+   "code": "0452",
+   "years": "2027–2029 syllabus",
+   "topics": [
+    "The fundamentals of accounting",
+    "Sources and recording of data",
+    "Verification of accounting records",
+    "Accounting procedures",
+    "Preparation of financial statements",
+    "Analysis and interpretation",
+    "Accounting concepts and modern practice"
+   ]
+  },
+  "Combined Science": {
+   "code": "0653",
+   "years": "2028–2029 syllabus",
+   "topics": [
+    {
+     "group": "Biology"
+    },
+    "Characteristics of living organisms",
+    "Cells",
+    "Movement into and out of cells",
+    "Biological molecules",
+    "Enzymes",
+    "Plant nutrition",
+    "Human nutrition",
+    "Transport in plants",
+    "Transport in animals",
+    "Diseases and immunity",
+    "Gas exchange in humans",
+    "Respiration",
+    "Drugs",
+    "Reproduction",
+    "Organisms and their environment",
+    "Human influences on ecosystems",
+    {
+     "group": "Chemistry"
+    },
+    "States of matter",
+    "Atoms, elements and compounds",
+    "Stoichiometry",
+    "Electrochemistry",
+    "Chemical energetics",
+    "Chemical reactions",
+    "Acids, bases and salts",
+    "The Periodic Table",
+    "Metals",
+    "Chemistry of the environment",
+    "Organic chemistry",
+    "Experimental techniques and chemical analysis",
+    {
+     "group": "Physics"
+    },
+    "Motion, forces and energy",
+    "Thermal physics",
+    "Waves",
+    "Electricity",
+    "Space physics"
+   ]
+  },
+  "Global Perspectives": {
+   "code": "0457",
+   "years": "2025–2027 syllabus",
+   "skills": true,
+   "topics": [
+    {
+     "group": "Skills"
+    },
+    "Research, analysis and evaluation",
+    "Reflection",
+    "Communication",
+    "Collaboration",
+    {
+     "group": "Components"
+    },
+    "Written exam (Component 1)",
+    "Individual report (Component 2)",
+    "Team project (Component 3)",
+    {
+     "group": "Topics"
+    },
+    "Arts in society",
+    "Change in culture and communities",
+    "Climate change, energy and resources",
+    "Conflict and peace",
+    "Development, trade and aid",
+    "Digital world",
+    "Education for all",
+    "Employment",
+    "Environment, pollution and conservation",
+    "Globalisation",
+    "Health and wellbeing",
+    "Law and criminality",
+    "Media and communication",
+    "Migration and urbanisation",
+    "Political power and action",
+    "Poverty and inequality",
+    "Social identity and inclusion",
+    "Sport and recreation",
+    "Technology, industry and innovation",
+    "Transport, travel and tourism",
+    "Values and beliefs",
+    "Water, food and agriculture"
+   ]
+  },
+  "Art and Design": {
+   "code": "0400",
+   "years": "2028–2030 syllabus",
+   "skills": true,
+   "topics": [
+    {
+     "group": "Assessment objectives"
+    },
+    "Record (AO1)",
+    "Explore (AO2)",
+    "Develop (AO3)",
+    "Present (AO4)",
+    {
+     "group": "Components"
+    },
+    "Portfolio (Component 1)",
+    "Externally Set Assignment (Component 2)",
+    {
+     "group": "Areas of study"
+    },
+    "Painting and/or other media",
+    "Graphic communication",
+    "Three-dimensional design",
+    "Textiles and/or Fashion",
+    "Photography"
+   ]
+  }
+ },
+ "A Level": {
+  "Pure Mathematics 1": {
+   "code": "9709 Paper 1",
+   "years": "2026–2027 and 2028–2030 syllabuses (same topics)",
+   "topics": [
+    "Quadratics",
+    "Functions",
+    "Coordinate geometry",
+    "Circular measure",
+    "Trigonometry",
+    "Series",
+    "Differentiation",
+    "Integration"
+   ]
+  },
+  "Pure Mathematics 3": {
+   "code": "9709 Paper 3",
+   "years": "2026–2027 and 2028–2030 syllabuses (same topics)",
+   "topics": [
+    "Algebra",
+    "Logarithmic and exponential functions",
+    "Trigonometry",
+    "Differentiation",
+    "Integration",
+    "Numerical solution of equations",
+    "Vectors",
+    "Differential equations",
+    "Complex numbers"
+   ]
+  },
+  "Probability and Statistics 1": {
+   "code": "9709 Paper 5",
+   "years": "2026–2027 and 2028–2030 syllabuses (same topics)",
+   "topics": [
+    "Representation of data",
+    "Permutations and combinations",
+    "Probability",
+    "Discrete random variables",
+    "The normal distribution"
+   ]
+  },
+  "Probability and Statistics 2": {
+   "code": "9709 Paper 6",
+   "years": "2026–2027 and 2028–2030 syllabuses (same topics)",
+   "topics": [
+    "The Poisson distribution",
+    "Linear combinations of random variables",
+    "Continuous random variables",
+    "Sampling and estimation",
+    "Hypothesis tests"
+   ]
+  },
+  "Mechanics": {
+   "code": "9709 Paper 4",
+   "years": "2026–2027 and 2028–2030 syllabuses (same topics)",
+   "topics": [
+    "Forces and equilibrium",
+    "Kinematics of motion in a straight line",
+    "Momentum",
+    "Newton's laws of motion",
+    "Energy, work and power"
+   ]
+  },
+  "Biology": {
+   "code": "9700",
+   "years": "2025–2027 syllabus",
+   "topics": [
+    {
+     "group": "AS Level"
+    },
+    "Cell structure",
+    "Biological molecules",
+    "Enzymes",
+    "Cell membranes and transport",
+    "The mitotic cell cycle",
+    "Nucleic acids and protein synthesis",
+    "Transport in plants",
+    "Transport in mammals",
+    "Gas exchange",
+    "Infectious diseases",
+    "Immunity",
+    {
+     "group": "A Level"
+    },
+    "Energy and respiration",
+    "Photosynthesis",
+    "Homeostasis",
+    "Control and coordination",
+    "Inheritance",
+    "Selection and evolution",
+    "Classification, biodiversity and conservation",
+    "Genetic technology"
+   ]
+  },
+  "Physics": {
+   "code": "9702",
+   "years": "2028–2030 syllabus (no significant changes from 2025–2027)",
+   "topics": [
+    {
+     "group": "AS Level"
+    },
+    "Physical quantities and units",
+    "Kinematics",
+    "Dynamics",
+    "Forces, density and pressure",
+    "Work, energy and power",
+    "Deformation of solids",
+    "Waves",
+    "Superposition",
+    "Electricity",
+    "D.C. circuits",
+    "Particle physics",
+    {
+     "group": "A Level"
+    },
+    "Motion in a circle",
+    "Gravitational fields",
+    "Temperature",
+    "Ideal gases",
+    "Thermodynamics",
+    "Oscillations",
+    "Electric fields",
+    "Capacitance",
+    "Magnetic fields",
+    "Alternating currents",
+    "Quantum physics",
+    "Nuclear physics",
+    "Medical physics",
+    "Astronomy and cosmology"
+   ]
+  },
+  "Chemistry": {
+   "code": "9701",
+   "years": "2028–2030 syllabus (no significant changes from 2025–2027)",
+   "topics": [
+    {
+     "group": "AS Level"
+    },
+    "Atomic structure",
+    "Atoms, molecules and stoichiometry",
+    "Chemical bonding",
+    "States of matter",
+    "Chemical energetics",
+    "Electrochemistry",
+    "Equilibria",
+    "Reaction kinetics",
+    "The Periodic Table: chemical periodicity",
+    "Group 2",
+    "Group 17",
+    "Nitrogen and sulfur",
+    "An introduction to AS Level organic chemistry",
+    "Hydrocarbons",
+    "Halogen compounds",
+    "Hydroxy compounds",
+    "Carbonyl compounds",
+    "Carboxylic acids and derivatives",
+    "Nitrogen compounds",
+    "Polymerisation",
+    "Organic synthesis",
+    "Analytical techniques",
+    {
+     "group": "A Level"
+    },
+    "Chemical energetics (A Level)",
+    "Electrochemistry (A Level)",
+    "Equilibria (A Level)",
+    "Reaction kinetics (A Level)",
+    "Group 2 (A Level)",
+    "Chemistry of transition elements",
+    "An introduction to A Level organic chemistry",
+    "Hydrocarbons (A Level)",
+    "Halogen compounds (A Level)",
+    "Hydroxy compounds (A Level)",
+    "Carboxylic acids and derivatives (A Level)",
+    "Nitrogen compounds (A Level)",
+    "Polymerisation (A Level)",
+    "Organic synthesis (A Level)",
+    "Analytical techniques (A Level)"
+   ]
+  },
+  "Business": {
+   "code": "9609",
+   "years": "2026–2028 syllabus",
+   "topics": [
+    {
+     "group": "AS Level"
+    },
+    "Enterprise",
+    "Business structure",
+    "Size of business",
+    "Business objectives",
+    "Stakeholders in a business",
+    "Human resource management (HRM)",
+    "Motivation",
+    "Management",
+    "The nature of marketing",
+    "Market research",
+    "The marketing mix",
+    "The nature of operations",
+    "Inventory management",
+    "Capacity utilisation and outsourcing",
+    "Business finance",
+    "Sources of finance",
+    "Forecasting and managing cash flows",
+    "Costs",
+    "Budgets",
+    {
+     "group": "A Level"
+    },
+    "External influences on business activity",
+    "Business strategy",
+    "Organisational structure",
+    "Business communication",
+    "Leadership",
+    "Human resource management (HRM) strategy",
+    "Marketing analysis",
+    "Marketing strategy",
+    "Location and scale",
+    "Quality management",
+    "Operations strategy",
+    "Financial statements",
+    "Analysis of published accounts",
+    "Investment appraisal",
+    "Finance and accounting strategy"
+   ]
+  },
+  "Economics": {
+   "code": "9708",
+   "years": "2026–2028 syllabus",
+   "topics": [
+    {
+     "group": "AS Level"
+    },
+    "Basic economic ideas and resource allocation",
+    "The price system and the microeconomy",
+    "Government microeconomic intervention",
+    "The macroeconomy",
+    "Government macroeconomic intervention",
+    "International economic issues",
+    {
+     "group": "A Level"
+    },
+    "The price system and the microeconomy (A Level)",
+    "Government microeconomic intervention (A Level)",
+    "The macroeconomy (A Level)",
+    "Government macroeconomic intervention (A Level)",
+    "International economic issues (A Level)"
+   ]
+  },
+  "Geography": {
+   "code": "9696",
+   "years": "2027–2029 syllabus",
+   "topics": [
+    {
+     "group": "AS Level: Physical core"
+    },
+    "Hydrology, river processes and hazards",
+    "Atmospheric processes and global climate change",
+    "Earth processes and mass movements",
+    {
+     "group": "AS Level: Human core"
+    },
+    "Population and migration",
+    "Water resources and management",
+    "Urban areas and management",
+    {
+     "group": "A Level: Global environments (choose two)"
+    },
+    "Tropical environments",
+    "Coastal environments",
+    "Hazardous environments",
+    "Arid environments",
+    {
+     "group": "A Level: Global themes (choose two)"
+    },
+    "Climate change impacts and governance",
+    "Environmental issues and management",
+    "Trade, aid and tourism",
+    "Disease and geography"
+   ]
+  },
+  "History": {
+   "code": "9489",
+   "years": "2026–2027 syllabus",
+   "topics": [
+    {
+     "group": "AS European option: Modern Europe, 1750–1921"
+    },
+    "France, 1774–1814",
+    "The Industrial Revolution in Britain, 1750–1850",
+    "Liberalism and nationalism in Germany, 1815–71",
+    "The Russian Revolution, 1894–1921",
+    {
+     "group": "AS American option: The history of the USA, 1820–1941"
+    },
+    "The origins of the Civil War, 1820–61",
+    "Civil War and Reconstruction, 1861–77",
+    "The Gilded Age and Progressive Era, 1870s to 1920",
+    "The Great Crash, the Great Depression and the New Deal policies, 1920–41",
+    {
+     "group": "AS International option: International history, 1870–1945"
+    },
+    "Empire and the emergence of world powers, 1870–1919",
+    "The League of Nations and international relations in the 1920s",
+    "The League of Nations and international relations in the 1930s",
+    "China and Japan, 1912–45",
+    {
+     "group": "A Level Paper 3: Interpretations"
+    },
+    "The origins of the First World War",
+    "The Holocaust",
+    "The origins and development of the Cold War",
+    {
+     "group": "A Level Paper 4: European depth study, 1919–41"
+    },
+    "Mussolini's Italy, 1919–41",
+    "Stalin's Russia, 1924–41",
+    "Hitler's Germany, 1929–41",
+    "Britain, 1919–39",
+    {
+     "group": "A Level Paper 4: The USA, 1944–92"
+    },
+    "The late 1940s and 1950s",
+    "The 1960s and the 1970s",
+    "The 1980s and early 1990s",
+    "Foreign policy, 1944–92",
+    {
+     "group": "A Level Paper 4: International history, 1945–92"
+    },
+    "US–Soviet relations during the Cold War, 1950–91",
+    "The spread of communism in East and Southeast Asia, 1945–91",
+    "Decolonisation, the Cold War and the UN in Sub-Saharan Africa, 1950–92",
+    "Conflict in the Middle East, 1948–91"
+   ]
+  },
+  "English Language": {
+   "code": "9093",
+   "years": "2027–2028 syllabus",
+   "skills": true,
+   "topics": [
+    {
+     "group": "AS Paper 1 Reading"
+    },
+    "Directed response",
+    "Text analysis",
+    {
+     "group": "AS Paper 2 Writing"
+    },
+    "Shorter writing and reflective commentary",
+    "Extended writing: imaginative/descriptive",
+    "Extended writing: discursive/argumentative",
+    "Extended writing: review/critical",
+    {
+     "group": "A Level Paper 3 Language Analysis"
+    },
+    "Language change",
+    "Child language acquisition",
+    {
+     "group": "A Level Paper 4 Language Topics"
+    },
+    "English in the world",
+    "Language and the self"
+   ]
+  },
+  "English Literature": {
+   "code": "9695",
+   "years": "2027–2028 syllabus (set texts change)",
+   "skills": true,
+   "topics": [
+    {
+     "group": "AS Level"
+    },
+    "Drama (Paper 1, set text)",
+    "Poetry (Paper 1, set text)",
+    "Prose (Paper 2, set text)",
+    "Unseen (Paper 2)",
+    {
+     "group": "A Level"
+    },
+    "Shakespeare (Paper 3)",
+    "Drama (Paper 3, set text)",
+    "Pre-1900 poetry and prose (Paper 4)",
+    "Post-1900 poetry and prose (Paper 4)"
+   ]
+  },
+  "Sociology": {
+   "code": "9699",
+   "years": "2027–2028 syllabus",
+   "topics": [
+    {
+     "group": "AS Level"
+    },
+    "Socialisation and the creation of social identity",
+    "Methods of research",
+    "Theories of the family and social change",
+    "Family roles and changing relationships",
+    {
+     "group": "A Level"
+    },
+    "Education and society",
+    "Education and inequality",
+    "Key debates, concepts and perspectives",
+    "Contemporary issues",
+    "Ownership and control of media",
+    "Media representation and effects",
+    "Religion and social order",
+    "The influence of religion"
+   ]
+  },
+  "Psychology": {
+   "code": "9990",
+   "years": "2028–2030 syllabus",
+   "topics": [
+    {
+     "group": "AS Level"
+    },
+    "Biological approach (core studies)",
+    "Cognitive approach (core studies)",
+    "Learning approach (core studies)",
+    "Social approach (core studies)",
+    "Research methods",
+    "Issues and debates",
+    {
+     "group": "A Level: Clinical psychology"
+    },
+    "Schizophrenia",
+    "Mood (affective) disorders",
+    "Impulse control disorders",
+    "Anxiety disorders and fear-related disorders",
+    "Obsessive-compulsive disorder (OCD)",
+    {
+     "group": "A Level: Consumer psychology"
+    },
+    "The physical environment",
+    "The psychological environment",
+    "Consumer decision-making",
+    "The product",
+    "Advertising",
+    {
+     "group": "A Level: Health psychology"
+    },
+    "The patient–practitioner relationship",
+    "Adherence to medical advice",
+    "Pain",
+    "Stress",
+    "Health promotion",
+    {
+     "group": "A Level: Organisational psychology"
+    },
+    "Motivation to work",
+    "Leadership and management",
+    "Group behaviour in organisations",
+    "Organisational work conditions",
+    "Satisfaction at work"
+   ]
+  }
+ }
+};
