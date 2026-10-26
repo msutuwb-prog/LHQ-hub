@@ -83,8 +83,9 @@ async function people(req) {
 }
 
 async function setup(req) {
-  const { name, pin } = await req.json().catch(() => ({}));
+  const { name, pin, code } = await req.json().catch(() => ({}));
   if ((await getPeople()).length) return fail("LHQ Hub is already set up. Sign in instead.", 409);
+  if (String(code || "").trim() !== secret().slice(0, 8)) return fail("That setup code is wrong. It's the first 8 characters of LHQ_SECRET in Netlify.", 403);
   if (!String(name || "").trim()) return fail("Add your name.");
   if (!pinOk(pin)) return fail("Choose a PIN of 4 to 6 digits.");
   const salt = crypto.randomBytes(16).toString("hex");

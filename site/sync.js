@@ -192,16 +192,17 @@
   }
   function showSetup(err){
     const box = overlay();
-    box.innerHTML = `<img src="logo.png" alt="LHQ Learning Solutions"><h2>Set up LHQ Hub</h2><p class="s">You're the first person here, so you'll be the admin. Add your name and choose a PIN of 4 to 6 digits.</p>
+    box.innerHTML = `<img src="logo.png" alt="LHQ Learning Solutions"><h2>Set up LHQ Hub</h2><p class="s">You're the first person here, so you'll be the admin. Enter the setup code from LHQ, your name, and a PIN of 4 to 6 digits.</p>
+      <label>Setup code<input class="hub-in" id="hubCode" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
       <label>Your name<input class="hub-in" id="hubName" autocomplete="name"></label>
       <label>PIN<input class="hub-in" id="hubPin1" inputmode="numeric" type="password" maxlength="6"></label>
       <label>PIN again<input class="hub-in" id="hubPin2" inputmode="numeric" type="password" maxlength="6"></label>
       <button class="hub-go" id="hubSetupGo">Create my admin account</button><p class="hub-err">${esc(err || '')}</p>`;
     box.querySelector('#hubSetupGo').onclick = async () => {
-      const name = box.querySelector('#hubName').value.trim(), a = box.querySelector('#hubPin1').value, b = box.querySelector('#hubPin2').value;
+      const code = box.querySelector('#hubCode').value.trim(), name = box.querySelector('#hubName').value.trim(), a = box.querySelector('#hubPin1').value, b = box.querySelector('#hubPin2').value;
       if(a !== b) return showSetup('The two PINs don\'t match.');
       try{
-        const r = await fetch(API + 'setup', {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({name, pin:a})}).then(async r => ({ok:r.ok, j:await r.json()}));
+        const r = await fetch(API + 'setup', {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({code, name, pin:a})}).then(async r => ({ok:r.ok, j:await r.json()}));
         if(!r.ok) return showSetup(r.j.error);
         signedIn(r.j);
       }catch(e){ showSetup('No connection. Try again.'); }
