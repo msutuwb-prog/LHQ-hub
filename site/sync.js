@@ -16,8 +16,9 @@
 
   /* ---------- watch the page's own saves ---------- */
   let pushTimer = null, pushing = false;
+  const protoSet = Storage.prototype.setItem;
   Storage.prototype.setItem = function(k, v){
-    rawSet(k, v);
+    protoSet.call(this, k, v);       // this storage (sessionStorage writes stay in sessionStorage)
     if(this === ls && (k === DOCS || KV.includes(k)) && session()){ put(DIRTY, true); schedulePush(); }
   };
   function schedulePush(ms){ clearTimeout(pushTimer); pushTimer = setTimeout(push, ms == null ? 700 : ms); }
@@ -133,7 +134,17 @@
   .hub-row button,.hub-sm{font:inherit;font-size:13px;font-weight:700;border:1px solid #e4e7ec;background:#fff;color:#073763;border-radius:10px;padding:7px 10px;cursor:pointer}
   .hub-sm.navy{background:#073763;color:#fff;border-color:#073763}
   .hub-chk{display:flex;gap:16px;margin:2px 0 12px}.hub-chk label{display:flex;gap:6px;align-items:center;font-weight:600}
-  .hub-off{opacity:.55}`;
+  .hub-off{opacity:.55}
+  .hub-ov,.hub-dlg{font-family:Manrope,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+  [data-theme=dark] .hub-ov{background:#0d1420;color:#e8edf4}
+  [data-theme=dark] .hub-box h2,[data-theme=dark] .hub-link{color:#f4b223}
+  [data-theme=dark] .hub-who button,[data-theme=dark] .hub-btn,[data-theme=dark] .hub-pin span,[data-theme=dark] .hub-kp button,[data-theme=dark] .hub-in,[data-theme=dark] .hub-row button,[data-theme=dark] .hub-sm{background:#151e2c;border-color:#253246;color:#e8edf4}
+  [data-theme=dark] .hub-pin span{color:#f4b223}
+  [data-theme=dark] .hub-go{background:#f4b223;color:#0d1420}
+  [data-theme=dark] .hub-dlg{background:#151e2c;color:#e8edf4}
+  [data-theme=dark] .hub-dlg .hd,[data-theme=dark] .hub-row{border-color:#253246}
+  [data-theme=dark] .hub-who small,[data-theme=dark] .hub-row small,[data-theme=dark] .hub-box p.s{color:#93a0b3}`;
+  const LOGO = () => window.lhqTheme ? window.lhqTheme.logo() : 'logo.png';
   function el(html){ const d = document.createElement('div'); d.innerHTML = html.trim(); return d.firstChild; }
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
   function note(msg){ if(window.hubToast) window.hubToast(msg); else console.log(msg); }
@@ -158,22 +169,22 @@
   function overlay(){ let o = document.getElementById('hubOv'); if(!o){ o = el('<div class="hub-ov" id="hubOv"><div class="hub-box"></div></div>'); document.body.appendChild(o); } return o.querySelector('.hub-box'); }
   async function showSignIn(msg){
     const box = overlay();
-    box.innerHTML = `<img src="logo.png" alt="LHQ Learning Solutions"><p class="s">Loading…</p>`;
+    box.innerHTML = `<img class="lhq-logo" src="${LOGO()}" alt="LHQ Learning Solutions"><p class="s">Loading…</p>`;
     try{
       const r = await fetch(API + 'people', {cache:'no-store'}).then(r => r.json());
-      if(r.error){ box.innerHTML = `<img src="logo.png" alt="LHQ"><h2>LHQ Hub isn't ready</h2><p class="s">${esc(r.error)}</p>`; return; }
+      if(r.error){ box.innerHTML = `<img class="lhq-logo" src="${LOGO()}" alt="LHQ"><h2>LHQ Hub isn't ready</h2><p class="s">${esc(r.error)}</p>`; return; }
       if(r.setup) return showSetup();
       people = r.people || [];
-      box.innerHTML = `<img src="logo.png" alt="LHQ Learning Solutions"><h2>Who's signing in?</h2><p class="s">${esc(msg || 'Each person has their own PIN.')}</p>
+      box.innerHTML = `<img class="lhq-logo" src="${LOGO()}" alt="LHQ Learning Solutions"><h2>Who's signing in?</h2><p class="s">${esc(msg || 'Each person has their own PIN.')}</p>
         <div class="hub-who">${people.map(p => `<button type="button" data-id="${p.id}"><span><b>${esc(p.name)}</b><small>${[p.admin?'Admin':'', p.tutor?'Tutor':''].filter(Boolean).join(' + ')}</small></span><span>›</span></button>`).join('')}</div>`;
       box.querySelectorAll('[data-id]').forEach(b => b.onclick = () => { chosen = people.find(p => p.id === b.dataset.id); pinBuf = ''; showPin(); });
     }catch(e){
-      box.innerHTML = `<img src="logo.png" alt="LHQ"><h2>No connection</h2><p class="s">LHQ Hub needs the internet to sign in. Check your connection and try again.</p><button class="hub-go" onclick="location.reload()">Try again</button>`;
+      box.innerHTML = `<img class="lhq-logo" src="${LOGO()}" alt="LHQ"><h2>No connection</h2><p class="s">LHQ Hub needs the internet to sign in. Check your connection and try again.</p><button class="hub-go" onclick="location.reload()">Try again</button>`;
     }
   }
   function showPin(err){
     const box = overlay();
-    box.innerHTML = `<img src="logo.png" alt="LHQ Learning Solutions"><h2>Hello ${esc(chosen.name.split(' ')[0])}</h2><p class="s">Enter your PIN</p>
+    box.innerHTML = `<img class="lhq-logo" src="${LOGO()}" alt="LHQ Learning Solutions"><h2>Hello ${esc(chosen.name.split(' ')[0])}</h2><p class="s">Enter your PIN</p>
       <div class="hub-pin">${[0,1,2,3,4,5].slice(0, Math.max(4, pinBuf.length)).map(i => `<span>${pinBuf.length > i ? '•' : ''}</span>`).join('')}</div>
       <div class="hub-kp">${[1,2,3,4,5,6,7,8,9,'back',0,'ok'].map(k => `<button type="button" data-k="${k}">${k==='back'?'⌫':k==='ok'?'✓':k}</button>`).join('')}</div>
       <p class="hub-err">${esc(err || '')}</p><button class="hub-link" type="button" id="hubNotMe">Not ${esc(chosen.name.split(' ')[0])}?</button>`;
@@ -192,7 +203,7 @@
   }
   function showSetup(err){
     const box = overlay();
-    box.innerHTML = `<img src="logo.png" alt="LHQ Learning Solutions"><h2>Set up LHQ Hub</h2><p class="s">You're the first person here, so you'll be the admin. Enter the setup code from LHQ, your name, and a PIN of 4 to 6 digits.</p>
+    box.innerHTML = `<img class="lhq-logo" src="${LOGO()}" alt="LHQ Learning Solutions"><h2>Set up LHQ Hub</h2><p class="s">You're the first person here, so you'll be the admin. Enter the setup code from LHQ, your name, and a PIN of 4 to 6 digits.</p>
       <label>Setup code<input class="hub-in" id="hubCode" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
       <label>Your name<input class="hub-in" id="hubName" autocomplete="name"></label>
       <label>PIN<input class="hub-in" id="hubPin1" inputmode="numeric" type="password" maxlength="6"></label>
@@ -210,11 +221,12 @@
   }
   async function signedIn(j){
     put(SESSION, {token:j.token, me:j.me});
-    const box = overlay(); box.innerHTML = `<img src="logo.png" alt="LHQ"><h2>Welcome, ${esc(j.me.name.split(' ')[0])}</h2><p class="s">Getting LHQ's documents…</p>`;
-    if(!j.me.admin){ box.innerHTML = `<img src="logo.png" alt="LHQ"><h2>Hello ${esc(j.me.name.split(' ')[0])}</h2><p class="s">The tutor part of LHQ Hub is coming next. For now, keep using the session-log link LHQ sent you on WhatsApp.</p><button class="hub-go" id="hubOut">Sign out</button>`; box.querySelector('#hubOut').onclick = signOut; return; }
+    const box = overlay(); box.innerHTML = `<img class="lhq-logo" src="${LOGO()}" alt="LHQ"><h2>Welcome, ${esc(j.me.name.split(' ')[0])}</h2><p class="s">Getting LHQ's documents…</p>`;
+    if(!j.me.admin){ box.innerHTML = `<img class="lhq-logo" src="${LOGO()}" alt="LHQ"><h2>Hello ${esc(j.me.name.split(' ')[0])}</h2><p class="s">The tutor part of LHQ Hub is coming next. For now, keep using the session-log link LHQ sent you on WhatsApp.</p><button class="hub-go" id="hubOut">Sign out</button>`; box.querySelector('#hubOut').onclick = signOut; return; }
     try{ await pull(); }catch(e){}
     document.getElementById('hubOv')?.remove();
     mountAccount();
+    if(window.hubReady) window.hubReady();
   }
   function signedOut(msg){ rawDel(SESSION); showSignIn(msg); }
 
@@ -303,7 +315,8 @@
     window.addEventListener('offline', () => { if(session()) status('offline'); });
     if(!session()){ showSignIn(); return; }
     mountAccount();
+    if(window.hubReady) window.hubReady();
     pull().catch(() => status('offline'));
   });
-  window.hub = {push, pull, session, changes};
+  window.hub = {push, pull, session, changes, accountMenu, peopleDlg, myPinDlg, signOut};
 })();

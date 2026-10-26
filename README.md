@@ -3,7 +3,7 @@
 Quote, invoice and receipt generator for LHQ Learning Solutions. The app runs in the browser. Two small Netlify Functions send the PDF directly: one by email from LHQ's Gmail account, one on WhatsApp from LHQ's WhatsApp Business number.
 
 ```
-site/                     the app (index.html, logo, icons)
+site/                     the app: index.html (LHQ Hub home, students), editor.html (quotes, invoices, receipts, cards), reports.html, tutor.html, theme.js, sync.js
 netlify/functions/        send-email.mjs     sends email through Gmail
                           send-whatsapp.mjs  sends WhatsApp messages through Meta's Cloud API
 netlify.toml              tells Netlify where everything is
