@@ -9,462 +9,734 @@
 <link rel="icon" href="arrow.png">
 <link rel="apple-touch-icon" href="logo.png">
 <script>
-/* Links made before LHQ Hub (student checklists) open the document editor */
-if(/^#(import=)/.test(location.hash)) location.replace('editor.html' + location.hash);
+/* links made before LHQ Hub (student checklists) open the document page */
+if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash);
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="hub.css">
 <script src="theme.js"></script>
 <script src="sync.js"></script>
+<script src="defaults.js"></script>
+<script src="hubdata.js"></script>
+<script src="nav.js"></script>
+<script src="schools.js"></script>
 <style>
-:root{--navy:#073763;--gold:#f4b223;--wa:#1f9d55;
-  --bg:#f5f6f8;--surface:#fff;--surface2:#fafbfc;--ink:#14213d;--muted:#6b7585;--line:#e4e7ec;--line2:#eef0f3;--field:#fff;--accent:#073763;--onaccent:#fff;--brand:#073763;
-  --ok-bg:#e6f4ec;--ok:#1f7a4d;--rd-bg:#fdecea;--rd:#b42318;--am-bg:#fdf3d9;--am:#7a5400;--bl-bg:#eaf0f7;--bl:#073763;--gr-bg:#f1f3f6;--gr:#6b7482}
-[data-theme=dark]{--bg:#0d1420;--surface:#151e2c;--surface2:#1a2433;--ink:#e8edf4;--muted:#93a0b3;--line:#253246;--line2:#1f2a3a;--field:#111a27;--accent:#f4b223;--onaccent:#0d1420;--brand:#e8edf4;
-  --ok-bg:rgba(52,168,103,.16);--ok:#5fd093;--rd-bg:rgba(240,82,70,.16);--rd:#ff8a80;--am-bg:rgba(244,178,35,.16);--am:#f4c35a;--bl-bg:rgba(120,165,220,.16);--bl:#a9c6ea;--gr-bg:#1f2a3a;--gr:#93a0b3;color-scheme:dark}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:14.5px/1.45 Manrope,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased;min-height:100dvh}
-svg{display:block}
+svg{display:block;flex:none}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
 a{color:inherit}
-button{font:inherit;cursor:pointer;color:inherit}
 [hidden]{display:none!important}
+.main{width:100%;max-width:1040px;margin:0 auto;padding:0 24px 60px}
+.main.narrow{max-width:800px}
+@media (max-width:699px){.main{padding:0 16px 40px}}
 
-/* top bar */
-.topbar{position:sticky;top:0;z-index:20;background:var(--bg);display:flex;align-items:center;gap:10px;padding:12px 16px;padding-top:calc(12px + env(safe-area-inset-top,0px))}
-.topbar .lg img{height:40px;display:block}
-.topbar .actions{margin-left:auto;display:flex;gap:8px;align-items:center}
-.ib{width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink);display:grid;place-items:center;flex:none;padding:0}
-.hub-acct{font-weight:700;font-size:13px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:99px;padding:8px 13px;min-height:38px}
-.tabs{display:none;gap:4px;margin-left:18px}
-.tabs a{text-decoration:none;font-weight:700;color:var(--muted);padding:8px 13px;border-radius:99px;font-size:14px}
-.tabs a.on{background:var(--surface);color:var(--brand);box-shadow:0 0 0 1px var(--line)}
-
-/* page */
-.main{max-width:720px;margin:0 auto;padding:4px 16px calc(96px + env(safe-area-inset-bottom,0px))}
-.hi h1{margin:8px 2px 0;font-size:24px;font-weight:800;letter-spacing:-.3px;color:var(--brand)}
-.hi p{margin:2px 2px 16px;color:var(--muted);font-size:13.5px}
-.crumb{display:inline-flex;align-items:center;gap:4px;border:0;background:none;color:var(--muted);font-weight:700;font-size:13.5px;padding:6px 0;margin-top:2px;text-decoration:none}
-.qk{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:18px}
-.qk a{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:13px 0 11px;display:flex;flex-direction:column;align-items:center;gap:5px;font-size:12.5px;font-weight:700;color:var(--ink);text-decoration:none}
-.qk a svg{color:var(--brand)}
-.pn{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:4px 14px;margin-bottom:16px}
-.pn.pad{padding:14px}
-.h2{font-size:13px;font-weight:800;margin:4px 2px 8px;display:flex;justify-content:space-between;align-items:center;gap:10px}
+.ph{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin:4px 0 18px}
+.ph .tt{flex:1;min-width:200px}
+.ph h1{margin:0;font-size:25px;font-weight:800;letter-spacing:-.3px;color:var(--brand);text-wrap:balance}
+.ph p{margin:3px 0 0;color:var(--muted);font-size:13.5px}
+.crumb{display:inline-flex;align-items:center;gap:4px;border:0;background:none;color:var(--muted);font-weight:700;font-size:13.5px;padding:4px 0;margin:0 0 4px;text-decoration:none}
+.crumb:hover{color:var(--ink)}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--line);background:var(--surface);color:var(--brand);border-radius:11px;padding:9px 14px;font-weight:800;font-size:13.5px;min-height:40px;white-space:nowrap;text-decoration:none}
+.btn:hover{border-color:var(--muted)}
+.btn.n{background:var(--accent);border-color:var(--accent);color:var(--onaccent)}
+.btn.g{background:var(--wa);border-color:var(--wa);color:#fff}
+.btn.rd{color:var(--rd)}
+.btn.full{width:100%;margin-top:8px}
+.btn.sm{min-height:32px;padding:6px 11px;font-size:12.5px;border-radius:9px}
+.btn:disabled{opacity:.45;cursor:default}
+.acts{display:flex;gap:8px;flex-wrap:wrap}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:4px 16px;margin-bottom:16px}
+.card.pad{padding:16px}
+.h2{font-size:13px;font-weight:800;margin:6px 2px 8px;display:flex;justify-content:space-between;align-items:center;gap:10px}
 .h2 em{font-style:normal;color:var(--muted);font-weight:700}
-.pn .h2{font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:10px 0 4px}
-.it{display:flex;gap:12px;align-items:center;padding:12px 0;border-top:1px solid var(--line2);text-decoration:none;color:inherit}
-.it:first-child,.h2+.it{border-top:0}
-a.it,.it.click{cursor:pointer}
-.it .t{flex:1;min-width:0}
-.it .t b{font-weight:700;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.it .t small{display:block;color:var(--muted);font-size:12.5px}
-.it .ico{color:var(--brand);flex:none}
-.it .chev{color:var(--muted);opacity:.6;flex:none}
+.cap{font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:12px 0 6px;font-weight:800}
+.card.pad > .cap:first-child{margin-top:0}
+.it{display:flex;gap:12px;align-items:center;padding:12px 0;border:0;border-top:1px solid var(--line2);width:100%;background:none;text-align:left;text-decoration:none;color:inherit}
+.it:first-child,.cap+.it{border-top:0}
+a.it,button.it{cursor:pointer}
+a.it:hover .t b,button.it:hover .t b{text-decoration:underline;text-underline-offset:2px}
+.it .t{flex:1;min-width:0}.it .t b{display:block;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.it .t small{display:block;color:var(--muted);font-size:12.5px}
+.it .ico{color:var(--brand);flex:none}.it .chev{color:var(--muted);opacity:.6}
 .tag{font-size:10.5px;font-weight:800;border-radius:6px;padding:3px 7px;white-space:nowrap;flex:none}
 .ok{background:var(--ok-bg);color:var(--ok)}.rd{background:var(--rd-bg);color:var(--rd)}.am{background:var(--am-bg);color:var(--am)}.bl{background:var(--bl-bg);color:var(--bl)}.gr{background:var(--gr-bg);color:var(--gr)}
-.b{display:block;text-align:center;text-decoration:none;cursor:pointer;border-radius:12px;padding:12px;font-weight:800;border:1px solid var(--line);background:var(--surface);color:var(--brand);font-size:14px;width:100%;margin-top:8px}
-.b.n{background:var(--accent);color:var(--onaccent);border-color:var(--accent)}
-.b.g{background:var(--wa);color:#fff;border-color:var(--wa)}
-.b.sm{display:inline-block;width:auto;margin:0;padding:7px 12px;font-size:12.5px;border-radius:10px;flex:none}
-.chain{display:flex;gap:4px;flex-wrap:wrap}
-.chain a,.chain span{font-size:11.5px;font-weight:800;border-radius:7px;padding:4px 8px;text-decoration:none}
-.kv{display:grid;grid-template-columns:110px 1fr;gap:7px 8px;font-size:13.5px;margin:12px 0 4px}
-.kv dt{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding-top:2px}
-.kv dd{margin:0;font-weight:700;min-width:0;overflow-wrap:anywhere}
+.av{width:32px;height:32px;border-radius:50%;background:var(--bl-bg);color:var(--bl);display:grid;place-items:center;font-weight:800;font-size:12.5px;flex:none}
+.kv{display:grid;grid-template-columns:120px 1fr;gap:8px 10px;font-size:13.5px;margin:4px 0}
+.kv dt{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding-top:2px}.kv dd{margin:0;font-weight:700;min-width:0;overflow-wrap:anywhere}
 .note{font-size:12.5px;color:var(--muted);margin:8px 0 0}
 .empty{color:var(--muted);font-size:13.5px;margin:12px 0}
-.search{display:flex;align-items:center;gap:8px;background:var(--field);border:1px solid var(--line);border-radius:12px;padding:0 12px;margin-bottom:10px;color:var(--muted)}
-.search input{flex:1;border:0;background:transparent;font:inherit;font-size:15px;color:var(--ink);padding:11px 0;outline:none;min-width:0}
-.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px}
-.chip{font-size:12.5px;border-radius:99px;padding:6px 12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-weight:600}
+.search{display:flex;align-items:center;gap:8px;background:var(--field);border:1px solid var(--line);border-radius:12px;padding:0 12px;color:var(--muted);margin-bottom:12px}
+.search input{flex:1;border:0;background:transparent;font-size:15px;color:var(--ink);padding:11px 0;outline:none;min-width:0}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px}
+.chip{font-size:12.5px;border-radius:99px;padding:6px 12px;border:1px solid var(--line);background:var(--surface);font-weight:600}
 .chip.on{background:var(--accent);border-color:var(--accent);color:var(--onaccent);font-weight:800}
-.chip i{font-style:normal;opacity:.7;margin-left:3px}
-.seg{display:grid;grid-template-columns:1fr 1fr;border:1px solid var(--line);border-radius:12px;overflow:hidden;margin:0 0 12px;background:var(--surface)}
-.seg a{text-align:center;text-decoration:none;font-weight:700;padding:10px;color:var(--muted)}
-.seg a.on{background:var(--accent);color:var(--onaccent)}
-.sets .it .ico{color:var(--muted)}
+.chip i{font-style:normal;opacity:.65;margin-left:4px}
+.tabs{display:flex;gap:2px;border-bottom:1px solid var(--line);margin:0 0 16px;overflow-x:auto}
+.tabs a{text-decoration:none;padding:10px 14px;font-weight:700;color:var(--muted);border-bottom:2px solid transparent;margin-bottom:-1px;white-space:nowrap}
+.tabs a.on{color:var(--brand);border-bottom-color:var(--gold)}
+.chain{display:flex;align-items:center;gap:4px;flex-wrap:wrap;margin:2px 0 10px}
+.chain a,.chain span.s{font-size:11.5px;font-weight:800;border-radius:7px;padding:4px 8px;text-decoration:none}
+.chain .ar{color:var(--muted);opacity:.6}
+.grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 18px;align-items:start}
+@media (max-width:899px){.grid2{grid-template-columns:minmax(0,1fr)}}
+/* forms */
+label.f{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:0 0 12px}
+label.f > span{display:block;margin-bottom:5px}
+.in{width:100%;background:var(--field);border:1px solid var(--line);border-radius:10px;padding:10px 12px;font-size:15px;min-height:44px;color:var(--ink)}
+textarea.in{min-height:200px;line-height:1.45;resize:vertical}
+.in:focus{outline:2px solid var(--accent);outline-offset:0;border-color:transparent}
+.r2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.r3{display:grid;grid-template-columns:repeat(3,1fr);gap:0 10px}
+@media (max-width:560px){.r2,.r3{grid-template-columns:1fr}}
+.seg{display:inline-grid;grid-auto-flow:column;grid-auto-columns:1fr;border:1px solid var(--line);border-radius:11px;overflow:hidden;background:var(--surface);margin-bottom:12px}
+.seg button{border:0;background:none;font-weight:700;padding:9px 16px;color:var(--muted)}
+.seg button.on{background:var(--accent);color:var(--onaccent)}
+.toggle{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line2)}
+.cap + .toggle{border-top:0}
+.toggle .t{flex:1}.toggle .t b{display:block;font-weight:700}.toggle .t small{color:var(--muted);font-size:12.5px;display:block}
+.sw-t{width:44px;height:26px;border-radius:99px;background:var(--line);border:0;position:relative;flex:none;padding:0}
+.sw-t::after{content:"";position:absolute;top:3px;left:3px;width:20px;height:20px;border-radius:50%;background:#fff;transition:left .15s;box-shadow:0 1px 3px rgba(0,0,0,.2)}
+.sw-t.on{background:var(--accent)}.sw-t.on::after{left:21px}
+.sw-t:disabled{opacity:.5}
+.lock{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line2);color:var(--muted);font-size:13.5px}
+.lchips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.lchips span{display:inline-flex;align-items:center;gap:2px;background:var(--bl-bg);color:var(--bl);border-radius:99px;padding:4px 4px 4px 11px;font-size:13px;font-weight:700}
+.lchips span button{border:0;background:none;color:inherit;width:24px;height:24px;border-radius:50%;padding:0;opacity:.7}
+.addrow{display:flex;gap:8px}.addrow .in{min-height:38px;padding:7px 11px;font-size:14px}
+.vars{display:flex;flex-wrap:wrap;gap:5px;margin:-4px 0 12px}
+.vars button{font-size:11.5px;font-family:ui-monospace,Menlo,monospace;border:1px solid var(--line);background:var(--surface2);border-radius:6px;padding:2px 6px}
+.code{display:flex;gap:8px;align-items:center;background:var(--field);border:1px solid var(--line);border-radius:10px;padding:8px 8px 8px 12px;font-size:13px;overflow:hidden}
+.code span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
+.svc{display:flex;align-items:center;gap:8px;font-size:13.5px;margin:4px 0 10px}
+.svc i{width:9px;height:9px;border-radius:50%;background:var(--muted);flex:none}.svc.ok i{background:#2fa36b}.svc.warn i{background:#d08a00}
 
-/* bottom nav (phones) */
-.nav{position:fixed;left:0;right:0;bottom:0;z-index:20;display:grid;grid-template-columns:repeat(5,1fr);background:var(--surface);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px)}
-.nav a{text-decoration:none;padding:9px 2px 11px;font-size:11px;color:var(--muted);display:flex;flex-direction:column;align-items:center;gap:3px}
-.nav a.on{color:var(--brand);font-weight:800}
-@media (min-width:860px){
-  .nav{display:none}
-  .tabs{display:flex}
-  .main{padding-bottom:40px}
-  .topbar{padding-left:24px;padding-right:24px;border-bottom:1px solid var(--line);margin-bottom:12px}
+/* home cards */
+.mcs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:22px}
+@media (min-width:1100px){.main.narrow .mcs{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.mc{text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:3px;position:relative;min-height:132px;color:var(--ink);text-decoration:none}
+a.mc:hover{border-color:var(--muted)}
+.mc .l{font-size:11.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;gap:6px}
+.mc .l svg{color:var(--brand)}
+.mc .v{font-size:27px;font-weight:800;color:var(--brand);letter-spacing:-.6px;font-variant-numeric:tabular-nums;line-height:1.15;margin-top:4px}
+.mc .v small{font-size:13px;color:var(--muted);font-weight:700;letter-spacing:0}
+.mc .s{font-size:12.5px;color:var(--muted)}
+.mc .s.warn{color:var(--am);font-weight:700}.mc .s.bad{color:var(--rd);font-weight:700}
+.mc .tr{font-size:11.5px;font-weight:800;margin-top:auto;padding-top:4px}.mc .tr.up{color:var(--ok)}.mc .tr.dn{color:var(--rd)}.mc .tr.fl{color:var(--muted)}
+.mc .bar{height:6px;border-radius:99px;background:var(--gr-bg);overflow:hidden;margin:6px 0 3px}.mc .bar i{display:block;height:100%;background:var(--gold)}
+.mc.ed{border-style:dashed;padding-top:46px}
+.mc .ctl{position:absolute;top:8px;right:8px;left:8px;display:flex;gap:4px}
+.mc .ctl button{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--surface);padding:0;display:grid;place-items:center;color:var(--ink)}
+.mc .ctl button.rm{color:var(--rd);margin-left:auto}
+.mc .ctl button:disabled{opacity:.3}
+@media (max-width:699px){.mc{padding:12px 13px;min-height:0}.mc .v{font-size:21px}.mc .v small{font-size:12px}.mcs{gap:10px}}
+
+/* settings */
+.sw{display:grid;grid-template-columns:240px minmax(0,1fr);gap:24px;align-items:start}
+.snav{position:sticky;top:76px}
+.snav .g{font-size:11px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:800;margin:14px 12px 4px}
+.snav .g:first-child{margin-top:0}
+.snav a{display:flex;align-items:center;gap:10px;width:100%;border-radius:9px;padding:8px 12px;font-weight:700;color:var(--ink);text-decoration:none}
+.snav a svg{color:var(--muted)}
+.snav a:hover{background:var(--hover)}
+.snav a.on{background:var(--surface);box-shadow:0 0 0 1px var(--line);color:var(--brand)}
+.snav a.on svg{color:var(--brand)}
+.sw .crumb{display:none}
+@media (max-width:899px){
+  .sw{display:block}
+  .sw.page .snav{display:none}
+  .sw.index .spage{display:none}
+  .snav{position:static;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:12px 6px}
+  .snav a{padding:12px}
+  .snav a::after{content:"›";margin-left:auto;color:var(--muted);font-size:18px;line-height:1}
+  .sw .crumb{display:inline-flex}
 }
-.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:10px 15px;border-radius:10px;font-size:13px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;max-width:90vw;text-align:center;z-index:50}
+.sec-h{margin:0 0 4px;font-size:21px;font-weight:800;color:var(--brand)}
+.sec-p{margin:0 0 18px;color:var(--muted);font-size:13.5px}
+.rolechip{font-size:10.5px;font-weight:800;border-radius:6px;padding:3px 7px;background:var(--am-bg);color:var(--am)}
+
+/* sheet + toast */
+.shbg{position:fixed;inset:0;background:rgba(7,20,40,.42);z-index:40}
+.sheet{position:fixed;z-index:41;left:50%;top:50%;transform:translate(-50%,-50%);width:min(520px,calc(100vw - 24px));max-height:calc(100dvh - 40px);overflow:auto;background:var(--surface);border-radius:18px;box-shadow:var(--shadow);padding:18px 18px 20px}
+.sheet h3{margin:0;font-size:18px;font-weight:800;flex:1}
+.sheet .sp{margin:4px 0 14px;color:var(--muted);font-size:13.5px}
+.sheet .hx{display:flex;align-items:center;gap:10px;margin-bottom:4px}
+.ib{width:36px;height:36px;border-radius:50%;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;padding:0;flex:none;color:var(--ink)}
+@media (max-width:699px){.sheet{left:0;right:0;bottom:0;top:auto;transform:none;width:auto;border-radius:20px 20px 0 0;max-height:86dvh;padding-bottom:calc(20px + env(safe-area-inset-bottom,0px))}}
+.tgrid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.tgrid a{display:flex;flex-direction:column;gap:6px;align-items:flex-start;text-align:left;border:1px solid var(--line);background:var(--surface2);border-radius:14px;padding:14px;text-decoration:none;color:var(--ink)}
+.tgrid a svg{color:var(--brand)}.tgrid a b{font-size:15px}.tgrid a small{color:var(--muted);font-size:12px}
+.toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:11px 16px;border-radius:11px;font-size:13.5px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;z-index:60;max-width:92vw;text-align:center}
 .toast.show{opacity:1}
-@media (min-width:640px){
-  .two{display:grid;grid-template-columns:1fr 1fr;gap:0 14px;align-items:start}
-}
 </style>
 </head>
 <body>
-<header class="topbar">
-  <a class="lg" href="#home"><img class="lhq-logo" src="logo.png" alt="LHQ Learning Solutions"></a>
-  <nav class="tabs" id="tabs"></nav>
-  <div class="actions"><button class="ib theme-btn" type="button"></button></div>
-</header>
+<script>LHQNav.mount('home');</script>
 <main class="main" id="main"></main>
-<nav class="nav" id="nav" aria-label="Sections"></nav>
+<div class="shbg" id="shbg" hidden></div>
+<div class="sheet" id="sheet" hidden role="dialog" aria-modal="true"></div>
 <div class="toast" id="toast" role="status"></div>
+<input type="file" id="restoreFile" accept=".json,application/json,text/plain" hidden>
 
 <script>
-/* ================= data ================= */
 const $ = id => document.getElementById(id);
-const store = { get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } } };
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const num = v => { const n = parseFloat(String(v ?? '').replace(/,/g,'')); return isNaN(n) ? 0 : n; };
-const mk = n => 'MKW ' + Math.round(n).toLocaleString('en-US');
-const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-const WDAYL = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
-const MONTHL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-const isoOf = dt => dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
-const parseISO = iso => { const [y,m,d] = iso.split('-').map(Number); return new Date(y, m-1, d); };
-const today = () => isoOf(new Date());
-const addDays = (iso, n) => { const d = parseISO(iso); d.setDate(d.getDate() + n); return isoOf(d); };
-const dayDiff = (a, b) => Math.round((parseISO(b) - parseISO(a)) / 86400000);
-const nice = iso => { if(!iso) return ''; const d = parseISO(iso); return `${d.getDate()} ${MON[d.getMonth()]}${d.getFullYear() !== new Date().getFullYear() ? ' ' + d.getFullYear() : ''}`; };
-function range(a, b){ if(!a) return ''; if(!b) return nice(a) + ' onwards'; return `${nice(a)} – ${nice(b)}`; }
-function ago(t){
-  if(!t) return ''; const m = Math.round((Date.now() - t) / 60000);
-  if(m < 1) return 'just now'; if(m < 60) return `${m} min ago`; const h = Math.round(m / 60); if(h < 24) return `${h} h ago`;
-  const d = Math.round(h / 24); return d === 1 ? 'yesterday' : d < 30 ? `${d} days ago` : nice(isoOf(new Date(t)));
-}
-const first = s => String(s || '').trim().split(/\s+/)[0];
-const WORD = {quote:'Quote', invoice:'Invoice', receipt:'Receipt', card:'Tuition card'};
-const TAGC = {quote:'bl', invoice:'am', receipt:'ok', card:'gr'};
-const sk = v => String(v || '').trim().toLowerCase().replace(/\s+/g, ' ');
-const same = (a, b) => a && b && String(a).trim().toUpperCase() === String(b).trim().toUpperCase();
+const {store, esc, num, mk, mkShort, nice, range, ago, first, sk, same, today, addDays, dayDiff, WORD, typeOf, can, isDir, me, roleText} = HD;
+const ICP = {quote:'<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/>', invoice:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>', receipt:'<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>', card:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10h6M7 14h10"/>',
+ users:'<circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.5 3-6 6-6s6 2.5 6 6"/><path d="M16 4.5a3.5 3.5 0 010 7M18 14c2 .8 3 3 3 6"/>', alert:'<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/>', clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', chev:'<path d="M9 6l6 6-6 6"/>', back:'<path d="M15 6l-6 6 6 6"/>', search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
+ edit:'<path d="M4 20h4L19 9l-4-4L4 16v4z"/>', plus:'<path d="M12 5v14M5 12h14"/>', user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>', key:'<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3"/>', bank:'<path d="M3 10l9-6 9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/>', cash:'<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>', hash:'<path d="M9 4L7 20M17 4l-2 16M4 9h16M3 15h16"/>', msg:'<path d="M4 5h16v11H9l-5 4z"/>', list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>', link:'<path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/>', wa:'<path d="M4 20l1.3-4A8 8 0 1112 20a8 8 0 01-4-1z"/>', box:'<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>', bin:'<path d="M4 7h16M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/>', restore:'<path d="M4 12a8 8 0 108-8 8 8 0 00-6 2.7L4 9"/><path d="M4 4v5h5"/>', out:'<path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/>', rep:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>', copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V4h12"/>', layout:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 16h18"/>'};
+const ic = (n, s = 20, w = 1.8) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${ICP[n]||''}</svg>`;
+const inits = n => String(n||'?').split(/\s+/).filter(Boolean).slice(0,2).map(x => x[0]).join('').toUpperCase();
+function toast(m){ const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 3200); }
+window.hubToast = toast;
+function openSheet(html){ $('sheet').innerHTML = html; $('sheet').hidden = false; $('shbg').hidden = false; const f = $('sheet').querySelector('input'); if(f && innerWidth > 700) setTimeout(() => f.focus(), 50); }
+function closeSheet(){ $('sheet').hidden = true; $('shbg').hidden = true; if(/^#new/.test(location.hash)) history.replaceState(null, '', '#home'); }
+$('shbg').onclick = closeSheet;
+document.addEventListener('keydown', e => { if(e.key === 'Escape' && !$('sheet').hidden) closeSheet(); });
 
-let saved = [], settings = {};
-function load(){ saved = store.get('lhq_saved', []); settings = store.get('lhq_settings', {}); }
-const grace = () => Math.max(0, Math.round(num(settings.graceDays ?? 3)));
+/* links into the document page */
+const D = h => 'doc.html#' + h;
+const openLink = d => D('d=' + d.id);
+const stuLink = (key, tab) => '#student/' + encodeURIComponent(key) + (tab ? '/' + tab : '');
 
-/* the same sums as the editor (editor.html: totals, planInfo, invoiceFlag) */
-function totals(d){
-  const subtotal = (d.items||[]).reduce((s,it)=>s + num(it.sessions)*num(it.cost), 0);
-  let discount = d.discType==='amt' ? num(d.discValue) : subtotal * num(d.discValue) / 100;
-  discount = Math.round(Math.min(Math.max(discount, 0), subtotal) * 100) / 100;
-  return {total: subtotal - discount};
-}
-/* where an invoice stands, counting its receipts too */
-function invState(inv, receipts){
-  const total = totals(inv).total;
-  const fromRcts = receipts.reduce((m, r) => Math.max(m, num(r.prevPaid) + num(r.received)), 0);
-  const paid = Math.max(num(inv.paid), fromRcts), balance = Math.round((total - paid) * 100) / 100, t = today();
-  const st = {total, paid, balance, text:'', cls:'', over:false, grace:false, paidUp: total > 0 && balance <= 0.005};
-  if(st.paidUp){ st.text = 'Paid'; st.cls = 'ok'; return st; }
-  if(inv.plan === 'half'){
-    const a1 = Math.round(total * 50) / 100;
-    const start = inv.periodStart || inv.date || t, d1 = inv.plan1 || start;
-    let mid = addDays(d1, 14);
-    if(inv.periodStart && inv.periodEnd){ const days = dayDiff(inv.periodStart, inv.periodEnd) + 1, w = Math.round(days / 7); mid = w >= 2 ? addDays(inv.periodStart, Math.floor(w / 2) * 7) : addDays(inv.periodStart, Math.floor(days / 2)); }
-    const d2 = inv.plan2 || mid;
-    const next = paid < a1 - 0.005 ? {n:1, short:'1st instalment', due:d1, left:a1 - paid} : {n:2, short:'2nd instalment', due:d2, left:total - Math.max(paid, a1)};
-    st.next = next; st.plan = true; st.firstPaid = paid >= a1 - 0.005;
-    const end = addDays(next.due, grace());
-    if(t > end){ st.over = true; st.text = `${next.short} overdue`; st.cls = 'rd'; }
-    else if(t > next.due){ st.grace = true; st.text = `${next.short} in grace until ${nice(end)}`; st.cls = 'am'; }
-    else { st.text = `${next.short} due ${nice(next.due)}`; st.cls = 'bl'; }
-    return st;
-  }
-  if(inv.dueDate && t > inv.dueDate){ st.over = true; st.text = paid > 0 ? 'Balance overdue' : 'Overdue'; st.cls = 'rd'; }
-  else { st.text = paid > 0 ? `Balance ${mk(balance)}` : 'Not paid yet'; st.cls = 'bl'; }
-  return st;
-}
-const byDate = (a, b) => (b.date||'').localeCompare(a.date||'') || (b.savedAt||0) - (a.savedAt||0);
+let saved = [];
+function load(){ saved = HD.load(); }
 
-/* every document grouped by student, with where each one stands */
-function students(){
-  const map = new Map();
-  saved.forEach(d => {
-    const key = sk(d.student || d.name); if(!key) return;
-    if(!map.has(key)) map.set(key, {key, docs:[]});
-    map.get(key).docs.push(d);
-  });
-  return [...map.values()].map(s => {
-    s.docs.sort(byDate);
-    const D = s.docs, L = D[0];
-    s.name = (D.find(d => d.student) || L).student || L.name;
-    s.parent = (D.find(d => d.name && d.name !== s.name) || {}).name || '';
-    s.level = (D.find(d => d.level) || {}).level || '';
-    s.phone = (D.find(d => d.phone) || {}).phone || '';
-    s.email = (D.find(d => d.email) || {}).email || '';
-    s.school = (D.find(d => d.type === 'card' && d.school) || {}).school || '';
-    s.last = Math.max(...D.map(d => d.savedAt || 0));
-    const invs = D.filter(d => d.type === 'invoice');
-    s.periods = invs.map(inv => {
-      const receipts = D.filter(r => r.type === 'receipt' && same(r.ref, inv.number));
-      const card = D.find(c => c.type === 'card' && (same(c.ref, inv.number) || receipts.some(r => same(c.ref, r.number))));
-      const quote = D.find(q => (q.type || 'quote') === 'quote' && same(q.number, inv.ref));
-      return {inv, receipts, card, quote, st: invState(inv, receipts)};
-    });
-    s.cur = s.periods[0] || null;
-    const quotes = D.filter(d => (d.type || 'quote') === 'quote' && !invs.some(i => same(i.ref, d.number)));
-    s.openQuote = quotes.find(q => !s.cur || (q.date || '') >= (s.cur.inv.date || '')) || null;
-    if(!s.cur) s.loneCard = D.find(d => d.type === 'card' && !D.some(r => r.type === 'receipt' && same(d.ref, r.number))) || null;
-    s.lastCard = D.find(d => d.type === 'card') || null;
-    s.status = status(s);
-    return s;
-  }).sort((a, b) => a.name.localeCompare(b.name));
+/* ================= routes ================= */
+const P = {};
+let route = {page:'home', args:[]};
+function parse(){
+  const h = location.hash.slice(1), parts = h.split('/').map(decodeURIComponent);
+  const page = parts[0] || 'home';
+  route = {page: P[page] ? page : 'home', args: parts.slice(1)};
 }
-function status(s){
-  const t = today(), c = s.cur;
-  if(c){
-    const end = c.inv.periodEnd;
-    if(c.st.over) return {k:'over', text:'Overdue', cls:'rd'};
-    if(end && end < t) return s.openQuote ? {k:'quote', text:'Quote sent', cls:'bl'} : {k:'ended', text:'Ended', cls:'gr'};
-    if(end && dayDiff(t, end) <= 7) return {k:'ending', text:'Ends soon', cls:'am'};
-    if(c.card) return {k:'active', text:'Active', cls:'ok'};
-    return {k:'progress', text:'In progress', cls:'bl'};
-  }
-  if(s.openQuote) return {k:'quote', text:'Quote sent', cls:'bl'};
-  if(s.loneCard) return {k:'active', text:'Card only', cls:'gr'};
-  return {k:'other', text:'', cls:''};
+function render(){
+  load(); parse();
+  const sec = {student:'students', set:'settings', person:'settings', new:'home', edithome:'home'}[route.page] || route.page;
+  LHQNav.section(sec);
+  const m = $('main');
+  m.className = 'main' + (['home','edithome','new','students','student'].includes(route.page) ? ' narrow' : '');
+  m.innerHTML = P[route.page](...route.args) || '';
+  bind();
+  if(route.page === 'new') newSheet(route.args[0]);
 }
+window.addEventListener('hashchange', () => { render(); if(!/^#new/.test(location.hash)) window.scrollTo(0, 0); });
+window.hubApply = render; window.hubReady = () => { render(); HD.refreshPeople().then(render); }; window.hubRemap = render; window.hubMe = render;
+window.addEventListener('pageshow', e => { if(e.persisted) render(); });
+
+function docRow(d, o = {}){
+  const t = typeOf(d), [s, c] = HD.docStatus(d);
+  const amt = t === 'card' ? (d.subjects||[]).map(x => x.name).filter(Boolean).join(', ') || 'Tuition card' : t === 'receipt' ? 'Received ' + mk(num(d.received)) : mk(d.total != null ? d.total : HD.total(d));
+  const who = d.updatedBy || d.createdBy;
+  const sub = o.sub || [nice(d.date), amt, who ? 'by ' + first(who) : '', d.savedAt && o.when ? ago(d.savedAt) : ''].filter(Boolean).join(' · ');
+  return `<a class="it" href="${openLink(d)}"><span class="ico">${ic(t)}</span><span class="t"><b>${esc(d.number || WORD[t])}${o.noName ? '' : ' · ' + esc(d.student || d.name || '(no name)')}</b><small>${esc(sub)}</small></span><span class="tag ${c}">${esc(s)}</span></a>`;
+}
+
+/* ================= home ================= */
 function attention(list){
   const out = [], t = today();
   list.forEach(s => {
     const c = s.cur;
     if(c){
       const end = c.inv.periodEnd;
-      if(c.st.over) out.push({w:0, s, ico:'alert', col:'--rd', title:s.name, sub:`${c.inv.number} · ${c.st.text}`, tag:['Overdue','rd']});
-      else if(c.st.grace) out.push({w:1, s, ico:'clock', col:'--am', title:s.name, sub:`${c.inv.number} · ${c.st.text}`, tag:['Grace','am']});
-      const paidEnough = c.st.paidUp || c.st.firstPaid;
-      if(paidEnough && !c.card && !(end && end < t)) out.push({w:2, s, ico:'card', col:'--am', title:s.name, sub:`${c.inv.number} paid · no tuition card yet`, btn:['Make card', cardLink(s)]});
-      if(c.card && end && end >= t && dayDiff(t, end) <= 7 && !s.openQuote) out.push({w:3, s, ico:'clock', col:'--am', title:s.name, sub:`Tuition period ends ${nice(end)}`, btn:['Renew', renewLink(s)]});
+      if(c.st.over) out.push({w:0, s, href:openLink(c.inv), ico:'alert', col:'--rd', sub:`${c.inv.number} · ${c.st.text}`, tag:['Overdue','rd']});
+      else if(c.st.grace) out.push({w:1, s, href:openLink(c.inv), ico:'clock', col:'--am', sub:`${c.inv.number} · ${c.st.text}`, tag:['Grace','am']});
+      if((c.st.paidUp || c.st.firstPaid) && !c.card && !(end && end < t) && can('cards')) out.push({w:2, s, href:openLink(c.inv), ico:'card', col:'--am', sub:`${c.inv.number} ${c.st.paidUp ? 'paid' : '1st instalment paid'} · no tuition card yet`, btn:['Make card', cardLink(s)]});
+      if(c.card && (c.card.subjects||[]).some(x => !x.tutor)) out.push({w:2, s, href:openLink(c.card), ico:'user', col:'--am', sub:`${c.card.number} · a subject has no tutor`, tag:['No tutor','am']});
+      if(c.card && end && end >= t && dayDiff(t, end) <= 7 && !s.openQuote && can('quotes')) out.push({w:3, s, href:stuLink(s.key), ico:'clock', col:'--am', sub:`Tuition period ends ${nice(end)}`, btn:['Renew', D('renew=' + c.inv.id)]});
     }
     const q = s.openQuote;
-    if(q && q.date && dayDiff(q.date, t) >= 7) out.push({w:4, s, ico:'quote', col:'--muted', title:s.name, sub:`${q.number} sent ${dayDiff(q.date, t)} days ago · no invoice yet`, btn:['Invoice', ed('conv=invoice:' + q.id)]});
+    if(q && q.date && dayDiff(q.date, t) >= 7) out.push({w:4, s, href:openLink(q), ico:'quote', col:'--muted', sub:`${q.number} sent ${dayDiff(q.date, t)} days ago · no invoice yet`, btn: can('quotes') ? ['Invoice', D('conv=invoice:' + q.id)] : null});
   });
   return out.sort((a, b) => a.w - b.w);
 }
+function cardLink(s){ const c = s.cur; return D('conv=card:' + c.inv.id + (s.lastCard && s.lastCard !== c.card ? '&from=' + s.lastCard.id : '')); }
 
-/* links into the document editor */
-const ed = h => 'editor.html#' + h;
-const openLink = d => ed('open=' + d.id);
-function cardLink(s){ const c = s.cur; return ed('conv=card:' + (c.receipts[0] || c.inv).id + (s.lastCard ? '&from=' + s.lastCard.id : '')); }
-const renewLink = s => ed('renew=' + s.cur.inv.id);
-
-/* ================= icons ================= */
-const ICP = {quote:'<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/>', inv:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>', rct:'<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>', card:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10h6M7 14h10"/>',
-  home:'<path d="M4 11l8-7 8 7v9H4z"/>', users:'<circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.5 3-6 6-6s6 2.5 6 6"/><path d="M16 4.5a3.5 3.5 0 010 7M18 14c2 .8 3 3 3 6"/>', rep:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>', set:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>',
-  docs:'<path d="M8 3h8l4 4v12H8z"/><path d="M16 3v4h4"/><path d="M4 7v14h12"/>', alert:'<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/>', clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', chev:'<path d="M9 6l6 6-6 6"/>', back:'<path d="M15 6l-6 6 6 6"/>',
-  user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>', search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>', edit:'<path d="M4 20h4L19 9l-4-4L4 16v4z"/>', key:'<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3"/>', out:'<path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/>', list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>'};
-const ic = (n, s = 20, w = 1.8) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${ICP[n] || ''}</svg>`;
-const docIc = {quote:'quote', invoice:'inv', receipt:'rct', card:'card'};
-
-/* ================= pages ================= */
-function me(){ const s = window.hub && hub.session(); return s && s.me || {}; }
-function toast(m){ const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 2800); }
-window.hubToast = toast;
-
-const P = {};
-let route = {page:'home', arg:''};
-function parseRoute(){
-  const h = decodeURIComponent(location.hash.slice(1));
-  const [page, ...rest] = h.split('/');
-  route = {page: P[page] ? page : 'home', arg: rest.join('/')};
+/* the Home cards: each person picks up to 6 */
+const MONTHL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const ym = iso => String(iso || '').slice(0, 7);
+function metrics(list){
+  const t = today(), thisM = ym(t), d = new Date(); d.setMonth(d.getMonth() - 1); const lastM = HD.isoOf(d).slice(0, 7);
+  const invs = saved.filter(x => x.type === 'invoice'), rcts = saved.filter(x => x.type === 'receipt'), quotes = saved.filter(x => typeOf(x) === 'quote');
+  const recvIn = m => rcts.filter(r => ym(r.date) === m).reduce((a, r) => a + num(r.received), 0);
+  const invoiced = invs.filter(i => ym(i.date) === thisM).reduce((a, i) => a + HD.total(i), 0);
+  const states = invs.map(i => ({i, st: HD.invState(i)}));
+  const owing = states.filter(x => x.st.balance > 0.005), over = owing.filter(x => x.st.over);
+  const active = list.filter(s => s.cur && (!s.cur.inv.periodEnd || s.cur.inv.periodEnd >= t));
+  const newM = list.filter(s => ym(s.first) === thisM).length, newL = list.filter(s => ym(s.first) === lastM).length;
+  const ending = list.filter(s => s.cur && s.cur.inv.periodEnd && s.cur.inv.periodEnd >= t && dayDiff(t, s.cur.inv.periodEnd) <= 7);
+  const renewed = list.filter(s => s.periods.length > 1 && s.periods[1].inv.periodEnd && s.periods[1].inv.periodEnd >= t && dayDiff(t, s.periods[1].inv.periodEnd) <= 7);
+  const waiting = list.filter(s => s.openQuote).map(s => s.openQuote);
+  const qM = quotes.filter(q => ym(q.date) === thisM), qMconv = qM.filter(q => invs.some(i => same(i.ref, q.number)));
+  const oldest = waiting.reduce((m, q) => Math.max(m, q.date ? dayDiff(q.date, t) : 0), 0);
+  const cards = active.map(s => s.cur.card || s.lastCard).filter(Boolean);
+  const tutorNames = new Set(); let noTutor = 0;
+  cards.forEach(c => (c.subjects||[]).forEach(x => { if(x.tutor) tutorNames.add(x.tutor); else noTutor++; }));
+  return {recv: recvIn(thisM), recvLast: recvIn(lastM), invoiced, owed: owing.reduce((a, x) => a + x.st.balance, 0), owingN: owing.length, overN: over.length, overAmt: over.reduce((a, x) => a + x.st.balance, 0),
+    active: active.length, newM, newL, ending: ending.length, renewed: renewed.length, endingNext: ending.sort((a,b)=>a.cur.inv.periodEnd.localeCompare(b.cur.inv.periodEnd))[0],
+    waiting: waiting.length, waitingAmt: waiting.reduce((a, q) => a + HD.total(q), 0), qM: qM.length, qMconv: qMconv.length, oldest,
+    tutors: tutorNames.size, perTutor: tutorNames.size ? Math.round(active.length / tutorNames.size * 10) / 10 : 0, noTutor};
 }
-function render(){
-  load(); parseRoute();
-  const main = $('main');
-  main.innerHTML = P[route.page](route.arg) || '';
-  const sec = {student:'students', pick:'home'}[route.page] || route.page;
-  const items = [['home','home','Home'],['students','users','Students'],['docs','docs','Documents'],['reports','rep','Reports'],['settings','set','Settings']];
-  const href = k => k === 'reports' ? 'reports.html' : '#' + k;
-  $('nav').innerHTML = items.map(([k, i, l]) => `<a href="${href(k)}" class="${sec === k ? 'on' : ''}">${ic(i, 21)}${l}</a>`).join('');
-  $('tabs').innerHTML = items.map(([k, , l]) => `<a href="${href(k)}" class="${sec === k ? 'on' : ''}">${l}</a>`).join('');
-  bind();
+const trend = (now, before, word) => { if(!before && !now) return ''; if(!before) return `<div class="tr fl">First month with figures</div>`; const p = Math.round((now - before) / before * 100); return `<div class="tr ${p >= 0 ? 'up' : 'dn'}">${p >= 0 ? '▲' : '▼'} ${Math.abs(p)}% ${word}</div>`; };
+const CARDS = {
+  money:{t:'Money this month', ic:'cash', need:'money', d:'Received this month against what was invoiced, and what is still owed', href:'#docs/invoice',
+    html:m => `<div class="v">${mkShort(m.recv)} <small>received</small></div><div class="bar"><i style="width:${m.invoiced ? Math.min(100, Math.round(m.recv / m.invoiced * 100)) : 0}%"></i></div><div class="s">${mkShort(m.invoiced)} invoiced this month</div><div class="s ${m.overN ? 'bad' : ''}">Outstanding ${mkShort(m.owed)}${m.overN ? ` · ${m.overN} overdue` : ''}</div>${trend(m.recv, m.recvLast, 'received vs last month')}`},
+  owed:{t:'Outstanding & overdue', ic:'alert', need:'money', d:'Unpaid balances, with overdue ones first', href:'#docs/invoice',
+    html:m => `<div class="v">${mkShort(m.owed)}</div><div class="s">${m.owingN} invoice${m.owingN === 1 ? '' : 's'} not fully paid</div>${m.overN ? `<div class="s bad">${m.overN} overdue · ${mkShort(m.overAmt)}</div>` : '<div class="s">Nothing overdue</div>'}`},
+  students:{t:'Students', ic:'users', d:'Students in a tuition period now, new ones, and periods ending', href:'#students',
+    html:m => `<div class="v">${m.active} <small>active</small></div><div class="s">+${m.newM} new this month</div><div class="s">${m.ending} period${m.ending === 1 ? '' : 's'} end${m.ending === 1 ? 's' : ''} this week</div>${m.newL || m.newM ? `<div class="tr ${m.newM >= m.newL ? 'up' : 'dn'}">${m.newM >= m.newL ? '▲' : '▼'} ${Math.abs(m.newM - m.newL)} new vs last month</div>` : ''}`},
+  enrol:{t:'Enrolments', ic:'quote', d:'Quotes waiting for the parent, and how many become invoices', href:'#docs/quote',
+    html:m => `<div class="v">${m.waiting} <small>quote${m.waiting === 1 ? '' : 's'} waiting</small></div>${can('money') ? `<div class="s">Worth ${mkShort(m.waitingAmt)}</div>` : ''}<div class="s">${m.qMconv} of ${m.qM} quotes this month became invoices</div>${m.oldest ? `<div class="tr fl">Oldest waiting: ${m.oldest} days</div>` : ''}`},
+  renew:{t:'Renewals due', ic:'clock', d:'Tuition periods ending in the next 7 days', href:'#students/ending',
+    html:m => `<div class="v">${m.ending}</div><div class="s">period${m.ending === 1 ? '' : 's'} end in the next 7 days</div><div class="s">${m.renewed} renewed already</div>${m.endingNext ? `<div class="tr fl">Next: ${esc(m.endingNext.name)}, ${nice(m.endingNext.cur.inv.periodEnd)}</div>` : ''}`},
+  tutors:{t:'Tutors', ic:'user', d:'Tutors teaching now, and subjects with no tutor', href:'#set/people',
+    html:m => `<div class="v">${m.tutors} <small>teaching</small></div><div class="s">${m.perTutor ? `About ${m.perTutor} students each` : 'From the current tuition cards'}</div>${m.noTutor ? `<div class="s warn">${m.noTutor} subject${m.noTutor === 1 ? ' has' : 's have'} no tutor yet</div>` : '<div class="s">Every subject has a tutor</div>'}`},
+  sessions:{t:'Sessions this week', ic:'clock', step2:true, d:'Sessions done and still to come, from tutors’ logs'},
+  sras:{t:'SRAs due', ic:'restore', step2:true, d:'Spaced repetition reviews due this week'},
+  reports:{t:'Reports to send', ic:'rep', step2:true, d:'Weekly reports ready for parents'},
+  tpay:{t:'Tutor pay this month', ic:'cash', need:'tpay', step2:true, d:'Pay so far from logged sessions, and what is left after paying tutors'},
+};
+const DEFAULT_HOME = () => can('money') ? ['money','students','enrol','tutors'] : ['students','enrol','renew','tutors'];
+function myCards(){ const h = me().home; return (Array.isArray(h) ? h : DEFAULT_HOME()).filter(k => CARDS[k] && !CARDS[k].step2 && (!CARDS[k].need || can(CARDS[k].need))); }
+async function saveHome(cards){
+  const s = hub.session(); if(s && s.me){ s.me.home = cards; localStorage.setItem('lhq_session', JSON.stringify(s)); }
+  render();
+  try{ await hub.api('people', {method:'POST', body:JSON.stringify({action:'home', cards})}); }catch(e){ toast('Couldn\'t save your Home online. It will look like this on this device.'); }
 }
-/* the editor's back button returns to the page you came from */
-document.addEventListener('click', e => {
-  const a = e.target.closest('a[href^="editor.html"],a[href="reports.html"]');
-  if(a){ try{ sessionStorage.setItem('lhq_from', location.hash); }catch(err){} }
-});
-
-function docRow(d, opts = {}){
-  const type = d.type || 'quote';
-  const amount = type === 'card' ? (d.subjects || []).map(x => x.name).filter(Boolean).join(', ') || 'Tuition card'
-    : type === 'receipt' ? 'Received ' + mk(num(d.received)) : mk(d.total != null ? d.total : totals(d).total);
-  const who = d.updatedBy || d.createdBy;
-  return `<a class="it" href="${openLink(d)}"><span class="ico">${ic(docIc[type])}</span><div class="t"><b>${esc(d.number || WORD[type])}${opts.noName ? '' : ' · ' + esc(d.student || d.name || '(no name)')}</b><small>${esc(nice(d.date))} · ${esc(amount)}${opts.showWho && who ? ' · by ' + esc(first(who)) : ''}${opts.showWho && d.savedAt ? ' · ' + ago(d.savedAt) : ''}</small></div><span class="chev">${ic('chev', 16, 2)}</span></a>`;
-}
+let attOpen = true; try{ attOpen = localStorage.getItem('lhq_attOpen') !== '0'; }catch(e){}
 
 P.home = () => {
-  const list = students(), att = attention(list), u = me();
-  const h = new Date().getHours(), greet = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening';
-  const d = new Date();
-  const draft = store.get('lhq_draft', null);
-  const draftRow = draft && !draft.id && (draft.student || draft.name)
-    ? `<div class="pn"><a class="it" href="editor.html"><span class="ico">${ic('edit')}</span><div class="t"><b>Unsaved ${esc(WORD[draft.type || 'quote'].toLowerCase())} · ${esc(draft.student || draft.name)}</b><small>Not saved yet. Open it to finish and save.</small></div><span class="tag am">Draft</span></a></div>` : '';
+  const list = HD.students(), att = attention(list), m = metrics(list), cards = myCards();
+  const h = new Date().getHours(), greet = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening', d = new Date();
   const recent = saved.slice().sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0)).slice(0, 6);
-  return `
-  <div class="hi"><h1>${greet}${u.name ? ', ' + esc(first(u.name)) : ''}</h1><p>${WDAYL[d.getDay()]} ${d.getDate()} ${MONTHL[d.getMonth()]}</p></div>
-  <div class="qk"><a href="${ed('new=quote')}">${ic('quote')}Quote</a><a href="#pick/invoice">${ic('inv')}Invoice</a><a href="#pick/receipt">${ic('rct')}Receipt</a><a href="#pick/card">${ic('card')}Card</a></div>
+  const draft = store.get('lhq_draft', null);
+  const draftRow = draft && !draft.id && (draft.student || draft.name) ? `<div class="card"><a class="it" href="doc.html#draft"><span class="ico">${ic('edit')}</span><span class="t"><b>Unsaved ${esc(WORD[draft.type || 'quote'].toLowerCase())} · ${esc(draft.student || draft.name)}</b><small>Not saved yet. Open it to finish and save.</small></span><span class="tag am">Draft</span></a></div>` : '';
+  return `<div class="ph"><div class="tt"><h1>${greet}${me().name ? ', ' + esc(first(me().name)) : ''}</h1><p>${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()]} ${d.getDate()} ${MONTHL[d.getMonth()]}</p></div>
+    <div class="acts"><a class="btn" href="#edithome" title="Edit Home" aria-label="Edit Home">${ic('edit',16)}</a>${can('quotes') || can('receipts') || can('cards') ? `<a class="btn n" href="#new">${ic('plus',16,2.4)} New</a>` : ''}</div></div>
+  ${cards.length ? `<div class="mcs">${cards.map(k => { const c = CARDS[k]; return `<a class="mc" href="${c.href}"><span class="l">${ic(c.ic,15,2)}${c.t}</span>${c.html(m)}</a>`; }).join('')}</div>` : ''}
   ${draftRow}
-  <div class="h2">Needs attention <em>${att.length || ''}</em></div>
-  <div class="pn">${att.slice(0, 12).map(x => `<div class="it click" data-go="#student/${encodeURIComponent(x.s.key)}"><span class="ico" style="color:var(${x.col})">${ic(x.ico)}</span><div class="t"><b>${esc(x.title)}</b><small>${esc(x.sub)}</small></div>${x.tag ? `<span class="tag ${x.tag[1]}">${x.tag[0]}</span>` : `<a class="b sm" href="${x.btn[1]}">${x.btn[0]}</a>`}</div>`).join('') || '<p class="empty">Nothing needs attention. Overdue payments, paid invoices without a card, and periods ending this week show here.</p>'}</div>
-  <div class="h2">Recent</div>
-  <div class="pn">${recent.map(d => docRow(d, {showWho:true})).join('') || '<p class="empty">Nothing saved yet. Start with a quote.</p>'}</div>`;
+  <div class="h2">Needs attention <span class="acts" style="align-items:center"><em>${att.length || ''}</em><button class="btn sm" id="attTog">${attOpen ? 'Hide' : 'Show'}</button></span></div>
+  ${attOpen ? `<div class="card">${att.slice(0, 15).map(x => `<div class="it" data-go="${x.href}" style="cursor:pointer"><span class="ico" style="color:var(${x.col})">${ic(x.ico)}</span><span class="t"><b>${esc(x.s.name)}</b><small>${esc(x.sub)}</small></span>${x.tag ? `<span class="tag ${x.tag[1]}">${x.tag[0]}</span>` : x.btn ? `<a class="btn sm" href="${x.btn[1]}">${x.btn[0]}</a>` : ''}</div>`).join('') || '<p class="empty">Nothing needs attention. Overdue payments, paid invoices without a card, subjects without a tutor and periods ending this week show here.</p>'}</div>`
+    : `<p class="note" style="margin:-2px 2px 18px">${att.length} item${att.length === 1 ? '' : 's'} hidden. Needs attention always stays on Home so nothing is missed.</p>`}
+  <div class="h2">Recent <a class="btn sm" href="#docs">All documents</a></div>
+  <div class="card">${recent.map(x => docRow(x, {when:true})).join('') || '<p class="empty">Nothing saved yet. Tap New to start with a quote.</p>'}</div>`;
+};
+P.edithome = () => {
+  const cards = myCards(), MAX = 6, m = metrics(HD.students());
+  const lib = Object.entries(CARDS).filter(([k, c]) => !c.need || can(c.need));
+  return `<div class="ph"><div class="tt"><h1>Edit Home</h1><p>Your cards: ${cards.length} of ${MAX}. Only you see your choice, on any device. Needs attention and Recent always stay.</p></div><a class="btn n" href="#home">Done</a></div>
+  ${cards.length ? `<div class="mcs">${cards.map((k, i) => { const c = CARDS[k]; return `<div class="mc ed"><div class="ctl"><button title="Move earlier" ${i===0?'disabled':''} data-mv="${i}:-1">${ic('back',15,2.2)}</button><button title="Move later" ${i===cards.length-1?'disabled':''} data-mv="${i}:1">${ic('chev',15,2.2)}</button><button class="rm" title="Remove" data-rm="${i}">✕</button></div><span class="l">${ic(c.ic,15,2)}${c.t}</span>${c.html(m)}</div>`; }).join('')}</div>` : '<p class="empty">No cards. Add some below.</p>'}
+  <div class="h2">Add a card</div>
+  <div class="card">${lib.map(([k, c]) => `<div class="it"><span class="ico">${ic(c.ic)}</span><span class="t"><b>${c.t}</b><small>${c.d}</small></span>${c.step2 ? '<span class="tag gr">With step 2</span>' : cards.includes(k) ? '<span class="tag ok">On Home</span>' : `<button class="btn sm" data-add="${k}" ${cards.length >= MAX ? 'disabled title="Remove a card first"' : ''}>+ Add</button>`}</div>`).join('')}</div>
+  ${can('money') ? '' : '<p class="note">Money cards are not in your list: the Director has not given you money access.</p>'}`;
 };
 
-let sQuery = '', sFilter = 'all';
-P.students = () => {
-  const list = students();
-  const F = S_FILTERS;
-  return `
-  <div class="hi"><h1>Students</h1><p>${list.length} student${list.length === 1 ? '' : 's'} in LHQ Hub</p></div>
-  <label class="search">${ic('search', 18)}<input id="sq" type="search" placeholder="Search name, parent or number" value="${esc(sQuery)}" autocomplete="off"></label>
-  <div class="chips">${Object.entries(F).map(([k, [l, f]]) => `<button class="chip ${sFilter === k ? 'on' : ''}" data-filter="${k}">${l}<i>${list.filter(f).length}</i></button>`).join('')}</div>
-  <div class="pn" id="slist">${studentRows(list)}</div>`;
+/* ================= students ================= */
+let sQ = '';
+const S_F = {all:['All', () => true], active:['Active', s => ['active','progress'].includes(s.status.k)], over:['Overdue', s => s.status.k === 'over'], ending:['Ends soon', s => s.status.k === 'ending'], quote:['Quote sent', s => s.status.k === 'quote'], ended:['Ended', s => s.status.k === 'ended']};
+P.students = (f = 'all') => {
+  const list = HD.students(); if(!S_F[f]) f = 'all';
+  return `<div class="ph"><div class="tt"><h1>Students</h1><p>${list.length} student${list.length === 1 ? '' : 's'}</p></div>${can('students') || can('quotes') ? `<button class="btn" id="addStu">${ic('plus',16,2.2)} Add student</button>` : ''}</div>
+  <label class="search">${ic('search',18)}<input id="sq" type="search" placeholder="Search name, parent or number" value="${esc(sQ)}" autocomplete="off"></label>
+  <div class="chips">${Object.entries(S_F).map(([k, [l, fn]]) => `<a class="chip ${f === k ? 'on' : ''}" href="#students/${k}" style="text-decoration:none;color:inherit">${l}<i>${list.filter(fn).length}</i></a>`).join('')}</div>
+  <div class="card" id="slist">${studentRows(list, f)}</div>`;
 };
-const S_FILTERS = {all:['All', () => true], active:['Active', s => s.status.k === 'active' || s.status.k === 'progress'], over:['Overdue', s => s.status.k === 'over'], ending:['Ends soon', s => s.status.k === 'ending'], ended:['Ended', s => s.status.k === 'ended']};
-function studentRows(list){
-  const q = sk(sQuery);
-  const rows = list.filter(S_FILTERS[sFilter][1]).filter(s => !q || sk(s.name + ' ' + s.parent + ' ' + s.level + ' ' + s.docs.map(d => d.number).join(' ')).includes(q));
-  return rows.map(s => `<a class="it" href="#student/${encodeURIComponent(s.key)}"><div class="t"><b>${esc(s.name)}</b><small>${esc([s.level, s.cur ? range(s.cur.inv.periodStart, s.cur.inv.periodEnd) : '', subjectsOf(s)].filter(Boolean).join(' · '))}</small></div>${s.status.text ? `<span class="tag ${s.status.cls}">${s.status.text}</span>` : ''}</a>`).join('') || `<p class="empty">${list.length ? 'No students match.' : 'No students yet. They appear here as soon as a quote, invoice, receipt or card is saved.'}</p>`;
+function studentRows(list, f){
+  const q = sk(sQ);
+  const rows = list.filter(S_F[f || 'all'][1]).filter(s => !q || sk([s.name, s.parent, s.level, ...s.docs.map(d => d.number)].join(' ')).includes(q));
+  return rows.map(s => `<a class="it" href="${stuLink(s.key)}"><span class="av">${inits(s.name)}</span><span class="t"><b>${esc(s.name)}</b><small>${esc([s.level, s.cur ? range(s.cur.inv.periodStart, s.cur.inv.periodEnd) : '', subjectsOf(s)].filter(Boolean).join(' · '))}</small></span><span class="tag ${s.status.cls}">${s.status.text}</span></a>`).join('')
+    || `<p class="empty">${list.length ? 'No students match.' : 'No students yet. Add one, or they appear as soon as a quote is saved.'}</p>`;
 }
 function subjectsOf(s){
-  const d = s.cur ? s.cur.card || s.cur.inv : s.openQuote || s.loneCard;
-  if(!d) return '';
+  const d = s.cur ? s.cur.card || s.cur.inv : s.openQuote || s.loneCard; if(!d) return '';
   return d.type === 'card' ? (d.subjects || []).map(x => x.name).filter(Boolean).join(', ') : (d.items || []).map(x => x.desc).filter(Boolean).join(', ');
 }
-
-P.student = key => {
-  const s = students().find(x => x.key === key);
-  if(!s) return `<a class="crumb" href="#students">${ic('back', 16, 2.2)} Students</a><p class="empty">That student isn't here. They may have been renamed or deleted.</p>`;
+let editDetails = false;
+P.student = (key, tab = 'overview') => {
+  const s = HD.students().find(x => x.key === key);
+  if(!s) return `<a class="crumb" href="#students">${ic('back',16,2.2)} Students</a><p class="empty">That student isn't here. They may have been renamed.</p>`;
+  const tabs = [['overview','Overview'],['documents',`Documents (${s.docs.length})`],['details','Details']];
+  let body = '';
+  if(tab === 'overview') body = stuOverview(s);
+  if(tab === 'documents'){
+    body = `<div class="card">${s.docs.map(d => docRow(d, {noName:true})).join('') || '<p class="empty">No documents yet.</p>'}</div>
+      ${can('quotes') ? `<a class="btn" href="${D('new=quote&student=' + encodeURIComponent(s.key))}">${ic('plus',16,2.2)} New quote for ${esc(first(s.name))}</a>` : ''}`;
+  }
+  if(tab === 'details'){
+    const F = [['Student name','name'],['Year & level','level'],['School','school'],['Parent / guardian','parent'],['WhatsApp','phone'],['Email','email'],['Address','address'],['Heard about LHQ via','heard']];
+    body = editDetails
+      ? `<div class="card pad">${F.map(([l, f]) => `<label class="f"><span>${l}</span>${f === 'level' ? levelSelect('sd_level', s.level) : f === 'school' ? schoolInput('sd_school', s.school) : `<input class="in" id="sd_${f}" value="${esc(s[f])}">`}</label>`).join('')}
+         <div class="acts"><button class="btn n" id="sdSave">Save details</button><button class="btn" id="sdCancel">Cancel</button></div></div>`
+      : `<div class="card pad"><dl class="kv">${F.map(([l, f]) => `<dt>${l}</dt><dd>${esc(s[f]) || '<span style="color:var(--muted);font-weight:500">Not added</span>'}</dd>`).join('')}</dl>
+         ${can('students') ? `<div class="acts" style="margin-top:12px"><button class="btn" id="sdEdit">${ic('edit',16)} Edit details</button></div>` : ''}
+         <p class="note">New quotes, invoices, receipts and cards fill these in. Documents already saved or sent keep what they had.</p></div>`;
+  }
+  return `<a class="crumb" href="#students">${ic('back',16,2.2)} Students</a>
+  <div class="ph"><div class="tt"><h1>${esc(s.name)}</h1><p>${esc([s.level, s.school].filter(Boolean).join(' · ') || ' ')}</p></div><span class="tag ${s.status.cls}" style="font-size:12px">${s.status.text}</span></div>
+  <div class="tabs">${tabs.map(([k, l]) => `<a class="${tab === k ? 'on' : ''}" href="${stuLink(s.key, k)}">${l}</a>`).join('')}</div>${body}`;
+};
+function stuOverview(s){
   const c = s.cur;
-  const step = (d, label, extra) => d ? `<a class="ok" href="${openLink(d)}">✓ ${esc(d.number)}${extra || ''}</a>` : `<span class="gr">${label}</span>`;
-  let chain = '', facts = '', next = '';
+  const chip = (d, l) => d ? `<a class="ok" href="${openLink(d)}">✓ ${esc(d.number)}</a>` : `<span class="s gr">${l}</span>`;
+  const ar = '<span class="ar">›</span>';
+  const nexts = [];
+  let head = '', chain = '', facts = '';
   if(c){
-    chain = (c.quote || c.inv.ref ? step(c.quote, 'Quote') : '') + step(c.inv, 'Invoice') + (c.receipts.length ? c.receipts.slice().reverse().map(r => step(r, 'Receipt')).join('') : step(null, 'Receipt')) + step(c.card, 'Card');
-    facts = `<dt>Invoice</dt><dd>${mk(c.st.total)}${c.inv.plan === 'half' ? ' · 50/50 plan' : ''}</dd>
-      <dt>Paid</dt><dd>${mk(c.st.paid)} <span class="tag ${c.st.cls}">${esc(c.st.text)}</span></dd>
-      ${c.card ? `<dt>Tutors</dt><dd>${(c.card.subjects || []).map(x => `${esc(x.name)}${x.tutor ? ': ' + esc(x.tutor) : ': no tutor yet'}`).join('<br>')}</dd>` : ''}`;
-    if(!c.st.paidUp) next += `<a class="b g" href="${ed('conv=receipt:' + c.inv.id)}">${c.st.plan && c.st.firstPaid ? 'Receive 2nd instalment' : 'Record a payment'}</a>`;
-    if(!c.card) next += `<a class="b ${c.st.paidUp || c.st.firstPaid ? 'n' : ''}" href="${cardLink(s)}">Make tuition card${s.lastCard ? ' (same subjects and tutors as last time)' : ''}</a>`;
-    const endSoon = !c.inv.periodEnd || dayDiff(today(), c.inv.periodEnd) <= 14;
-    if(c.card && !s.openQuote && endSoon) next += `<a class="b ${c.st.paidUp && !c.st.over ? 'n' : ''}" href="${renewLink(s)}">Renew for the next period</a><p class="note">Renew makes the next invoice with the same subjects, starting after ${esc(nice(c.inv.periodEnd) || 'this period')}. Then make the card from it: the subjects, days and tutors carry over.</p>`;
-  } else if(s.loneCard){
-    chain = step(null, 'Quote') + step(null, 'Invoice') + step(null, 'Receipt') + step(s.loneCard, 'Card');
-  }
+    const period = range(c.inv.periodStart, c.inv.periodEnd) || c.inv.period || '';
+    head = 'This tuition period' + (period ? ' · ' + period : '');
+    chain = (c.quote || c.inv.ref ? chip(c.quote, 'Quote') + ar : '') + chip(c.inv, 'Invoice') + ar + (c.receipts.length ? c.receipts.map(r => chip(r)).join('') : chip(null, 'Receipt')) + ar + chip(c.card, 'Card');
+    facts = `<dt>Invoice</dt><dd>${mk(c.st.total)}${c.inv.plan === 'half' ? ' · 50/50 plan' : ''}</dd><dt>Paid</dt><dd>${mk(c.st.paid)} <span class="tag ${c.st.cls}">${esc(c.st.text)}</span></dd>
+      ${c.card ? `<dt>Tutors</dt><dd>${(c.card.subjects || []).map(x => `${esc(x.name)}: ${x.tutor ? esc(x.tutor) : '<span style="color:var(--am)">no tutor yet</span>'}`).join('<br>')}</dd>` : ''}`;
+    if(!c.st.paidUp && can('receipts')) nexts.push(`<a class="btn g full" href="${D('conv=receipt:' + c.inv.id)}">${c.st.plan && c.st.firstPaid ? 'Receive 2nd instalment' : 'Record a payment'} · ${mk(c.st.balance)}</a>`);
+    if(!c.card && can('cards')) nexts.push(`<a class="btn ${c.st.paidUp || c.st.firstPaid ? 'n' : ''} full" href="${cardLink(s)}">Make tuition card${s.lastCard ? ' (same subjects and tutors as last time)' : ''}</a>`);
+    const soon = !c.inv.periodEnd || dayDiff(today(), c.inv.periodEnd) <= 14;
+    if(c.card && !s.openQuote && soon && can('quotes')) nexts.push(`<a class="btn n full" href="${D('renew=' + c.inv.id)}">Renew for the next period</a><p class="note">Makes the next invoice with the same subjects, starting after ${esc(nice(c.inv.periodEnd) || 'this period')}. The card after it copies days, times and tutors.</p>`);
+  } else if(s.loneCard){ head = 'Tuition card'; chain = chip(s.loneCard, 'Card'); }
   if(s.openQuote){
-    next = `<a class="b n" href="${ed('conv=invoice:' + s.openQuote.id)}">Parent agreed → Make invoice from ${esc(s.openQuote.number)}</a>` + next;
-    if(!c) chain = step(s.openQuote, 'Quote') + step(null, 'Invoice') + step(null, 'Receipt') + step(null, 'Card');
+    if(!c){ head = 'New enrolment'; chain = chip(s.openQuote, 'Quote') + ar + chip(null, 'Invoice') + ar + chip(null, 'Receipt') + ar + chip(null, 'Card'); }
+    if(can('quotes')) nexts.unshift(`<a class="btn n full" href="${D('conv=invoice:' + s.openQuote.id)}">Parent agreed → Make invoice from ${esc(s.openQuote.number)}</a>`);
   }
-  if(!next) next = `<a class="b n" href="${ed('new=quote&student=' + encodeURIComponent(s.name))}">New quote for ${esc(first(s.name))}</a>`;
-  else next += `<a class="b" href="${ed('new=quote&student=' + encodeURIComponent(s.name))}">New quote</a>`;
+  if(!nexts.length && can('quotes')) nexts.push(`<a class="btn n full" href="${D('new=quote&student=' + encodeURIComponent(s.key))}">New quote for ${esc(first(s.name))}</a>`);
   const earlier = s.periods.slice(1);
-  const period = c ? range(c.inv.periodStart, c.inv.periodEnd) || c.inv.period || '' : '';
-  return `
-  <a class="crumb" href="#students">${ic('back', 16, 2.2)} Students</a>
-  <div class="hi"><h1>${esc(s.name)}</h1><p>${esc([s.level, s.school].filter(Boolean).join(' · ') || ' ')}</p></div>
-  <div class="two"><div>
-  <div class="pn pad"><div class="h2" style="margin-top:0">${c ? 'This tuition period' + (period ? ' · ' + esc(period) : '') : s.openQuote ? 'New enrolment' : 'Documents'}</div>
-    ${chain ? `<div class="chain">${chain}</div>` : ''}
-    <dl class="kv">${facts}
-      ${s.parent ? `<dt>Parent</dt><dd>${esc(s.parent)}</dd>` : ''}
-      ${s.phone ? `<dt>WhatsApp</dt><dd><a href="https://wa.me/${esc(waNum(s.phone))}" target="_blank" rel="noopener">${esc(s.phone)}</a></dd>` : ''}
-      ${s.email ? `<dt>Email</dt><dd><a href="mailto:${esc(s.email)}">${esc(s.email)}</a></dd>` : ''}
-    </dl></div>
-  <div class="pn pad"><div class="h2" style="margin-top:0">Next step</div>${next}</div>
-  </div><div>
-  ${earlier.length ? `<div class="h2">Earlier periods</div><div class="pn">${earlier.map(p => `<a class="it" href="${openLink(p.inv)}"><div class="t"><b>${esc(range(p.inv.periodStart, p.inv.periodEnd) || nice(p.inv.date))}</b><small>${esc(p.inv.number)}${p.card ? ' · ' + esc(p.card.number) : ''} · ${mk(p.st.total)}</small></div><span class="tag ${p.st.cls}">${esc(p.st.paidUp ? 'Paid' : p.st.text)}</span></a>`).join('')}</div>` : ''}
-  <div class="h2">All documents <em>${s.docs.length}</em></div>
-  <div class="pn">${s.docs.map(d => docRow(d, {noName:true, showWho:true})).join('')}</div>
-  </div></div>`;
-};
+  return `<div class="card pad">${head ? `<div class="cap">${esc(head)}</div>` : ''}${chain ? `<div class="chain">${chain}</div>` : '<p class="empty" style="margin-top:0">No documents yet.</p>'}
+    <dl class="kv">${facts}${s.parent ? `<dt>Parent</dt><dd>${esc(s.parent)}</dd>` : ''}${s.phone ? `<dt>WhatsApp</dt><dd><a href="https://wa.me/${esc(waNum(s.phone))}" target="_blank" rel="noopener">${esc(s.phone)}</a></dd>` : ''}${s.heard ? `<dt>Heard via</dt><dd>${esc(s.heard)}</dd>` : ''}</dl></div>
+  ${nexts.length ? `<div class="card pad"><div class="cap">Next step</div>${nexts.join('')}</div>` : ''}
+  ${earlier.length ? `<div class="h2">Earlier periods</div><div class="card">${earlier.map(p => `<a class="it" href="${openLink(p.inv)}"><span class="t"><b>${esc(range(p.inv.periodStart, p.inv.periodEnd) || nice(p.inv.date))}</b><small>${esc(p.inv.number)}${p.card ? ' · ' + esc(p.card.number) : ''} · ${mk(p.st.total)}</small></span><span class="tag ${p.st.cls}">${esc(p.st.paidUp ? 'Paid' : p.st.text)}</span></a>`).join('')}</div>` : ''}`;
+}
 function waNum(raw){ let n = String(raw || '').replace(/\D/g, ''); if(n.startsWith('0')) n = '265' + n.slice(1); else if(n.length === 9) n = '265' + n; return n; }
+const lines = v => String(v || '').split('\n').map(x => x.trim()).filter(Boolean);
+function levelSelect(id, v){ const L = lines(HD.settings.levels); if(v && !L.includes(v)) L.unshift(v); return `<select class="in" id="${id}"><option value="">Choose</option>${L.map(x => `<option ${x === v ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>`; }
+function schoolInput(id, v){ const L = (window.SCHOOLS || []).map(x => x.n || x.name || x); return `<input class="in" id="${id}" value="${esc(v)}" list="${id}_l" autocomplete="off"><datalist id="${id}_l">${L.map(x => `<option value="${esc(x)}">`).join('')}</datalist>`; }
 
-let dQuery = '', dType = 'all';
-P.docs = () => {
-  const all = saved.slice().sort(byDate);
-  const T = {all:'All', quote:'Quotes', invoice:'Invoices', receipt:'Receipts', card:'Cards'};
-  return `
-  <div class="hi"><h1>Documents</h1><p>${all.length} saved in LHQ Hub</p></div>
-  <label class="search">${ic('search', 18)}<input id="dq" type="search" placeholder="Search number or name" value="${esc(dQuery)}" autocomplete="off"></label>
-  <div class="chips">${Object.entries(T).map(([k, l]) => `<button class="chip ${dType === k ? 'on' : ''}" data-dtype="${k}">${l}<i>${k === 'all' ? all.length : all.filter(d => (d.type || 'quote') === k).length}</i></button>`).join('')}</div>
-  <div class="pn" id="dlist">${docRows()}</div>
-  <p class="note">To delete a document or make one from another, use the <a href="editor.html">full list in the editor</a>.</p>`;
-};
-
-function docRows(){
-  const q = sk(dQuery);
-  const rows = saved.slice().sort(byDate).filter(d => dType === 'all' || (d.type || 'quote') === dType).filter(d => !q || sk([d.number, d.student, d.name, d.level].join(' ')).includes(q));
-  return rows.slice(0, 300).map(d => docRow(d, {showWho:true})).join('') || '<p class="empty">Nothing here.</p>';
+function newStudentSheet(thenQuote){
+  openSheet(`<div class="hx"><h3>New student</h3><button class="ib" data-close>✕</button></div><p class="sp">Saved once, then filled in on every document.</p>
+    <label class="f"><span>Student name</span><input class="in" id="ns_name" placeholder="First and last name" autocomplete="off"></label>
+    <div class="r2"><label class="f"><span>Year & level</span>${levelSelect('ns_level', '')}</label><label class="f"><span>School</span>${schoolInput('ns_school', '')}</label></div>
+    <div class="r2"><label class="f"><span>Parent / guardian</span><input class="in" id="ns_parent"></label><label class="f"><span>Parent's WhatsApp</span><input class="in" id="ns_phone" inputmode="tel" placeholder="0991 234 567"></label></div>
+    <label class="f"><span>Parent's email</span><input class="in" id="ns_email" type="email" inputmode="email"></label>
+    <label class="f"><span>How did they hear about LHQ?</span><select class="in" id="ns_heard"><option value="">Choose</option>${['A friend or family member','Sibling at LHQ','Instagram','Facebook','WhatsApp','Study Smart Session','Their school','Google','Other'].map(x => `<option>${x}</option>`).join('')}</select></label>
+    <button class="btn n full" id="nsGo">${thenQuote ? 'Save and make a quote' : 'Save student'}</button>`);
+  $('nsGo').onclick = () => {
+    const name = $('ns_name').value.trim(); if(!name){ toast('Add the student\'s name'); $('ns_name').focus(); return; }
+    if(HD.studentRecords()[sk(name)] || saved.some(d => sk(d.student) === sk(name))){ if(!confirm(`${name} is already a student. Use the existing one?`)) return; }
+    const f = {}; HD.DETAIL.forEach(k => { const el = $('ns_' + k); if(el) f[k] = el.value; });
+    const key = HD.saveStudent(sk(name), f);
+    closeSheet();
+    if(thenQuote) location.href = D('new=quote&student=' + encodeURIComponent(key)); else { toast(`${name} added`); location.hash = stuLink(key); }
+  };
 }
-P.pick = type => {
-  const list = students();
-  const T = {invoice:'Invoice', receipt:'Receipt', card:'Tuition card'}[type];
-  if(!T) return P.home();
-  let rows = [], blank = `<a class="b" href="${ed('new=' + type)}">Start a blank ${T.toLowerCase()}</a>`, intro = '';
-  if(type === 'invoice'){
-    intro = 'Pick the quote the parent agreed to, or start a blank invoice.';
-    rows = list.filter(s => s.openQuote).map(s => ({href: ed('conv=invoice:' + s.openQuote.id), t:s.name, sub:`${s.openQuote.number} · ${nice(s.openQuote.date)} · ${mk(totals(s.openQuote).total)}`}));
-  } else if(type === 'receipt'){
-    intro = 'Pick the invoice this payment is for.';
-    list.forEach(s => s.periods.forEach(p => { if(!p.st.paidUp) rows.push({href: ed('conv=receipt:' + p.inv.id), t:s.name, sub:`${p.inv.number} · ${p.st.text} · balance ${mk(p.st.balance)}`, over:p.st.over}); }));
-    rows.sort((a, b) => (b.over ? 1 : 0) - (a.over ? 1 : 0));
-  } else {
-    intro = 'Pick the invoice the card is for.';
-    list.forEach(s => { const c = s.cur; if(c && !c.card) rows.push({href: cardLink(s), t:s.name, sub:`${c.inv.number} · ${c.st.text}${s.lastCard ? ' · subjects and tutors from ' + s.lastCard.number : ''}`}); });
+
+/* ================= new ================= */
+function newSheet(type){
+  const list = HD.students();
+  const T = [['quote','Quote','For a new or returning student','quotes'],['invoice','Invoice','From a quote the parent agreed to','quotes'],['receipt','Receipt','For a payment on an invoice','receipts'],['card','Tuition card','For tutors, from an invoice','cards']].filter(x => can(x[3]));
+  if(!type || !T.some(x => x[0] === type)){
+    openSheet(`<div class="hx"><h3>New</h3><button class="ib" data-close>✕</button></div><p class="sp">What are you making?</p>
+      <div class="tgrid">${T.map(([t, l, s]) => `<a href="#new/${t}">${ic(t, 22)}<b>${l}</b><small>${s}</small></a>`).join('')}</div>`);
+    return;
   }
-  return `<a class="crumb" href="#home">${ic('back', 16, 2.2)} Home</a>
-  <div class="hi"><h1>New ${T.toLowerCase()}</h1><p>${intro}</p></div>
-  <div class="pn">${rows.map(r => `<a class="it" href="${r.href}"><div class="t"><b>${esc(r.t)}</b><small>${esc(r.sub)}</small></div><span class="chev">${ic('chev', 16, 2)}</span></a>`).join('') || '<p class="empty">Nothing waiting.</p>'}</div>
-  ${blank}`;
-};
+  let rows = '', q = '', blank = `<a class="btn full" href="${D('new=' + type)}">Start a blank ${type === 'card' ? 'tuition card' : WORD[type].toLowerCase()} instead</a>`;
+  if(type === 'quote'){
+    q = 'Which student?';
+    rows = `<label class="search">${ic('search',18)}<input id="nsq" type="search" placeholder="Search students" autocomplete="off"></label><div id="nsl">${pickRows(list, '')}</div>`;
+    blank = `<button class="btn full" id="nsNew">${ic('plus',16,2.2)} New student</button>`;
+  } else if(type === 'invoice'){
+    q = 'Which quote did the parent agree to?';
+    rows = list.filter(s => s.openQuote).map(s => pickRow(D('conv=invoice:' + s.openQuote.id), s.name, `${s.openQuote.number} · ${nice(s.openQuote.date)} · ${mk(HD.total(s.openQuote))}`)).join('');
+  } else if(type === 'receipt'){
+    q = 'Which invoice is this payment for?';
+    const r = []; list.forEach(s => s.periods.forEach(p => { if(!p.st.paidUp) r.push({over:p.st.over, h:pickRow(D('conv=receipt:' + p.inv.id), s.name, `${p.inv.number} · ${p.st.text} · balance ${mk(p.st.balance)}`, p.st.over ? ['Overdue','rd'] : null)}); }));
+    rows = r.sort((a, b) => (b.over ? 1 : 0) - (a.over ? 1 : 0)).map(x => x.h).join('');
+  } else {
+    q = 'Which invoice is the card for?';
+    rows = list.filter(s => s.cur && !s.cur.card).map(s => pickRow(cardLink(s), s.name, `${s.cur.inv.number} · ${s.cur.st.text}${s.lastCard ? ' · subjects and tutors from ' + s.lastCard.number : ''}`)).join('');
+  }
+  openSheet(`<div class="hx"><a class="ib" href="#new" aria-label="Back">${ic('back',16,2.2)}</a><h3>New ${type === 'card' ? 'tuition card' : WORD[type].toLowerCase()}</h3><button class="ib" data-close>✕</button></div><p class="sp">${q}</p>
+    <div>${rows || '<p class="empty">Nothing waiting.</p>'}</div>${blank}`);
+  if(type === 'quote'){
+    $('nsq').oninput = e => { $('nsl').innerHTML = pickRows(list, e.target.value); };
+    $('nsNew').onclick = () => newStudentSheet(true);
+  }
+}
+const pickRow = (href, t, sub, tag) => `<a class="it" href="${href}"><span class="av">${inits(t)}</span><span class="t"><b>${esc(t)}</b><small>${esc(sub)}</small></span>${tag ? `<span class="tag ${tag[1]}">${tag[0]}</span>` : `<span class="chev">${ic('chev',16,2)}</span>`}</a>`;
+function pickRows(list, q){ q = sk(q); return list.filter(s => !q || sk(s.name + ' ' + s.parent).includes(q)).slice(0, 40).map(s => pickRow(D('new=quote&student=' + encodeURIComponent(s.key)), s.name, [s.level, s.parent].filter(Boolean).join(' · '))).join('') || '<p class="empty">No students match.</p>'; }
+P.new = () => P.home();
 
-P.settings = () => {
-  const u = me();
-  const row = (href, icon, t, sub, id) => `<a class="it" ${id ? `id="${id}" href="#settings"` : `href="${href}"`}><span class="ico">${ic(icon)}</span><div class="t"><b>${t}</b>${sub ? `<small>${sub}</small>` : ''}</div><span class="chev">${ic('chev', 16, 2)}</span></a>`;
-  return `
-  <div class="hi"><h1>Settings</h1><p>${esc(u.name || '')}${u.name ? ' · ' : ''}${[u.admin ? 'Admin' : '', u.tutor ? 'Tutor' : ''].filter(Boolean).join(' + ')}</p></div>
-  <div class="sets">
-  <div class="h2">People</div>
-  <div class="pn">${u.admin ? row('', 'users', 'People &amp; access', 'Add people, reset PINs, switch someone off', 'sPeople') : ''}${row('', 'key', 'Change my PIN', '', 'sPin')}</div>
-  <div class="h2">Documents</div>
-  <div class="pn">
-    ${row(ed('settings=tplSetup'), 'edit', 'Email &amp; WhatsApp messages', 'The wording sent with quotes, invoices and receipts')}
-    ${row(ed('settings=listSetup'), 'list', 'Lists', 'Subjects, levels, payment methods, tutors, grades')}
-    ${row(ed('settings=numSetup'), 'inv', 'Numbering', 'Where each series continues from')}
-    ${row(ed('settings=coSetup'), 'set', 'Company &amp; bank details', 'Bank, phone numbers, rates, due dates, grace period')}
-    ${row(ed('settings=clSetup'), 'quote', 'Student topic checklist link', 'Send it to new students')}
-    ${row(ed('settings=emailSetup'), 'rep', 'Sending (email &amp; WhatsApp)', 'Access code for this device')}
-    ${row(ed('settings=backupSetup'), 'docs', 'Backup &amp; restore', 'An extra copy as a file')}
-  </div>
-  <div class="h2">Other</div>
-  <div class="pn">
-    ${row('editor.html', 'docs', 'Classic view', 'The editor with the full saved list, as before LHQ Hub')}
-    ${row('reports.html', 'rep', 'Tutor reports', 'Session logs and weekly reports for parents')}
-    ${row('', 'out', '<span style="color:var(--rd)">Sign out</span>', 'Removes LHQ\'s documents from this device', 'sOut')}
-  </div></div>`;
+/* ================= documents ================= */
+let dQ = '';
+P.docs = (type = 'all') => {
+  const T = {all:'All', quote:'Quotes', invoice:'Invoices', receipt:'Receipts', card:'Cards'}; if(!T[type]) type = 'all';
+  return `<div class="ph"><div class="tt"><h1>Documents</h1><p>${saved.length} documents${can('restore') ? ' · deleted ones stay 30 days in <a href="#set/deleted">Recently deleted</a>' : ''}</p></div>
+    ${can('quotes') || can('receipts') || can('cards') ? `<a class="btn n" href="#new${type !== 'all' ? '/' + type : ''}">${ic('plus',16,2.4)} New${type !== 'all' ? ' ' + (type === 'card' ? 'card' : WORD[type].toLowerCase()) : ''}</a>` : ''}</div>
+  <div class="tabs">${Object.entries(T).map(([k, l]) => `<a class="${type === k ? 'on' : ''}" href="#docs${k === 'all' ? '' : '/' + k}">${l} <span style="opacity:.6">${k === 'all' ? saved.length : saved.filter(d => typeOf(d) === k).length}</span></a>`).join('')}</div>
+  <label class="search">${ic('search',18)}<input id="dq" type="search" placeholder="Search number or student" value="${esc(dQ)}" autocomplete="off"></label>
+  <div class="card" id="dlist">${docRows(type)}</div>`;
 };
-
-function bind(){
-  const sq = $('sq'); if(sq) sq.oninput = () => { sQuery = sq.value; $('slist').innerHTML = studentRows(students()); };
-  const dq = $('dq'); if(dq) dq.oninput = () => { dQuery = dq.value; $('dlist').innerHTML = docRows(); };
-  document.querySelectorAll('[data-filter]').forEach(b => b.onclick = () => { sFilter = b.dataset.filter; render(); });
-  document.querySelectorAll('[data-dtype]').forEach(b => b.onclick = () => { dType = b.dataset.dtype; render(); });
-  document.querySelectorAll('[data-go]').forEach(el => el.onclick = e => { if(e.target.closest('a')) return; location.hash = el.dataset.go; });
-  const H = window.hub || {};
-  if($('sPeople')) $('sPeople').onclick = e => { e.preventDefault(); H.peopleDlg && H.peopleDlg(); };
-  if($('sPin')) $('sPin').onclick = e => { e.preventDefault(); H.myPinDlg && H.myPinDlg(); };
-  if($('sOut')) $('sOut').onclick = e => { e.preventDefault(); H.signOut && H.signOut(); };
+function docRows(type){
+  const q = sk(dQ);
+  const rows = saved.slice().sort(HD.byDate).filter(d => type === 'all' || typeOf(d) === type).filter(d => !q || sk([d.number, d.student, d.name].join(' ')).includes(q));
+  return rows.slice(0, 300).map(d => docRow(d)).join('') || '<p class="empty">Nothing here.</p>';
 }
 
-window.addEventListener('hashchange', () => { render(); window.scrollTo(0, 0); });
-window.hubApply = render;     // documents changed on another device
-window.hubReady = render;     // signed in
-window.hubRemap = render;
-window.addEventListener('pageshow', e => { if(e.persisted) render(); });
+/* ================= settings ================= */
+const SETS = [
+  ['Account', [['account','user','My account']]],
+  ['LHQ', [['people','users','People & access', () => isDir() || can('tutors')],['company','bank','Company & bank details', isDir],['payments','cash','Payments & due dates', isDir]]],
+  ['Documents', [['numbering','hash','Numbering', () => can('numbering')],['messages','msg','Messages', () => can('msgs')],['lists','list','Lists', () => can('msgs')]]],
+  ['Enrolment & sending', [['enrol','link','Student checklist'],['sending','wa','Email & WhatsApp']]],
+  ['Data', [['backup','box','Backup & restore', () => can('backup')],['deleted','bin','Recently deleted', () => can('restore')]]],
+];
+const allowed = id => SETS.some(([, items]) => items.some(x => x[0] === id && (!x[3] || x[3]())));
+P.settings = () => setWrap(null);
+P.set = id => setWrap(allowed(id) ? id : null);
+P.person = id => setWrap('people', id);
+function setWrap(id, person){
+  const navH = SETS.map(([g, items]) => { const vis = items.filter(x => !x[3] || x[3]()); return vis.length ? `<div class="g">${g}</div>${vis.map(([k, i, l]) => `<a class="${id === k ? 'on' : ''}" href="#set/${k}">${ic(i,18)}${l}</a>`).join('')}` : ''; }).join('');
+  const page = id ? (person ? personPage(person) : S[id]()) : '<h2 class="sec-h">Settings</h2><p class="sec-p">Choose a section.</p>';
+  return `${id ? '' : `<div class="ph"><div class="tt"><h1>Settings</h1><p>${esc(me().name || '')} · ${roleText(me())}</p></div></div>`}
+  <div class="sw ${id ? 'page' : 'index'}"><nav class="snav">${navH}</nav><div class="spage">${id ? `<a class="crumb" href="${person ? '#set/people' : '#settings'}">${ic('back',16,2.2)} ${person ? 'People & access' : 'Settings'}</a>` : ''}${page}</div></div>`;
+}
+const S = {};
+const settingsKV = () => Object.assign({}, DEFAULT_SETTINGS, store.get('lhq_settings', {}));
+function saveSettings(fields){ const s = Object.assign({}, store.get('lhq_settings', {}), fields); store.set('lhq_settings', s); toast('Saved'); }
+const fieldRow = (id, l, v, attrs = '') => `<label class="f"><span>${l}</span><input class="in" id="${id}" value="${esc(v)}" ${attrs}></label>`;
+
+S.account = () => { const m = me(), L = LHQNav.layout();
+  return `<h2 class="sec-h">My account</h2><p class="sec-p">How you sign in, and how LHQ Hub looks on this device.</p>
+  <div class="card pad"><dl class="kv"><dt>Name</dt><dd>${esc(m.name || '')}</dd><dt>Role</dt><dd>${roleText(m)}</dd><dt>This device</dt><dd id="acStatus"></dd></dl></div>
+  <div class="card pad"><div class="cap">Navigation on this device</div>
+    <div class="seg"><button class="${L === 'bottom' ? 'on' : ''}" data-layout="bottom">Bottom bar</button><button class="${L === 'side' ? 'on' : ''}" data-layout="side">Sidebar</button></div>
+    <p class="note" style="margin:0">Bottom bar: sections along the bottom on tablet and phone (a sidebar on a computer). Sidebar: sections down the left on tablet and computer. Phones always use the bottom bar.</p></div>
+  <div class="card pad"><div class="cap">Change my PIN</div><div class="r3"><label class="f"><span>Current PIN</span><input class="in" id="pin0" type="password" inputmode="numeric" maxlength="6"></label><label class="f"><span>New PIN</span><input class="in" id="pin1" type="password" inputmode="numeric" maxlength="6"></label><label class="f"><span>New PIN again</span><input class="in" id="pin2" type="password" inputmode="numeric" maxlength="6"></label></div><button class="btn n" id="pinGo">Change PIN</button></div>
+  ${isDir() ? `<div class="card pad"><div class="cap">If you forget your PIN</div><p class="note" style="margin:0">As Director, nobody else can reset your PIN. Tap "Forgot your PIN?" when signing in and use the setup code (the first 8 characters of LHQ_SECRET in Netlify). Keep it somewhere safe.</p></div>` : ''}
+  <div class="card pad"><div class="cap">Sign out</div><p class="note" style="margin:0 0 10px">Removes LHQ's documents from this device. They stay online.</p><button class="btn rd" id="outGo">${ic('out',16)} Sign out of this device</button></div>`; };
+
+S.people = () => { const list = HD.people(), D0 = isDir();
+  return `<h2 class="sec-h">People & access</h2><p class="sec-p">${D0 ? 'Everyone who can sign in. You decide what each person can see and do.' : 'You can add tutors, reset their PINs and switch them off. Only the Director changes admins.'}</p>
+  <div class="card">${list.map(p => { const self = p.id === me().id, mine = !self && p.role !== 'director' && (D0 || p.role === 'tutor');
+    return `<a class="it" ${mine ? `href="#person/${p.id}"` : self ? 'href="#set/account"' : 'style="cursor:default"'}><span class="av">${inits(p.name)}</span><span class="t"><b>${esc(p.name)}${self ? ' (you)' : ''}</b><small>${roleText(p)}${p.seen ? ' · last seen ' + ago(p.seen) : ''}</small></span>${p.role === 'director' ? '<span class="rolechip">Director</span>' : ''}${p.active ? '' : '<span class="tag rd">Off</span>'}${mine || self ? `<span class="chev">${ic('chev',16,2)}</span>` : '<span class="tag gr">Director only</span>'}</a>`; }).join('') || '<p class="empty">Loading…</p>'}</div>
+  <button class="btn" id="addPerson">${ic('plus',16,2.2)} ${D0 ? 'Add a person' : 'Add a tutor'}</button>`; };
+const PERMS = [
+  ['Documents', [['quotes','Make and edit quotes and invoices'],['receipts','Record payments (receipts)'],['cards','Make tuition cards'],['delete','Delete documents'],['restore','Restore deleted documents']]],
+  ['Students', [['students','Add and edit student details']]],
+  ['Money', [['money','See money totals and reports','Money cards on Home, money in Overview, totals and trends. Amounts on single documents stay visible to anyone who makes them.'],['tpay','See tutor pay','What each tutor earns (arrives with step 2)']]],
+  ['People', [['tutors','Add tutors, reset their PINs, switch them off']]],
+  ['Settings', [['msgs','Messages and lists'],['numbering','Numbering'],['backup','Backup and restore']]],
+  ['Tutors · arrives with step 2', [['classes','See every tutor’s classes'],['moveclass','Move classes between tutors']]],
+];
+const DIRECTOR_ONLY = ['Company and bank details (the account parents pay into)','Payments and due dates','Add or remove admins, and remove any account','Change anyone’s permissions'];
+function personPage(id){
+  const p = HD.people().find(x => x.id === id), D0 = isDir();
+  if(!p) return '<p class="empty">Loading…</p>';
+  const acts = saved.flatMap(d => (d.log || []).filter(a => a.by === p.name).map(a => ({...a, d}))).sort((a, b) => b.at - a.at).slice(0, 8);
+  return `<h2 class="sec-h">${esc(p.name)}</h2><p class="sec-p">${roleText(p)}${p.seen ? ' · last seen ' + ago(p.seen) : ''}</p>
+  ${D0 ? `<div class="card pad"><div class="cap">Role</div><div class="seg">${['tutor','admin'].map(r => `<button class="${p.role === r ? 'on' : ''}" data-role="${r}">${HD.ROLE[r]}</button>`).join('')}</div>
+      ${p.role === 'admin' ? `<div class="toggle"><div class="t"><b>Also teaches</b><small>Has their own students, calendar and SRAs</small></div><button class="sw-t ${p.tutor ? 'on' : ''}" data-teach></button></div>` : '<p class="note" style="margin:0">Tutors see only their own students. They have no access to money.</p>'}</div>
+    ${p.role === 'admin' ? `<div class="card pad"><div class="cap">What ${esc(first(p.name))} can do</div>
+      ${PERMS.map(([g, list]) => `<div class="cap" style="font-size:10.5px;margin-top:16px">${g}</div>${list.map(([k, l, sub]) => `<div class="toggle"><div class="t"><b>${l}</b>${sub ? `<small>${sub}</small>` : ''}</div><button class="sw-t ${(p.perms || []).includes(k) ? 'on' : ''}" data-perm="${k}"></button></div>`).join('')}`).join('')}
+      <div class="acts" style="margin-top:12px"><button class="btn sm" id="permDefault">Use admin defaults</button></div>
+      <div class="cap" style="margin-top:18px">Only you, as Director</div>${DIRECTOR_ONLY.map(x => `<div class="lock">${ic('key',16)}${x}</div>`).join('')}</div>` : ''}` : ''}
+  <div class="card pad"><div class="cap">PIN</div><div class="r2"><label class="f"><span>New PIN for ${esc(first(p.name))}</span><input class="in" id="ppin" inputmode="numeric" maxlength="6" placeholder="4 to 6 digits"></label></div><button class="btn" id="ppinGo">Reset PIN</button><p class="note">Tell ${esc(first(p.name))} the new PIN yourself. They are signed out until they use it.</p></div>
+  <div class="card pad"><div class="cap">Recent activity</div>${acts.length ? acts.map(a => `<a class="it" href="${openLink(a.d)}"><span class="t"><b>${esc(actText(a))}</b><small>${esc(a.d.number)} · ${esc(a.d.student || a.d.name || '')} · ${ago(a.at)}</small></span></a>`).join('') : '<p class="empty" style="margin:0">Nothing recorded yet.</p>'}</div>
+  <div class="card pad"><div class="cap">Access</div><p class="note" style="margin:0 0 10px">${p.active ? 'Switching off signs them out on every device straight away. Their documents and logs stay.' : 'Switched off. They cannot sign in.'}</p>
+    <div class="acts"><button class="btn ${p.active ? 'rd' : ''}" id="pOnOff">${p.active ? 'Switch off' : 'Switch on'}</button>${D0 ? `<button class="btn rd" id="pRemove">${ic('bin',16)} Remove account</button>` : ''}</div></div>`;
+}
+const actText = a => ({created:'Created', edited:'Edited', emailed:'Emailed', whatsapp:'Sent on WhatsApp', paid:'Payment recorded', restored:'Restored'}[a.a] || a.a);
+async function peopleCall(body, msg){
+  try{ const r = await hub.api('people', {method:'POST', body:JSON.stringify(body)}); store.set('lhq_people', r.people); render(); if(msg) toast(msg); return true; }
+  catch(e){ toast(e.message); return false; }
+}
+
+S.company = () => { const s = settingsKV();
+  return `<h2 class="sec-h">Company & bank details</h2><p class="sec-p">Printed on every quote, invoice and receipt. Only you can change these.</p>
+  <div class="card pad"><div class="cap">Contact</div><div class="r2">${fieldRow('c_email','Email',s.email,'type="email"')}${fieldRow('c_phone','Phone (header)',s.phone)}</div>
+  <div class="cap">Bank</div><div class="r2">${fieldRow('c_bank','Bank name',s.bank)}${fieldRow('c_accname','Account name',s.accname)}${fieldRow('c_branch','Branch',s.branch)}${fieldRow('c_accno','Account number',s.accno,'inputmode="numeric"')}</div>
+  <div class="cap">Mobile money</div><div class="r2">${fieldRow('c_popphone','Proof of payment number',s.popphone)}${fieldRow('c_mobile','Mobile banking number',s.mobile)}</div>
+  <button class="btn n" data-save="email,phone,bank,accname,branch,accno,popphone,mobile">Save</button></div>`; };
+S.payments = () => { const s = settingsKV();
+  return `<h2 class="sec-h">Payments & due dates</h2><p class="sec-p">Defaults for new documents. Each document can still be changed.</p>
+  <div class="card pad"><div class="r2">${fieldRow('c_rate','Default cost per session (MKW)',s.rate,'inputmode="decimal"')}${fieldRow('c_validDays','Quotes valid for (days)',s.validDays,'inputmode="numeric"')}${fieldRow('c_dueDays','Invoices due after (days, 0 = same day)',s.dueDays,'inputmode="numeric"')}${fieldRow('c_graceDays','Instalment grace period (days)',s.graceDays,'inputmode="numeric"')}</div>
+  <button class="btn n" data-save="rate,validDays,dueDays,graceDays">Save</button></div>`; };
+
+const nextFor = t => { const c = Object.assign({quote: store.get('lhq_lastnum', 1037), invoice:0, receipt:0, card:0}, store.get('lhq_counters', {})); saved.forEach(d => { const p = parseNo(d.number); if(p && p.type === typeOf(d) && p.n > (c[p.type] || 0)) c[p.type] = p.n; }); return (c[t] || 0) + 1; };
+const usedMax = t => saved.reduce((m, d) => { const p = parseNo(d.number); return p && p.type === t && typeOf(d) === t && p.n > m ? p.n : m; }, 0);
+function parseNo(n){ const m = String(n || '').trim().match(/^(Q|INV|RCT|TC)-?(\d+)$/i); return m ? {type:{Q:'quote',INV:'invoice',RCT:'receipt',TC:'card'}[m[1].toUpperCase()], n:+m[2]} : null; }
+const PFX = {quote:'Q', invoice:'INV', receipt:'RCT', card:'TC'};
+const fmtNo = (t, n) => PFX[t] + '-' + String(n).padStart(4, '0');
+S.numbering = () => `<h2 class="sec-h">Numbering</h2><p class="sec-p">Numbers fill in by themselves. Set where a series continues from, for example if LHQ has issued invoices up to 57, set the next invoice to 58.</p>
+  <div class="card pad"><div class="r2">${['quote','invoice','receipt','card'].map(t => `<label class="f"><span>Next ${t === 'card' ? 'tuition card' : t}</span><input class="in" id="n_${t}" inputmode="numeric" value="${nextFor(t)}"><small style="display:block;margin-top:4px;color:var(--brand);font-weight:700">Next: ${fmtNo(t, nextFor(t))}${usedMax(t) ? ` · used up to ${fmtNo(t, usedMax(t))}` : ''}</small></label>`).join('')}</div>
+  <button class="btn n" id="numSave">Save</button></div>`;
+
+let msgTab = 'emailBody';
+const MSG = [['emailBody','Quotes & invoices · email'],['waBody','Quotes & invoices · WhatsApp'],['receiptEmailBody','Receipts · email'],['receiptWaBody','Receipts · WhatsApp']];
+const VARS = ['{name}','{student}','{level}','{type}','{Type}','{number}','{ref}','{date}','{due}','{for}','{period}','{subjects}','{summary}','{subtotal}','{discount}','{total}','{paid}','{balance}','{received}','{prevpaid}','{method}','{bank}','{accname}','{branch}','{accno}','{mobile}','{includesline}','{popphone}','{email}','{phone}'];
+const templates = () => Object.assign({}, DEFAULT_TEMPLATES, store.get('lhq_templates', {}));
+S.messages = () => { const t = templates();
+  return `<h2 class="sec-h">Messages</h2><p class="sec-p">The wording sent with each document. Tap a field below to add it where the cursor is.</p>
+  <div class="tabs">${MSG.map(([k, l]) => `<a href="#set/messages" class="${msgTab === k ? 'on' : ''}" data-msg="${k}">${l}</a>`).join('')}</div>
+  <div class="card pad">${msgTab === 'emailBody' ? fieldRow('t_emailSubject','Email subject',t.emailSubject) : ''}
+  <label class="f"><span>Message</span><textarea class="in" id="t_body" style="min-height:280px">${esc(t[msgTab])}</textarea></label>
+  <div class="vars">${VARS.map(v => `<button data-var="${v}">${v}</button>`).join('')}</div>
+  <div class="acts"><button class="btn n" id="tplSave">Save</button><button class="btn" id="tplReset">Restore the default wording</button></div></div>`; };
+
+const LISTS = [['subjects','Subjects'],['levels','Year & level'],['methods','Payment methods'],['includes','Every LHQ Enrollment Includes'],['tutors','Tutors on tuition cards'],['grades','Grades'],['gradeBasis','Grade based on'],['sessionLengths','Session lengths']];
+S.lists = () => { const s = settingsKV();
+  return `<h2 class="sec-h">Lists</h2><p class="sec-p">The choices in every dropdown. Changes save straight away.</p>
+  ${LISTS.map(([k, l]) => `<div class="card pad"><div class="cap">${l}</div><div class="lchips">${lines(s[k]).map((x, i) => `<span>${esc(x)}<button data-lrm="${k}:${i}" aria-label="Remove ${esc(x)}">✕</button></span>`).join('')}</div>
+    <div class="addrow"><input class="in" id="la_${k}" placeholder="Add to ${l.toLowerCase()}" autocomplete="off"><button class="btn sm" data-ladd="${k}">Add</button></div></div>`).join('')}`; };
+
+S.enrol = () => { const link = new URL('checklist.html', location.href).href;
+  return `<h2 class="sec-h">Student checklist</h2><p class="sec-p">New students choose their subjects and topics. Open the link in their reply on this device and a tuition card fills in with their choices.</p>
+  <div class="card pad"><div class="code"><span>${esc(link)}</span><button class="btn sm" id="clCopy">${ic('copy',14)} Copy</button></div>
+  <div class="acts" style="margin-top:10px"><a class="btn g" href="https://wa.me/?text=${encodeURIComponent('Please choose your subjects and topics for LHQ tuition here: ' + link)}" target="_blank" rel="noopener">${ic('wa',16)} Send on WhatsApp</a><a class="btn" href="${esc(link)}" target="_blank" rel="noopener">Open checklist</a></div>
+  <p class="note">Students send it to 0992 525 250 on WhatsApp or to learnhqes@gmail.com.</p></div>`; };
+
+S.sending = () => `<h2 class="sec-h">Email & WhatsApp</h2><p class="sec-p">Sending documents straight from LHQ Hub.</p>
+  <div class="card pad"><p class="svc" id="svcEmail"><i></i><span>Email: checking…</span></p><p class="svc" id="svcWa"><i></i><span>WhatsApp: checking…</span></p>
+  <label class="f" style="margin-top:12px"><span>Access code for this device</span><input class="in" id="accessCode" type="password" autocomplete="off" value="${esc(store.get('lhq_code', ''))}" placeholder="The code set in Netlify"></label>
+  <p class="note" style="margin:-6px 0 12px">Enter it once on each phone, tablet or computer. It stays on this device.</p>
+  <button class="btn n" id="codeSave">Save and check</button></div>`;
+
+S.backup = () => { const last = store.get('lhq_lastBackup', 0);
+  return `<h2 class="sec-h">Backup & restore</h2><p class="sec-p">Everything is stored online in LHQ Hub. A backup is an extra copy as one file: keep it in Google Drive or send it to yourself.</p>
+  <div class="card pad"><dl class="kv"><dt>Last backup</dt><dd>${last ? ago(last) : 'Never'}</dd><dt>Documents</dt><dd>${saved.length}</dd></dl>
+  <div class="acts" style="margin-top:12px"><button class="btn n" id="bkGo">Back up now</button><button class="btn" id="rsGo">Add from a backup</button></div>
+  <p class="note">Adding from a backup brings back documents that are missing, and the newer copy wins where a document is in both. It never deletes anything.</p></div>`; };
+
+let trashList = null;
+S.deleted = () => {
+  if(trashList === null){ hub.api('trash').then(r => { trashList = r.trash; render(); }).catch(e => { trashList = []; toast(e.message); }); }
+  return `<h2 class="sec-h">Recently deleted</h2><p class="sec-p">Deleted documents stay here for 30 days, then go for good.</p>
+  <div class="card">${trashList === null ? '<p class="empty">Loading…</p>' : trashList.map(d => `<div class="it"><span class="ico" style="color:var(--muted)">${ic(d.type)}</span><span class="t"><b>${esc(d.number)} · ${esc(d.student || '')}</b><small>Deleted by ${esc(d.deletedBy)} · ${ago(d.deletedAt)}</small></span><button class="btn sm" data-restore="${d.id}">${ic('restore',14)} Restore</button></div>`).join('') || '<p class="empty">Nothing deleted in the last 30 days.</p>'}</div>`;
+};
+
+/* ================= events ================= */
+function bind(){
+  const on = (sel, fn) => document.querySelectorAll(sel).forEach(el => el.onclick = e => fn(el, e));
+  on('[data-close]', () => closeSheet());
+  on('[data-go]', (el, e) => { if(!e.target.closest('a')) location.href = el.dataset.go; });
+  if($('attTog')) $('attTog').onclick = () => { attOpen = !attOpen; try{ localStorage.setItem('lhq_attOpen', attOpen ? '1' : '0'); }catch(e){} render(); };
+  on('[data-mv]', el => { const [i, d] = el.dataset.mv.split(':').map(Number), a = myCards(); [a[i], a[i + d]] = [a[i + d], a[i]]; saveHome(a); });
+  on('[data-rm]', el => { const a = myCards(); a.splice(+el.dataset.rm, 1); saveHome(a); });
+  on('[data-add]', el => { const a = myCards(); if(a.length < 6) a.push(el.dataset.add); saveHome(a); });
+  if($('sq')) $('sq').oninput = e => { sQ = e.target.value; $('slist').innerHTML = studentRows(HD.students(), route.args[0]); };
+  if($('dq')) $('dq').oninput = e => { dQ = e.target.value; $('dlist').innerHTML = docRows(route.args[0] || 'all'); };
+  if($('addStu')) $('addStu').onclick = () => newStudentSheet(false);
+  // student details
+  if($('sdEdit')) $('sdEdit').onclick = () => { editDetails = true; render(); };
+  if($('sdCancel')) $('sdCancel').onclick = () => { editDetails = false; render(); };
+  if($('sdSave')) $('sdSave').onclick = () => {
+    const f = {}; HD.DETAIL.forEach(k => { const el = $('sd_' + k); if(el) f[k] = el.value; });
+    if(!String(f.name || '').trim()){ toast('The student needs a name'); return; }
+    const key = HD.saveStudent(route.args[0], f); editDetails = false; toast('Details saved. New documents use them.');
+    if(key !== route.args[0]) location.hash = stuLink(key, 'details'); else render();
+  };
+  // account
+  on('[data-layout]', el => { LHQNav.setLayout(el.dataset.layout); render(); toast(el.dataset.layout === 'side' ? 'Sidebar on this device' : 'Bottom bar on this device'); });
+  if($('acStatus')) $('acStatus').innerHTML = `<span class="tag ${localStorage.getItem('lhq_syncDirty') === 'true' ? 'am">Saving changes' : 'ok">Everything saved online'}</span>`;
+  if($('pinGo')) $('pinGo').onclick = async () => {
+    const [a, b, c] = ['pin0','pin1','pin2'].map(i => $(i).value);
+    if(b !== c){ toast('The new PINs don\'t match'); return; }
+    try{ const r = await hub.api('people', {method:'POST', body:JSON.stringify({action:'mypin', current:a, pin:b})}); const s = hub.session(); s.token = r.token; localStorage.setItem('lhq_session', JSON.stringify(s)); ['pin0','pin1','pin2'].forEach(i => $(i).value = ''); toast('PIN changed. Other devices will ask for the new PIN.'); }
+    catch(e){ toast(e.message); }
+  };
+  if($('outGo')) $('outGo').onclick = () => hub.signOut();
+  // people
+  if($('addPerson')) $('addPerson').onclick = () => {
+    openSheet(`<div class="hx"><h3>${isDir() ? 'Add a person' : 'Add a tutor'}</h3><button class="ib" data-close>✕</button></div><p class="sp">They sign in by choosing their name and entering this PIN. They can change it afterwards.</p>
+      <label class="f"><span>Full name</span><input class="in" id="np_name" autocomplete="off"></label>
+      ${isDir() ? `<label class="f"><span>Role</span></label><div class="seg" id="np_role"><button class="on" data-r="tutor">Tutor</button><button data-r="admin">Admin</button></div><p class="note" style="margin:-4px 0 12px">New admins start with the default permissions, with money off. Change anything on their page.</p>` : ''}
+      <label class="f"><span>First PIN (4 to 6 digits)</span><input class="in" id="np_pin" inputmode="numeric" maxlength="6"></label>
+      <button class="btn n full" id="npGo">Add</button>`);
+    bind();
+    document.querySelectorAll('#np_role button').forEach(b => b.onclick = () => { document.querySelectorAll('#np_role button').forEach(x => x.classList.toggle('on', x === b)); });
+    $('npGo').onclick = async () => { const role = (document.querySelector('#np_role .on') || {dataset:{r:'tutor'}}).dataset.r; const name = $('np_name').value.trim();
+      if(await peopleCall({action:'add', name, role, pin:$('np_pin').value, tutor:role === 'tutor'}, `${name} added`)) closeSheet(); };
+  };
+  const pid = route.page === 'person' ? route.args[0] : null, P0 = pid && HD.people().find(x => x.id === pid);
+  if(P0){
+    on('[data-role]', el => { if(el.dataset.role !== P0.role) peopleCall({action:'access', id:pid, role:el.dataset.role}, `${first(P0.name)} is now ${el.dataset.role === 'admin' ? 'an Admin' : 'a Tutor'}`); });
+    on('[data-teach]', () => peopleCall({action:'access', id:pid, tutor:!P0.tutor}, 'Saved'));
+    on('[data-perm]', el => { const k = el.dataset.perm, has = (P0.perms || []).includes(k); const perms = has ? P0.perms.filter(x => x !== k) : (P0.perms || []).concat(k);
+      const label = PERMS.flatMap(g => g[1]).find(x => x[0] === k)[1].toLowerCase();
+      peopleCall({action:'access', id:pid, perms}, `Saved. ${first(P0.name)} ${has ? 'can no longer' : 'can now'}: ${label}`); });
+    if($('permDefault')) $('permDefault').onclick = () => peopleCall({action:'access', id:pid, perms:['quotes','receipts','cards','delete','restore','students','tutors','msgs','classes']}, 'Defaults restored');
+    if($('ppinGo')) $('ppinGo').onclick = () => peopleCall({action:'pin', id:pid, pin:$('ppin').value}, `New PIN set for ${first(P0.name)}`);
+    if($('pOnOff')) $('pOnOff').onclick = () => { if(P0.active && !confirm(`Switch off ${P0.name}? They are signed out everywhere straight away.`)) return; peopleCall({action:P0.active ? 'off' : 'on', id:pid}, P0.active ? `${first(P0.name)} is switched off` : `${first(P0.name)} can sign in again`); };
+    if($('pRemove')) $('pRemove').onclick = () => {
+      openSheet(`<h3>Remove ${esc(P0.name)}?</h3><p class="sp">Their account is deleted and they can't sign in. Documents and logs they made stay, with their name on them. To stop access for now, Switch off is enough.</p><div class="acts"><button class="btn rd" id="rmGo">${ic('bin',16)} Remove</button><button class="btn" data-close>Keep</button></div>`);
+      bind(); $('rmGo').onclick = async () => { if(await peopleCall({action:'remove', id:pid}, 'Account removed')){ closeSheet(); location.hash = '#set/people'; } };
+    };
+  }
+  // settings sections
+  on('[data-save]', el => { const f = {}; el.dataset.save.split(',').forEach(k => f[k] = $('c_' + k).value.trim()); saveSettings(f); });
+  if($('numSave')) $('numSave').onclick = () => {
+    const c = store.get('lhq_counters', {}), problems = [];
+    ['quote','invoice','receipt','card'].forEach(t => { const n = parseInt($('n_' + t).value, 10); if(!n || n < 1){ problems.push(`${t}: enter a number`); return; }
+      const used = usedMax(t); if(n <= used){ problems.push(`${fmtNo(t, n)} is already used (up to ${fmtNo(t, used)})`); return; } c[t] = n - 1; if(t === 'quote') store.set('lhq_lastnum', n - 1); });
+    if(problems.length){ toast(problems[0]); return; }
+    store.set('lhq_counters', c); toast('Numbering saved'); render();
+  };
+  on('[data-msg]', (el, e) => { e.preventDefault(); msgTab = el.dataset.msg; render(); });
+  on('[data-var]', el => { const t = $('t_body'), s = t.selectionStart ?? t.value.length; t.value = t.value.slice(0, s) + el.dataset.var + t.value.slice(t.selectionEnd ?? s); t.focus(); t.selectionStart = t.selectionEnd = s + el.dataset.var.length; });
+  if($('tplSave')) $('tplSave').onclick = () => { const t = store.get('lhq_templates', {}); t[msgTab] = $('t_body').value; if($('t_emailSubject')) t.emailSubject = $('t_emailSubject').value; store.set('lhq_templates', t); toast('Message saved'); };
+  if($('tplReset')) $('tplReset').onclick = () => { if(!confirm('Put back the default wording for this message?')) return; const t = store.get('lhq_templates', {}); delete t[msgTab]; if(msgTab === 'emailBody') delete t.emailSubject; store.set('lhq_templates', t); render(); toast('Default wording restored'); };
+  on('[data-lrm]', el => { const [k, i] = el.dataset.lrm.split(':'); const L = lines(settingsKV()[k]); L.splice(+i, 1); saveSettings({[k]: L.join('\n')}); render(); });
+  on('[data-ladd]', el => { const k = el.dataset.ladd, v = $('la_' + k).value.trim(); if(!v) return; const L = lines(settingsKV()[k]); if(L.includes(v)){ toast('Already in the list'); return; } L.push(v); saveSettings({[k]: L.join('\n')}); render(); });
+  document.querySelectorAll('[id^="la_"]').forEach(inp => inp.onkeydown = e => { if(e.key === 'Enter') document.querySelector(`[data-ladd="${inp.id.slice(3)}"]`).click(); });
+  if($('clCopy')) $('clCopy').onclick = async () => { try{ await navigator.clipboard.writeText(new URL('checklist.html', location.href).href); toast('Link copied'); }catch(e){ toast('Copy didn\'t work here. Press and hold the link to copy it.'); } };
+  if($('svcEmail')) checkServices();
+  if($('codeSave')) $('codeSave').onclick = () => { localStorage.setItem('lhq_code', JSON.stringify($('accessCode').value.trim())); checkServices(); toast('Access code saved on this device'); };
+  if($('bkGo')) $('bkGo').onclick = doBackup;
+  if($('rsGo')) $('rsGo').onclick = () => $('restoreFile').click();
+  on('[data-restore]', async el => { el.disabled = true; try{ const r = await hub.api('restore', {method:'POST', body:JSON.stringify({id:el.dataset.restore})}); trashList = trashList.filter(x => x.id !== el.dataset.restore); await hub.pull(); toast(`${r.doc.number} restored${r.renumbered ? ` (${r.renumbered} was taken, so it is now ${r.doc.number})` : ''}`); }catch(e){ el.disabled = false; toast(e.message); } });
+}
+
+/* sending services */
+async function checkServices(){
+  const set = (id, ok, text) => { const el = $(id); if(!el) return; el.className = 'svc ' + (ok ? 'ok' : 'warn'); el.querySelector('span').textContent = text; };
+  const hasCode = !!store.get('lhq_code', '');
+  const get = u => fetch(u, {cache:'no-store'}).then(r => r.json());
+  const [em, wa] = await Promise.allSettled([get('/api/send-email'), get('/api/send-whatsapp')]);
+  if(em.status === 'fulfilled' && em.value.configured) set('svcEmail', hasCode, hasCode ? `Email: ready. Sends from ${em.value.from}.` : `Email: connected to ${em.value.from}. Enter the access code below.`);
+  else set('svcEmail', false, em.status === 'fulfilled' ? 'Email: not set up yet in Netlify.' : 'Email: the service isn\'t reachable right now.');
+  if(wa.status === 'fulfilled' && wa.value.configured && wa.value.tokenOk) set('svcWa', hasCode, hasCode ? `WhatsApp: ready. Sends from ${wa.value.from || 'LHQ\'s number'}.` : 'WhatsApp: connected. Enter the access code below.');
+  else set('svcWa', false, wa.status === 'fulfilled' ? (wa.value.configured ? 'WhatsApp: Meta rejected the access token. Check it in Netlify.' : 'WhatsApp: not set up yet in Netlify.') : 'WhatsApp: the service isn\'t reachable right now.');
+}
+/* backup: one file with every document and setting */
+async function doBackup(){
+  const data = {}; const SKIP = ['lhq_code','lhq_lastBackup','lhq_bkSnooze','lhq_session','lhq_syncBase','lhq_syncKv','lhq_syncRev','lhq_syncDirty','lhq_people','lhq_draft','lhq_layout','lhq_theme','lhq_attOpen'];
+  for(let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if(k && k.startsWith('lhq_') && !SKIP.includes(k)){ try{ data[k] = JSON.parse(localStorage.getItem(k)); }catch(e){} } }
+  const name = `LHQ-backup_${today()}.json`, text = JSON.stringify({app:'LHQ Quotes & Invoices', version:2, exportedAt:new Date().toISOString(), data});
+  try{
+    const f = new File([text], name, {type:'application/json'});
+    if(navigator.canShare && navigator.canShare({files:[f]})){ try{ await navigator.share({files:[f], title:name}); }catch(e){ if(e && e.name === 'AbortError') return; throw e; } }
+    else { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([text], {type:'application/json'})); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000); }
+    localStorage.setItem('lhq_lastBackup', JSON.stringify(Date.now())); toast(`Backed up ${saved.length} documents`); render();
+  }catch(e){ toast('The backup didn\'t save. Try again.'); }
+}
+$('restoreFile').onchange = e => {
+  const file = e.target.files[0]; e.target.value = ''; if(!file) return;
+  const r = new FileReader();
+  r.onload = () => {
+    let j; try{ j = JSON.parse(r.result); }catch(err){ toast('That file isn\'t an LHQ backup'); return; }
+    if(!j || !j.data || !String(j.app || '').startsWith('LHQ')){ toast('That file isn\'t an LHQ backup'); return; }
+    const byId = new Map(saved.map(d => [d.id, d])); let added = 0, newer = 0;
+    (j.data.lhq_saved || []).forEach(d => { const cur = byId.get(d.id); if(!cur){ byId.set(d.id, d); added++; } else if((d.savedAt || 0) > (cur.savedAt || 0)){ byId.set(d.id, d); newer++; } });
+    if(!added && !newer){ toast('Nothing to add: everything in the backup is already here'); return; }
+    if(!confirm(`Add ${added} missing document${added === 1 ? '' : 's'}${newer ? ` and update ${newer} with a newer copy` : ''} from the backup?`)) return;
+    store.set('lhq_saved', [...byId.values()].sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0)));
+    toast(`Added from the backup. Uploading to LHQ Hub…`); render();
+  };
+  r.readAsText(file);
+};
+
+/* show a message left by the document page (for example after deleting) */
+try{ const m = sessionStorage.getItem('lhq_flash'); if(m){ sessionStorage.removeItem('lhq_flash'); setTimeout(() => toast(m), 300); } }catch(e){}
 render();
+if(hub.session()) HD.refreshPeople().then(render);
 </script>
 </body>
 </html>

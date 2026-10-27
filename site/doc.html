@@ -5,16 +5,19 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#f5f6f8">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<title>LHQ Hub · Documents</title>
+<title>LHQ Hub · Document</title>
 <link rel="icon" href="arrow.png">
 <link rel="apple-touch-icon" href="logo.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400;1,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="hub.css">
 <script src="theme.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <script src="sync.js"></script>
 <script src="defaults.js"></script>
+<script src="hubdata.js"></script>
+<script src="nav.js"></script>
 <script src="topics.js"></script>
 <script src="card.js"></script>
 <script src="pako.min.js"></script>
@@ -41,13 +44,7 @@ html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:14px/1.45 Manrope,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
 
 /* ---------- top bar ---------- */
-.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:10px;
-  padding:10px 20px;padding-top:calc(10px + env(safe-area-inset-top,0px));background:var(--bg);color:var(--ink);border-bottom:1px solid var(--line)}
-.topbar img{height:34px;display:block}
-.topbar h1{font-size:15.5px;font-weight:800;margin:0 0 0 4px;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.topbar .back{width:38px;height:38px;min-height:0;padding:0;border-radius:50%;display:grid;place-items:center;flex:none;background:var(--panel);color:var(--ink)}
 .theme-btn{width:38px;height:38px;min-height:0;padding:0;border-radius:50%!important;display:grid;place-items:center;flex:none}
-.topbar .actions{display:flex;gap:8px}
 
 button{font:inherit;cursor:pointer;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 13px;min-height:38px}
 button:hover{border-color:var(--line3)}
@@ -391,11 +388,6 @@ dialog::backdrop{background:rgba(7,25,45,.55)}
   .preview-wrap{position:static}
   body[data-view="edit"] .preview-wrap{display:none}
   body[data-view="preview"] .editor{display:none}
-  .topbar{padding-left:12px;padding-right:12px;gap:8px}
-  .topbar h1{display:none}
-  .topbar .hub-acct span:last-child{display:none}
-  .topbar .actions{margin-left:auto}
-  .topbar .desk{display:none}
   input,textarea,select{font-size:16px} /* stops iOS zooming into fields */
   .bottombar{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;position:fixed;left:0;right:0;bottom:0;z-index:20;
     background:var(--panel);border-top:1px solid var(--line);padding:8px 10px calc(8px + env(safe-area-inset-bottom,0px))}
@@ -414,10 +406,79 @@ dialog::backdrop{background:rgba(7,25,45,.55)}
 @media (max-width:420px){ .grid2{grid-template-columns:1fr} .topbar h1{font-size:15px} }
 @media (min-width:981px){ .mob{display:none} }
 
+/* ---------- the document's page (LHQ Hub) ---------- */
+.dp-wrap{padding:4px 20px 0;max-width:1400px}
+.dp-crumb{display:inline-flex;align-items:center;gap:4px;color:var(--muted);font-weight:700;font-size:13.5px;text-decoration:none;padding:2px 0}
+.dp-crumb:hover{color:var(--ink)}
+.dp-row{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin:4px 0 2px}
+.dp-tt{flex:1;min-width:220px}
+.dp-tt h1{margin:0;font-size:24px;font-weight:800;letter-spacing:-.3px;color:var(--navy);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+[data-theme=dark] .dp-tt h1{color:var(--ink)}
+.dp-tt p{margin:3px 0 0;color:var(--muted);font-size:13.5px}
+.dp-tt p a{color:inherit;font-weight:700;text-underline-offset:2px}
+.dp-acts{display:flex;gap:8px;flex-wrap:wrap}
+.dp-b{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--line);background:var(--panel);color:var(--navy);border-radius:11px;padding:9px 14px;font-weight:800;font-size:13.5px;min-height:40px;white-space:nowrap;text-decoration:none;cursor:pointer}
+.dp-b:hover{border-color:var(--line3)}
+.dp-b.n{background:var(--navy);border-color:var(--navy);color:var(--onnavy)}
+.dp-b.g{background:var(--wa);border-color:var(--wa);color:#fff}
+.dp-b.rd{color:var(--danger);border-color:var(--danger)}
+.dp-b.full{width:100%;margin-top:8px}
+.dp-b.full:first-of-type{margin-top:0}
+.dp-pv{display:none}
+.dp-tag{font-size:11px;font-weight:800;border-radius:6px;padding:3px 8px;white-space:nowrap;letter-spacing:0}
+.dp-tag.ok{background:var(--ok-bg);color:var(--ok)}.dp-tag.rd{background:var(--rd-bg);color:var(--danger)}.dp-tag.am{background:var(--am-bg);color:var(--am)}.dp-tag.bl{background:var(--bl-bg);color:var(--navy)}.dp-tag.gr{background:var(--line2);color:var(--muted)}
+[data-theme=dark] .dp-tag.bl{color:#a9c6ea}
+.dp-box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin-bottom:16px}
+.dp-cap{font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:14px 0 6px;font-weight:800}
+.dp-box > .dp-cap:first-child{margin-top:0}
+.dp-pay{display:grid;gap:4px;font-variant-numeric:tabular-nums;font-size:13.5px}
+.dp-pay div{display:flex;justify-content:space-between;gap:10px}
+.dp-pay .big{font-weight:800;font-size:15px;border-top:1px solid var(--line);padding-top:6px;margin-top:2px}
+.dp-it{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line2);text-decoration:none;color:var(--ink)}
+.dp-cap + .dp-it{border-top:0}
+.dp-it svg{color:var(--navy);flex:none}
+.dp-it .t{flex:1;min-width:0}.dp-it .t b{display:block}.dp-it .t small{display:block;color:var(--muted);font-size:12.5px}
+.dp-it.cur{background:var(--bl-bg);margin:0 -10px;padding:10px;border-radius:10px;border-top-color:transparent}
+.dp-it:not(.cur):hover b{text-decoration:underline;text-underline-offset:2px}
+.dp-note{font-size:12.5px;color:var(--muted);margin:8px 0 0}
+.dp-act{display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--line2);font-size:13px}
+.dp-cap + .dp-act{border-top:0}
+.dp-act small{display:block;color:var(--muted);font-size:12px}
+.dp-av{width:26px;height:26px;border-radius:50%;background:var(--bl-bg);color:var(--navy);display:grid;place-items:center;font-weight:800;font-size:11px;flex:none}
+.dp-shbg{position:fixed;inset:0;background:rgba(7,20,40,.42);z-index:40}
+.dp-sheet{position:fixed;z-index:41;left:50%;top:50%;transform:translate(-50%,-50%);width:min(440px,calc(100vw - 24px));background:var(--panel);border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,.25);padding:16px 18px 18px}
+.dp-sh-h{display:flex;align-items:center;gap:10px}.dp-sh-h b{flex:1;font-size:17px}
+.dp-x{width:34px;height:34px;min-height:0;border-radius:50%;padding:0}
+.dp-menu button{display:flex;align-items:center;gap:12px;width:100%;border:0;border-radius:0;border-top:1px solid var(--line2);background:none;padding:12px 4px;text-align:left;font-weight:700;min-height:0}
+.dp-menu button:first-child{border-top:0}
+.dp-menu button small{display:block;font-weight:500;color:var(--muted);font-size:12.5px}
+.dp-menu button.rd{color:var(--danger)}
+@media (max-width:699px){.dp-sheet{left:0;right:0;bottom:0;top:auto;transform:none;width:auto;border-radius:20px 20px 0 0;padding-bottom:calc(18px + env(safe-area-inset-bottom,0px))}}
+/* view mode: the document with its links beside it; edit mode: the form beside a live preview */
+#dpEditActs,.dp-next,.dp-aside{display:none}
+body[data-mode=edit] #dpViewActs{display:none}
+body[data-mode=edit] #dpEditActs{display:flex}
+body[data-mode=missing] #dpViewActs,body[data-mode=missing] .layout{display:none}
+body[data-mode=view] .editor{display:none}
+body[data-mode=view] .preview-wrap{display:block!important}
+body[data-mode=view] .dp-next,body[data-mode=view] .dp-aside{display:block}
+body[data-mode=view] .layout{grid-template-columns:minmax(0,1fr) 320px;grid-template-rows:auto 1fr;grid-template-areas:"pv next" "pv aside";gap:0 20px}
+body[data-mode=view] .preview-wrap{grid-area:pv;top:78px}
+body[data-mode=view] .dp-next{grid-area:next}
+body[data-mode=view] .dp-aside{grid-area:aside}
+@media (max-width:980px){
+  .dp-wrap{padding:4px 14px 0}
+  .dp-pv{display:inline-flex}
+  body[data-mode=view] .layout{grid-template-columns:minmax(0,1fr);grid-template-areas:"next" "pv" "aside"}
+  body[data-mode=view] .preview-wrap{margin-bottom:16px}
+  .layout{padding-bottom:20px!important}
+}
+@media (max-width:560px){ .dp-acts{gap:6px} .dp-b{padding:8px 10px} }
 @page{size:letter;margin:0}
 @media print{
   body{background:var(--panel)}
-  .topbar,.editor,.toast,.bottombar,dialog{display:none!important}
+  .topbar,.editor,.toast,.bottombar,dialog,.dp-wrap,.dp-next,.dp-aside,.hn-bar,.hn-side{display:none!important}
+  body{padding:0!important}
   #cardDoc{box-shadow:none}
   .layout{display:block;padding:0}
   .preview-wrap{position:static;display:block!important}
@@ -428,21 +489,30 @@ dialog::backdrop{background:rgba(7,25,45,.55)}
 </head>
 <body data-view="edit">
 
-<header class="topbar">
-  <button class="back" id="btnBack" type="button" title="Back to LHQ Hub" aria-label="Back to LHQ Hub"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></button>
-  <img class="lhq-logo desk" src="logo.png" alt="LHQ">
-  <h1 id="topTitle">Documents</h1>
-  <div class="actions">
-    <button class="ghost theme-btn" type="button"></button>
-    <button class="ghost" id="btnNew">New</button>
-    <button class="ghost" id="btnSave">Save</button>
-    <button class="ghost desk" id="btnPrint">Print</button>
-    <button class="ghost desk" id="btnSendTop">Send</button>
-    <button class="primary desk" id="btnPdfTop">Download PDF</button>
+<script>LHQNav.mount('docs');</script>
+<div class="dp-wrap">
+  <div class="dp-head" id="dpHead">
+    <a class="dp-crumb" id="dpBack" href="index.html#docs"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg><span id="dpBackT">Documents</span></a>
+    <div class="dp-row">
+      <div class="dp-tt"><h1 id="dpTitle"></h1><p id="dpSub"></p></div>
+      <div class="dp-acts" id="dpViewActs">
+        <button class="dp-b n" id="btnEdit"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg>Edit</button>
+        <button class="dp-b" id="btnSendTop"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l16-8-6 17-3-7-7-2z"/></svg><span>Send</span></button>
+        <button class="dp-b" id="btnPdfTop"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0l-4-4m4 4l4-4M5 20h14"/></svg>PDF</button>
+        <button class="dp-b" id="btnPrint" title="Print" aria-label="Print"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9V3h10v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/></svg></button>
+        <button class="dp-b" id="btnMore" title="More" aria-label="More"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button>
+      </div>
+      <div class="dp-acts" id="dpEditActs">
+        <button class="dp-b dp-pv" id="btnPvToggle">Preview</button>
+        <button class="dp-b" id="btnCancel">Cancel</button>
+        <button class="dp-b n" id="btnSave">Save</button>
+      </div>
+    </div>
   </div>
-</header>
+</div>
 
 <main class="layout">
+  <div class="dp-next" id="dpNext"></div>
   <section class="editor">
     <div class="bk-banner" id="bkBanner" hidden>
       <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 9v4m0 4h.01M10.3 3.9L2.4 18a2 2 0 001.7 3h15.8a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg>
@@ -451,7 +521,7 @@ dialog::backdrop{background:rgba(7,25,45,.55)}
       <button type="button" class="small" id="btnBackupLater">Later</button>
     </div>
     <div class="panel">
-      <div class="seg seg4" id="typeSeg">
+      <div class="seg seg4" id="typeSeg" hidden>
         <button type="button" data-t="quote" class="on">Quote</button>
         <button type="button" data-t="invoice">Invoice</button>
         <button type="button" data-t="receipt">Receipt</button>
@@ -558,12 +628,12 @@ dialog::backdrop{background:rgba(7,25,45,.55)}
       <label><span>Received by (prints above the signature line)</span><input id="f_receivedBy" autocomplete="off" placeholder="Staff member's name"></label>
     </div>
 
-    <div class="panel">
+    <div class="panel" hidden>
       <h2>Saved</h2>
       <ul class="saved" id="savedList"></ul>
     </div>
 
-    <div class="panel">
+    <div class="panel" hidden>
       <details id="tplSetup">
         <summary>Email &amp; WhatsApp messages</summary>
         <label><span>Email subject</span><input id="t_emailSubject"></label>
@@ -660,9 +730,10 @@ dialog::backdrop{background:rgba(7,25,45,.55)}
       <div id="cardDoc" hidden></div>
     </div>
   </section>
+  <aside class="dp-aside" id="dpAside"></aside>
 </main>
 
-<nav class="bottombar" aria-label="App sections">
+<nav class="bottombar" aria-label="App sections" hidden>
   <button id="tabEdit" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>Edit</button>
   <button id="tabPreview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h7M9 16h7"/></svg>Preview</button>
   <button id="btnPdfMob"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4v11m0 0l-4-4m4 4l4-4M5 20h14"/></svg>PDF</button>
@@ -1197,8 +1268,7 @@ function fillForm(){
   F('incPanel').hidden = T==='receipt' || T==='card';
   renderIncludes();
   F('doc').hidden = C; F('cardDoc').hidden = !C;
-  F('btnSendTop').textContent = C ? 'Share card' : 'Send';
-  F('btnSendMob').lastChild.textContent = C ? 'Share' : 'Send';
+  F('btnSendTop').querySelector('span').textContent = C ? 'Share' : 'Send';
   F('btnPrint').hidden = C;
   fillDates(); fillPickButtons(); fillPlan();
   // existing documents: a session count that doesn't match days x weeks was typed by hand, so keep it
@@ -1249,7 +1319,7 @@ function update(){
   }
   const PP = planInfo();
   if(PP) PP.rows.forEach(r=>rows.push([`${r.short} · due ${niceDate(r.due)}${r.paid?' · paid':''}`, 'MKW ' + money(r.amt), 'dr']));
-  F('topTitle').textContent = `${WORD[T]} ${doc.number||''}` + (doc.student||doc.name ? ` · ${doc.student||doc.name}` : '');
+  if(mode === 'edit') drawHead();
   F('sums').innerHTML = rows.map(([a,b,c])=>`<div class="row ${c||''}"><span>${esc(a)}</span><span>${esc(b)}</span></div>`).join('');
   renderDoc();
   if(doc.plan) fillPlan();
@@ -1688,6 +1758,7 @@ function saveDoc(silent){
   fillNumbering();
   store.set('lhq_draft', doc);
   renderSaved(); fillBackup(); fillStudentList(); if(!silent) toast(`${WORD[doc.type]} ${doc.number} saved${invNote}`);
+  if(mode === 'view'){ HD.load(); drawHead(); drawAside(); }
 }
 /* A saved receipt brings its invoice's "Amount already paid" up to date */
 function syncInvoicePaid(ref){
@@ -1735,8 +1806,7 @@ F('savedList').addEventListener('click', e=>{
   }
   if(b.dataset.del){ if(!confirm('Delete this saved document?')) return; saved=saved.filter(x=>x.id!==b.dataset.del); store.set('lhq_saved',saved); renderSaved(); }
 });
-F('btnNew').onclick = ()=>{ closePicker(false); closeCal(false); doc = blankDoc('quote'); fillForm(); setView('edit'); window.scrollTo({top:0,behavior:'smooth'}); toast(`New quote ${doc.number} started`); };
-F('btnSave').onclick = ()=>saveDoc();
+F('btnSave').onclick = ()=>saveAndView();
 
 /* ================= PDF ================= */
 let pdfCache = null; // {key, blob}
@@ -1789,7 +1859,6 @@ async function downloadPDF(btn){
   finally{ if(btn) btn.disabled = false; }
 }
 F('btnPdfTop').onclick = e=>downloadPDF(e.currentTarget);
-F('btnPdfMob').onclick = e=>downloadPDF(e.currentTarget);
 F('btnPrint').onclick = ()=>window.print();
 window.addEventListener('beforeprint',()=>{ document.title = fileName().replace(/\.pdf$/,''); });
 window.addEventListener('afterprint',()=>{ document.title = 'LHQ Hub · Documents'; });
@@ -1885,7 +1954,6 @@ async function openSend(){
   updateSendStatus();
 }
 F('btnSendTop').onclick = ()=> doc.type==='card' ? openCardShare() : openSend();
-F('btnSendMob').onclick = ()=> doc.type==='card' ? openCardShare() : openSend();
 F('btnCloseDlg').onclick = ()=>F('sendDlg').close();
 document.querySelectorAll('#chanSeg button').forEach(b=>b.addEventListener('click',()=>setChannel(b.dataset.c)));
 F('m_to').addEventListener('input',e=>{ doc.email=e.target.value; F('f_email').value=doc.email; update(); });
@@ -1942,9 +2010,9 @@ F('btnSendNow').onclick = async ()=>{
   if(!isEmail && waNumber(to).length < 10){ toast('Check the WhatsApp number, e.g. 0991 234 567'); F('m_wa').focus(); return; }
   const code = store.get('lhq_code','');
   if(!code){
-    F('sendDlg').close(); setView('edit');
-    F('emailSetup').open = true; F('emailSetup').scrollIntoView({behavior:'smooth',block:'center'}); F('s_code').focus();
-    toast('Enter the access code once on this device, then send again');
+    F('sendDlg').close();
+    try{ sessionStorage.setItem('lhq_flash', 'Enter the access code once on this device, then send again'); }catch(e){}
+    location.href = 'index.html#set/sending';
     return;
   }
   const label = btn.textContent;
@@ -2042,10 +2110,14 @@ window.hubRemap = (id, number)=>{
 
 initCard();
 
-/* ================= LHQ Hub links =================
-   The Hub's pages open the editor with what to do in the address:
-   #new=quote[&student=<name>]  #open=<id>  #conv=invoice:<id>[&from=<card id>]  #renew=<invoice id>  #settings=<section id> */
+/* ================= the document's own page =================
+   doc.html#d=<id>               the document (view)      …&edit=1  editing it
+   doc.html#new=quote[&student=<key>]   #conv=invoice:<id>[&from=<card id>]   #renew=<invoice id>   #dup=<id>   #draft
+   New documents open in edit mode; saving shows the document. */
+var mode = 'view';
 const studentKey = v => String(v||'').trim().toLowerCase().replace(/\s+/g,' ');
+const PERM = {quote:'quotes', invoice:'quotes', receipt:'receipts', card:'cards'};
+const mayEdit = t => HD.can(PERM[t || 'quote']);
 function latestFor(key){
   return saved.filter(s=>studentKey(s.student||s.name)===key).sort((a,b)=>(b.date||'').localeCompare(a.date||'') || (b.savedAt||0)-(a.savedAt||0))[0];
 }
@@ -2055,49 +2127,164 @@ function copyCardDetails(d, cardId){
   ['school','exam','where','cardNote'].forEach(k=>{ if(c[k]) d[k] = c[k]; });
 }
 function nextStart(iso){ let d = addDays(iso, 1); while([0,6].includes(parseISO(d).getDay())) d = addDays(d, 1); return d; }
-function hubHashAction(){
-  const h = location.hash.slice(1); if(!h || h.startsWith('import=')) return;
-  const q = new URLSearchParams(h), get = k => q.get(k);
-  let msg = '';
-  try{
-    if(get('settings')){
-      const el = F(get('settings')); if(el){ el.open = true; setTimeout(()=>el.scrollIntoView({behavior:'smooth', block:'start'}), 150); }
-    } else if(get('open')){
-      const s = saved.find(x=>x.id===get('open')); if(!s){ toast('That document is not on this device yet'); return; }
-      doc = normalize(JSON.parse(JSON.stringify(s))); msg = `Opened ${WORD[doc.type].toLowerCase()} ${s.number}`;
-    } else if(get('new')){
-      const type = TYPES.includes(get('new')) ? get('new') : 'quote';
-      doc = blankDoc(type);
-      const base = get('student') && latestFor(studentKey(get('student')));
-      if(base){ ['name','student','level','email','phone','address','forWhat'].forEach(k=>{ if(base[k]) doc[k] = base[k]; }); if(type==='card') ['school','exam','where'].forEach(k=>{ if(base[k]) doc[k] = base[k]; }); }
-      else if(get('student')) doc.student = get('student');
-      msg = `New ${WORD[type].toLowerCase()} ${doc.number}` + (doc.student ? ` for ${doc.student}` : '');
-    } else if(get('conv')){
-      const [type, id] = get('conv').split(':'), s = saved.find(x=>x.id===id);
-      if(!s || !TYPES.includes(type)){ toast('That document is not on this device yet'); return; }
-      doc = convertDoc(s, type);
-      if(type==='card' && get('from')) copyCardDetails(doc, get('from'));
-      msg = `${WORD[doc.type]} ${doc.number} started from ${s.number}. Check it, then Save.`;
-    } else if(get('renew')){
-      const s = saved.find(x=>x.id===get('renew')); if(!s){ toast('That document is not on this device yet'); return; }
-      doc = convertDoc(s, 'invoice');
-      doc.ref = ''; doc.plan1 = ''; doc.plan2 = ''; doc.paid = '';
-      if(s.periodStart && s.periodEnd){
-        const len = dayDiff(s.periodStart, s.periodEnd);
-        doc.periodStart = nextStart(s.periodEnd); doc.periodEnd = addDays(doc.periodStart, len);
-        refreshSessions && refreshSessions();
-      }
-      msg = `Renewal: invoice ${doc.number} for the next period, same subjects. Check the dates and sessions, then Save.`;
-    } else return;
-  }finally{
-    history.replaceState(null, '', location.pathname + location.search);
-  }
-  if(msg){ fillForm(); setView('edit'); window.scrollTo(0,0); toast(msg); }
+/* a new document takes the student's saved details */
+function fillFromStudent(d, key){
+  const rec = HD.studentRecords()[key] || {}, base = latestFor(key) || {};
+  d.student = rec.name || base.student || d.student;
+  d.name = rec.parent || base.name || d.name;
+  d.level = rec.level || base.level || d.level;
+  d.phone = rec.phone || base.phone || d.phone;
+  d.email = rec.email || base.email || d.email;
+  d.address = rec.address || base.address || d.address;
+  if(base.forWhat) d.forWhat = base.forWhat;
+  if(d.type==='card'){ d.school = rec.school || base.school || d.school; ['exam','where'].forEach(k=>{ if(base[k]) d[k] = base[k]; }); }
 }
-F('btnBack').onclick = ()=>{
-  let from = ''; try{ from = sessionStorage.getItem('lhq_from') || ''; }catch(e){}
-  location.href = './' + from;
+function setMode(m){
+  mode = m;
+  document.body.dataset.mode = m;
+  closePicker(false); closeCal(false);
+  if(m === 'view') setView('preview'); else setView('edit');
+  drawHead(); drawAside();
+  requestAnimationFrame(fitPreview);
+}
+function route(){
+  HD.load(); saved = store.get('lhq_saved', []);
+  const h = location.hash.slice(1), q = new URLSearchParams(h), get = k => q.get(k);
+  let msg = '', m = 'edit';
+  if(get('d')){
+    const s = saved.find(x=>x.id===get('d'));
+    if(!s){ document.body.dataset.mode = 'missing'; F('dpTitle').textContent = 'Not found'; F('dpSub').textContent = 'This document isn\'t here. It may have been deleted, or it hasn\'t reached this device yet.'; return; }
+    if(!(doc.id === s.id && mode === 'edit' && get('edit'))) doc = normalize(JSON.parse(JSON.stringify(s)));
+    m = get('edit') && mayEdit(s.type) ? 'edit' : 'view';
+  } else if(get('new')){
+    const type = TYPES.includes(get('new')) ? get('new') : 'quote';
+    doc = blankDoc(type);
+    if(get('student')) fillFromStudent(doc, studentKey(get('student')));
+    msg = `New ${WORD[type].toLowerCase()} ${doc.number}` + (doc.student ? ` for ${doc.student}` : '');
+  } else if(get('conv') || get('dup')){
+    const [type, id] = get('dup') ? [null, get('dup')] : get('conv').split(':'), s = saved.find(x=>x.id===id);
+    if(!s){ toast('That document isn\'t on this device yet'); location.replace('index.html#docs'); return; }
+    doc = convertDoc(s, type || s.type || 'quote');
+    if(get('dup')){ doc.ref = s.ref || ''; msg = `Copy of ${s.number}: ${WORD[doc.type].toLowerCase()} ${doc.number}. Change what you need, then Save.`; }
+    else { doc.from = s.number; msg = `${WORD[doc.type]} ${doc.number} started from ${s.number}. Check it, then Save.`; }
+    if(doc.type==='card' && get('from')) copyCardDetails(doc, get('from'));
+  } else if(get('renew')){
+    const s = saved.find(x=>x.id===get('renew')); if(!s){ location.replace('index.html#docs'); return; }
+    doc = convertDoc(s, 'invoice');
+    doc.ref = ''; doc.plan1 = ''; doc.plan2 = ''; doc.paid = ''; doc.from = s.number;
+    if(s.periodStart && s.periodEnd){ const len = dayDiff(s.periodStart, s.periodEnd); doc.periodStart = nextStart(s.periodEnd); doc.periodEnd = addDays(doc.periodStart, len); refreshSessions(); }
+    msg = `Renewal: invoice ${doc.number} for the next period, same subjects. Check the dates and sessions, then Save.`;
+  } else if(h === 'draft' || !h){
+    if(!h && doc.id){ location.replace('doc.html#d=' + doc.id); return; }
+    if(!h && !(doc.student || doc.name)){ location.replace('index.html#docs'); return; }
+  }
+  if(m === 'edit' && !doc.id && !mayEdit(doc.type)){ toast('You don\'t have permission to make this kind of document'); location.replace('index.html#docs'); return; }
+  if(get('new') || get('conv') || get('dup') || get('renew')) history.replaceState(null, '', location.pathname + '#draft');
+  fillForm(); setMode(m); window.scrollTo(0,0);
+  if(msg) toast(msg);
+}
+window.addEventListener('hashchange', route);
+function saveAndView(){
+  const isNew = !doc.id;
+  saveDoc();
+  // a first document for someone makes their student record, so their details are kept once
+  const key = studentKey(doc.student);
+  if(key && !HD.studentRecords()[key] && (HD.can('students') || HD.can('quotes')))
+    HD.saveStudent(key, {name:doc.student, level:doc.level, parent:doc.name, phone:doc.phone, email:doc.email, address:doc.address, school:doc.school||''});
+  HD.load();
+  history.replaceState(null, '', location.pathname + '#d=' + doc.id);
+  setMode('view');
+  if(isNew) window.scrollTo(0,0);
+}
+F('btnEdit').onclick = ()=>{ history.pushState(null, '', location.pathname + '#d=' + doc.id + '&edit=1'); setMode('edit'); window.scrollTo(0,0); };
+F('btnCancel').onclick = ()=>{
+  if(!doc.id){ store.set('lhq_draft', null); if(history.length > 1) history.back(); else location.href = 'index.html#home'; return; }
+  const s = saved.find(x=>x.id===doc.id); if(s) doc = normalize(JSON.parse(JSON.stringify(s)));
+  fillForm(); history.replaceState(null, '', location.pathname + '#d=' + doc.id); setMode('view');
 };
+F('btnPvToggle').onclick = ()=>{ const pv = document.body.dataset.view !== 'preview'; setView(pv ? 'preview' : 'edit'); F('btnPvToggle').textContent = pv ? 'Back to editing' : 'Preview'; };
+F('btnMore').onclick = moreMenu;
+F('dpBack').onclick = e=>{ if(history.length > 1 && document.referrer && new URL(document.referrer).origin === location.origin){ e.preventDefault(); history.back(); } };
+
+const H = HD;
+const svg = (p, s=18) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const ICD = {quote:'<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/>', invoice:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>', receipt:'<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>', card:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10h6M7 14h10"/>'};
+function drawHead(){
+  const t = doc.type || 'quote', isNew = !doc.id;
+  F('dpTitle').innerHTML = mode === 'edit' ? esc(isNew ? `New ${WORD[t].toLowerCase()} ${doc.number}` : `Editing ${doc.number}`)
+    : `${esc(WORD[t])} ${esc(doc.number)} <span class="dp-tag ${H.docStatus(doc)[1]}">${esc(H.docStatus(doc)[0])}</span>`;
+  const key = studentKey(doc.student || doc.name);
+  F('dpSub').innerHTML = [doc.student ? `<a href="index.html#student/${encodeURIComponent(key)}">${esc(doc.student)}</a>` : '', esc(doc.name && doc.name !== doc.student ? doc.name : ''), esc(niceDate(doc.date))].filter(Boolean).join(' · ');
+  F('btnEdit').hidden = !mayEdit(t);
+  F('btnSendTop').hidden = !mayEdit(t);
+  F('btnPrint').hidden = t === 'card';
+  F('btnPvToggle').textContent = 'Preview';
+}
+function chainRow(x, cur){
+  const [s, c] = H.docStatus(x), t = x.type || 'quote';
+  return `<a class="dp-it ${cur ? 'cur' : ''}" href="doc.html#d=${x.id}">${svg(ICD[t])}<span class="t"><b>${esc(x.number)}</b><small>${esc(WORD[t])} · ${esc(niceDate(x.date))}</small></span><span class="dp-tag ${c}">${esc(s)}</span></a>`;
+}
+function drawAside(){
+  if(mode !== 'view' || !doc.id){ F('dpAside').innerHTML = ''; F('dpNext').innerHTML = ''; return; }
+  const d = saved.find(x=>x.id===doc.id) || doc, t = d.type || 'quote', ch = H.chainOf(d);
+  const links = [ch.quote, ch.inv, ...ch.receipts, ch.card].filter(Boolean);
+  const missing = []; if(t === 'quote' && !ch.inv) missing.push('invoice'); if(ch.inv && !ch.receipts.length) missing.push('receipt'); if(ch.inv && !ch.card) missing.push('tuition card');
+  // next step
+  const nx = [], key = studentKey(d.student || d.name);
+  const lastCard = saved.filter(x=>x.type==='card' && studentKey(x.student||x.name)===key).sort((a,b)=>(b.date||'').localeCompare(a.date||''))[0];
+  const cardHref = inv => `doc.html#conv=card:${inv.id}${lastCard ? '&from=' + lastCard.id : ''}`;
+  if(t === 'quote' && !ch.inv && H.can('quotes')) nx.push(`<a class="dp-b n full" href="doc.html#conv=invoice:${d.id}">Parent agreed → Make invoice</a>`);
+  if(ch.inv && (t === 'invoice' || t === 'receipt')){
+    const st = H.invState(ch.inv);
+    if(!st.paidUp && H.can('receipts')) nx.push(`<a class="dp-b g full" href="doc.html#conv=receipt:${ch.inv.id}">${st.plan && st.firstPaid ? 'Receive 2nd instalment' : 'Record a payment'} · ${H.mk(st.balance)}</a>`);
+    if(!ch.card && H.can('cards')) nx.push(`<a class="dp-b ${st.paidUp || st.firstPaid ? 'n' : ''} full" href="${cardHref(ch.inv)}">Make tuition card${lastCard ? ' (same tutors as last time)' : ''}</a>`);
+    const end = ch.inv.periodEnd;
+    if(t === 'invoice' && ch.card && H.can('quotes') && (!end || H.dayDiff(H.today(), end) <= 14)) nx.push(`<a class="dp-b n full" href="doc.html#renew=${ch.inv.id}">Renew for the next period</a><p class="dp-note">Makes the next invoice with the same subjects. The card after it copies days, times and tutors.</p>`);
+  }
+  if(t === 'card' && H.can('cards')) nx.push(`<button class="dp-b n full" onclick="openCardShare()">${svg('<path d="M4 12l16-8-6 17-3-7-7-2z"/>',16)} Send to tutors</button>`);
+  F('dpNext').innerHTML = nx.length ? `<div class="dp-box"><div class="dp-cap">Next step</div>${nx.join('')}</div>` : '';
+  // payment
+  let pay = '';
+  if(t === 'invoice'){ const st = H.invState(d); pay = `<div class="dp-cap">Payment</div><div class="dp-pay"><div><span>Total</span><b>${H.mk(st.total)}</b></div>${(st.rows||[]).map(r=>`<div><span>${r.short} · due ${esc(niceDate(r.due))}</span><span>${r.paid ? '✓ paid' : H.mk(r.amt)}</span></div>`).join('')}<div><span>Paid</span><span>${H.mk(st.paid)}</span></div><div class="big"><span>Balance</span><span>${H.mk(Math.max(0, st.balance))}</span></div></div>`; }
+  if(t === 'receipt'){ const T = totals(d); pay = `<div class="dp-cap">Payment</div><div class="dp-pay"><div><span>Received</span><b>${H.mk(T.received)}</b></div><div><span>Method</span><span>${esc(d.method||'')}</span></div><div><span>Paid before</span><span>${H.mk(T.prevPaid)}</span></div><div class="big"><span>Balance remaining</span><span>${H.mk(Math.max(0, T.balance))}</span></div></div>`; }
+  // activity
+  const log = (d.log && d.log.length ? d.log : [d.createdBy ? {a:'created', by:d.createdBy, at:0} : null, d.updatedBy && d.updatedBy !== d.createdBy ? {a:'edited', by:d.updatedBy, at:d.updatedAt||d.savedAt} : null].filter(Boolean)).slice().reverse();
+  const W = {created:'Created', edited:'Edited', emailed:'Emailed', whatsapp:'Sent on WhatsApp', paid:'Payment recorded', restored:'Restored from Recently deleted'};
+  const act = log.map(a=>`<div class="dp-act"><span class="dp-av">${esc((a.by||'?')[0])}</span><div>${esc(W[a.a]||a.a)}${a.from ? ' from ' + esc(a.from) : ''}${a.to ? ' to ' + esc(a.to) : ''}${a.a==='paid' && a.amount ? ' · ' + H.mk(H.num(a.amount)) + ' paid in total' : ''}<small>${esc(a.by||'')}${a.at ? ' · ' + esc(H.ago(a.at)) : ''}</small></div></div>`).join('');
+  F('dpAside').innerHTML = `<div class="dp-box">${pay}<div class="dp-cap">Linked documents</div>${links.map(x=>chainRow(x, x.id===d.id)).join('') || chainRow(d, true)}${missing.length ? `<p class="dp-note">Not made yet: ${missing.join(', ')}</p>` : ''}</div>
+    ${act ? `<div class="dp-box"><div class="dp-cap">Activity</div>${act}</div>` : ''}`;
+}
+/* ⋯ menu: duplicate, copy link, delete */
+function moreMenu(){
+  const t = doc.type || 'quote';
+  const items = [];
+  if(mayEdit(t)) items.push(`<button data-m="dup">${svg('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V4h12"/>')}<span>Duplicate<small>A new ${WORD[t].toLowerCase()} with the same details</small></span></button>`);
+  items.push(`<button data-m="link">${svg('<path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/>')}<span>Copy link to this page<small>Anyone signed in to LHQ Hub can open it</small></span></button>`);
+  if(H.can('delete')) items.push(`<button data-m="del" class="rd">${svg('<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>')}<span>Delete<small>Moves to Recently deleted for 30 days</small></span></button>`);
+  dpSheet(`<div class="dp-sh-h"><b>${esc(doc.number)}</b><button class="dp-x" data-m="close">✕</button></div><div class="dp-menu">${items.join('')}</div>`);
+}
+function dpSheet(html){
+  let bg = F('dpShBg'), sh = F('dpSheet');
+  if(!sh){ document.body.insertAdjacentHTML('beforeend', '<div class="dp-shbg" id="dpShBg"></div><div class="dp-sheet" id="dpSheet"></div>'); bg = F('dpShBg'); sh = F('dpSheet'); bg.onclick = closeDpSheet; }
+  sh.innerHTML = html; sh.hidden = false; bg.hidden = false;
+  sh.querySelectorAll('[data-m]').forEach(b=>b.onclick = ()=>menuAct(b.dataset.m));
+}
+function closeDpSheet(){ if(F('dpSheet')){ F('dpSheet').hidden = true; F('dpShBg').hidden = true; } }
+async function menuAct(m){
+  if(m === 'close') return closeDpSheet();
+  if(m === 'dup'){ closeDpSheet(); location.hash = 'dup=' + doc.id; return; }
+  if(m === 'link'){ closeDpSheet(); try{ await navigator.clipboard.writeText(location.origin + location.pathname + '#d=' + doc.id); toast('Link copied'); }catch(e){ toast('Copy didn\'t work here'); } return; }
+  if(m === 'del'){
+    const ch = H.chainOf(doc), others = [ch.quote, ch.inv, ...ch.receipts, ch.card].filter(x=>x && x.id!==doc.id).map(x=>x.number);
+    dpSheet(`<div class="dp-sh-h"><b>Delete ${esc(doc.number)}?</b></div><p class="dp-note" style="margin:4px 0 14px">It moves to Settings › Recently deleted and can be restored for 30 days.${others.length ? ` ${others.join(', ')} stay${others.length===1?'s':''} as ${others.length===1?'it is':'they are'}.` : ''}</p><div class="dp-acts"><button class="dp-b rd" data-m="delGo">Delete</button><button class="dp-b" data-m="close">Keep it</button></div>`);
+  }
+  if(m === 'delGo'){
+    const n = doc.number;
+    saved = saved.filter(x=>x.id!==doc.id); store.set('lhq_saved', saved); store.set('lhq_draft', null);
+    try{ sessionStorage.setItem('lhq_flash', `${n} deleted. It's in Settings › Recently deleted for 30 days.`); }catch(e){}
+    location.href = 'index.html#docs';
+  }
+}
 
 /* ================= backup & restore =================
    Everything lives in this browser's storage. A backup is a JSON file of all lhq_ keys
@@ -2204,9 +2391,9 @@ function initBackup(){
 
 fillSettings(); fillTemplates(); fillForm(); renderSaved(); fillNumbering(); fitPreview(); checkServices();
 if(document.fonts) document.fonts.ready.then(renderDoc);
-cardImportFromHash();
 initBackup(); fillStudentList();
-hubHashAction();
+if(location.hash.startsWith('#import=')) cardImportFromHash().then(()=>{ history.replaceState(null, '', location.pathname + '#draft'); setMode('edit'); });
+else route();
 </script>
 </body>
 </html>

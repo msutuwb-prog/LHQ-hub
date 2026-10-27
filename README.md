@@ -3,7 +3,8 @@
 Quote, invoice and receipt generator for LHQ Learning Solutions. The app runs in the browser. Two small Netlify Functions send the PDF directly: one by email from LHQ's Gmail account, one on WhatsApp from LHQ's WhatsApp Business number.
 
 ```
-site/                     the app: index.html (LHQ Hub home, students), editor.html (quotes, invoices, receipts, cards), reports.html, tutor.html, theme.js, sync.js
+site/                     the app: index.html (Home, Students, Documents, Settings), doc.html (one document: view and edit),
+                          reports.html, tutor.html, checklist.html; shared: hub.css, nav.js, hubdata.js, defaults.js, theme.js, sync.js
 netlify/functions/        send-email.mjs     sends email through Gmail
                           send-whatsapp.mjs  sends WhatsApp messages through Meta's Cloud API
 netlify.toml              tells Netlify where everything is
@@ -245,3 +246,11 @@ Working grade = average of topical assessments in the tuition period (LHQ scale 
 - Invoice, receipt, quote and card numbers are checked on the server: if two devices save the same number, the second gets the next free one and is told.
 - The first person to open the Hub sets it up and becomes admin. Admins add people and reset PINs under their name → People & access. Five wrong PINs lock that person out for 15 minutes.
 - Tutors' session-log links (`/t#…`) don't need sign-in yet; that comes in step 2.
+
+## LHQ Hub as one system (roles, pages)
+
+- **Roles:** one **Director** (full access; the first person set up), **Admins** (only what the Director switches on in Settings › People & access › their page), **Tutors** (no access to documents or money). Permissions are checked on the server in `hub.mjs` (`checkSync`): a change someone isn't allowed to make is refused and undone on their device.
+- Only the Director can change bank, contact and payment settings, add or remove admins, remove accounts and change permissions. If the Director forgets their PIN, "Forgot your PIN?" on the sign-in screen takes the setup code (first 8 characters of `LHQ_SECRET`).
+- **Pages:** `index.html` (Home with metric cards each person chooses, Students, Documents, Settings sections, People) and `doc.html` (one document: opens on the document with its links, payment and activity; Edit shows the form beside a live preview). Navigation is a bottom bar or a sidebar, chosen per device in Settings › My account.
+- **Students** are kept once in `kv/lhq_students`; new documents fill in from there.
+- **Recently deleted:** `GET /api/hub/trash`, `POST /api/hub/restore` (kept 30 days). Each document keeps a short activity log (`log`: created, edited, emailed, sent on WhatsApp, payment recorded, restored).

@@ -11,21 +11,29 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<link rel="stylesheet" href="hub.css">
+<script src="theme.js"></script>
 <script src="sync.js"></script>
+<script src="nav.js"></script>
 <script src="topics.js"></script>
 <script src="card.js"></script>
 <script src="pako.min.js"></script>
 <script src="codec.js"></script>
 <style>
-:root{--navy:#073763;--gold:#f4b223;--ink:#1d2433;--muted:#5f6b7d;--line:#dde2ea;--bg:#eef1f5;--field:#f6f8fb;--wa:#1f9d55;--ok:#1f7a4d;--red:#b42318}
+:root{--navy:#073763;--gold:#f4b223;--ink:#14213d;--muted:#6b7585;--line:#e4e7ec;--bg:#f5f6f8;--field:#f6f8fb;--wa:#1f9d55;--ok:#1f7a4d;--red:#b42318;--panel:#fff}
+[data-theme=dark]{--navy:#f4b223;--ink:#e8edf4;--muted:#93a0b3;--line:#253246;--bg:#0d1420;--field:#111a27;--ok:#5fd093;--red:#ff8a80;--panel:#151e2c;color-scheme:dark}
+[data-theme=dark] button{background:var(--panel)}[data-theme=dark] button.navy,[data-theme=dark] .seg button.on{color:#0d1420}
+[data-theme=dark] .panel{background:var(--panel)}[data-theme=dark] .dlg-foot{background:var(--panel)}[data-theme=dark] dialog{background:var(--panel);color:var(--ink)}
+[data-theme=dark] .t-blue{background:rgba(120,165,220,.16);color:#a9c6ea}[data-theme=dark] .t-ok{background:rgba(52,168,103,.16)}[data-theme=dark] .t-amb{background:rgba(244,178,35,.16);color:#f4c35a}[data-theme=dark] .t-red{background:rgba(240,82,70,.16)}
+[data-theme=dark] button.ghost{background:var(--panel);color:var(--navy);border-color:var(--line)}
+[data-theme=dark] .banner{background:rgba(52,168,103,.16);border-color:var(--line)}
+.rh{max-width:1000px;margin:0 auto;padding:4px 16px 0;display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.rh h1{margin:0;flex:1;font-size:25px;font-weight:800;letter-spacing:-.3px;color:var(--navy)}
+[data-theme=dark] .rh h1{color:var(--ink)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0}
 body{background:var(--bg);color:var(--ink);font:14px/1.45 Manrope,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 [hidden]{display:none!important}
-.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:10px;padding:10px 20px;padding-top:calc(10px + env(safe-area-inset-top,0px));background:#f5f6f8;color:#14213d;border-bottom:1px solid #e4e7ec}
-.topbar img{height:34px;display:block}
-.topbar h1{font-size:15.5px;font-weight:800;margin:0 0 0 4px;flex:1}
-.topbar .back{width:38px;height:38px;min-height:0;padding:0;border-radius:50%;display:grid;place-items:center;flex:none;background:#fff;color:#14213d;border:1px solid #e4e7ec}
 button{font:inherit;cursor:pointer;border-radius:9px;border:1px solid var(--line);background:#fff;color:var(--ink);padding:8px 13px;min-height:38px}
 button:disabled{opacity:.5;cursor:default}
 button.ghost{background:#fff;color:var(--navy);font-weight:700;border-color:#e4e7ec}
@@ -150,13 +158,8 @@ table.log td{padding:6px 8px;border-bottom:1px solid #eef1f5;vertical-align:top}
 </style>
 </head>
 <body>
-<header class="topbar">
-  <a class="back" href="./" id="btnBack" title="Back to LHQ Hub" aria-label="Back to LHQ Hub"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 5l-7 7 7 7"/></svg></a>
-  <img src="logo.png" alt="LHQ">
-  <h1>Tutor reports</h1>
-  <button class="ghost small" id="btnLinks">Tutor links</button>
-</header>
-<script>try{ const f = sessionStorage.getItem('lhq_from'); if(f) document.getElementById('btnBack').href = './' + f; }catch(e){}</script>
+<script>LHQNav.mount('reports');</script>
+<div class="rh"><h1>Reports</h1><button class="ghost" id="btnLinks">Tutor links</button></div>
 
 <main>
   <div class="banner" id="importBanner" hidden></div>

@@ -44,7 +44,7 @@ function migrate(list) {
       if (p.admin && !dir) { p.role = "director"; dir = true; }
       else if (p.admin) { p.role = "admin"; p.perms = ADMIN_DEFAULT.slice(); }
       else { p.role = "tutor"; p.perms = []; }
-      delete p.admin; changed = true;
+      changed = true;   // "admin" is kept so the app before roles still works during the switch-over
     });
   }
   return changed;
@@ -78,7 +78,7 @@ async function getPeople() {
   if (migrate(list)) await putPeople(list);
   return list;
 }
-async function putPeople(list) { await store().setJSON("people", list); }
+async function putPeople(list) { list.forEach(p => { p.admin = p.role === "director" || p.role === "admin"; }); await store().setJSON("people", list); }
 function newToken(p) { return sign({ p: p.id, v: p.pv || 1, exp: Date.now() + TOKEN_DAYS * 864e5 }); }
 
 async function whoIs(req) {
