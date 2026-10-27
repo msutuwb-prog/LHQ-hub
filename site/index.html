@@ -318,6 +318,7 @@ P.home = () => {
     <div class="acts"><a class="btn" href="#edithome" title="Edit Home" aria-label="Edit Home">${ic('edit',16)}</a>${can('quotes') || can('receipts') || can('cards') ? `<a class="btn n" href="#new">${ic('plus',16,2.4)} New</a>` : ''}</div></div>
   ${cards.length ? `<div class="mcs">${cards.map(k => { const c = CARDS[k]; return `<a class="mc" href="${c.href}"><span class="l">${ic(c.ic,15,2)}${c.t}</span>${c.html(m)}</a>`; }).join('')}</div>` : ''}
   ${draftRow}
+  ${PREVIEW && isDir() && !saved.length ? `<div class="card pad" style="border-color:var(--gold)"><div class="cap">Preview</div><p class="note" style="margin:0 0 10px">This preview has its own storage and is empty. Load six months of demo data to try every page.</p><a class="btn n" href="#set/demo">Demo data</a></div>` : ''}
   <div class="h2">Needs attention <span class="acts" style="align-items:center"><em>${att.length || ''}</em><button class="btn sm" id="attTog">${attOpen ? 'Hide' : 'Show'}</button></span></div>
   ${attOpen ? `<div class="card">${att.slice(0, 15).map(x => `<div class="it" data-go="${x.href}" style="cursor:pointer"><span class="ico" style="color:var(${x.col})">${ic(x.ico)}</span><span class="t"><b>${esc(x.s.name)}</b><small>${esc(x.sub)}</small></span>${x.tag ? `<span class="tag ${x.tag[1]}">${x.tag[0]}</span>` : x.btn ? `<a class="btn sm" href="${x.btn[1]}">${x.btn[0]}</a>` : ''}</div>`).join('') || '<p class="empty">Nothing needs attention. Overdue payments, paid invoices without a card, subjects without a tutor and periods ending this week show here.</p>'}</div>`
     : `<p class="note" style="margin:-2px 2px 18px">${att.length} item${att.length === 1 ? '' : 's'} hidden. Needs attention always stays on Home so nothing is missed.</p>`}
@@ -487,7 +488,7 @@ const SETS = [
   ['LHQ', [['people','users','People & access', () => isDir() || can('tutors')],['company','bank','Company & bank details', isDir],['payments','cash','Payments & due dates', isDir]]],
   ['Documents', [['numbering','hash','Numbering', () => can('numbering')],['messages','msg','Messages', () => can('msgs')],['lists','list','Lists', () => can('msgs')]]],
   ['Enrolment & sending', [['enrol','link','Student checklist'],['sending','wa','Email & WhatsApp']]],
-  ['Data', [['backup','box','Backup & restore', () => can('backup')],['deleted','bin','Recently deleted', () => can('restore')]]],
+  ['Data', [['backup','box','Backup & restore', () => can('backup')],['deleted','bin','Recently deleted', () => can('restore')],['demo','restore','Demo data (preview)', () => isDir() && PREVIEW]]],
 ];
 const allowed = id => SETS.some(([, items]) => items.some(x => x[0] === id && (!x[3] || x[3]())));
 P.settings = () => setWrap(null);
@@ -606,6 +607,23 @@ S.backup = () => { const last = store.get('lhq_lastBackup', 0);
   <div class="acts" style="margin-top:12px"><button class="btn n" id="bkGo">Back up now</button><button class="btn" id="rsGo">Add from a backup</button></div>
   <p class="note">Adding from a backup brings back documents that are missing, and the newer copy wins where a document is in both. It never deletes anything.</p></div>`; };
 
+/* previews have their own storage; the Director can fill it with demo data */
+let PREVIEW = false; try{ PREVIEW = sessionStorage.getItem('lhq_preview') === '1'; }catch(e){}
+fetch('/api/hub/people', {cache:'no-store'}).then(r => r.json()).then(j => { const was = PREVIEW; PREVIEW = !!j.preview; try{ sessionStorage.setItem('lhq_preview', PREVIEW ? '1' : '0'); }catch(e){} if(was !== PREVIEW) render(); }).catch(() => {});
+S.demo = () => `<h2 class="sec-h">Demo data</h2><p class="sec-p">This preview has its own storage, separate from LHQ's real documents. Fill it with six months of made-up students to try every page.</p>
+  <div class="card pad"><div class="cap">What you get</div>
+  <p class="note" style="margin:0 0 6px">22 invented students from May to today: quotes, invoices, receipts and tuition cards; 50/50 plans; payments in grace and overdue; periods ending this week and renewed; ended students; quotes waiting; a card with no tutor; a sibling discount; a deleted receipt; tutors' session logs, SRAs and comments for Reports.</p>
+  <p class="note" style="margin:0 0 12px">It also adds tutors: Catherine Mkwinda (Admin), Emmanuel Mkwamba, Ungweru Kaonga, Maureen Story, and Mayamiko Goliati (switched off). Their PIN is <b>1111</b>. Your own account stays as it is.</p>
+  <div class="acts"><button class="btn n" id="demoGo">Load demo data</button><button class="btn rd" id="demoClear">Empty the preview</button></div>
+  <p class="note">Loading replaces everything in this preview. The live site is never touched.</p></div>`;
+async function loadScript(src){ if(document.querySelector(`script[src="${src}"]`)) return; await new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); }); }
+async function afterServerReplace(msg){
+  ['lhq_syncBase','lhq_syncKv','lhq_syncRev','lhq_draft'].forEach(k => localStorage.removeItem(k));
+  localStorage.setItem('lhq_saved', '[]'); localStorage.setItem('lhq_syncDirty', 'false');
+  ['lhq_students','lhq_logs','lhq_counters','lhq_tlinks','lhq_repEdits'].forEach(k => localStorage.removeItem(k));
+  await hub.pull(); await HD.refreshPeople(); trashList = null; location.hash = '#home'; render(); toast(msg);
+}
+
 let trashList = null;
 S.deleted = () => {
   if(trashList === null){ hub.api('trash').then(r => { trashList = r.trash; render(); }).catch(e => { trashList = []; toast(e.message); }); }
@@ -691,6 +709,17 @@ function bind(){
   if($('svcEmail')) checkServices();
   if($('codeSave')) $('codeSave').onclick = () => { localStorage.setItem('lhq_code', JSON.stringify($('accessCode').value.trim())); checkServices(); toast('Access code saved on this device'); };
   if($('bkGo')) $('bkGo').onclick = doBackup;
+  if($('demoGo')) $('demoGo').onclick = async () => {
+    if(!confirm('Replace everything in this preview with demo data?')) return;
+    $('demoGo').disabled = true; $('demoGo').textContent = 'Loading…';
+    try{ await loadScript('topics.js'); await loadScript('demo.js'); const d = LHQDemo.build();
+      const r = await hub.api('demo', {method:'POST', body:JSON.stringify(d)}); await afterServerReplace(`Demo data loaded: ${r.docs} documents`); }
+    catch(e){ toast(e.message); $('demoGo').disabled = false; $('demoGo').textContent = 'Load demo data'; }
+  };
+  if($('demoClear')) $('demoClear').onclick = async () => {
+    if(!confirm('Empty this preview? Every document and person except you is removed (only in the preview).')) return;
+    try{ await hub.api('reset', {method:'POST', body:'{}'}); await afterServerReplace('The preview is empty'); }catch(e){ toast(e.message); }
+  };
   if($('rsGo')) $('rsGo').onclick = () => $('restoreFile').click();
   on('[data-restore]', async el => { el.disabled = true; try{ const r = await hub.api('restore', {method:'POST', body:JSON.stringify({id:el.dataset.restore})}); trashList = trashList.filter(x => x.id !== el.dataset.restore); await hub.pull(); toast(`${r.doc.number} restored${r.renumbered ? ` (${r.renumbered} was taken, so it is now ${r.doc.number})` : ''}`); }catch(e){ el.disabled = false; toast(e.message); } });
 }

@@ -24,4 +24,14 @@
   /* another tab changed it */
   window.addEventListener('storage', e => { if(e.key === KEY) apply(get()); });
   window.lhqTheme = {get, toggle, apply, logo};
+  /* The PDF and image maker is large, so pages load first and fetch it a moment later
+     (or straight away when PDF, Print or Share is tapped). */
+  let pdfP = null;
+  window.lhqPdf = () => pdfP || (pdfP = window.html2pdf ? Promise.resolve(window.html2pdf) : new Promise((ok, no) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+    s.onload = () => ok(window.html2pdf); s.onerror = () => { pdfP = null; no(new Error('The PDF maker could not load. Check the connection.')); };
+    document.head.appendChild(s);
+  }));
+  window.lhqPdfSoon = () => window.addEventListener('load', () => setTimeout(() => window.lhqPdf().catch(() => {}), 1200));
 })();

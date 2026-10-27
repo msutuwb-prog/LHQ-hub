@@ -14,7 +14,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400;1,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="hub.css">
 <script src="theme.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>lhqPdfSoon();</script>
 <script src="sync.js"></script>
 <script src="defaults.js"></script>
 <script src="hubdata.js"></script>
@@ -1826,7 +1826,7 @@ async function makePdfBlob(copy = 'customer'){
   const el = stage.firstChild;
   if(document.fonts && document.fonts.ready) await document.fonts.ready;
   await Promise.all([...el.querySelectorAll('img')].map(img=>img.complete?0:new Promise(r=>{img.onload=img.onerror=r;})));
-  const blob = await html2pdf().set({
+  const blob = await (await lhqPdf())().set({
     margin:0, image:{type:'jpeg',quality:0.98},
     html2canvas:{scale:3,useCORS:true,backgroundColor:'#ffffff',scrollX:0,scrollY:0,x:0,y:0,width:816,height:1056,windowWidth:816,windowHeight:1056},
     jsPDF:{unit:'pt',format:'letter',orientation:'portrait'}

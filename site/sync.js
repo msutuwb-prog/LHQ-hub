@@ -343,7 +343,9 @@
     if(!session()){ showSignIn(); return; }
     mountAccount();
     if(window.hubReady) window.hubReady();
-    pull().catch(() => status('offline'));
+    // this device already has LHQ's documents: only fetch them again if something changed
+    if(get(REV, null) == null) pull().catch(() => status('offline'));
+    else check().then(() => { if(!navigator.onLine) status('offline'); });
   });
   window.hub = {push, pull, session, changes, api, signOut};
 })();

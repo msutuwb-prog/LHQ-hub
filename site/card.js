@@ -378,13 +378,13 @@ async function cardRender(only){
 async function cardPng(only){
   const r = await cardRender(only);
   try{
-    const canvas = await html2pdf().set(r.opts).from(r.el).toCanvas().get('canvas');
+    const canvas = await (await lhqPdf())().set(r.opts).from(r.el).toCanvas().get('canvas');
     return await new Promise(res=>canvas.toBlob(res, 'image/png'));
   } finally { r.done(); }
 }
 async function cardPdf(only){
   const r = await cardRender(only);
-  try{ return await html2pdf().set(r.opts).from(r.el).outputPdf('blob'); } finally { r.done(); }
+  try{ return await (await lhqPdf())().set(r.opts).from(r.el).outputPdf('blob'); } finally { r.done(); }
 }
 function cardFileName(only, ext){
   const who = (doc.student || 'Student').trim();

@@ -216,7 +216,7 @@ async function stageClone(){
 async function pageOnePng(){
   const wrap = await stageClone(), el = wrap.firstElementChild, w = el.offsetWidth, h = el.offsetHeight;
   try{
-    const canvas = await html2pdf().set({html2canvas:{scale:3, useCORS:true, backgroundColor:'#ffffff', x:0, y:0, scrollX:0, scrollY:0, width:w, height:h, windowWidth:w, windowHeight:h}}).from(el).toCanvas().get('canvas');
+    const canvas = await (await lhqPdf())().set({html2canvas:{scale:3, useCORS:true, backgroundColor:'#ffffff', x:0, y:0, scrollX:0, scrollY:0, width:w, height:h, windowWidth:w, windowHeight:h}}).from(el).toCanvas().get('canvas');
     return await new Promise(r=>canvas.toBlob(r, 'image/png'));
   } finally { F('stage').innerHTML = ''; }
 }
@@ -224,7 +224,7 @@ async function reportPdf(){
   const wrap = await stageClone(), first = wrap.firstElementChild, w = first.offsetWidth, h = wrap.offsetHeight;
   const monthly = state.freq==='m';
   try{
-    return await html2pdf().set({margin:0, image:{type:'jpeg', quality:0.98},
+    return await (await lhqPdf())().set({margin:0, image:{type:'jpeg', quality:0.98},
       html2canvas:{scale:3, useCORS:true, backgroundColor:'#ffffff', x:0, y:0, scrollX:0, scrollY:0, width:w, height:h, windowWidth:w, windowHeight:h},
       jsPDF: monthly ? {unit:'mm', format:'a4', orientation:'portrait'} : {unit:'pt', format:[w*0.75, h*0.75], orientation: h > w ? 'portrait' : 'landscape'},
       pagebreak:{mode:[]}}).from(wrap).outputPdf('blob');

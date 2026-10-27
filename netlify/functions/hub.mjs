@@ -18,7 +18,10 @@ import crypto from "node:crypto";
 
 let testStore = null;
 export const _setStore = s => { testStore = s; };
-const store = () => testStore || getStore({ name: "lhq-hub", consistency: "strong" });
+// Deploy previews (and branch deploys) get their own storage, so trying things there never touches LHQ's real documents
+let site = "production";
+const isPreview = () => site !== "production";
+const store = () => testStore || getStore({ name: isPreview() ? "lhq-hub-preview" : "lhq-hub", consistency: "strong" });
 
 const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students"];
 
@@ -114,7 +117,7 @@ async function readAll(prefix) {
 /* ---------------- handlers ---------------- */
 async function people(req) {
   const list = await getPeople();
-  return json({ setup: list.length === 0, people: list.filter(p => p.active !== false).map(p => ({ id: p.id, name: p.name, role: p.role, admin: staff(p), tutor: !!p.tutor })) });
+  return json({ setup: list.length === 0, preview: isPreview(), people: list.filter(p => p.active !== false).map(p => ({ id: p.id, name: p.name, role: p.role, admin: staff(p), tutor: !!p.tutor })) });
 }
 
 async function setup(req) {
@@ -273,6 +276,42 @@ async function sync(req, me) {
   return fail("Too many saves at once. Try again.", 409);
 }
 
+/* Preview only: replace everything with demo data, or empty it. Never on the live site. */
+async function wipe(keepPeople) {
+  const s = store();
+  for (const prefix of ["doc/", "hist/", "trash/", "kv/", "fails/"]) { const { blobs } = await s.list({ prefix }); for (const b of blobs) await s.delete(b.key); }
+  await s.delete("index");
+  const list = (await getPeople()).filter(p => keepPeople(p));
+  await putPeople(list);
+  return list;
+}
+async function demo(req, me) {
+  if (!isPreview()) return fail("Demo data only works on a preview, never on the live site.", 403);
+  if (!isDirector(me)) return fail("Only the Director can load demo data.", 403);
+  const b = await req.json().catch(() => null);
+  if (!b || !Array.isArray(b.docs)) return fail("No demo data was sent.");
+  const list = await wipe(p => p.id === me.id);
+  for (const x of b.people || []) {
+    if (list.some(p => p.name.toLowerCase() === String(x.name).toLowerCase())) continue;
+    const salt = crypto.randomBytes(16).toString("hex");
+    list.push({ id: "p" + crypto.randomBytes(5).toString("hex"), name: String(x.name), role: x.role === "admin" ? "admin" : "tutor", perms: x.role === "admin" ? ADMIN_DEFAULT.slice() : [], tutor: true, active: x.active !== false, salt, hash: hashPin(x.pin || "1111", salt), pv: 1, seen: x.seen || 0 });
+  }
+  await putPeople(list);
+  const s = store(), docs = {}, now = Date.now();
+  for (let i = 0; i < b.docs.length; i += 20) await Promise.all(b.docs.slice(i, i + 20).map(d => { docs[d.id] = { type: d.type || "quote", number: d.number, savedAt: d.savedAt || now, by: d.updatedBy || "" }; return s.setJSON("doc/" + d.id, d); }));
+  for (const d of b.trash || []) await s.setJSON("trash/" + d.id, d);
+  for (const [k, v] of Object.entries(b.kv || {})) if (KV_KEYS.includes(k)) await s.setJSON("kv/" + k, v);
+  await s.setJSON("index", { rev: now, docs, at: now });
+  return json({ ok: true, docs: b.docs.length, people: list.map(pub) });
+}
+async function reset(req, me) {
+  if (!isPreview()) return fail("This only works on a preview, never on the live site.", 403);
+  if (!isDirector(me)) return fail("Only the Director can empty the preview.", 403);
+  const list = await wipe(p => p.id === me.id);
+  await store().setJSON("index", { rev: Date.now(), docs: {}, at: Date.now() });
+  return json({ ok: true, people: list.map(pub) });
+}
+
 /* Recently deleted: list (older than 30 days are removed for good) and restore */
 async function trash(req, me) {
   if (!can(me, "restore")) return fail("You don't have permission to restore documents.", 403);
@@ -363,7 +402,8 @@ async function managePeople(req, me) {
   return json({ ok: true, people: list.map(pub) });
 }
 
-export default async (req) => {
+export default async (req, context) => {
+  site = (context && context.deploy && context.deploy.context) || "production";
   if (!secret()) return fail("LHQ Hub isn't set up yet: add LHQ_SECRET in Netlify's environment variables.", 500);
   const path = new URL(req.url).pathname.replace(/^\/api\/hub\/?/, "").replace(/\/$/, "");
   try {
@@ -379,6 +419,8 @@ export default async (req) => {
     if (req.method === "POST" && path === "people") return await managePeople(req, me);
     if (req.method === "GET" && path === "trash") return await trash(req, me);
     if (req.method === "POST" && path === "restore") return await restore(req, me);
+    if (req.method === "POST" && path === "demo") return await demo(req, me);
+    if (req.method === "POST" && path === "reset") return await reset(req, me);
     return fail("Not found.", 404);
   } catch (e) {
     console.error(e);
