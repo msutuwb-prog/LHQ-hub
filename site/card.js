@@ -351,27 +351,29 @@ function cardHTML(d, only){
       </div>
       <div style="font-size:13.5px">${when}</div>${grade}${topics}${note}</div>`;
   }).join('');
+  const totalSess = subj.reduce((a, [, x]) => a + (parseFloat(x.sessions) || 0), 0);
   const levelLine = [d.level, d.exam ? `Exams ${d.exam}` : ''].filter(Boolean).map(esc).join(' · ');
   const len = rangeLength(d.periodStart, d.periodEnd);
   const period = d.periodStart ? rangeText(d.periodStart, d.periodEnd) + (len ? ` (${len})` : '') : (d.period || 'To be confirmed');
   return `<div class="tcard" style="width:540px;background:#fff;color:#1d2433;font-family:Calibri,Carlito,'Segoe UI',sans-serif;font-size:14px;line-height:1.4">
-  <div style="background:#073763;color:#fff;padding:18px 24px;display:flex;align-items:center;gap:14px">
-    <div style="background:#fff;border-radius:8px;padding:5px 7px;display:flex"><img src="logo.png" alt="LHQ" style="width:80px;height:42px;object-fit:contain;display:block"></div>
-    <div style="flex:1;display:flex;flex-direction:column;align-items:flex-end;text-align:right">
-      <div style="font-size:24px;font-weight:700;letter-spacing:1px;line-height:1.1">TUITION CARD</div>
-      <div style="color:#f4b223;font-weight:700;font-size:13px">${esc(d.number)} · Issued ${esc(niceDate(d.date))}${only!=null?' · '+esc(d.subjects[only].name):''}</div>
+  <div style="border-top:6px solid #073763;padding:18px 24px 0">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:14px">
+      <img src="logo.png" alt="LHQ" style="width:78px;height:40px;object-fit:contain;object-position:left center;display:block">
+      <div style="text-align:right;line-height:1.3">
+        <div style="font-size:14px;font-weight:700;letter-spacing:2px;color:#073763">TUITION CARD</div>
+        <div style="font-size:12px;font-weight:700;color:#5f6b7d">${esc(d.number)} · Issued ${esc(niceDate(d.date))}</div>
+      </div>
+    </div>
+    <div style="font-size:28px;font-weight:700;color:#073763;line-height:1.1;margin-top:16px;letter-spacing:-.2px">${esc(d.student || 'Student name')}</div>
+    ${levelLine || d.school ? `<div style="font-size:14.5px;margin-top:3px">${levelLine}${d.school ? `${levelLine ? ' · ' : ''}<span style="color:#5f6b7d">${esc(d.school)}</span>` : ''}</div>` : ''}
+    <div style="width:56px;height:3px;background:#f4b223;border-radius:2px;margin:12px 0 14px"></div>
+    <div style="display:grid;grid-template-columns:1.45fr 1fr 1fr;gap:8px">
+      <div style="background:#f5f7fa;border-radius:9px;padding:8px 10px">${lab('Tuition period')}<b style="font-size:13.5px">${esc(period)}</b></div>
+      <div style="background:#f5f7fa;border-radius:9px;padding:8px 10px">${lab('Where')}<b style="font-size:13.5px">${esc(d.where || 'To be confirmed')}</b></div>
+      <div style="background:#f5f7fa;border-radius:9px;padding:8px 10px">${lab(only!=null ? 'Subject' : 'Subjects')}<b style="font-size:13.5px">${only!=null ? esc((d.subjects[only]||{}).name || '') : `${subj.length}${totalSess ? ` · ${totalSess} sessions` : ''}`}</b></div>
     </div>
   </div>
   <div style="padding:18px 24px 6px;display:flex;flex-direction:column;gap:16px">
-    <div style="display:flex;flex-direction:column;gap:2px">
-      <div style="font-size:23px;font-weight:700;color:#073763;line-height:1.15">${esc(d.student || 'Student name')}</div>
-      ${levelLine?`<div style="font-size:14.5px">${levelLine}</div>`:''}
-      ${d.school?`<div style="color:#5f6b7d">School: ${esc(d.school)}</div>`:''}
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 18px;border-top:1px solid #dde2ea;border-bottom:1px solid #dde2ea;padding:10px 0">
-      <div>${lab('Tuition period')}<b>${esc(period)}</b></div>
-      <div>${lab('Where')}<b>${esc(d.where || 'To be confirmed')}</b></div>
-    </div>
     ${anyDays ? `<div style="display:flex;flex-direction:column;gap:8px">${lab('Weekly timetable')}<div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;text-align:center">${cols}</div>${anyTbc?'<div style="font-size:12.5px;color:#5f6b7d">Session days are agreed. Times marked TBC will follow once the timetable is set.</div>':''}</div>` : ''}
     <div style="display:flex;flex-direction:column;gap:10px">${lab(subj.length>1?'Subjects':'Subject')}${sections || '<div style="color:#5f6b7d">No subjects added yet.</div>'}</div>
     ${d.cardNote ? `<div style="background:#fff7e0;border-radius:10px;padding:10px 14px;display:flex;flex-direction:column;gap:4px">${lab('Notes from LHQ', '#7a5400')}<div style="white-space:pre-wrap">${esc(d.cardNote)}</div></div>` : ''}
