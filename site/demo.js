@@ -1,4 +1,4 @@
-/* LHQ Hub demo data (previews only): six months of made-up students, quotes, invoices, receipts,
+/* LHQ Hub demo data (previews only): six months of made-up students (about 40 at a time, averaging MKW 700,000 a period), quotes, invoices, receipts,
    tuition cards, session logs and SRAs, with every situation the Hub handles: paid, part-paid, in grace,
    overdue, ending this week, renewed, ended, quotes waiting, a card with no tutor, a deleted document.
    Everyone here is invented. Dates are worked out from today, so the demo always looks current. */
@@ -15,11 +15,21 @@
     {name:'Emmanuel Mkwamba', role:'tutor', pin:'1111', seen:Date.now() - DAY},
     {name:'Ungweru Kaonga', role:'tutor', pin:'1111', seen:Date.now() - 3 * DAY},
     {name:'Maureen Story', role:'tutor', pin:'1111', seen:Date.now() - 5 * 3600e3},
+    {name:'Chisomo Banda', role:'tutor', pin:'1111', seen:Date.now() - 6 * 3600e3},
+    {name:'Grace Chinyama', role:'tutor', pin:'1111', seen:Date.now() - 26 * 3600e3},
+    {name:'Peter Mvula', role:'tutor', pin:'1111', seen:Date.now() - 2 * DAY},
+    {name:'Dalitso Phiri', role:'tutor', pin:'1111', seen:Date.now() - 4 * 3600e3},
+    {name:'Joseph Nkhoma', role:'tutor', pin:'1111', seen:Date.now() - 30 * 3600e3},
     {name:'Mayamiko Goliati', role:'tutor', pin:'1111', active:false, seen:Date.now() - 40 * DAY},
   ];
-  const TUTOR = {'English':'Catherine Mkwinda','English Language':'Catherine Mkwinda','Physics':'Emmanuel Mkwamba','Chemistry':'Emmanuel Mkwamba','Science':'Emmanuel Mkwamba',
-    'Mathematics':'Ungweru Kaonga','Pure Mathematics 1':'Ungweru Kaonga','Biology':'Maureen Story','Business Studies':'Maureen Story','Economics':'Wanangwa Msutu'};
-  const DAYS = [['Mo','We'],['Tu','Th'],['We','Fr'],['Tu','Fr'],['Mo','Th'],['Sa']];
+  /* who teaches what (two tutors per subject, so the load is shared) */
+  const POOL = {'Mathematics':['Ungweru Kaonga','Chisomo Banda'],'Pure Mathematics 1':['Ungweru Kaonga','Chisomo Banda'],'English':['Catherine Mkwinda','Grace Chinyama'],'English Language':['Catherine Mkwinda','Grace Chinyama'],
+    'Physics':['Emmanuel Mkwamba','Peter Mvula'],'Chemistry':['Emmanuel Mkwamba','Dalitso Phiri'],'Science':['Peter Mvula','Dalitso Phiri'],'Biology':['Maureen Story','Dalitso Phiri'],
+    'Business Studies':['Maureen Story','Joseph Nkhoma'],'Economics':['Wanangwa Msutu','Joseph Nkhoma'],'Accounting':['Joseph Nkhoma']};
+  const tutorFor = (subj, i) => { const p = POOL[subj] || ['Grace Chinyama']; return p[i % p.length]; };
+  /* LHQ's fees: per session, three sessions a week per subject (12 in a 4-week period) */
+  const RATE = level => /A Level|AS Level|Year 1[23]/.test(level) ? 35000 : /IGCSE|Year 1[01]/.test(level) ? 30000 : 25000;
+  const DAYS = [['Mo','We','Fr'],['Tu','Th','Sa'],['Mo','Tu','Th'],['We','Fr','Sa'],['Mo','We','Th'],['Tu','Fr','Sa']];
   const TIMES = [['14:00','15:00'],['15:00','16:00'],['16:00','17:00'],['17:00','18:00'],['10:00','11:30']];
   const HEARD = ['A friend or family member','Instagram','Facebook','Study Smart Session','Their school','WhatsApp','Google','Sibling at LHQ'];
   const SCHOOLS = ['Bishop Mackenzie International School','The Lilongwe Academy International School','Sapitwa International School','Kamuzu Academy','St Andrew’s International High School','Phwezi Boys Secondary School','Lilongwe Private School','Saint Patrick’s Secondary School'];
@@ -49,6 +59,23 @@
     ['Brian Chaponda','Year 11 · IGCSE','Mr Chaponda',['Business Studies'],'ended',4,true],
     ['Ruth Kachingwe','Year 10 · IGCSE','Mrs Kachingwe',['Physics','Mathematics'],'renewed',3,false],
   ];
+  /* more students, so a month looks like LHQ's real size (30 to 50 students) */
+  const FIRST = ['Chimwemwe','Dalitso','Kondwani','Luntha','Mwayi','Tadala','Taonga','Tawonga','Uchizi','Watipa','Zikomo','Alinafe','Bwalo','Chifundo','Eneya','Flora','Gift','Hope','Innocent','Jabulani','Khumbo','Lonjezo','Martha','Ndaona','Owen','Precious','Rhoda','Sangwani','Thokozani','Vitumbiko'];
+  const LAST = ['Banda','Phiri','Mwale','Zulu','Nyirenda','Chirwa','Kamanga','Gondwe','Tembo','Moyo','Kalua','Ngwira','Mvula','Nkhoma','Msiska','Kumwenda','Chisale','Munthali','Kaunda','Mkandawire','Lungu','Mtonga','Chibwana','Kapalamula'];
+  const LEVELS = ['Year 7','Year 8','Year 9 · Checkpoint','Year 10 · IGCSE','Year 10 · IGCSE','Year 11 · IGCSE','Year 11 · IGCSE','Year 12 · AS Level','Year 13 · A Level'];
+  const SUBJ = l => /AS Level|A Level/.test(l) ? ['Pure Mathematics 1','Physics','Chemistry','Biology','Economics'] : /IGCSE/.test(l) ? ['Mathematics','Physics','Chemistry','Biology','English Language','Economics','Business Studies'] : ['Mathematics','English','Science'];
+  (function(){
+    let r = 99; const R = () => (r = (r * 48271) % 2147483647) / 2147483647, P = a => a[Math.floor(R() * a.length)];
+    const used = new Set(STUDENTS.map(x => x[0]));
+    for(let i = 0; i < 30; i++){
+      let name; do { name = P(FIRST) + ' ' + P(LAST); } while(used.has(name)); used.add(name);
+      const level = P(LEVELS), pool = SUBJ(level).slice(), subs = [];
+      const n = R() < .15 ? 1 : R() < .55 ? 2 : R() < .85 ? 3 : 4;
+      while(subs.length < Math.min(n, pool.length)) subs.push(pool.splice(Math.floor(R() * pool.length), 1)[0]);
+      const sit = i < 26 ? 'active' : 'ended';
+      STUDENTS.push([name, level, P(['Mr','Mrs','Ms','Dr']) + ' ' + name.split(' ')[1], subs, sit, 2 + Math.floor(R() * 5), R() < .3]);
+    }
+  })();
   const listFor = (level, subj) => {
     const l = level.toLowerCase(), y = +((l.match(/year\s*(\d+)/)||[])[1] || 0);
     const L = /a\s*level|\bas\b/.test(l) || y >= 12 ? 'A Level' : /igcse/.test(l) || y === 10 || y === 11 ? 'IGCSE' : y >= 7 && y <= 9 ? 'Lower Secondary (Years 7–9)' : 'Primary (Year 6)';
@@ -82,10 +109,10 @@
       const s = {name, level, parent, phone:'09' + String(91000000 + si * 731117 % 8999999).slice(0, 8).replace(/(\d{2})(\d{3})(\d{3})/, '$1 $2 $3'),
         email: rnd() < 0.7 ? norm(parent).replace(/[^a-z]/g, '') + si + '@gmail.com' : '', address:pick(['Area 10','Area 43','Area 47','Area 12','Area 3','Area 18','Area 9']) + ', Lilongwe',
         school:SCHOOLS[si % SCHOOLS.length], heard: name === 'Natasha Banda' ? 'Sibling at LHQ' : pick(HEARD)};
-      const cost = /A Level|AS Level/.test(level) ? 18000 : 15000;
-      const items = subjects.map(x => ({desc:x, days:'2', sessions:'8', cost:String(cost)}));
+      const cost = RATE(level);
+      const items = subjects.map(x => ({desc:x, days:'3', sessions:'12', cost:String(cost)}));
       const disc = opt && opt.disc ? {discType:'pct', discValue:String(opt.pct), discReason:opt.disc} : {};
-      const total = items.reduce((a, it) => a + 8 * cost, 0) * (1 - ((opt && opt.pct) || 0) / 100);
+      const total = items.reduce((a, it) => a + 12 * cost, 0) * (1 - ((opt && opt.pct) || 0) / 100);
       // quotes only
       if(/^quote/.test(sit)){
         const off = sit === 'quote_new' ? -2 : sit === 'quote_old' ? -17 : -11;
@@ -94,7 +121,7 @@
         return;
       }
       // where the current period sits relative to today
-      const curStart = {ending:-21, overdue:-19, grace:-15, nocard:-3, notutor:-6, overdue_full:-10, unpaid_new:5, renewed:4, ended:-60 - si % 3 * 9}[sit] ?? -(8 + si % 10);
+      const curStart = {ending:-21, overdue:-19, grace:-15, nocard:-3, notutor:-6, overdue_full:-10, unpaid_new:5, renewed:4, ended:-60 - si % 3 * 9}[sit] ?? -(2 + si % 19);
       const n = periods || 1;
       let lastCard = null;
       const slot = DAYS[si % DAYS.length], time = TIMES[si % TIMES.length];
@@ -123,8 +150,8 @@
         });
         // tuition card
         if(!(isCur && sit === 'nocard') && !(isCur && sit === 'unpaid_new') && invDay + 2 < 0){
-          const subs = subjects.map((x, i) => ({name:x, list:listFor(level, x), tutor: sit === 'notutor' && i === 0 ? '' : (si % 7 === 3 && x === 'Mathematics' && k > 1 ? 'Mayamiko Goliati' : TUTOR[x] || ''),
-            days: i % 2 ? [slot[slot.length - 1]] : slot.slice(), perWeek:'2', sessions:'8', mins:'1 hour', start:time[0], end:time[1], tier: /IGCSE/.test(level) && ['Mathematics','Physics','Chemistry','Biology'].includes(x) ? 'Extended' : '',
+          const subs = subjects.map((x, i) => ({name:x, list:listFor(level, x), tutor: sit === 'notutor' && i === 0 ? '' : (si % 7 === 3 && x === 'Mathematics' && k > 1 ? 'Mayamiko Goliati' : tutorFor(x, si + i)),
+            days: slot.slice(), perWeek:'3', sessions:'12', mins:'1 hour', start:TIMES[(si + i) % TIMES.length][0], end:TIMES[(si + i) % TIMES.length][1], tier: /IGCSE/.test(level) && ['Mathematics','Physics','Chemistry','Biology'].includes(x) ? 'Extended' : '',
             mode:'full', picks:{}, details:{}, custom:[], grade: pick(['B','C','C','D','A','']), basis: 'End of term results', when:'', note:'', openCh:''}));
           lastCard = mk('card', invDay + 3, s, {from:'@' + inv.id, f:{ref:'@' + inv.id, school:s.school, where:pick(['LHQ Centre','LHQ Centre','Online']), exam: /IGCSE|A Level|AS/.test(level) ? 'May/June 2027' : '',
             cardNote: k === n - 1 ? pick(['Prefers worked examples first.','Shy in class; ask questions directly.','Strong at theory, needs exam practice.','Has a mock exam in late November.']) : (lastCard ? lastCard.cardNote : ''),
@@ -155,7 +182,7 @@
       card.subjects.forEach(sub => {
         if(!sub.tutor) return;
         const key = norm(card.student) + '|' + norm(sub.name), topics = topicsOf(sub.list);
-        const start = Math.max(new Date(card.periodStart).getTime(), T - 56 * DAY), end = Math.min(new Date(card.periodEnd).getTime() + DAY, T);
+        const start = Math.max(new Date(card.periodStart).getTime(), T - 28 * DAY), end = Math.min(new Date(card.periodEnd).getTime() + DAY, T);
         let ti = Math.floor(rnd() * 3), n = 0;
         for(let t = start; t < end; t += DAY){
           const d = new Date(t); if(!sub.days.some(x => DN[x] === d.getDay())) continue;
