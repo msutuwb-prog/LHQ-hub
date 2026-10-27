@@ -11,6 +11,9 @@ let cardShareOnly = null;       // null = whole card, else subject index
 function cardLevelSet(level){
   const l = String(level||'').toLowerCase();
   const y = +((l.match(/year\s*(\d+)/)||[])[1] || 0);
+  if(/\bib\b|baccalaureate/.test(l)) return 'IB';
+  if(/ielts/.test(l)) return 'IELTS';
+  if(/\bsat\b/.test(l)) return 'SAT';
   if(/a\s*level|\bas\b/.test(l) || y >= 12) return 'A Level';
   if(/igcse/.test(l) || y === 10 || y === 11) return 'IGCSE';
   if(y >= 7 && y <= 9) return 'Lower Secondary (Years 7–9)';
@@ -23,12 +26,13 @@ const CARD_ALIAS = {
   'english':['english language','english'], 'english language':['english'], 'first language english':['english language','english'],
   'literature':['english literature'], 'literature in english':['english literature'],
   'business studies':['business'], 'business':['business studies'],
-  'science':['combined science'], 'combined science':['science'], 'art':['art and design'], 'art design':['art and design']
+  'science':['combined science'], 'add maths':['additional mathematics'], 'additional maths':['additional mathematics'],
+  'further maths':['further mathematics'], 'cs':['computer science'], 'comp sci':['computer science'], 'it':['ict'], 'combined science':['science'], 'art':['art and design'], 'art design':['art and design']
 };
 /* Word-level matching so typed names like "Pure 1 Math", "Stats 1" or "Eng Lit" still find their list */
 const CARD_WORD = {math:'mathematics',maths:'mathematics',mathematic:'mathematics',p:'pure',stats:'statistics',stat:'statistics',prob:'probability',
   lit:'literature',eng:'english',bio:'biology',chem:'chemistry',phy:'physics',phys:'physics',econ:'economics',econs:'economics',
-  bus:'business',geo:'geography',acc:'accounting',accounts:'accounting',sci:'science',psych:'psychology',soc:'sociology',hist:'history',lang:'language'};
+  bus:'business',geo:'geography',acc:'accounting',accounts:'accounting',sci:'science',psych:'psychology',soc:'sociology',hist:'history',lang:'language',add:'additional',comp:'computer',fm:'further'};
 const CARD_SKIP = new Set(['and','of','the','studies','igcse','a','as','level','alevel','paper','cambridge']);
 function cardWords(name){
   return cardNorm(name).replace(/([a-z])(\d)/g,'$1 $2').split(' ').filter(Boolean).map(w=>CARD_WORD[w]||w).filter(w=>!CARD_SKIP.has(w));
@@ -49,19 +53,32 @@ function cardGuessList(level, name){
   const all = []; Object.keys(TOPICS).forEach(L=>cardMatchIn(L, name).forEach(n=>all.push(L+'|'+n)));
   return all.length===1 ? all[0] : '';
 }
-const CARD_LV_SHORT = {'Primary (Year 6)':'Year 6','Lower Secondary (Years 7–9)':'Years 7–9','IGCSE':'IGCSE','A Level':'A Level'};
+const CARD_LV_SHORT = {'Primary (Year 6)':'Year 6','Lower Secondary (Years 7–9)':'Years 7–9','IGCSE':'IGCSE','A Level':'A Level','IB':'IB','IELTS':'IELTS','SAT':'SAT'};
 function cardListLabel(key, lv){
   const i = key.indexOf('|'), L = key.slice(0,i), n = key.slice(i+1);
   return L===lv ? n : `${CARD_LV_SHORT[L]||L} · ${n}`;
 }
 function cardAllListKeys(lv){   // the student's level first, then every other level
   const order = [lv, ...Object.keys(TOPICS).filter(L=>L!==lv)].filter(L=>L && TOPICS[L]);
-  return order.flatMap(L=>Object.keys(TOPICS[L]).map(n=>L+'|'+n));
+  return order.flatMap(L=>Object.keys(TOPICS[L]).filter(n=>(TOPICS[L][n].topics||[]).length).map(n=>L+'|'+n));
 }
 function cardTopicSet(key){
   if(!key || !window.TOPICS) return null;
   const i = key.indexOf('|'); const lv = key.slice(0,i), name = key.slice(i+1);
-  return (TOPICS[lv]||{})[name] || null;
+  const set = (TOPICS[lv]||{})[name];
+  return set && set.topics && set.topics.length ? set : null;   // IB, IELTS and SAT have no topic list yet
+}
+/* Older cards and links ticked a topic as "t<index>". Where that topic now has sub-topics it is a chapter ("c<index>"),
+   so a tick on the old topic becomes the whole chapter. */
+function cardFixPicks(s){
+  const set = s && cardTopicSet(s.list); if(!set || !s.picks) return s;
+  Object.keys(s.picks).forEach(k=>{
+    const m = /^t(\d+)$/.exec(k), t = m && set.topics[+m[1]]; if(!t || !t.sub) return;
+    if(s.picks[k] && !s.picks['c'+m[1]]) s.picks['c'+m[1]] = 'all';
+    delete s.picks[k];
+    if(s.details && s.details[k]){ s.details['c'+m[1]] = s.details['c'+m[1]] || s.details[k]; delete s.details[k]; }
+  });
+  return s;
 }
 function cardEntries(set){
   const out = []; let n = 0;
@@ -137,6 +154,7 @@ function cardPickBtn(key, value, placeholder){
   return `<button type="button" class="picker-btn${value?'':' empty'}" data-pickfield="${key}" aria-haspopup="listbox" aria-expanded="false"><span class="pb-dot"></span><span class="pb-text">${esc(value||placeholder)}</span>${cardChev(false)}</button>`;
 }
 function cardChecklist(s, i){
+  cardFixPicks(s);
   const set = cardTopicSet(s.list);
   if(!set) return `<p class="hint" style="margin:0">No topic list chosen. Choose one from <b>Topic list</b> above, or add your own topics below.</p>`;
   const rows = cardEntries(set).map(e=>{
@@ -283,7 +301,7 @@ function cardShort(name){
 /* ---------- the card itself (preview, image, PDF) ---------- */
 function cardHTML(d, only){
   const S = settings, idx = (d.subjects||[]).map((s,i)=>i).filter(i=>only==null || i===only);
-  const subj = idx.map(i=>[i, d.subjects[i]]);
+  const subj = idx.map(i=>[i, cardFixPicks(d.subjects[i])]);
   const lab = (t, c='#5f6b7d') => `<div style="font-size:11px;color:${c};text-transform:uppercase;letter-spacing:.7px;font-weight:700">${t}</div>`;
   // weekly timetable
   const cols = CARD_DAYS.map(dd=>{
@@ -471,6 +489,7 @@ function cardFromChecklist(p){
     if(x.k && cardTopicSet(x.k)) s.list = x.k;
     s.mode = x.m==='f' ? 'full' : 'selected';
     s.picks = (x.p && typeof x.p==='object') ? x.p : {};
+    cardFixPicks(s);
     s.custom = Array.isArray(x.c) ? x.c.map(String) : [];
     s.grade = x.g || ''; s.basis = x.b || ''; s.when = x.w || ''; s.tier = x.r || '';
     s.note = [x.m==='u' ? 'Student isn\'t sure which topics yet: check in the first session.' : '', x.o || ''].filter(Boolean).join(' ');
@@ -501,6 +520,7 @@ function cardChecklistLink(){ try{ return new URL('checklist.html', location.hre
 /* ---------- tutors' session-log links (shared by the app and the Reports page) ---------- */
 const cardNormName = x => String(x||'').trim().toLowerCase().replace(/\s+/g,' ');
 function cardTopicNames(s){
+  cardFixPicks(s);
   const set = cardTopicSet(s.list), out = [];
   if(set){
     const tier = cardTier(s);

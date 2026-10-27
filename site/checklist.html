@@ -212,7 +212,8 @@ const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>'
 const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const LHQ_WA = '265992525250', LHQ_EMAIL = 'learnhqes@gmail.com';
 const LEVELS = ['Year 5','Year 6 · Primary Checkpoint','Year 7','Year 8','Year 9 · Checkpoint','Year 10 · IGCSE','Year 11 · IGCSE','Year 12 · AS Level','Year 13 · A Level'];
-const LEVEL_SHORT = {'Year 6 · Primary Checkpoint':'Year 6 (Checkpoint)','Year 9 · Checkpoint':'Year 9 (Checkpoint)','Year 10 · IGCSE':'Year 10 (IGCSE)','Year 11 · IGCSE':'Year 11 (IGCSE)','Year 12 · AS Level':'Year 12 (AS Level)','Year 13 · A Level':'Year 13 (A Level)'};
+const PROGRAMMES = ['IB','IELTS','SAT'];
+const LEVEL_SHORT = {'IB':'IB Diploma','Year 6 · Primary Checkpoint':'Year 6 (Checkpoint)','Year 9 · Checkpoint':'Year 9 (Checkpoint)','Year 10 · IGCSE':'Year 10 (IGCSE)','Year 11 · IGCSE':'Year 11 (IGCSE)','Year 12 · AS Level':'Year 12 (AS Level)','Year 13 · A Level':'Year 13 (A Level)'};
 const GRADES = ['A*','A','B','C','D','E','F','G','U'];
 const BASIS = ['End of term results','Mid-term results','Mock exam','Class test','School report','Checkpoint results','My own estimate'];
 const WHERE = ['At LHQ','Online','Either'];
@@ -236,6 +237,7 @@ const KEY = 'lhq_checklist2';
 const blank = () => ({id: Date.now().toString(36), name:'', level:'', school:'', exam:'', subjects:[], days:[], where:'', notes:''});
 let st; try{ st = Object.assign(blank(), JSON.parse(localStorage.getItem(KEY)||'null')||{}); }catch(e){ st = blank(); }
 let openSub = -1;
+st.subjects.forEach(s=>{ s.details = s.details || {}; cardFixPicks(s); });
 function persist(){ try{ localStorage.setItem(KEY, JSON.stringify(st)); }catch(e){} }
 const lvSet = () => cardLevelSet(st.level);
 const subjectsAtLevel = () => { const lv = lvSet(); return lv && TOPICS[lv] ? Object.keys(TOPICS[lv]) : []; };
@@ -277,7 +279,7 @@ const ddHTML = (act, text, placeholder) => `<button type="button" class="dd${tex
 
 /* ---------- section 1 ---------- */
 F('ddYear').onclick = e=>openSheet({title:'Your year', btn:e.currentTarget, selected:st.level,
-  options:LEVELS.map(l=>({v:l, l:LEVEL_SHORT[l]||l})), onDone:v=>{
+  options:[...LEVELS.map(l=>({v:l, l:LEVEL_SHORT[l]||l})), {sep:'Other programmes'}, ...PROGRAMMES.map(l=>({v:l, l:LEVEL_SHORT[l]||l}))], onDone:v=>{
     st.level = v; const lv = lvSet();   // keep subjects, re-match their topic lists
     st.subjects.forEach(s=>{ const k = lv && TOPICS[lv] && TOPICS[lv][s.name] ? lv+'|'+s.name : ''; if(k!==s.list){ s.list = k; s.picks = {}; s.openCh=''; } if(!cardTiered(s.list)) s.tier=''; });
     renderAll(); }});

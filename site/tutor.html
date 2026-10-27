@@ -161,7 +161,7 @@ const live = () => logs.filter(e=>!e.x);
 const item = k => roster.items.find(it=>it.k===k) || null;
 
 /* v2 links carry whole tuition cards with topic codes; names come from topics.js */
-function subjOf(x){ return {name:x.u, list:x.ls||'', tier:x.r||'', mode:x.md==='f'?'full':'selected', picks:x.pk||{}, details:x.dt||{}, custom:x.cu||[]}; }
+function subjOf(x){ return cardFixPicks({name:x.u, list:x.ls||'', tier:x.r||'', mode:x.md==='f'?'full':'selected', picks:x.pk||{}, details:x.dt||{}, custom:x.cu||[]}); }
 function rosterFromV2(r){
   const cards = r.c.map(c=>({no:c.no||'', st:c.n, lv:c.l||'', exam:c.x||'', school:c.sc||'', where:c.w||'', a:c.a||'', b:c.b||'', period:c.pd||'', note:c.nt||'', subs:c.i}));
   const items = [];
