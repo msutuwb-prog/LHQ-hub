@@ -2176,6 +2176,8 @@ function latestFor(key){
 function copyCardDetails(d, cardId){
   const c = saved.find(x=>x.id===cardId); if(!c) return;
   d.subjects = JSON.parse(JSON.stringify(c.subjects||[]));
+  // make-ups carried from the last period come with the subject (the tutor sees them on their page)
+  d.subjects.forEach(s=>{ const m = c.mu && c.mu.subs && c.mu.subs[s.name]; s.cf = m && m.d === 'carry' ? m.n : 0; });
   ['school','exam','where','cardNote'].forEach(k=>{ if(c[k]) d[k] = c[k]; });
 }
 function nextStart(iso){ let d = addDays(iso, 1); while([0,6].includes(parseISO(d).getDay())) d = addDays(d, 1); return d; }
@@ -2227,6 +2229,9 @@ function route(){
     doc.ref = ''; doc.plan1 = ''; doc.plan2 = ''; doc.paid = ''; doc.from = s.number;
     if(s.periodStart && s.periodEnd){ const len = dayDiff(s.periodStart, s.periodEnd); doc.periodStart = nextStart(s.periodEnd); doc.periodEnd = addDays(doc.periodStart, len); refreshSessions(); }
     msg = `Renewal: invoice ${doc.number} for the next period, same subjects. Check the dates and sessions, then Save.`;
+    // make-ups carried from the period that ended: listed at no charge, so the parent sees them
+    const lastCard = HD.chainOf(s).card;
+    if(lastCard && lastCard.mu) Object.entries(lastCard.mu.subs || {}).forEach(([sub, m])=>{ if(m.d === 'carry' && m.n) doc.items.push({desc:`${sub} · make-up session${m.n>1?'s':''} carried forward`, days:'', sessions:String(m.n), cost:'0'}); });
   } else if(h === 'draft' || !h){
     if(!h && doc.id){ location.replace('doc.html#d=' + doc.id); return; }
     if(!h && !(doc.student || doc.name)){ location.replace('index.html#docs'); return; }
@@ -2246,7 +2251,12 @@ function saveAndView(){
   // a first document for someone makes their student record, so their details are kept once
   const key = studentKey(doc.student);
   if(key && !HD.studentRecords()[key] && (HD.can('students') || HD.can('quotes')))
-    HD.saveStudent(key, {name:doc.student, level:doc.level, parent:doc.name, phone:doc.phone, email:doc.email, address:doc.address, school:doc.school||''});
+    HD.saveStudent(key, {name:doc.student, level:doc.level, parent:doc.name, phone:doc.phone, email:doc.email, address:doc.address, school:doc.school||'', area:doc.area||'', district:doc.district||'', heard:doc.heard||''});
+  else if(key && HD.studentRecords()[key] && (doc.area || doc.district || doc.heard) && (HD.can('students') || HD.can('quotes'))){
+    // a checklist brings area, district and how they heard: fill in only what the record is missing
+    const r = HD.studentRecords()[key], add = {}; ['area','district','heard','school'].forEach(f=>{ if(doc[f] && !r[f]) add[f] = doc[f]; });
+    if(Object.keys(add).length) HD.saveStudent(key, add);
+  }
   HD.load();
   history.replaceState(null, '', location.pathname + '#d=' + doc.id);
   setMode('view');

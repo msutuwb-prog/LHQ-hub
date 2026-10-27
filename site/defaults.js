@@ -5,7 +5,7 @@ const DEFAULT_SUBJECTS = ['Mathematics','Additional Mathematics','Physics','Chem
   'Geography','History','French','Global Perspectives'];
 
 /* Business › Spending: the categories, in the order they are offered. Renovations and Purchases are one-off costs. */
-const DEFAULT_SPEND_CATS = ['Salaries','Rentals','Utilities','Communication','Stationery','Transportation','Marketing','Maintenance','Trainings','Renovations','Purchases'];
+const DEFAULT_SPEND_CATS = ['Salaries','Rentals','Utilities','Communication','Stationery','Transportation','Marketing','Maintenance','Trainings','Renovations','Purchases','Refunds','Loan repayment'];
 
 /* How families hear about LHQ (students) and where marketing money goes (spending): one list, so they can be matched */
 const DEFAULT_HEARD = ['A friend or family member','Sibling at LHQ','Instagram','Facebook','TikTok','WhatsApp','Google','Their school','Study Smart Session','Flyers or posters','Radio or TV','An event','Other'];

@@ -484,6 +484,7 @@ function cardFromChecklist(p){
   const d = blankDoc('card');
   d.items = []; d.student = p.n || ''; d.level = p.l || ''; d.school = p.sc || ''; d.exam = p.ex || '';
   d.where = CARD_WHERE[p.wh] || ''; d.checklistId = p.id || '';
+  d.area = p.ar || ''; d.district = p.ds || ''; d.heard = p.hd || '';   // kept on the student's record (not printed)
   d.subjects = (p.s || []).map(x=>{
     const s = cardBlankSubject(x.n, d.level);
     if(x.k && cardTopicSet(x.k)) s.list = x.k;
@@ -570,6 +571,7 @@ function cardTutorPayload(savedList, tutor){
     put(it,'cu',s.custom); put(it,'y',s.days); if(s.start) it.m = `${s.start}–${s.end||''}`; put(it,'mi',s.mins);
     if(s.tf==='Every 2 weeks') it.f = 2;
     put(it,'g',s.grade); put(it,'gb',s.basis); put(it,'gw',s.when); put(it,'nt',(s.note||'').trim());
+    if(+s.cf) it.cf = +s.cf;   // make-up sessions carried in from the last period
     cards.get(c.number).i.push(it);
   });
   return {v:2, t:tutor, d:iso, c:[...cards.values()]};

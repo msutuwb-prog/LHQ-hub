@@ -5,7 +5,7 @@
    Data saved before this existed is read as it is and packed the next time it is saved. */
 (function(){
   if(!window.pako) return;   // without the packer everything keeps working, just uncompressed
-  const BIG = ['lhq_saved', 'lhq_logs', 'lhq_spend', 'lhq_students', 'lhq_repEdits', 'lhq_tlinks', 'lhq_people'];
+  const BIG = ['lhq_saved', 'lhq_logs', 'lhq_spend', 'lhq_income', 'lhq_students', 'lhq_repEdits', 'lhq_tlinks', 'lhq_people'];
   const MARK = 'Z1:', MIN = 4096;
   const ls = window.localStorage;
   const P = Storage.prototype, getI = P.getItem, setI = P.setItem;

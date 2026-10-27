@@ -331,7 +331,8 @@ function studentModel(name, a, b){
   const res = subs.map(s=>{
     const X = E.filter(e=>norm(e.sub)===norm(s.name));
     const inP = e => e.d >= a && e.d <= b;
-    const sess = X.filter(e=>e.ty==='s' && inP(e)).sort((x,y)=>x.d.localeCompare(y.d));
+    // sessions the tutor couldn't teach aren't the student's attendance: they show as make-ups owed instead
+    const sess = X.filter(e=>e.ty==='s' && inP(e) && e.a!=='cancelled').sort((x,y)=>x.d.localeCompare(y.d));
     const attended = sess.filter(e=>e.a!=='absent').length, absences = sess.filter(e=>e.a==='absent').map(e=>e.d);
     const tests = sess.filter(e=>pct(e)!=null).map(pct);
     const gradeTo = end => avg(X.filter(e=>e.ty==='s' && pct(e)!=null && e.d <= end && (!ps || e.d >= ps)).map(pct));
@@ -446,7 +447,7 @@ function openLog(m){
   F('logTitle').textContent = `${m.name} · ${range(m.a, m.b)}`;
   F('logBody').innerHTML = E.length ? `<table class="log"><tr><th>Date</th><th>Subject</th><th>Entry</th><th>Tutor</th></tr>${E.map(e=>{
     let w = '';
-    if(e.ty==='s') w = (e.a==='absent' ? '<span class="tag t-red">Absent</span>' : e.a==='late' ? 'Attended (late)' : 'Attended') + (pct(e)!=null ? ` · topical test ${e.sc}/${e.mx} (${pct(e)}%)` : '') + (e.tp&&e.tp.length ? `<br><small>${esc(e.tp.join(', '))}</small>` : '') + (e.n ? `<br><i>${esc(e.n)}</i>` : '');
+    if(e.ty==='s') w = (e.a==='absent' ? '<span class="tag t-red">Absent</span>' : e.a==='cancelled' ? '<span class="tag t-red">Not taught · make-up owed</span>' : (e.mk ? '<span class="tag t-blue">Make-up</span> ' : '') + (e.a==='late' ? 'Attended (late)' : 'Attended')) + (e.md==='o' ? ' · online' : e.md==='h' ? ' · at home' : '') + (pct(e)!=null ? ` · topical test ${e.sc}/${e.mx} (${pct(e)}%)` : '') + (e.tp&&e.tp.length ? `<br><small>${esc(e.tp.join(', '))}</small>` : '') + (e.n ? `<br><i>${esc(e.n)}</i>` : '');
     else if(e.ty==='r') w = `SRA · ${esc(e.tk)} · review ${e.rv} · ${e.h==='m'?'<span class="tag t-red">not handed in</span>':e.h==='l'?'<span class="tag t-amb">late</span>':'on time'}${pct(e)!=null ? ` · ${e.sc}/${e.mx} (${pct(e)}%)` : ''}`;
     else w = `Monthly comments<br><small>${esc([e.cs,e.ci,e.cn].filter(Boolean).join(' / '))}</small>`;
     return `<tr><td>${nice(e.d)}</td><td>${esc(e.sub)}</td><td>${w}</td><td>${esc(e.tutor)}</td></tr>`; }).join('')}</table>`

@@ -10,6 +10,9 @@
 window.BIZ = (function(){
   const MONL = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   const ONEOFF = ['Renovations','Purchases'];
+  const NOT_COST = ['Loan repayment'];   // money going out that isn't a cost of running LHQ (paying back a loan)
+  const INCOME_TYPES = ['Rent from tenant','Loan received','Owner investment','Grant or sponsorship','Refund received','Other income'];
+  const NOT_INCOME = ['Loan received','Owner investment'];   // money in that isn't earned: never counted as revenue or profit
   const ym = iso => String(iso || '').slice(0, 7);
   const monthName = m => { const [y, n] = m.split('-').map(Number); return `${MONL[n - 1]} ${y}`; };
   const monShort = m => MONL[+m.slice(5) - 1].slice(0, 3);
@@ -34,18 +37,43 @@ window.BIZ = (function(){
   const spendLive = () => spendAll().filter(e => !e.skip);
   const inPeriod = (e, months) => months.includes(ym(e.date));
   const budget = () => (store.get('lhq_budget', {}) || {}).m || {};
-  function months(period){   // 'YYYY-MM' → that month; 'fyYYYY' → the financial year so far (or the whole of a past one)
-    if(/^fy\d{4}$/.test(period)){ const fy = +period.slice(2), cur = thisMonth(); return fyMonths(fy).filter(m => m <= cur); }
+  const incomeAll = () => Object.values(store.get('lhq_income', {}) || {}).filter(e => e && !e.del);
+  const incomeLive = () => incomeAll().filter(e => !e.skip);
+  /* periods: 'YYYY-MM' a month · 'qYYYY-N' quarter N of the financial year starting July YYYY · 'fyYYYY' the financial year */
+  const isQ = p => /^q\d{4}-[1-4]$/.test(p), isY = p => /^fy\d{4}$/.test(p), isM = p => /^\d{4}-\d{2}$/.test(p);
+  const qOf = m => { const fy = fyOf(m), i = fyMonths(fy).indexOf(m); return `q${fy}-${Math.floor(i / 3) + 1}`; };
+  const qMonths = q => { const [fy, n] = q.slice(1).split('-').map(Number); return fyMonths(fy).slice((n - 1) * 3, n * 3); };
+  function months(period, all){   // the months of a period; a current one stops at this month unless `all`
+    const cur = thisMonth(), cut = L => all ? L : L.filter(m => m <= cur);
+    if(isY(period)) return cut(fyMonths(+period.slice(2)));
+    if(isQ(period)) return cut(qMonths(period));
     return [period];
   }
+  function periodLabel(p){
+    if(isY(p)) return fyLabel(+p.slice(2)) + (+p.slice(2) === fyOf(thisMonth()) ? ' · to date' : '');
+    if(isQ(p)){ const L = qMonths(p); return `Q${p.slice(-1)} · ${monShort(L[0])} – ${monShort(L[2])} ${L[2].slice(0, 4)}`; }
+    return monthName(p);
+  }
+  function shift(p, k){   // the period k steps earlier (−) or later (+)
+    if(isY(p)) return 'fy' + (+p.slice(2) + k);
+    if(isQ(p)){ let [fy, n] = p.slice(1).split('-').map(Number); n += k; while(n > 4){ n -= 4; fy++; } while(n < 1){ n += 4; fy--; } return `q${fy}-${n}`; }
+    return addMonth(p, k);
+  }
+  const lastYear = p => isY(p) ? shift(p, -1) : isQ(p) ? shift(p, -4) : addMonth(p, -12);
   function figures(ms){
     const rcts = saved.filter(d => d.type === 'receipt' && ms.includes(ym(d.date)));
     const inc = rcts.reduce((a, r) => a + num(r.received), 0);
     const invoiced = saved.filter(d => d.type === 'invoice' && ms.includes(ym(d.date))).reduce((a, i) => a + HD.total(i), 0);
-    const sp = spendLive().filter(e => inPeriod(e, ms)), byCat = {};
+    const all = spendLive().filter(e => inPeriod(e, ms)), sp = all.filter(e => !NOT_COST.includes(e.cat)), byCat = {};
     sp.forEach(e => byCat[e.cat] = (byCat[e.cat] || 0) + num(e.amount));
     const exp = sp.reduce((a, e) => a + num(e.amount), 0), oneoff = ONEOFF.reduce((a, c) => a + (byCat[c] || 0), 0);
-    return {inc, invoiced, exp, oneoff, byCat, profit: inc - exp, n: sp.length, list: sp};
+    const ins = incomeLive().filter(e => inPeriod(e, ms)), byType = {};
+    ins.forEach(e => byType[e.cat] = (byType[e.cat] || 0) + num(e.amount));
+    const other = ins.filter(e => !NOT_INCOME.includes(e.cat)).reduce((a, e) => a + num(e.amount), 0);
+    const capital = ins.filter(e => NOT_INCOME.includes(e.cat)).reduce((a, e) => a + num(e.amount), 0);
+    const repaid = all.filter(e => NOT_COST.includes(e.cat)).reduce((a, e) => a + num(e.amount), 0);
+    const refunds = byCat['Refunds'] || 0;
+    return {inc, other, revenue: inc + other, invoiced, exp, oneoff, byCat, byType, capital, repaid, refunds, profit: inc + other - exp, n: sp.length, list: all, income: ins};
   }
   function owed(){
     const st = saved.filter(d => d.type === 'invoice').map(i => HD.invState(i)).filter(s => s.balance > 0.005);
@@ -53,9 +81,9 @@ window.BIZ = (function(){
     return {amt: st.reduce((a, s) => a + s.balance, 0), n: st.length, overN: over.length, overAmt: over.reduce((a, s) => a + s.balance, 0)};
   }
   /* repeating costs (rent, internet, salaries): the next month's copy waits here for one tap */
-  function due(){
+  function due(key){
     const series = {};
-    spendAll().forEach(e => { const k = e.sid || e.id; (series[k] = series[k] || []).push(e); });
+    (key === 'lhq_income' ? incomeAll() : spendAll()).forEach(e => { const k = e.sid || e.id; (series[k] = series[k] || []).push(e); });
     const out = [], t = today(), cur = thisMonth();
     Object.entries(series).forEach(([sid, list]) => {
       list.sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.at || 0) - (b.at || 0));
@@ -72,14 +100,13 @@ window.BIZ = (function(){
   const mayEdit = e => isDir() || (can('spend') && e.by === me().name);
 
   /* ---------- pieces ---------- */
-  const tabsFor = () => [['pl','Profit & loss', can('pl')], ['spending','Spending', can('spend') || can('pl')], ['budgets','Budgets', can('pl')]].filter(x => x[2]);
-  function periodBar(tab, period){
-    const isY = period.startsWith('fy'), cur = thisMonth();
-    const prev = isY ? 'fy' + (+period.slice(2) - 1) : addMonth(period, -1), next = isY ? 'fy' + (+period.slice(2) + 1) : addMonth(period, 1);
-    const nextOK = isY ? +period.slice(2) + 1 <= fyOf(cur) : next <= cur;
-    const label = isY ? `${fyLabel(+period.slice(2))}${+period.slice(2) === fyOf(cur) ? ' · to date' : ''}` : monthName(period);
-    return `<div class="bz-per"><div class="seg" style="margin:0"><button class="${isY ? '' : 'on'}" data-bzp="${tab}/${isY ? (fyOf(cur) === +period.slice(2) ? cur : `${+period.slice(2) + 1}-06`) : period}">Month</button><button class="${isY ? 'on' : ''}" data-bzp="${tab}/fy${isY ? period.slice(2) : fyOf(period)}">Year</button></div>
-      <div class="bz-nav"><a class="ib" href="#biz/${tab}/${prev}" aria-label="Earlier">${ic('back',16,2.2)}</a><b>${label}</b>${nextOK ? `<a class="ib" href="#biz/${tab}/${next}" aria-label="Later">${ic('chev',16,2.2)}</a>` : '<span class="ib" style="opacity:.3">' + ic('chev',16,2.2) + '</span>'}</div></div>`;
+  function periodBar(tab, period, extra){
+    const cur = thisMonth(), base = isM(period) ? period : months(period, true).filter(m => m <= cur).pop() || months(period, true)[0];
+    const next = shift(period, 1), nextOK = months(next, true)[0] <= cur;
+    const opt = (k, l, to) => `<button class="${k ? 'on' : ''}" data-bzp="${tab}/${to}${extra ? '/' + extra : ''}">${l}</button>`;
+    const go = p => `#biz/${tab}/${p}${extra ? '/' + encodeURIComponent(extra) : ''}`;
+    return `<div class="bz-per"><div class="seg" style="margin:0">${opt(isM(period), 'Month', base)}${opt(isQ(period), 'Quarter', qOf(base))}${opt(isY(period), 'Year', 'fy' + fyOf(base))}</div>
+      <div class="bz-nav"><a class="ib" href="${go(shift(period, -1))}" aria-label="Earlier">${ic('back',16,2.2)}</a><b>${periodLabel(period)}</b>${nextOK ? `<a class="ib" href="${go(next)}" aria-label="Later">${ic('chev',16,2.2)}</a>` : '<span class="ib" style="opacity:.3">' + ic('chev',16,2.2) + '</span>'}</div></div>`;
   }
   function chart(fy, period){
     const ms = fyMonths(fy), cur = thisMonth(), F = ms.map(m => m <= cur ? figures([m]) : null);
@@ -101,39 +128,43 @@ window.BIZ = (function(){
     return `<div class="bz-scroll"><svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:540px" role="img" aria-label="Money in and spending by month, ${fyLabel(fy)}">${g}</svg></div>`;
   }
   const kpi = (l, v, s, cls = 'fl', href) => `<${href ? `a href="${href}"` : 'div'} class="kpi"><small>${l}</small><b>${v}</b>${s ? `<span class="${cls}">${s}</span>` : ''}</${href ? 'a' : 'div'}>`;
-  const docsFor = (type, period) => `#docs/${type}/${period.startsWith('fy') ? 'fy-' + period.slice(2) : 'm-' + period}`;
+  const docsFor = (type, period) => `#docs/${type}/${isY(period) ? 'fy-' + period.slice(2) : isQ(period) ? 'q-' + period.slice(1) : 'm-' + period}`;
   const signed = v => (v < 0 ? '−' : '') + mk(Math.abs(v));
 
   /* ---------- profit and loss ---------- */
   function plView(period){
-    const isY = period.startsWith('fy'), ms = months(period), f = figures(ms), fy = isY ? +period.slice(2) : fyOf(period);
-    const live = !isY && period === thisMonth(), o = owed();
-    const prev = isY || live ? null : figures([addMonth(period, -1)]);
+    const ms = months(period), f = figures(ms), fy = isY(period) ? +period.slice(2) : fyOf(isQ(period) ? qMonths(period)[0] : period);
+    const live = months(period, true).includes(thisMonth()), o = owed();
+    const prevP = shift(period, -1), prev = live ? null : figures(months(prevP));
     const toRec = live && can('spend') ? due().reduce((a, d) => a + num(d.last.amount), 0) : 0;
     const B = budget(), bTot = Object.values(B).reduce((a, v) => a + num(v), 0) * ms.length;
     const ch = prev && prev.exp ? Math.round((f.exp - prev.exp) / prev.exp * 100) : null;
     const rows = Object.entries(f.byCat).sort((a, b) => b[1] - a[1]);
+    const otherRows = Object.entries(f.byType).filter(([t]) => !NOT_INCOME.includes(t));
+    const so = live ? ' so far' : '', pShort = isM(prevP) ? monShort(prevP) : isQ(prevP) ? 'Q' + prevP.slice(-1) : 'last year';
     return `<div class="kpis">
-      ${kpi('Money in' + (live ? ' so far' : ''), mkShort(f.inc), `${mkShort(f.invoiced)} invoiced`, 'fl', docsFor('receipt', period))}
-      ${kpi('Spending' + (live ? ' so far' : ''), mkShort(f.exp), toRec ? `+ ${mkShort(toRec)} repeating to confirm` : ch == null ? (f.oneoff ? `incl. ${mkShort(f.oneoff)} one-off` : (bTot ? `budget ${mkShort(bTot)}` : '')) : `${ch > 0 ? '▲' : '▼'} ${Math.abs(ch)}% vs ${monShort(addMonth(period, -1))}`, toRec ? 'fl' : ch == null ? 'fl' : ch > 0 ? 'dn' : 'up', `#biz/spending/${period}`)}
-      ${kpi('Profit' + (live ? ' so far' : ''), (f.profit < 0 ? '−' : '') + mkShort(Math.abs(f.profit)), f.inc ? `${pct(f.profit, f.inc)}% margin` : '', f.profit >= 0 ? 'up' : 'dn')}
+      ${kpi('Money in' + so, mkShort(f.revenue), f.other ? `${mkShort(f.inc)} tuition · ${mkShort(f.other)} other` : `${mkShort(f.invoiced)} invoiced`, 'fl', '#biz/money/' + period)}
+      ${kpi('Spending' + so, mkShort(f.exp), toRec ? `+ ${mkShort(toRec)} repeating to confirm` : ch == null ? (f.oneoff ? `incl. ${mkShort(f.oneoff)} one-off` : (bTot ? `budget ${mkShort(bTot)}` : '')) : `${ch > 0 ? '▲' : '▼'} ${Math.abs(ch)}% vs ${pShort}`, toRec ? 'fl' : ch == null ? 'fl' : ch > 0 ? 'dn' : 'up', `#biz/spending/${period}`)}
+      ${kpi('Profit' + so, (f.profit < 0 ? '−' : '') + mkShort(Math.abs(f.profit)), f.revenue ? `${pct(f.profit, f.revenue)}% margin` : '', f.profit >= 0 ? 'up' : 'dn')}
       ${kpi('Owed to LHQ', mkShort(o.amt), o.overN ? `${o.overN} overdue · ${mkShort(o.overAmt)}` : 'nothing overdue', o.overN ? 'dn' : 'fl', '#docs/invoice/unpaid')}</div>
-    <div class="card pad"><div class="cap bz-cap">Money in and spending · ${fyLabel(fy)}<span class="bz-leg"><span><i style="background:var(--inc)"></i>Money in</span><span><i style="background:var(--exp)"></i>Spending</span></span></div>${chart(fy, isY ? null : period)}<p class="note" style="margin:4px 0 0">Tap a month to see it.</p></div>
-    <div class="card pad"><div class="cap">Profit and loss · ${isY ? `${monShort(ms[0])} – ${monShort(ms[ms.length - 1])} ${ms[ms.length - 1].slice(0, 4)}` : monthName(period)}</div>
-      <table class="bz-pl"><tr><td><b>Money in</b> <small>payments received</small></td><td><b>${mk(f.inc)}</b></td></tr>
-      ${rows.map(([c, v]) => `<tr class="sub"><td><a href="#biz/spending/${period}/${encodeURIComponent(c)}">${esc(c)}</a>${ONEOFF.includes(c) ? ' <span class="tag gr">one-off</span>' : ''}</td><td>−${mk(v)}</td></tr>`).join('') || '<tr class="sub"><td colspan="2" style="color:var(--muted)">No spending recorded</td></tr>'}
+    <div class="card pad"><div class="cap bz-cap">Money in and spending · ${fyLabel(fy)}<span class="bz-leg"><span><i style="background:var(--inc)"></i>Money in</span><span><i style="background:var(--exp)"></i>Spending</span></span></div>${chart(fy, isM(period) ? period : null)}<p class="note" style="margin:4px 0 0">Tap a month to see it.</p></div>
+    <div class="card pad"><div class="cap">Profit and loss · ${periodLabel(period)}</div>
+      <table class="bz-pl"><tr><td><b>Tuition</b> <small>payments received</small></td><td><b>${mk(f.inc)}</b></td></tr>
+      ${otherRows.map(([t, v]) => `<tr><td><b>${esc(t)}</b></td><td><b>${mk(v)}</b></td></tr>`).join('')}
+      ${otherRows.length ? `<tr class="sub2"><td>Money in</td><td>${mk(f.revenue)}</td></tr>` : ''}
+      ${rows.map(([c, v]) => `<tr class="sub"><td><a href="#biz/cat/${period}/${encodeURIComponent(c)}">${esc(c)}</a>${ONEOFF.includes(c) ? ' <span class="tag gr">one-off</span>' : ''}</td><td>−${mk(v)}</td></tr>`).join('') || '<tr class="sub"><td colspan="2" style="color:var(--muted)">No spending recorded</td></tr>'}
       <tr class="sub2"><td>Total spending${bTot ? ` <small>budget ${mk(bTot)}</small>` : ''}</td><td>−${mk(f.exp)}</td></tr>
       <tr class="tot"><td>Profit</td><td>${signed(f.profit)}</td></tr>
       ${f.oneoff ? `<tr class="sub"><td>Profit without one-off costs</td><td>${signed(f.profit + f.oneoff)}</td></tr>` : ''}
       ${toRec ? `<tr class="sub"><td>Repeating costs not yet confirmed <a href="#biz/spending/${period}">confirm</a></td><td>−${mk(toRec)}</td></tr>` : ''}</table>
-      ${live ? '<p class="note">This month is still going: costs paid at month end (such as salaries and tutor pay) are not in yet, so profit looks higher than it will be.</p>' : ''}
-      <p class="note">Salaries here are what was recorded in Spending. Tutor pay from session logs arrives with step 2.</p></div>
-    ${isY ? monthTable(fy) : ''}`;
+      ${f.capital || f.repaid ? `<div class="cap" style="margin-top:14px">Not counted in profit</div><table class="bz-pl">${Object.entries(f.byType).filter(([t]) => NOT_INCOME.includes(t)).map(([t, v]) => `<tr class="sub"><td>${esc(t)}</td><td>${mk(v)}</td></tr>`).join('')}${f.repaid ? `<tr class="sub"><td>Loan repayments</td><td>−${mk(f.repaid)}</td></tr>` : ''}</table>` : ''}
+      ${live ? '<p class="note">This period is still going: costs paid at month end (such as salaries and tutor pay) are not all in yet, so profit looks higher than it will be.</p>' : ''}
+      <p class="note">Salaries here are what was recorded in Spending. Tutor pay from session logs arrives with the tutor part.</p></div>
+    ${!isM(period) ? monthTable(months(period)) : ''}`;
   }
-  function monthTable(fy){
-    const cur = thisMonth(), ms = fyMonths(fy).filter(m => m <= cur);
+  function monthTable(ms){
     return `<div class="card pad"><div class="cap">Month by month</div><div class="bz-scroll"><table class="bz-mt"><tr><th></th>${ms.map(m => `<th><a href="#biz/pl/${m}">${monShort(m)}</a></th>`).join('')}</tr>
-      ${[['Money in', f => f.inc], ['Spending', f => -f.exp], ['Profit', f => f.profit]].map(([l, fn]) => `<tr class="${l === 'Profit' ? 'tot' : ''}"><td>${l}</td>${ms.map(m => { const v = fn(figures([m])); return `<td>${v < 0 ? '−' : ''}${(Math.abs(v) / 1e6).toFixed(1)}M</td>`; }).join('')}</tr>`).join('')}</table></div></div>`;
+      ${[['Money in', f => f.revenue], ['Spending', f => -f.exp], ['Profit', f => f.profit]].map(([l, fn]) => `<tr class="${l === 'Profit' ? 'tot' : ''}"><td>${l}</td>${ms.map(m => { const v = fn(figures([m])); return `<td>${v < 0 ? '−' : ''}${(Math.abs(v) / 1e6).toFixed(1)}M</td>`; }).join('')}</tr>`).join('')}</table></div></div>`;
   }
 
   /* ---------- spending ---------- */
@@ -148,37 +179,78 @@ window.BIZ = (function(){
           <div class="acts"><button class="btn sm n" data-bzok="${d.sid}|${d.date}">Paid ${mkShort(num(d.last.amount))}</button><button class="btn sm" data-bzchg="${d.sid}|${d.date}">Other amount</button><button class="btn sm" data-bzskip="${d.sid}|${d.date}">Skip</button></div></div>`).join('')}
         <p class="note">Rent, internet and salaries set to repeat come back here each month. Confirm when they are paid.</p></div>` : ''}
       <div class="chips"><a class="chip ${catF ? '' : 'on'}" href="#biz/spending/${period}">All <i>${f.list.length}</i></a>${present.map(c => `<a class="chip ${catF === c ? 'on' : ''}" href="#biz/spending/${period}/${encodeURIComponent(c)}">${esc(c)}</a>`).join('')}</div>
-      <div class="card">${list.map(e => `<${mayEdit(e) ? `button class="it" data-bzedit="${e.id}"` : 'div class="it"'}><span class="t"><b>${esc(e.what || e.cat)}</b><small>${[nice(e.date), e.cat, e.to, e.method, e.by ? 'by ' + first(e.by) : ''].filter(Boolean).map(esc).join(' · ')}</small></span>${e.rep === 'm' ? '<span class="tag bl">Monthly</span>' : ''}<b class="bz-amt">${mk(num(e.amount))}</b></${mayEdit(e) ? 'button' : 'div'}>`).join('') || `<p class="empty">No spending recorded for ${period.startsWith('fy') ? 'this year' : monthName(period)}${catF ? ' in ' + esc(catF) : ''}.</p>`}</div>
+      <div class="card">${list.map(e => `<${mayEdit(e) ? `button class="it" data-bzedit="${e.id}"` : 'div class="it"'}><span class="t"><b>${esc(e.what || e.cat)}</b><small>${[nice(e.date), e.cat, e.to, e.method, e.by ? 'by ' + first(e.by) : ''].filter(Boolean).map(esc).join(' · ')}</small></span>${e.rep === 'm' ? '<span class="tag bl">Monthly</span>' : ''}<b class="bz-amt">${mk(num(e.amount))}</b></${mayEdit(e) ? 'button' : 'div'}>`).join('') || `<p class="empty">No spending recorded for ${periodLabel(period)}${catF ? ' in ' + esc(catF) : ''}.</p>`}</div>
       ${present.length ? `<div class="card pad"><div class="cap bz-cap">By category <b>${mk(f.exp)}</b></div>${Object.entries(f.byCat).sort((a, b) => b[1] - a[1]).map(([c, v]) => `<div class="bz-hb"><span>${esc(c)}</span><span class="tr"><i style="width:${v / max * 100}%"></i></span><b>${mkShort(v)}</b></div>`).join('')}</div>` : ''}
       <button class="btn sm" data-bzcsv="${period}">${ic('box',15)} Download as a spreadsheet (CSV)</button>`;
   }
 
   /* ---------- budgets ---------- */
   function budgetView(period){
-    const ms = months(period), f = figures(ms), B = budget(), C = cats(), isY = period.startsWith('fy');
+    const ms = months(period), f = figures(ms), B = budget(), C = cats(), multi = !isM(period);
     const tot = Object.values(B).reduce((a, v) => a + num(v), 0) * ms.length;
     const row = (c, s, b, link = true) => { const p = b ? s / b : 0, exact = b && Math.abs(p - 1) < .005, col = !b ? 'var(--muted)' : exact ? 'var(--ok)' : p > 1 ? 'var(--rd)' : p > .8 ? 'var(--gold)' : 'var(--ok)';
       return `<${link ? `a href="#biz/spending/${period}/${encodeURIComponent(c)}"` : 'div'} class="bz-bud"><div class="h"><b>${esc(c)}${ONEOFF.includes(c) ? ' <span class="tag gr">one-off</span>' : ''}</b><span>${mkShort(s)} of ${b ? mkShort(b) : 'no budget'}${exact ? ' <span class="tag ok">on budget</span>' : b && p > 1 ? ' <span class="tag rd">over</span>' : b && p > .8 ? ' <span class="tag am">80%+</span>' : ''}</span></div><div class="track"><i style="width:${b ? Math.min(100, p * 100) : 0}%;background:${col}"></i></div></${link ? 'a' : 'div'}>`; };
     const extra = Object.keys(f.byCat).filter(c => !C.includes(c));
-    return `<p class="note" style="margin:-4px 0 12px">${isY ? `Spending in ${ms.length} month${ms.length === 1 ? '' : 's'} against ${ms.length} month${ms.length === 1 ? '' : 's'} of budget.` : `${monthName(period)}: spending against the monthly budget.`} Budgets repeat every month until they are changed.</p>
+    return `<p class="note" style="margin:-4px 0 12px">${multi ? `Spending in ${ms.length} month${ms.length === 1 ? '' : 's'} against ${ms.length} month${ms.length === 1 ? '' : 's'} of budget.` : `${periodLabel(period)}: spending against the monthly budget.`} Budgets repeat every month until they are changed.</p>
     ${Object.keys(B).length ? `<div class="card pad">${[...C, ...extra].map(c => row(c, f.byCat[c] || 0, num(B[c]) * ms.length)).join('')}</div>
-      <div class="card pad"><div class="cap">Total</div>${row('All spending', f.exp, tot, false)}${isY ? '' : `<p class="note">${f.exp <= tot ? `${mk(tot - f.exp)} of this month's budget is left.` : `${mk(f.exp - tot)} over this month's budget.`}</p>`}</div>`
+      <div class="card pad"><div class="cap">Total</div>${row('All spending', f.exp, tot, false)}${multi ? '' : `<p class="note">${f.exp <= tot ? `${mk(tot - f.exp)} of this month's budget is left.` : `${mk(f.exp - tot)} over this month's budget.`}</p>`}</div>`
     : `<div class="card pad"><p class="empty" style="margin:0">No budgets yet.${isDir() ? ' Set a monthly amount for each category, then spending is measured against it here and in Profit & loss.' : ' The Director sets them.'}</p></div>`}
     ${isDir() ? `<button class="btn" data-bzbud>${ic('edit',16)} ${Object.keys(B).length ? 'Change budgets' : 'Set budgets'}</button>` : ''}`;
   }
 
   /* ---------- the page ---------- */
+  const TABS = [['overview','Overview','pl'], ['money','Money in','pl'], ['pipeline','Pipeline','pl'], ['sessions','Sessions','pl'], ['spending','Spending','spend|pl'],
+    ['budgets','Budgets & pots','pl'], ['marketing','Marketing','pl'], ['charts','Charts','pl'], ['pl','Profit & loss','pl']];
+  const tabsFor = () => TABS.filter(([, , need]) => need.split('|').some(k => can(k)));
   function page(tab, period, cat){
     const T = tabsFor();
     if(!T.length) return `<div class="ph"><div class="tt"><h1>Business</h1></div></div><p class="empty">The Director hasn't given you access to Business.</p>`;
-    if(!T.some(x => x[0] === tab)) tab = T[0][0];
-    if(!period || !(/^\d{4}-\d{2}$/.test(period) || /^fy\d{4}$/.test(period))) period = thisMonth();
-    const fy = period.startsWith('fy') ? +period.slice(2) : fyOf(period);
-    return `<div class="ph"><div class="tt"><h1>Business</h1><p>Financial year ${fyLabel(fy)}${isDir() ? '' : ' · shared with you by the Director'}</p></div>${can('spend') ? `<button class="btn n" data-bznew>${ic('plus',16,2.4)} Record spending</button>` : ''}</div>
-      <div class="tabs">${T.map(([k, l]) => `<a class="${tab === k ? 'on' : ''}" href="#biz/${k}/${period}">${l}</a>`).join('')}</div>
-      ${periodBar(tab, period)}
-      ${tab === 'pl' ? plView(period) : tab === 'budgets' ? budgetView(period) : spendingView(period, cat)}
-      ${isDir() ? `<p class="note" style="margin-top:18px">Plans, projections and expansion come next. Who else sees Business: Settings › People & access › the admin's page.</p>` : ''}`;
+    if(tab === 'cat' && T.some(x => x[0] === 'spending')){ /* a spending category's own page */ }
+    else if(!T.some(x => x[0] === tab)) tab = T[0][0];
+    if(!period || !(isM(period) || isQ(period) || isY(period))) period = thisMonth();
+    const fy = isY(period) ? +period.slice(2) : fyOf(isQ(period) ? qMonths(period)[0] : period);
+    const body = tab === 'pl' ? plView(period) : tab === 'budgets' ? budgetView(period) + (window.INS ? INS.pots(period) : '') : tab === 'spending' ? (window.INS ? INS.spendTop(period) : '') + spendingView(period, cat)
+      : window.INS ? INS.view(tab, period, cat) : '';
+    return `<div class="ph"><div class="tt"><h1>Business</h1><p>Financial year ${fyLabel(fy)}${isDir() ? '' : ' · shared with you by the Director'}</p></div>
+      <div class="acts">${can('pl') ? `<a class="btn" href="#perf">${ic('down',16,2.2)} Report</a>` : ''}${can('spend') ? `<button class="btn" data-bzin>${ic('plus',16,2.4)} Money in</button><button class="btn n" data-bznew>${ic('plus',16,2.4)} Spending</button>` : ''}</div></div>
+      <div class="tabs">${T.map(([k, l]) => `<a class="${tab === k || (tab === 'cat' && k === 'spending') ? 'on' : ''}" href="#biz/${k}/${period}">${l}</a>`).join('')}</div>
+      ${tab === 'charts' ? '' : periodBar(tab, period, tab === 'cat' ? cat : '')}
+      ${body}`;
+  }
+
+  /* ---------- other money in: tenant rent, loans, owner investment, grants … ---------- */
+  function incomeSheet(e, preset){
+    const isNew = !e; e = e || Object.assign({id:uid(), date:today(), cat:'', amount:'', what:'', from:'', method:'', rep:''}, preset || {});
+    openSheet(`<div class="hx"><h3>${isNew ? 'Record money in' : 'Money in'}</h3><button class="ib" data-close>✕</button></div>
+      <p class="sp">Money that isn't a tuition payment (those come from receipts). ${isNew ? 'Any date works.' : `Recorded by ${esc(e.by || '')}.`}</p>
+      <label class="f"><span>Type</span></label><div class="chips" id="inTypes">${INCOME_TYPES.map(c => `<button class="chip ${e.cat === c ? 'on' : ''}" data-c="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+      <p class="note" id="inNote" style="margin:-6px 0 12px"></p>
+      <div class="r2"><label class="f"><span>Amount (MKW)</span><input class="in" id="inAmt" inputmode="numeric" value="${e.amount ? Number(e.amount).toLocaleString('en-US') : ''}" placeholder="0"></label><label class="f"><span>Date</span><input class="in" id="inDate" type="date" value="${esc(e.date)}"></label></div>
+      <label class="f"><span id="inFromL">From</span><input class="in" id="inFrom" value="${esc(e.from || '')}" placeholder="e.g. the tenant's name, the bank" autocomplete="off" list="inFroms"><datalist id="inFroms">${[...new Set(incomeAll().map(x => x.from).filter(Boolean))].map(x => `<option value="${esc(x)}">`).join('')}</datalist></label>
+      <label class="f"><span>Note (optional)</span><input class="in" id="inWhat" value="${esc(e.what || '')}" placeholder="e.g. Shop rent for November" autocomplete="off"></label>
+      <div class="r2"><label class="f"><span>Paid by</span><select class="in" id="inMethod"><option value="">Choose</option>${methods().map(m => `<option ${e.method === m ? 'selected' : ''}>${esc(m)}</option>`).join('')}</select></label>
+        <label class="f"><span>Repeats</span><select class="in" id="inRep"><option value="">Once</option><option value="m" ${e.rep === 'm' ? 'selected' : ''}>Every month</option></select></label></div>
+      <button class="btn n full" id="inSave">Save</button>${isNew ? '' : `<button class="btn rd full" id="inDel">${ic('bin',16)} Delete</button>`}`);
+    const note = c => { $('inNote').textContent = c === 'Loan received' ? 'Borrowed money: shown in cash and pots, never as revenue or profit. Record repayments under Spending › Loan repayment, paid to the same lender.' : c === 'Owner investment' ? 'Money put in by the owner: not revenue or profit.' : ''; $('inFromL').textContent = c === 'Loan received' ? 'Lender' : 'From'; };
+    document.querySelectorAll('#inTypes .chip').forEach(b => b.onclick = () => { document.querySelectorAll('#inTypes .chip').forEach(x => x.classList.toggle('on', x === b)); note(b.dataset.c); });
+    note(e.cat);
+    $('inAmt').oninput = ev => { const d = ev.target.value.replace(/[^\d]/g, ''); ev.target.value = d ? Number(d).toLocaleString('en-US') : ''; };
+    $('inSave').onclick = () => {
+      const c = (document.querySelector('#inTypes .chip.on') || {}).dataset, amt = num($('inAmt').value);
+      if(!c){ toast('Choose the type'); return; } if(!amt){ toast('Enter the amount'); $('inAmt').focus(); return; }
+      Object.assign(e, {cat:c.c, amount:amt, date:$('inDate').value || today(), from:$('inFrom').value.trim(), what:$('inWhat').value.trim(), method:$('inMethod').value, rep:$('inRep').value});
+      delete e.skip; e.at = Date.now(); if(!e.by) e.by = me().name;
+      const all = store.get('lhq_income', {}) || {}; all[e.id] = e; store.set('lhq_income', all);
+      closeSheet(); toast(isNew ? `Recorded: ${mk(amt)} · ${c.c}` : 'Saved'); render();
+    };
+    if($('inDel')) $('inDel').onclick = () => { if(!confirm('Delete this?')) return; e.del = true; e.at = Date.now(); const all = store.get('lhq_income', {}) || {}; all[e.id] = e; store.set('lhq_income', all); closeSheet(); toast('Deleted'); render(); };
+  }
+  /* loans: what was borrowed from each lender, repaid (Spending › Loan repayment, paid to that lender) and left */
+  function loans(){
+    const L = {};
+    incomeLive().filter(e => e.cat === 'Loan received').forEach(e => { const k = (e.from || 'Loan').trim(); (L[k] = L[k] || {lender:k, borrowed:0, repaid:0}).borrowed += num(e.amount); });
+    spendLive().filter(e => e.cat === 'Loan repayment').forEach(e => { const k = (e.to || 'Loan').trim(); (L[k] = L[k] || {lender:k, borrowed:0, repaid:0}).repaid += num(e.amount); });
+    return Object.values(L).map(x => Object.assign(x, {left: Math.max(0, x.borrowed - x.repaid)}));
   }
 
   /* ---------- recording ---------- */
@@ -232,7 +304,7 @@ window.BIZ = (function(){
     const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
     const text = [['Date','Category','What for','Paid to','Paid by','Amount (MKW)','Recorded by'].map(q).join(','), ...rows.map(e => [e.date, e.cat, e.what, e.to, e.method, num(e.amount), e.by].map(q).join(','))].join('\r\n');
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + text], {type:'text/csv'}));
-    a.download = `LHQ-spending_${period.startsWith('fy') ? fyLabel(+period.slice(2)).replace(/ /g, '') : period}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    a.download = `LHQ-spending_${periodLabel(period).replace(/[^A-Za-z0-9–-]+/g, '-')}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
   }
   function budgetSheet(){
     const B = budget(), C = cats();
@@ -247,6 +319,12 @@ window.BIZ = (function(){
   function bind(){
     const on = (sel, fn) => document.querySelectorAll(sel).forEach(el => el.onclick = ev => fn(el, ev));
     on('[data-bznew]', () => sheet());
+    on('[data-bzin]', () => incomeSheet());
+    on('[data-inedit]', el => { const e = (store.get('lhq_income', {}) || {})[el.dataset.inedit]; if(e) incomeSheet(Object.assign({}, e)); });
+    on('[data-inok]', el => { const [sid, date] = el.dataset.inok.split('|'), d = due('lhq_income').find(x => x.sid === sid && x.date === date); if(!d) return;
+      const L = d.last, e = {id:uid(), sid, date, cat:L.cat, amount:L.amount, from:L.from || '', what:L.what || '', method:L.method || '', rep:'m', at:Date.now(), by:me().name};
+      const all = store.get('lhq_income', {}) || {}; all[e.id] = e; store.set('lhq_income', all); toast(`Recorded: ${mk(num(e.amount))} · ${e.cat}`); render(); });
+    if(window.INS) INS.bind();
     on('[data-bzedit]', el => { const e = (store.get('lhq_spend', {}) || {})[el.dataset.bzedit]; if(e) sheet(Object.assign({}, e)); });
     on('[data-bzp]', el => { location.hash = '#biz/' + el.dataset.bzp; });
     on('[data-bzcsv]', el => csv(el.dataset.bzcsv));
@@ -271,5 +349,6 @@ window.BIZ = (function(){
     return `${L('#biz/spending/' + m, `${mkShort(f.exp)} <small>spent</small>`, 'v')}${b && can('pl') ? `<div class="bar"><i style="width:${Math.min(100, pct(f.exp, b))}%"></i></div><div class="s">of ${mkShort(b)} budget</div>` : `<div class="s">${f.n} payment${f.n === 1 ? '' : 's'} recorded</div>`}${top ? L(`#biz/spending/${m}/${encodeURIComponent(top[0])}`, `Most on ${esc(top[0])}: ${mkShort(top[1])}`) : ''}${D ? L('#biz/spending/' + m, `${D} repeating cost${D === 1 ? '' : 's'} to confirm`, 's warn') : ''}`;
   }
 
-  return {page, bind, cardProfit, cardSpend, figures, due, months, fyOf, thisMonth};
+  return {page, bind, cardProfit, cardSpend, figures, due, months, fyOf, thisMonth, monthName, monShort, addMonth, fyMonths, fyLabel, periodLabel, shift, lastYear,
+    isM, isQ, isY, qOf, qMonths, cats, spendLive, incomeLive, budget, loans, ONEOFF, NOT_COST, NOT_INCOME, INCOME_TYPES, mayEdit, uid, saveEntry};
 })();

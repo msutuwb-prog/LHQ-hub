@@ -168,7 +168,7 @@ function rosterFromV2(r){
   const items = [];
   cards.forEach((c,ci)=>c.subs.forEach((x,si)=>{
     const s = subjOf(x), set = cardTopicSet(s.list);
-    items.push({k:cardNormName(c.st)+'|'+cardNormName(x.u), st:c.st, lv:c.lv, sub:x.u, code:(set||{}).code||'', tier:cardTier(s), days:x.y||[], time:x.m||'', topics:cardTopicNames(s), tf:x.f||1, ci, si});
+    items.push({k:cardNormName(c.st)+'|'+cardNormName(x.u), st:c.st, lv:c.lv, sub:x.u, code:(set||{}).code||'', tier:cardTier(s), days:x.y||[], time:x.m||'', topics:cardTopicNames(s), tf:x.f||1, wh:c.where, cf:+x.cf||0, ci, si});
   }));
   return {tutor:r.t, issued:r.d, v:2, cards, items};
 }
@@ -206,10 +206,11 @@ function entryLine(e){
   const it = item(e.k), who = it ? `${it.st} · ${it.sub}` : `${e.st} · ${e.sub}`;
   let what = '', tag = '';
   if(e.ty==='s'){
-    what = e.a==='absent' ? 'Absent' : e.a==='late' ? 'Attended (late)' : 'Attended';
+    what = e.a==='absent' ? 'Student absent' : e.a==='cancelled' ? 'Not taught (make-up owed)' : (e.mk ? 'Make-up · ' : '') + (e.a==='late' ? 'Attended (late)' : 'Attended');
+    if(e.md==='o') what += ' · online'; else if(e.md==='h') what += ' · at home';
     if(e.sc!=null && e.sc!=='') what += ` · topical test ${e.sc}/${e.mx} (${pctOf(e.sc,e.mx)}%)`;
     if(e.tp && e.tp.length) what += ` · ${e.tp.join(', ')}`;
-    tag = e.a==='absent' ? '<span class="tag t-red">Absent</span>' : '';
+    tag = e.a==='absent' ? '<span class="tag t-red">Absent</span>' : e.a==='cancelled' ? '<span class="tag t-red">Not taught</span>' : e.mk ? '<span class="tag t-blue">Make-up</span>' : '';
   } else if(e.ty==='r'){
     what = `SRA · ${e.tk} · review ${e.rv} · ` + (e.h==='m' ? 'not handed in' : (e.h==='l' ? 'late' : 'on time') + (e.sc!=null && e.sc!=='' ? ` · ${e.sc}/${e.mx}` : ''));
     tag = e.h==='m' ? '<span class="tag t-red">Not in</span>' : e.h==='l' ? '<span class="tag t-amb">Late</span>' : '';
@@ -220,7 +221,7 @@ function entryLine(e){
 }
 function renderHome(){
   F('studs').innerHTML = roster.items.length ? roster.items.map(it=>`
-    <div class="stud"><div class="stud-top"><div><b>${esc(it.st)}</b><div class="meta">${esc([it.sub + (it.code?` ${it.code}`:''), it.tier, it.lv].filter(Boolean).join(' · '))}${it.days.length?`<br>${esc(it.days.map(d=>DAYN[d]||d).join(', '))}${it.time?` · ${esc(it.time)}`:''}`:''}</div></div>${it.ci!=null?`<button type="button" class="vc" data-card="${it.ci}">View card ›</button>`:''}</div>
+    <div class="stud"><div class="stud-top"><div><b>${esc(it.st)}</b><div class="meta">${esc([it.sub + (it.code?` ${it.code}`:''), it.tier, it.lv].filter(Boolean).join(' · '))}${it.days.length?`<br>${esc(it.days.map(d=>DAYN[d]||d).join(', '))}${it.time?` · ${esc(it.time)}`:''}`:''}${it.cf?`<br><b style="color:#9a5b00">+${it.cf} make-up session${it.cf>1?'s':''} carried from last period</b>`:''}</div></div>${it.ci!=null?`<button type="button" class="vc" data-card="${it.ci}">View card ›</button>`:''}</div>
       <div class="acts"><button type="button" class="pri" data-new="s" data-k="${esc(it.k)}">Log session</button><button type="button" data-new="r" data-k="${esc(it.k)}">Log SRA</button><button type="button" data-new="c" data-k="${esc(it.k)}">Monthly comments</button></div></div>`).join('')
     : '<p class="empty">No students yet. LHQ adds them when they put your name on a tuition card, then sends you a new link.</p>';
   const wk = monday(today()), list = live().sort((a,b)=>b.d.localeCompare(a.d) || b.at - a.at);
@@ -284,12 +285,14 @@ function openCard(ci){
 }
 
 /* ---------- forms ---------- */
+/* where a session happens: the card's "Where" is the default, the tutor changes it for one session */
+const whereCode = w => /online/i.test(w || '') ? 'o' : /home/i.test(w || '') ? 'h' : 'c';
 const segHTML = (key, opts, cur) => `<div class="seg" data-seg="${key}" style="grid-template-columns:repeat(${opts.length},1fr)">${opts.map(([v,l,c])=>`<button type="button" data-v="${v}" class="${c||''}${String(cur)===String(v)?' on':''}">${l}</button>`).join('')}</div>`;
 const CHK = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5 9-10"/></svg>';
 function openForm(ty, k, existing){
   const it = item(k) || {k, st:existing && existing.st, sub:existing && existing.sub, topics:[], code:'', tier:''};
   form = existing ? JSON.parse(JSON.stringify(existing)) : {id:uid(), ty, k, st:it.st, sub:it.sub, d:today(), at:Date.now(),
-    a:'attended', tp:[], sc:'', mx:'', n:'', tk:'', rv:1, h:'o', cs:'', ci:'', cn:''};
+    a:'attended', tp:[], sc:'', mx:'', n:'', tk:'', rv:1, h:'o', cs:'', ci:'', cn:'', md:whereCode(it.wh), mk:0};
   if(!existing && ty==='r'){
     // suggest the next review for the most recent SRA topic of this subject
     const last = live().filter(e=>e.k===k && e.ty==='r').sort((a,b)=>b.d.localeCompare(a.d))[0];
@@ -312,8 +315,11 @@ function renderForm(){
   const f = form, b = F('fBody'); let h = '';
   h += `<div class="fld"><label class="lbl" for="fDate">${f.ty==='r' ? 'Date marked' : f.ty==='c' ? 'Date written' : 'Session date'}</label><input type="date" id="fDate" value="${f.d}" max="${today()}"></div>`;
   if(f.ty==='s'){
-    h += `<div class="fld"><span class="lbl">Attendance</span>${segHTML('a', [['attended','Attended','ok'],['late','Late','amb'],['absent','Absent','red']], f.a)}</div>`;
-    if(f.a!=='absent'){
+    h += `<div class="fld"><span class="lbl">Attendance</span>${segHTML('a', [['attended','Attended','ok'],['late','Late','amb'],['absent','Student absent','red'],['cancelled','I couldn\'t teach','red']], f.a)}</div>`;
+    if(f.a==='absent' || f.a==='cancelled') h += `<p class="hint" style="margin:-4px 0 12px">A make-up session is owed. When you teach it, log it as a make-up.</p>`;
+    else h += `<div class="fld"><span class="lbl">Session</span>${segHTML('mk', [['0','Regular'],['1','Make-up']], f.mk||0)}</div>`;
+    h += `<div class="fld"><span class="lbl">Where</span>${segHTML('md', [['c','At LHQ'],['o','Online'],['h','Student\'s home']], f.md||'c')}</div>`;
+    if(f.a!=='absent' && f.a!=='cancelled'){
       const ch = topicChoices();
       h += `<div class="fld"><span class="lbl">Topics covered</span><div class="chips">${ch.map(t=>{ const on = f.tp.includes(t); return `<button type="button" class="chip${on?' on':''}" data-tp="${esc(t)}"><span class="bx">${on?CHK:''}</span>${esc(t)}</button>`; }).join('') || '<span class="hint" style="margin:0">No topics on the card. Add one below.</span>'}</div>
         <div class="add"><input id="fNewTp" placeholder="Another topic"><button type="button" id="fAddTp">Add</button></div></div>`;
@@ -342,7 +348,7 @@ function renderForm(){
   b.querySelectorAll('[data-seg]').forEach(s=>s.addEventListener('click', e=>{
     const btn = e.target.closest('[data-v]'); if(!btn) return; const k = s.dataset.seg, v = btn.dataset.v;
     if(k==='test'){ f._test = v==='1'; if(v==='0'){ f.sc=''; f.mx=''; } }
-    else f[k] = k==='rv' ? +v : v;
+    else f[k] = k==='rv' || k==='mk' ? +v : v;
     syncInputs(); renderForm();
   }));
   b.querySelectorAll('[data-tp]').forEach(c=>c.onclick = ()=>{ syncInputs(); const t = c.dataset.tp; f.tp = f.tp.includes(t) ? f.tp.filter(x=>x!==t) : f.tp.concat(t); renderForm(); });
@@ -373,7 +379,7 @@ function saveForm(){
   if(f.sc!=='' && parseFloat(f.sc) > parseFloat(f.mx)){ toast('The score is higher than the total'); return; }
   if(f.ty==='r' && !f.tk){ toast('Choose the SRA topic'); return; }
   if(f.ty==='c' && !(f.cs||f.ci||f.cn)){ toast('Write at least one comment'); return; }
-  if(f.ty==='s' && f.a==='absent'){ f.tp = []; f.sc=''; f.mx=''; }
+  if(f.ty==='s' && (f.a==='absent' || f.a==='cancelled')){ f.tp = []; f.sc=''; f.mx=''; f.mk = 0; }
   if(f.ty==='r' && f.h==='m'){ f.sc=''; f.mx=''; }
   const clean = {id:f.id, k:f.k, st:f.st, sub:f.sub, d:f.d, ty:f.ty, at:Date.now()};
   if(f.ty==='s'){ Object.assign(clean, {a:f.a, tp:f.tp}); if(f.sc!==''){ clean.sc = +f.sc; clean.mx = +f.mx; } if(f.n) clean.n = f.n; }

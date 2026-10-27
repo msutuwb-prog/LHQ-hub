@@ -27,6 +27,8 @@ if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash)
 <script src="nav.js"></script>
 <script src="schools.js"></script>
 <script src="business.js"></script>
+<script src="insights.js"></script>
+<script src="perf.js"></script>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0}
@@ -182,7 +184,7 @@ a.bz-bud{display:block;text-decoration:none;color:inherit}a.bz-bud:hover b{text-
 .kpi{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;min-width:0}
 .kpi small{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:800}
 .kpi b{display:block;font-size:22px;font-weight:800;color:var(--brand);letter-spacing:-.4px;font-variant-numeric:tabular-nums;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.kpi span{font-size:12px;font-weight:700;display:block}.kpi .up{color:var(--ok)}.kpi .dn{color:var(--rd)}.kpi .fl{color:var(--muted)}
+.kpi span{font-size:12px;font-weight:700;display:block}.kpi .up{color:var(--ok)}.kpi .dn{color:var(--rd)}.kpi .fl{color:var(--muted)}.kpi span span{display:inline;font-size:inherit}
 @media (max-width:760px){.kpi{padding:11px 12px}.kpi b{font-size:18px;letter-spacing:-.3px}.kpi span{font-size:11.5px}}
 .bz-cap{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
 .bz-leg{display:flex;gap:12px;text-transform:none;letter-spacing:0;font-weight:700}.bz-leg span{display:inline-flex;align-items:center;gap:5px}.bz-leg i{width:10px;height:10px;border-radius:3px;display:inline-block}
@@ -198,6 +200,51 @@ a.bz-bud{display:block;text-decoration:none;color:inherit}a.bz-bud:hover b{text-
 .bz-mt th{border-top:0;color:var(--muted);font-size:11.5px}.bz-mt th a{color:inherit}
 .bz-mt td:first-child{text-align:left;font-weight:700;position:sticky;left:0;background:var(--surface)}
 .bz-mt tr.tot td{font-weight:800;color:var(--brand)}
+/* performance report: the paper keeps its own light colours so the PDF looks the same in dark mode */
+.pf-wrap{overflow-x:auto;margin:0 -4px;padding:4px}
+.pf-paper{--inc:#073763;--exp:#f4b223;--line2:#e8ebf0;--muted:#6b7585;--rd:#b42318;--ok:#1f7a4d;--gold:#f4b223;--gr-bg:#f1f3f6;--ink:#14213d;--brand:#073763;
+  width:794px;max-width:none;margin:0 auto;background:#fff;color:#14213d;padding:34px 40px 26px;box-shadow:0 1px 0 #e4e7ec,0 6px 24px rgba(20,33,61,.08);border-radius:6px;font-size:12.5px;line-height:1.45;box-sizing:border-box}
+#pfStage .pf-paper{box-shadow:none;border-radius:0}
+.pf-h{display:flex;align-items:center;gap:16px;border-bottom:3px solid #f4b223;padding-bottom:14px;margin-bottom:18px}.pf-h img{height:40px}
+.pf-h b{display:block;font-size:21px;color:#073763;font-weight:800}.pf-h span{font-weight:700;color:#14213d}.pf-m{margin-left:auto;text-align:right;color:#6b7585;font-size:11px}
+.pf-s{margin:0 0 20px}.pf-s h2{font-size:15px;color:#073763;margin:0 0 10px;padding-bottom:5px;border-bottom:1px solid #e4e7ec}.pf-s h3{font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#6b7585;margin:14px 0 6px}
+.pf-ks{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}.pf-k{border:1px solid #e4e7ec;border-radius:9px;padding:8px 10px}
+.pf-k small{display:block;font-size:9.5px;text-transform:uppercase;letter-spacing:.06em;color:#6b7585;font-weight:800}.pf-k b{display:block;font-size:17px;color:#073763;margin:2px 0}.pf-k span{font-size:10px;color:#6b7585;font-weight:600}
+.pf-paper i{font-style:normal;font-weight:800}.pf-paper .up{color:#1f7a4d}.pf-paper .dn{color:#b42318}.pf-paper .fl{color:#6b7585;font-weight:600}
+.pf-hl{margin:0;padding-left:18px}.pf-hl li{margin:3px 0}
+.pf-n{color:#6b7585;font-size:11px;margin:6px 0 0}
+.pf-t{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}.pf-t th{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:#6b7585;text-align:left;padding:4px 6px;border-bottom:1px solid #e4e7ec}
+.pf-t td{padding:5px 6px;border-bottom:1px solid #eef0f3}.pf-t .r{text-align:right;white-space:nowrap}.pf-t tr.tot td{font-weight:800;color:#073763;border-top:2px solid #e4e7ec}.pf-t tr.sub td{font-weight:700}
+.pf-2{display:grid;grid-template-columns:1fr 1fr;gap:18px}
+.pf-b{margin:5px 0}.pf-b .h{display:flex;justify-content:space-between;gap:8px}.pf-b .h span{color:#6b7585;font-weight:600}.pf-b .tr{height:6px;background:#f1f3f6;border-radius:9px;overflow:hidden;margin-top:3px}.pf-b .tr i{display:block;height:100%;background:#073763}
+.pf-paper .ins-leg{font-size:10.5px}.pf-paper svg{width:100%}
+.pf-f{border-top:1px solid #e4e7ec;padding-top:8px;margin-top:10px;color:#6b7585;font-size:10px}
+/* insights */
+.ins-row{display:block;padding:9px 0;border-top:1px solid var(--line2);text-decoration:none;color:inherit}.ins-row:first-of-type{border-top:0}
+a.ins-row:hover b{text-decoration:underline;text-underline-offset:2px}
+.ins-row .h{display:flex;align-items:center;gap:8px}.ins-row .h b{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ins-row .amt{margin-left:auto;font-weight:800;font-variant-numeric:tabular-nums;white-space:nowrap}
+.ins-bar{height:7px;border-radius:99px;background:var(--gr-bg);overflow:hidden;margin:6px 0 4px}.ins-bar i{display:block;height:100%;border-radius:99px}
+.ins-row .m{font-size:12px;color:var(--muted);font-weight:600}.ins-row .m .up{color:var(--ok)}.ins-row .m .dn{color:var(--rd)}
+.ins-leg{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;font-weight:700;margin:0 0 6px}.ins-leg span{display:inline-flex;align-items:center;gap:5px}.ins-leg i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.ins-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:6px}
+@container (max-width:720px){.ins-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:520px){.ins-grid{grid-template-columns:minmax(0,1fr)}}
+.ins-tile{display:flex;flex-direction:column;gap:3px;text-decoration:none;color:inherit;margin:0}.ins-tile:hover{border-color:var(--muted)}
+.ins-tile b{font-size:17px;font-weight:800;color:var(--brand);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ins-tile span{font-size:12.5px;color:var(--muted);font-weight:600}
+.ins-facts{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+@container (max-width:620px){.ins-facts{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.ins-facts b{display:block;font-size:20px;font-weight:800;color:var(--brand);font-variant-numeric:tabular-nums}.ins-facts small{font-size:12px;color:var(--muted);font-weight:600}
+.ins-heat{border-collapse:separate;border-spacing:3px;font-size:12px;font-variant-numeric:tabular-nums}
+.ins-heat th{color:var(--muted);font-weight:700;padding:2px 6px;text-align:center}.ins-heat td{width:44px;height:28px;text-align:center;border-radius:6px;font-weight:800;color:var(--ink);border:1px solid var(--line2)}
+.ins-cmp{display:grid;grid-template-columns:minmax(0,1fr) auto auto auto;gap:12px;align-items:center;padding:9px 0;border-top:1px solid var(--line2);text-decoration:none;color:inherit;font-variant-numeric:tabular-nums;font-size:14px}
+.ins-cmp:first-of-type{border-top:0}.ins-cmp b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ins-cmp:hover b{text-decoration:underline}
+.ins-cmp .up{color:var(--ok);font-weight:800}.ins-cmp .dn{color:var(--rd);font-weight:800}.ins-cmp .fl{color:var(--muted)}
+@media (max-width:520px){.ins-cmp{grid-template-columns:minmax(0,1fr) auto auto;font-size:13px}.ins-cmp>span:nth-of-type(2){display:none}}
+.ins-mk{display:grid;grid-template-columns:minmax(110px,1.4fr) repeat(6,minmax(0,1fr));gap:8px;align-items:center;padding:10px 0;border-top:1px solid var(--line2);font-size:13.5px;font-variant-numeric:tabular-nums}
+.ins-mk:first-of-type{border-top:0}.ins-mk small{display:block;font-size:10.5px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em}
+.ins-mk .up{color:var(--ok)}.ins-mk .dn{color:var(--rd)}
+@container (max-width:720px){.ins-mk{grid-template-columns:repeat(3,minmax(0,1fr))}.ins-mk>b{grid-column:1/-1}}
+.ins-cb .r3,.ins-cb .r2{margin-bottom:4px}
 .bz-amt{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:800;flex:none}
 .bz-hb{display:grid;grid-template-columns:120px 1fr 86px;gap:10px;align-items:center;padding:6px 0;font-size:13px}
 .bz-hb .tr{height:9px;background:var(--gr-bg);border-radius:99px;overflow:hidden}.bz-hb .tr i{display:block;height:100%;background:var(--exp);border-radius:99px}
@@ -238,13 +285,13 @@ const $ = id => document.getElementById(id);
 const {store, esc, num, mk, mkShort, nice, range, ago, first, sk, same, today, addDays, dayDiff, WORD, typeOf, can, isDir, me, roleText} = HD;
 const ICP = {quote:'<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/>', invoice:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>', receipt:'<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>', card:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10h6M7 14h10"/>',
  users:'<circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.5 3-6 6-6s6 2.5 6 6"/><path d="M16 4.5a3.5 3.5 0 010 7M18 14c2 .8 3 3 3 6"/>', alert:'<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/>', clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', chev:'<path d="M9 6l6 6-6 6"/>', back:'<path d="M15 6l-6 6 6 6"/>', search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
- edit:'<path d="M4 20h4L19 9l-4-4L4 16v4z"/>', plus:'<path d="M12 5v14M5 12h14"/>', user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>', key:'<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3"/>', bank:'<path d="M3 10l9-6 9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/>', cash:'<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>', hash:'<path d="M9 4L7 20M17 4l-2 16M4 9h16M3 15h16"/>', msg:'<path d="M4 5h16v11H9l-5 4z"/>', list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>', link:'<path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/>', wa:'<path d="M4 20l1.3-4A8 8 0 1112 20a8 8 0 01-4-1z"/>', box:'<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>', bin:'<path d="M4 7h16M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/>', restore:'<path d="M4 12a8 8 0 108-8 8 8 0 00-6 2.7L4 9"/><path d="M4 4v5h5"/>', out:'<path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/>', rep:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>', copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V4h12"/>', layout:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 16h18"/>'};
+ edit:'<path d="M4 20h4L19 9l-4-4L4 16v4z"/>', plus:'<path d="M12 5v14M5 12h14"/>', user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>', key:'<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3"/>', bank:'<path d="M3 10l9-6 9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/>', cash:'<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>', hash:'<path d="M9 4L7 20M17 4l-2 16M4 9h16M3 15h16"/>', msg:'<path d="M4 5h16v11H9l-5 4z"/>', list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>', link:'<path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/>', wa:'<path d="M4 20l1.3-4A8 8 0 1112 20a8 8 0 01-4-1z"/>', box:'<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>', bin:'<path d="M4 7h16M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/>', restore:'<path d="M4 12a8 8 0 108-8 8 8 0 00-6 2.7L4 9"/><path d="M4 4v5h5"/>', out:'<path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/>', rep:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>', copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V4h12"/>', down:'<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>', layout:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 16h18"/>'};
 const ic = (n, s = 20, w = 1.8) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${ICP[n]||''}</svg>`;
 const inits = n => String(n||'?').split(/\s+/).filter(Boolean).slice(0,2).map(x => x[0]).join('').toUpperCase();
 function toast(m){ const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 3200); }
 window.hubToast = toast;
 function openSheet(html){ $('sheet').innerHTML = html; $('sheet').hidden = false; $('shbg').hidden = false; $('sheet').querySelectorAll('[data-close]').forEach(b => b.onclick = closeSheet); const f = $('sheet').querySelector('input'); if(f && innerWidth > 700) setTimeout(() => f.focus(), 50); }
-function closeSheet(){ $('sheet').hidden = true; $('shbg').hidden = true; if(/^#new/.test(location.hash)) history.replaceState(null, '', '#home'); }
+function closeSheet(){ $('sheet').hidden = true; $('shbg').hidden = true; if(/^#(new|makeups)/.test(location.hash)) history.replaceState(null, '', '#home'); }
 $('shbg').onclick = closeSheet;
 document.addEventListener('keydown', e => { if(e.key === 'Escape' && !$('sheet').hidden) closeSheet(); });
 
@@ -266,17 +313,18 @@ function parse(){
 }
 function render(){
   load(); parse();
-  const sec = {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', tutors:'home'}[route.page] || route.page;
+  const sec = {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'business', tutors:'home'}[route.page] || route.page;
   LHQNav.section(sec);
   const m = $('main');
   m.className = 'main' + (['home','edithome','new','students','student','tutors'].includes(route.page) ? ' narrow' : '');
   m.innerHTML = P[route.page](...route.args) || '';
-  if(route.page !== 'new') LHQNav.visit(pageLabel());
+  if(!['new','makeups'].includes(route.page)) LHQNav.visit(pageLabel());
   bind();
   if(route.page === 'new') newSheet(route.args[0]);
+  if(route.page === 'makeups') makeupSheet(route.args[0]);
   if(route.page === 'tutors' && route.args[0] === 'none' && $('none')) $('none').scrollIntoView();
 }
-window.addEventListener('hashchange', () => { if(!/^#new/.test(location.hash) && !$('sheet').hidden){ $('sheet').hidden = true; $('shbg').hidden = true; } render(); if(!/^#new/.test(location.hash)) window.scrollTo(0, 0); });
+window.addEventListener('hashchange', () => { if(!/^#(new|makeups)/.test(location.hash) && !$('sheet').hidden){ $('sheet').hidden = true; $('shbg').hidden = true; } render(); if(!/^#new/.test(location.hash)) window.scrollTo(0, 0); });
 window.hubApply = render; window.hubReady = () => { render(); HD.refreshPeople().then(render); }; window.hubRemap = render; window.hubMe = render;
 window.addEventListener('pageshow', e => { if(e.persisted) render(); });
 window.addEventListener('lhqinstall', () => { if(route.page === 'set') render(); });
@@ -287,7 +335,7 @@ function crumb(fbHref, fbLabel, within){
   const b = LHQNav.back(fbHref, fbLabel, within ? u => u.startsWith('index.html#' + within) : null);
   return b.href ? `<a class="crumb" href="${esc(b.href)}">${ic('back',16,2.2)} ${esc(b.label)}</a>` : '';
 }
-const PAGE_LABEL = {home:'Home', edithome:'Edit Home', students:'Students', docs:'Documents', biz:'Business', settings:'Settings', tutors:'Tutors teaching now'};
+const PAGE_LABEL = {home:'Home', edithome:'Edit Home', students:'Students', docs:'Documents', biz:'Business', settings:'Settings', tutors:'Tutors teaching now', perf:'Performance report'};
 function pageLabel(){
   const h = document.querySelector('#main h1, #main .sec-h');
   if(['home','edithome','students','docs','biz','settings'].includes(route.page)) return PAGE_LABEL[route.page];
@@ -314,6 +362,12 @@ function attention(list){
       if(c.card && (c.card.subjects||[]).some(x => !x.tutor)) out.push({w:2, s, href:openLink(c.card), ico:'user', col:'--am', sub:`${c.card.number} · a subject has no tutor`, tag:['No tutor','am']});
       if(c.card && end && end >= t && dayDiff(t, end) <= 7 && !s.openQuote && can('quotes')) out.push({w:3, s, href:stuLink(s.key), ico:'clock', col:'--am', sub:`Tuition period ends ${nice(end)}`, btn:['Renew', D('renew=' + c.inv.id)]});
     }
+    // a period that ended with make-up sessions still owed: carry them to the next period, or refund
+    s.periods.forEach(p => { const cd = p.card;
+      if(!cd || cd.mu || !p.inv.periodEnd || p.inv.periodEnd >= t || dayDiff(p.inv.periodEnd, t) > 60 || !can('cards')) return;
+      const n = HD.makeups(cd).reduce((a, x) => a + x.owed, 0);
+      if(n) out.push({w:1, s, href:openLink(cd), ico:'clock', col:'--am', sub:`${cd.number} · period ended with ${n} make-up session${n === 1 ? '' : 's'} owed`, btn:['Decide', '#makeups/' + cd.id]});
+    });
     const q = s.openQuote;
     if(q && q.date && dayDiff(q.date, t) >= 7) out.push({w:4, s, href:openLink(q), ico:'quote', col:'--muted', sub:`${q.number} sent ${dayDiff(q.date, t)} days ago · no invoice yet`, btn: can('quotes') ? ['Invoice', D('conv=invoice:' + q.id)] : null});
   });
@@ -351,7 +405,7 @@ const L = (href, html, cls = 's') => route.page === 'edithome' ? `<div class="${
 const trend = (now, before, word) => { if(!before && !now) return ''; if(!before) return `<div class="tr fl">First month with figures</div>`; const p = Math.round((now - before) / before * 100); return `<div class="tr ${p >= 0 ? 'up' : 'dn'}">${p >= 0 ? '▲' : '▼'} ${Math.abs(p)}% ${word}</div>`; };
 const CARDS = {
   money:{t:'Money this month', ic:'cash', need:'money', d:'Received this month against what was invoiced, and what is still owed', href:'#docs/invoice',
-    html:m => `${L('#docs/receipt/m-' + ym(today()), `${mkShort(m.recv)} <small>received</small>`, 'v')}<div class="bar"><i style="width:${m.invoiced ? Math.min(100, Math.round(m.recv / m.invoiced * 100)) : 0}%"></i></div>${L('#docs/invoice/m-' + ym(today()), `${mkShort(m.invoiced)} invoiced this month`)}${L('#docs/invoice/unpaid', `Outstanding ${mkShort(m.owed)}${m.overN ? ` · ${m.overN} overdue` : ''}`, 's' + (m.overN ? ' bad' : ''))}${trend(m.recv, m.recvLast, 'received vs last month')}`},
+    html:m => `${L(can('pl') ? '#biz/money/' + ym(today()) : '#docs/receipt/m-' + ym(today()), `${mkShort(m.recv)} <small>received</small>`, 'v')}<div class="bar"><i style="width:${m.invoiced ? Math.min(100, Math.round(m.recv / m.invoiced * 100)) : 0}%"></i></div>${L('#docs/invoice/m-' + ym(today()), `${mkShort(m.invoiced)} invoiced this month`)}${L('#docs/invoice/unpaid', `Outstanding ${mkShort(m.owed)}${m.overN ? ` · ${m.overN} overdue` : ''}`, 's' + (m.overN ? ' bad' : ''))}${trend(m.recv, m.recvLast, 'received vs last month')}`},
   owed:{t:'Outstanding & overdue', ic:'alert', need:'money', d:'Unpaid balances, with overdue ones first', href:'#docs/invoice',
     html:m => `${L('#docs/invoice/unpaid', mkShort(m.owed), 'v')}${L('#docs/invoice/unpaid', `${m.owingN} invoice${m.owingN === 1 ? '' : 's'} not fully paid`)}${m.overN ? L('#docs/invoice/overdue', `${m.overN} overdue · ${mkShort(m.overAmt)}`, 's bad') : '<div class="s">Nothing overdue</div>'}`},
   students:{t:'Students', ic:'users', d:'Students in a tuition period now, new ones, and periods ending', href:'#students',
@@ -439,9 +493,9 @@ P.student = (key, tab = 'overview') => {
       ${can('quotes') ? `<a class="btn" href="${D('new=quote&student=' + encodeURIComponent(s.key))}">${ic('plus',16,2.2)} New quote for ${esc(first(s.name))}</a>` : ''}`;
   }
   if(tab === 'details'){
-    const F = [['Student name','name'],['Year & level','level'],['School','school'],['Parent / guardian','parent'],['WhatsApp','phone'],['Email','email'],['Address','address'],['Heard about LHQ via','heard']];
+    const F = [['Student name','name'],['Year & level','level'],['School','school'],['Parent / guardian','parent'],['WhatsApp','phone'],['Email','email'],['Area','area'],['District','district'],['Address','address'],['Heard about LHQ via','heard']];
     body = editDetails
-      ? `<div class="card pad">${F.map(([l, f]) => `<label class="f"><span>${l}</span>${f === 'level' ? levelSelect('sd_level', s.level) : f === 'school' ? schoolInput('sd_school', s.school) : `<input class="in" id="sd_${f}" value="${esc(s[f])}">`}</label>`).join('')}
+      ? `<div class="card pad">${F.map(([l, f]) => `<label class="f"><span>${l}</span>${f === 'level' ? levelSelect('sd_level', s.level) : f === 'school' ? schoolInput('sd_school', s.school) : f === 'district' ? districtSelect('sd_district', s.district) : f === 'heard' ? heardSelect('sd_heard', s.heard) : f === 'area' ? `<input class="in" id="sd_area" value="${esc(s.area)}" placeholder="e.g. Area 47">` : `<input class="in" id="sd_${f}" value="${esc(s[f])}">`}</label>`).join('')}
          <div class="acts"><button class="btn n" id="sdSave">Save details</button><button class="btn" id="sdCancel">Cancel</button></div></div>`
       : `<div class="card pad"><dl class="kv">${F.map(([l, f]) => `<dt>${l}</dt><dd>${esc(s[f]) || '<span style="color:var(--muted);font-weight:500">Not added</span>'}</dd>`).join('')}</dl>
          ${can('students') ? `<div class="acts" style="margin-top:12px"><button class="btn" id="sdEdit">${ic('edit',16)} Edit details</button></div>` : ''}
@@ -462,6 +516,7 @@ function stuOverview(s){
     head = 'This tuition period' + (period ? ' · ' + period : '');
     chain = (c.quote || c.inv.ref ? chip(c.quote, 'Quote') + ar : '') + chip(c.inv, 'Invoice') + ar + (c.receipts.length ? c.receipts.map(r => chip(r)).join('') : chip(null, 'Receipt')) + ar + chip(c.card, 'Card');
     facts = `<dt>Invoice</dt><dd>${mk(c.st.total)}${c.inv.plan === 'half' ? ' · 50/50 plan' : ''}</dd><dt>Paid</dt><dd>${mk(c.st.paid)} <span class="tag ${c.st.cls}">${esc(c.st.text)}</span></dd>
+      ${c.card && HD.makeups(c.card).some(x => x.owed) ? `<dt>Make-ups owed</dt><dd>${HD.makeups(c.card).filter(x => x.owed).map(x => `${esc(x.sub)}: ${x.owed}`).join(' · ')}</dd>` : ''}
       ${c.card ? `<dt>Tutors</dt><dd>${(c.card.subjects || []).map(x => `${esc(x.name)}: ${x.tutor ? esc(x.tutor) : '<span style="color:var(--am)">no tutor yet</span>'}`).join('<br>')}</dd>` : ''}`;
     if(!c.st.paidUp && can('receipts')) nexts.push(`<a class="btn g full" href="${D('conv=receipt:' + c.inv.id)}">${c.st.plan && c.st.firstPaid ? 'Receive 2nd instalment' : 'Record a payment'} · ${mk(c.st.balance)}</a>`);
     if(!c.card && can('cards')) nexts.push(`<a class="btn ${c.st.paidUp || c.st.firstPaid ? 'n' : ''} full" href="${cardLink(s)}">Make tuition card${s.lastCard ? ' (same subjects and tutors as last time)' : ''}</a>`);
@@ -481,6 +536,18 @@ function stuOverview(s){
 }
 function waNum(raw){ let n = String(raw || '').replace(/\D/g, ''); if(n.startsWith('0')) n = '265' + n.slice(1); else if(n.length === 9) n = '265' + n; return n; }
 const lines = v => String(v || '').split('\n').map(x => x.trim()).filter(Boolean);
+/* district: the usual four, any added before, and "Add a district" for a student elsewhere */
+function districtSelect(id, v){ const L = lines(settingsKV().districts || DEFAULT_DISTRICTS.join('\n')); if(v && !L.includes(v)) L.push(v);
+  return `<select class="in" id="${id}" data-district><option value="">Choose</option>${L.map(x => `<option ${x === v ? 'selected' : ''}>${esc(x)}</option>`).join('')}<option value="__add">+ Add a district…</option></select>`; }
+function heardSelect(id, v){ const L = lines(settingsKV().heardFrom || DEFAULT_HEARD.join('\n')); if(v && !L.includes(v)) L.push(v);
+  return `<select class="in" id="${id}"><option value="">Choose</option>${L.map(x => `<option ${x === v ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>`; }
+document.addEventListener('change', e => {
+  const el = e.target; if(!el.matches || !el.matches('select[data-district]') || el.value !== '__add') return;
+  const n = (prompt('Which district?') || '').trim(); if(!n){ el.value = ''; return; }
+  const st = Object.assign({}, store.get('lhq_settings', {})), L = lines(st.districts || DEFAULT_DISTRICTS.join('\n'));
+  if(!L.some(x => x.toLowerCase() === n.toLowerCase())){ L.push(n); st.districts = L.join('\n'); store.set('lhq_settings', st); }
+  el.insertAdjacentHTML('beforeend', ''); const o = document.createElement('option'); o.textContent = n; el.insertBefore(o, el.querySelector('option[value="__add"]')); el.value = n;
+});
 function levelSelect(id, v){ const L = lines(HD.settings.levels); if(v && !L.includes(v)) L.unshift(v); return `<select class="in" id="${id}"><option value="">Choose</option>${L.map(x => `<option ${x === v ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>`; }
 function schoolInput(id, v){ const L = (window.SCHOOLS || []).map(x => x.n || x.name || x); return `<input class="in" id="${id}" value="${esc(v)}" list="${id}_l" autocomplete="off"><datalist id="${id}_l">${L.map(x => `<option value="${esc(x)}">`).join('')}</datalist>`; }
 
@@ -490,10 +557,12 @@ function newStudentSheet(thenQuote){
     <div class="r2"><label class="f"><span>Year & level</span>${levelSelect('ns_level', '')}</label><label class="f"><span>School</span>${schoolInput('ns_school', '')}</label></div>
     <div class="r2"><label class="f"><span>Parent / guardian</span><input class="in" id="ns_parent"></label><label class="f"><span>Parent's WhatsApp</span><input class="in" id="ns_phone" inputmode="tel" placeholder="0991 234 567"></label></div>
     <label class="f"><span>Parent's email</span><input class="in" id="ns_email" type="email" inputmode="email"></label>
-    <label class="f"><span>How did they hear about LHQ?</span><select class="in" id="ns_heard"><option value="">Choose</option>${['A friend or family member','Sibling at LHQ','Instagram','Facebook','WhatsApp','Study Smart Session','Their school','Google','Other'].map(x => `<option>${x}</option>`).join('')}</select></label>
+    <div class="r2"><label class="f"><span>Area</span><input class="in" id="ns_area" placeholder="e.g. Area 47" autocomplete="off"></label><label class="f"><span>District</span>${districtSelect('ns_district', 'Lilongwe')}</label></div>
+    <label class="f"><span>How did they hear about LHQ? <b style="color:var(--rd)">*</b></span>${heardSelect('ns_heard', '')}</label>
     <button class="btn n full" id="nsGo">${thenQuote ? 'Save and make a quote' : 'Save student'}</button>`);
   $('nsGo').onclick = () => {
     const name = $('ns_name').value.trim(); if(!name){ toast('Add the student\'s name'); $('ns_name').focus(); return; }
+    if(!$('ns_heard').value){ toast('Choose how they heard about LHQ. It shows which marketing works.'); $('ns_heard').focus(); return; }
     const f = {}; HD.DETAIL.forEach(k => { const el = $('ns_' + k); if(el && el.value.trim()) f[k] = el.value; });
     let key;
     if(HD.studentRecords()[sk(name)] || saved.some(d => sk(d.student) === sk(name))){
@@ -543,6 +612,36 @@ function newSheet(type){
 const pickRow = (href, t, sub, tag) => `<a class="it" href="${href}"><span class="av">${inits(t)}</span><span class="t"><b>${esc(t)}</b><small>${esc(sub)}</small></span>${tag ? `<span class="tag ${tag[1]}">${tag[0]}</span>` : `<span class="chev">${ic('chev',16,2)}</span>`}</a>`;
 function pickRows(list, q){ q = sk(q); return list.filter(s => !q || sk(s.name + ' ' + s.parent).includes(q)).slice(0, 40).map(s => pickRow(D('new=quote&student=' + encodeURIComponent(s.key)), s.name, [s.level, s.parent].filter(Boolean).join(' · '))).join('') || '<p class="empty">No students match.</p>'; }
 P.new = () => P.home();
+P.makeups = () => P.home();
+/* make-ups still owed when a period ends: carry each subject's to the next period, or refund them */
+function makeupSheet(id){
+  const card = saved.find(d => d.id === id); if(!card) return;
+  const inv = HD.chainOf(card).inv, rate = sub => { const it = ((inv && inv.items) || []).find(x => sk(x.desc) === sk(sub)); return num(it && it.cost) || num(HD.settings.rate) || 15000; };
+  const rows = HD.makeups(card).filter(x => x.owed);
+  openSheet(`<div class="hx"><h3>Make-up sessions owed</h3><button class="ib" data-close>✕</button></div>
+    <p class="sp">${esc(card.student)} · ${esc(range(card.periodStart, card.periodEnd))}. The period has ended with these sessions not made up.</p>
+    ${rows.map((x, i) => `<div class="card pad" style="margin-bottom:10px"><b>${esc(x.sub)}</b> · ${x.owed} session${x.owed === 1 ? '' : 's'}<small style="display:block;color:var(--muted)">${[x.missS ? `${x.missS} student absent` : '', x.missT ? `${x.missT} tutor couldn't teach` : '', x.cf ? `${x.cf} carried in` : '', x.made ? `${x.made} made up` : ''].filter(Boolean).join(' · ')}</small>
+      <div class="seg" data-mu="${i}" style="margin:10px 0 0"><button class="on" data-v="carry">Carry to next period</button><button data-v="refund">Refund ${mkShort(x.owed * rate(x.sub))}</button></div></div>`).join('')}
+    <p class="note" style="margin:0 0 12px">Carried sessions show on the next tuition card and the tutor's page. A refund is recorded in Business › Spending as a refund.</p>
+    <button class="btn n full" id="muGo">Save</button>`);
+  document.querySelectorAll('[data-mu] button').forEach(b => b.onclick = () => b.parentElement.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)));
+  $('muGo').onclick = () => {
+    const subs = {}; let refund = 0, parts = [];
+    rows.forEach((x, i) => { const d = document.querySelector(`[data-mu="${i}"] .on`).dataset.v, amt = d === 'refund' ? x.owed * rate(x.sub) : 0;
+      subs[x.sub] = {n: x.owed, d, amt}; if(amt){ refund += amt; parts.push(`${x.owed} ${x.sub}`); } });
+    const all = store.get('lhq_saved', []), c = all.find(d => d.id === id); if(!c) return;
+    c.mu = {at: Date.now(), by: me().name, subs}; c.savedAt = Date.now(); store.set('lhq_saved', all);
+    if(refund){
+      if(can('spend')){
+        const sp = store.get('lhq_spend', {}) || {}, eid = 'sp' + Date.now().toString(36);
+        sp[eid] = {id: eid, date: today(), cat: 'Refunds', amount: refund, what: `Refund: ${parts.join(', ')} session(s) not made up · ${card.student}`, to: card.name || '', method: '', by: me().name, at: Date.now(), refund: card.number};
+        store.set('lhq_spend', sp);
+        const st = Object.assign({}, store.get('lhq_settings', {})); const L = lines(st.spendCats || DEFAULT_SPEND_CATS.join('\n')); if(!L.includes('Refunds')){ L.push('Refunds'); st.spendCats = L.join('\n'); store.set('lhq_settings', st); }
+      } else toast('Saved. Ask the Director to record the refund in Business › Spending.');
+    }
+    closeSheet(); location.hash = '#home'; toast(refund ? `Saved. Refund of ${mk(refund)} recorded.` : 'Saved. The sessions carry to the next period.');
+  };
+}
 
 /* ================= documents ================= */
 let dQ = '';
@@ -552,6 +651,8 @@ function docFilter(type, f){
   if(!f) return null;
   let m;
   if((m = /^m-(\d{4})-(\d{2})$/.exec(f))) return {label: MONTHS[+m[2] - 1] + ' ' + m[1], test: d => ym(d.date) === `${m[1]}-${m[2]}`};
+  if((m = /^q-(\d{4})-([1-4])$/.exec(f))){ const fy = +m[1], L = Array.from({length:3}, (_, i) => { const k = 6 + (+m[2] - 1) * 3 + i; return `${fy + Math.floor(k / 12)}-${String(k % 12 + 1).padStart(2, '0')}`; });
+    return {label: `Q${m[2]} · ${MONTHS[+L[0].slice(5) - 1].slice(0, 3)} – ${MONTHS[+L[2].slice(5) - 1].slice(0, 3)} ${L[2].slice(0, 4)}`, test: d => L.includes(ym(d.date))}; }
   if((m = /^fy-(\d{4})$/.exec(f))) return {label: `July ${m[1]} – June ${+m[1] + 1}`, test: d => (d.date || '') >= `${m[1]}-07-01` && (d.date || '') <= `${+m[1] + 1}-06-30`};
   if(f === 'unpaid'){ const st = new Map(), S = d => st.get(d.id) || (st.set(d.id, HD.invState(d)), st.get(d.id));
     return {label: 'not fully paid, overdue first', test: d => typeOf(d) === 'invoice' && S(d).balance > 0.005, sort: (a, b) => (S(b).over ? 1 : 0) - (S(a).over ? 1 : 0) || (a.dueDate || a.date || '').localeCompare(b.dueDate || b.date || '')}; }
@@ -613,6 +714,7 @@ P.tutors = (show = '') => {
 
 /* ================= business (business.js) ================= */
 P.biz = (tab, period, cat) => crumb(null, null, 'biz') + BIZ.page(tab, period, cat);
+P.perf = () => crumb('#biz', 'Business') + PERF.page();
 
 /* ================= settings ================= */
 const SETS = [
@@ -770,6 +872,7 @@ function bind(){
   const on = (sel, fn) => document.querySelectorAll(sel).forEach(el => el.onclick = e => fn(el, e));
   on('[data-close]', () => closeSheet());
   if(route.page === 'biz') BIZ.bind();
+  if(route.page === 'perf') PERF.bind();
   on('[data-go]', (el, e) => { if(!e.target.closest('a')) location.href = el.dataset.go; });
   document.querySelectorAll('[data-go][tabindex]').forEach(el => el.onkeydown = e => { if(e.key === 'Enter' && e.target === el) location.href = el.dataset.go; });
   if($('attTog')) $('attTog').onclick = () => { attOpen = !attOpen; try{ localStorage.setItem('lhq_attOpen', attOpen ? '1' : '0'); }catch(e){} render(); };

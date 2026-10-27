@@ -96,7 +96,7 @@
   const byDate = (a, b) => (b.date||'').localeCompare(a.date||'') || (b.savedAt||0) - (a.savedAt||0);
 
   /* students: details kept once (lhq_students), filled in from their documents where missing */
-  const DETAIL = ['name','level','school','parent','phone','email','address','heard'];
+  const DETAIL = ['name','level','school','parent','phone','email','address','area','district','heard'];
   function studentRecords(){ return store.get('lhq_students', {}); }
   function students(){
     const recs = studentRecords(), map = new Map();
@@ -108,7 +108,7 @@
       s.name = rec.name || (D.find(d => d.student) || D[0] || {}).student || (D[0] || {}).name || s.key;
       s.parent = rec.parent || (D.find(d => d.name && d.name !== s.name) || {}).name || '';
       s.level = rec.level || pick('level'); s.phone = rec.phone || pick('phone'); s.email = rec.email || pick('email');
-      s.address = rec.address || pick('address'); s.heard = rec.heard || '';
+      s.address = rec.address || pick('address'); s.heard = rec.heard || ''; s.area = rec.area || pick('area'); s.district = rec.district || pick('district');
       s.school = rec.school || (D.find(d => d.type === 'card' && d.school) || {}).school || '';
       s.first = D.length ? D.map(d => d.date || '').filter(Boolean).sort()[0] : (rec.added || '');
       s.periods = D.filter(d => d.type === 'invoice').map(inv => {
@@ -157,7 +157,19 @@
     try{ const r = await hub.api('people', {method:'POST', body:JSON.stringify({action:'list'})}); store.set('lhq_people', r.people); return r.people; }catch(e){ return people(); }
   }
 
+  /* make-up sessions for a tuition card, from tutors' session logs inside its period:
+     owed = missed (student absent or tutor couldn't teach) + carried in from last period - make-ups taught */
+  const nk = x => String(x || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  function makeups(card){
+    const L = store.get('lhq_logs', {e:{}}), E = Object.values((L && L.e) || {}).filter(e => e && !e.x && e.ty === 's');
+    const a = card.periodStart || '', b = card.periodEnd || '9999';
+    return (card.subjects || []).map(s => {
+      const k = nk(card.student) + '|' + nk(s.name), X = E.filter(e => e.k === k && e.d >= a && e.d <= b);
+      const missS = X.filter(e => e.a === 'absent').length, missT = X.filter(e => e.a === 'cancelled').length, made = X.filter(e => +e.mk).length, cf = +s.cf || 0;
+      return {sub: s.name, tutor: s.tutor || '', missS, missT, made, cf, owed: Math.max(0, missS + missT + cf - made)};
+    });
+  }
   window.HD = {store, esc, num, mk, mkShort, nice, range, ago, first, sk, same, today, addDays, dayDiff, parseISO, isoOf, MON, WORD, typeOf,
     me, isDir, can, ROLE, roleText, load, get saved(){ return saved; }, get settings(){ return settings; }, total, invState, chainOf, docStatus, byDate,
-    students, studentRecords, saveStudent, DETAIL, people, refreshPeople};
+    students, studentRecords, saveStudent, DETAIL, people, refreshPeople, makeups};
 })();
