@@ -1,4 +1,4 @@
-/* LHQ Hub demo data (previews only): six months of made-up students (about 40 at a time, averaging MKW 700,000 a period), quotes, invoices, receipts,
+/* LHQ Hub demo data (previews only): six months of made-up students (about 40 at a time, averaging about MKW 700,000 a period at MKW 15,000 a session), quotes, invoices, receipts,
    tuition cards, session logs and SRAs, with every situation the Hub handles: paid, part-paid, in grace,
    overdue, ending this week, renewed, ended, quotes waiting, a card with no tutor, a deleted document.
    Everyone here is invented. Dates are worked out from today, so the demo always looks current. */
@@ -27,8 +27,10 @@
     'Physics':['Emmanuel Mkwamba','Peter Mvula'],'Chemistry':['Emmanuel Mkwamba','Dalitso Phiri'],'Science':['Peter Mvula','Dalitso Phiri'],'Biology':['Maureen Story','Dalitso Phiri'],
     'Business Studies':['Maureen Story','Joseph Nkhoma'],'Economics':['Wanangwa Msutu','Joseph Nkhoma'],'Accounting':['Joseph Nkhoma']};
   const tutorFor = (subj, i) => { const p = POOL[subj] || ['Grace Chinyama']; return p[i % p.length]; };
-  /* LHQ's fees: per session, three sessions a week per subject (12 in a 4-week period) */
-  const RATE = level => /A Level|AS Level|Year 1[23]/.test(level) ? 35000 : /IGCSE|Year 1[01]/.test(level) ? 30000 : 25000;
+  /* LHQ's fee is MKW 15,000 a session for every level; what changes is how many sessions a student takes
+     (days a week per subject, over a 4-week period: 5 days = 20 sessions) */
+  const RATE = () => 15000;
+  const WEEKDAYS = ['Mo','Tu','We','Th','Fr'];
   const DAYS = [['Mo','We','Fr'],['Tu','Th','Sa'],['Mo','Tu','Th'],['We','Fr','Sa'],['Mo','We','Th'],['Tu','Fr','Sa']];
   const TIMES = [['14:00','15:00'],['15:00','16:00'],['16:00','17:00'],['17:00','18:00'],['10:00','11:30']];
   const HEARD = ['A friend or family member','Instagram','Facebook','Study Smart Session','Their school','WhatsApp','Google','Sibling at LHQ'];
@@ -39,24 +41,24 @@
     ['Thando Banda','Year 10 · IGCSE','Mrs Banda',['Mathematics','Physics'],'ending',5,false],
     ['Natasha Banda','Year 8','Mrs Banda',['Mathematics','English'],'active',3,false,{disc:'Sibling',pct:10}],
     ['Chikondi Phiri','Year 9 · Checkpoint','Mr Phiri',['Science','Mathematics'],'overdue',4,true],
-    ['Tamara Mwale','Year 12 · AS Level','Mrs Mwale',['Biology'],'quote_old'],
-    ['Kondwani Zulu','Year 11 · IGCSE','Mr Zulu',['English Language'],'nocard',2,false],
+    ['Tamara Mwale','Year 12 · AS Level','Mrs Mwale',['Biology','Chemistry'],'quote_old'],
+    ['Kondwani Zulu','Year 11 · IGCSE','Mr Zulu',['English Language','Mathematics'],'nocard',2,false],
     ['Lusungu Nyirenda','Year 13 · A Level','Dr Nyirenda',['Pure Mathematics 1','Economics'],'active',6,true],
     ['Mphatso Chirwa','Year 10 · IGCSE','Mrs Chirwa',['Chemistry','Biology'],'grace',3,true],
     ['Tiwonge Kamanga','Year 11 · IGCSE','Mr Kamanga',['Economics','Business Studies'],'active',5,false],
-    ['Chisomo Mbewe','Year 7','Ms Mbewe',['Mathematics'],'ended',3,false],
+    ['Chisomo Mbewe','Year 7','Ms Mbewe',['Mathematics','English'],'ended',3,false],
     ['Kettie Gondwe','Year 11 · IGCSE','Mrs Gondwe',['Physics','Chemistry','Mathematics'],'active',4,true],
     ['Pemphero Kumwenda','Year 9 · Checkpoint','Mr Kumwenda',['English','Science'],'ending',2,false],
-    ['Wezi Msiska','Year 12 · AS Level','Mrs Msiska',['Physics'],'active',2,false],
-    ['Madalitso Tembo','Year 10 · IGCSE','Mr Tembo',['Mathematics'],'notutor',1,false],
-    ['Takondwa Mhango','Year 8','Mrs Mhango',['Science'],'ended',2,false],
+    ['Wezi Msiska','Year 12 · AS Level','Mrs Msiska',['Physics','Pure Mathematics 1'],'active',2,false],
+    ['Madalitso Tembo','Year 10 · IGCSE','Mr Tembo',['Mathematics','Physics','Chemistry'],'notutor',1,false],
+    ['Takondwa Mhango','Year 8','Mrs Mhango',['Science','Mathematics'],'ended',2,false],
     ['Yamikani Chimwaza','Year 11 · IGCSE','Mr Chimwaza',['Biology','Chemistry'],'overdue_full',2,false],
-    ['Thoko Moyo','Year 13 · A Level','Mrs Moyo',['Economics'],'active',6,false],
+    ['Thoko Moyo','Year 13 · A Level','Mrs Moyo',['Economics','Pure Mathematics 1','Biology'],'active',6,false],
     ['Limbani Kalua','Year 10 · IGCSE','Mr Kalua',['English Language','Mathematics'],'unpaid_new',1,false],
-    ['Atupele Mwakasungula','Year 9 · Checkpoint','Ms Mwakasungula',['Mathematics'],'quote_new'],
+    ['Atupele Mwakasungula','Year 9 · Checkpoint','Ms Mwakasungula',['Mathematics','Science'],'quote_new'],
     ['Kumbukani Phiri','Year 12 · AS Level','Mr Phiri',['Chemistry','Pure Mathematics 1'],'quote_old2'],
-    ['Faith Ngwira','Year 7','Mrs Ngwira',['English'],'active',4,false],
-    ['Brian Chaponda','Year 11 · IGCSE','Mr Chaponda',['Business Studies'],'ended',4,true],
+    ['Faith Ngwira','Year 7','Mrs Ngwira',['English','Mathematics','Science'],'active',4,false],
+    ['Brian Chaponda','Year 11 · IGCSE','Mr Chaponda',['Business Studies','Economics','Mathematics'],'ended',4,true],
     ['Ruth Kachingwe','Year 10 · IGCSE','Mrs Kachingwe',['Physics','Mathematics'],'renewed',3,false],
   ];
   /* more students, so a month looks like LHQ's real size (30 to 50 students) */
@@ -70,7 +72,7 @@
     for(let i = 0; i < 30; i++){
       let name; do { name = P(FIRST) + ' ' + P(LAST); } while(used.has(name)); used.add(name);
       const level = P(LEVELS), pool = SUBJ(level).slice(), subs = [];
-      const n = R() < .15 ? 1 : R() < .55 ? 2 : R() < .85 ? 3 : 4;
+      const x = R(), n = x < .03 ? 1 : x < .22 ? 2 : x < .66 ? 3 : 4;
       while(subs.length < Math.min(n, pool.length)) subs.push(pool.splice(Math.floor(R() * pool.length), 1)[0]);
       const sit = i < 26 ? 'active' : 'ended';
       STUDENTS.push([name, level, P(['Mr','Mrs','Ms','Dr']) + ' ' + name.split(' ')[1], subs, sit, 2 + Math.floor(R() * 5), R() < .3]);
@@ -110,9 +112,10 @@
         email: rnd() < 0.7 ? norm(parent).replace(/[^a-z]/g, '') + si + '@gmail.com' : '', address:pick(['Area 10','Area 43','Area 47','Area 12','Area 3','Area 18','Area 9']) + ', Lilongwe',
         school:SCHOOLS[si % SCHOOLS.length], heard: name === 'Natasha Banda' ? 'Sibling at LHQ' : pick(HEARD)};
       const cost = RATE(level);
-      const items = subjects.map(x => ({desc:x, days:'3', sessions:'12', cost:String(cost)}));
+      const perWeek = subjects.map((x, i) => subjects.length >= 4 ? [3,4,4,5][(si + i) % 4] : [5,5,4,5][(si + i) % 4]);
+      const items = subjects.map((x, i) => ({desc:x, days:String(perWeek[i]), sessions:String(perWeek[i] * 4), cost:String(cost)}));
       const disc = opt && opt.disc ? {discType:'pct', discValue:String(opt.pct), discReason:opt.disc} : {};
-      const total = items.reduce((a, it) => a + 12 * cost, 0) * (1 - ((opt && opt.pct) || 0) / 100);
+      const total = items.reduce((a, it) => a + (+it.sessions) * cost, 0) * (1 - ((opt && opt.pct) || 0) / 100);
       // quotes only
       if(/^quote/.test(sit)){
         const off = sit === 'quote_new' ? -2 : sit === 'quote_old' ? -17 : -11;
@@ -151,7 +154,7 @@
         // tuition card
         if(!(isCur && sit === 'nocard') && !(isCur && sit === 'unpaid_new') && invDay + 2 < 0){
           const subs = subjects.map((x, i) => ({name:x, list:listFor(level, x), tutor: sit === 'notutor' && i === 0 ? '' : (si % 7 === 3 && x === 'Mathematics' && k > 1 ? 'Mayamiko Goliati' : tutorFor(x, si + i)),
-            days: slot.slice(), perWeek:'3', sessions:'12', mins:'1 hour', start:TIMES[(si + i) % TIMES.length][0], end:TIMES[(si + i) % TIMES.length][1], tier: /IGCSE/.test(level) && ['Mathematics','Physics','Chemistry','Biology'].includes(x) ? 'Extended' : '',
+            days: WEEKDAYS.slice(0, perWeek[i]), perWeek:String(perWeek[i]), sessions:String(perWeek[i] * 4), mins:'1 hour', start:TIMES[(si + i) % TIMES.length][0], end:TIMES[(si + i) % TIMES.length][1], tier: /IGCSE/.test(level) && ['Mathematics','Physics','Chemistry','Biology'].includes(x) ? 'Extended' : '',
             mode:'full', picks:{}, details:{}, custom:[], grade: pick(['B','C','C','D','A','']), basis: 'End of term results', when:'', note:'', openCh:''}));
           lastCard = mk('card', invDay + 3, s, {from:'@' + inv.id, f:{ref:'@' + inv.id, school:s.school, where:pick(['LHQ Centre','LHQ Centre','Online']), exam: /IGCSE|A Level|AS/.test(level) ? 'May/June 2027' : '',
             cardNote: k === n - 1 ? pick(['Prefers worked examples first.','Shy in class; ask questions directly.','Strong at theory, needs exam practice.','Has a mock exam in late November.']) : (lastCard ? lastCard.cardNote : ''),
