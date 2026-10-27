@@ -5,7 +5,7 @@
   'use strict';
   const API = '/api/hub/';
   const DOCS = 'lhq_saved';
-  const KV = ['lhq_settings','lhq_templates','lhq_counters','lhq_repEdits','lhq_logs','lhq_tlinks'];
+  const KV = ['lhq_settings','lhq_templates','lhq_counters','lhq_repEdits','lhq_logs','lhq_tlinks','lhq_students'];
   const SESSION = 'lhq_session', BASE = 'lhq_syncBase', KVHASH = 'lhq_syncKv', REV = 'lhq_syncRev', DIRTY = 'lhq_syncDirty';
   const ls = window.localStorage;
   const rawSet = ls.setItem.bind(ls), rawGet = ls.getItem.bind(ls), rawDel = ls.removeItem.bind(ls);
@@ -30,7 +30,7 @@
     let r; try{ r = await fetch(API + path, Object.assign({headers, cache:'no-store', signal:ctl.signal}, opts || {})); } finally { clearTimeout(tm); }
     let j = {}; try{ j = await r.json(); }catch(e){}
     if(r.status === 401 && path !== 'login' && session()){ signedOut('Please sign in again.'); throw new Error('signed out'); }
-    if(!r.ok) throw Object.assign(new Error(j.error || 'Something went wrong. Try again.'), {status:r.status});
+    if(!r.ok) throw Object.assign(new Error(j.error || 'Something went wrong. Try again.'), {status:r.status, denied:!!j.denied});
     return j;
   }
 
@@ -67,17 +67,23 @@
       status('ok');
     }catch(e){
       window.hub && (window.hub.lastError = String(e && e.message || e));
-      if(e.message !== 'signed out'){ status('offline'); schedulePush(30000); }
+      if(e.denied){
+        // the server refused: this person isn't allowed to make that change, so undo it here
+        note(e.message + ' Your change was undone.');
+        put(DIRTY, false);
+        try{ const st = await api('state'); apply(st, true); if(window.hubApply) window.hubApply(); status('ok'); }catch(err){ status('offline'); }
+      }
+      else if(e.message !== 'signed out'){ status('offline'); schedulePush(30000); }
     }finally{ pushing = false; }
   }
 
   /* ---------- bring the server's copy down ---------- */
-  function apply(st){
+  function apply(st, discard){
     const base = {}, hashes = {};
     const local = get(DOCS, []), server = st.docs || [], ids = {};
     server.forEach(d => { ids[d.id] = 1; base[d.id] = d.savedAt || 0; });
     // documents saved on this device that never reached the server stay, and upload next
-    const keepLocal = local.filter(d => d && d.id && !ids[d.id] && !(get(BASE, {})[d.id] != null));
+    const keepLocal = discard ? [] : local.filter(d => d && d.id && !ids[d.id] && !(get(BASE, {})[d.id] != null));
     put(DOCS, keepLocal.concat(server).sort((a,b)=>(b.savedAt||0)-(a.savedAt||0)));
     KV.forEach(k => { if(st.kv && st.kv[k] != null){ put(k, st.kv[k]); hashes[k] = hash(rawGet(k)); } });
     put(BASE, base); put(KVHASH, hashes); put(REV, st.rev);
@@ -99,6 +105,8 @@
     if(!session() || !navigator.onLine || pushing) return;
     try{
       const r = await api('rev');
+      const mine = session();
+      if(mine && r.me && JSON.stringify(r.me) !== JSON.stringify(mine.me)){ mine.me = r.me; put(SESSION, mine); if(window.hubMe) window.hubMe(); }
       if(get(DIRTY, false)){ schedulePush(100); return; }
       if(r.rev !== get(REV, null)) await pull();
     }catch(e){}
@@ -160,7 +168,7 @@
     const s = session(); if(!bar || !s || document.getElementById('hubAcct')) return;
     statusEl = el(`<button class="ghost hub-acct" id="hubAcct" type="button"><span class="hub-dot"></span><span>${esc((s.me && s.me.name || '').split(' ')[0] || 'Account')}</span></button>`);
     if(bar.classList.contains('actions')) bar.insertBefore(statusEl, bar.firstChild); else bar.appendChild(statusEl);
-    statusEl.onclick = accountMenu;
+    statusEl.onclick = () => { location.href = 'index.html#set/account'; };
     status(get(DIRTY, false) ? 'saving' : 'ok');
   }
 
@@ -176,7 +184,7 @@
       if(r.setup) return showSetup();
       people = r.people || [];
       box.innerHTML = `<img class="lhq-logo" src="${LOGO()}" alt="LHQ Learning Solutions"><h2>Who's signing in?</h2><p class="s">${esc(msg || 'Each person has their own PIN.')}</p>
-        <div class="hub-who">${people.map(p => `<button type="button" data-id="${p.id}"><span><b>${esc(p.name)}</b><small>${[p.admin?'Admin':'', p.tutor?'Tutor':''].filter(Boolean).join(' + ')}</small></span><span>›</span></button>`).join('')}</div>`;
+        <div class="hub-who">${people.map(p => `<button type="button" data-id="${p.id}"><span><b>${esc(p.name)}</b><small>${[{director:'Director',admin:'Admin',tutor:'Tutor'}[p.role] || (p.admin?'Admin':'Tutor'), p.tutor && p.role !== 'tutor' ? 'Tutor' : ''].filter(Boolean).join(' + ')}</small></span><span>›</span></button>`).join('')}</div>`;
       box.querySelectorAll('[data-id]').forEach(b => b.onclick = () => { chosen = people.find(p => p.id === b.dataset.id); pinBuf = ''; showPin(); });
     }catch(e){
       box.innerHTML = `<img class="lhq-logo" src="${LOGO()}" alt="LHQ"><h2>No connection</h2><p class="s">LHQ Hub needs the internet to sign in. Check your connection and try again.</p><button class="hub-go" onclick="location.reload()">Try again</button>`;
@@ -187,9 +195,10 @@
     box.innerHTML = `<img class="lhq-logo" src="${LOGO()}" alt="LHQ Learning Solutions"><h2>Hello ${esc(chosen.name.split(' ')[0])}</h2><p class="s">Enter your PIN</p>
       <div class="hub-pin">${[0,1,2,3,4,5].slice(0, Math.max(4, pinBuf.length)).map(i => `<span>${pinBuf.length > i ? '•' : ''}</span>`).join('')}</div>
       <div class="hub-kp">${[1,2,3,4,5,6,7,8,9,'back',0,'ok'].map(k => `<button type="button" data-k="${k}">${k==='back'?'⌫':k==='ok'?'✓':k}</button>`).join('')}</div>
-      <p class="hub-err">${esc(err || '')}</p><button class="hub-link" type="button" id="hubNotMe">Not ${esc(chosen.name.split(' ')[0])}?</button>`;
+      <p class="hub-err">${esc(err || '')}</p><button class="hub-link" type="button" id="hubNotMe">Not ${esc(chosen.name.split(' ')[0])}?</button>${chosen.role === 'director' ? '<button class="hub-link" type="button" id="hubForgot" style="font-weight:600;margin-top:6px">Forgot your PIN?</button>' : ''}`;
     box.querySelectorAll('[data-k]').forEach(b => b.onclick = () => key(b.dataset.k));
     box.querySelector('#hubNotMe').onclick = () => showSignIn();
+    const fg = box.querySelector('#hubForgot'); if(fg) fg.onclick = () => showRecover();
   }
   async function key(k){
     if(k === 'back'){ pinBuf = pinBuf.slice(0, -1); return showPin(); }
@@ -200,6 +209,24 @@
       if(!r.ok){ pinBuf = ''; return showPin(r.j.error); }
       signedIn(r.j);
     }catch(e){ pinBuf = ''; showPin('No connection. Try again.'); }
+  }
+  function showRecover(err){
+    const box = overlay();
+    box.innerHTML = `<img class="lhq-logo" src="${LOGO()}" alt="LHQ"><h2>Set a new PIN</h2><p class="s">As Director, use the setup code (the first 8 characters of LHQ_SECRET in Netlify) to choose a new PIN.</p>
+      <label>Setup code<input class="hub-in" id="rcCode" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+      <label>New PIN<input class="hub-in" id="rcPin1" inputmode="numeric" type="password" maxlength="6"></label>
+      <label>New PIN again<input class="hub-in" id="rcPin2" inputmode="numeric" type="password" maxlength="6"></label>
+      <button class="hub-go" id="rcGo">Set PIN and sign in</button><p class="hub-err">${esc(err || '')}</p><button class="hub-link" type="button" id="rcBack">Back</button>`;
+    box.querySelector('#rcBack').onclick = () => showPin();
+    box.querySelector('#rcGo').onclick = async () => {
+      const a = box.querySelector('#rcPin1').value, b = box.querySelector('#rcPin2').value;
+      if(a !== b) return showRecover('The two PINs don\'t match.');
+      try{
+        const r = await fetch(API + 'recover', {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify({code:box.querySelector('#rcCode').value, pin:a})}).then(async r => ({ok:r.ok, j:await r.json()}));
+        if(!r.ok) return showRecover(r.j.error);
+        signedIn(r.j);
+      }catch(e){ showRecover('No connection. Try again.'); }
+    };
   }
   function showSetup(err){
     const box = overlay();
@@ -318,5 +345,5 @@
     if(window.hubReady) window.hubReady();
     pull().catch(() => status('offline'));
   });
-  window.hub = {push, pull, session, changes, accountMenu, peopleDlg, myPinDlg, signOut};
+  window.hub = {push, pull, session, changes, api, signOut};
 })();

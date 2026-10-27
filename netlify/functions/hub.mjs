@@ -3,12 +3,14 @@
 // Needs one environment variable in Netlify: LHQ_SECRET (a long random string, used to sign sign-in tokens).
 //
 // Storage (store "lhq-hub", strong consistency):
-//   people            [{id, name, admin, tutor, active, salt, hash, pv}]   (pv = PIN version; changing a PIN signs that person out everywhere)
+//   people            [{id, name, role, perms, tutor, home, active, salt, hash, pv}]
+//                     role: director (one, full access) | admin (only what the Director allows in perms) | tutor
+//                     pv = PIN version; changing a PIN signs that person out everywhere
 //   fails/<id>        {n, until}                                           (wrong-PIN counter for that person)
 //   index             {rev, docs:{id:{type, number, savedAt}}}             (one small file used for numbering and change checks)
 //   doc/<id>          the saved quote / invoice / receipt / card
 //   hist/<id>/<time>  the previous version whenever a document is overwritten
-//   trash/<id>        deleted documents (kept, never shown)
+//   trash/<id>        deleted documents (Recently deleted: can be restored for 30 days)
 //   kv/<key>          shared settings, message templates, numbering, report edits, tutor logs
 
 import { getStore } from "@netlify/blobs";
@@ -18,7 +20,35 @@ let testStore = null;
 export const _setStore = s => { testStore = s; };
 const store = () => testStore || getStore({ name: "lhq-hub", consistency: "strong" });
 
-const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks"];
+const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students"];
+
+/* ---------- roles and permissions ---------- */
+const PERMS = ["quotes", "receipts", "cards", "delete", "restore", "students", "money", "tpay", "tutors", "msgs", "numbering", "backup", "classes", "moveclass"];
+const ADMIN_DEFAULT = ["quotes", "receipts", "cards", "delete", "restore", "students", "tutors", "msgs", "classes"];
+const TYPE_PERM = { quote: "quotes", invoice: "quotes", receipt: "receipts", card: "cards" };
+// settings fields: lists and wording can be given to admins; everything else (bank, contact, payment rules) is the Director's
+const LIST_FIELDS = ["subjects", "levels", "methods", "includes", "tutors", "grades", "gradeBasis", "sessionLengths"];
+const TRASH_DAYS = 30;
+// the editor's built-in values: a device saving settings for the first time sends these, which is not a change
+const SETTINGS_DEFAULT = { email: "learnhqes@gmail.com", phone: "265 992 525 250", bank: "National Bank of Malawi", accname: "LearnHQ Tutoring and Training",
+  branch: "Gateway", accno: "1007401201", popphone: "0992 525 250", mobile: "0992 520 520", rate: "15000", validDays: "30", dueDays: "0", graceDays: "3" };
+const isDirector = p => p && p.role === "director";
+const can = (p, k) => isDirector(p) || (p && p.role === "admin" && (p.perms || []).includes(k));
+const staff = p => p && (p.role === "director" || p.role === "admin");
+/* people saved before roles existed: the first admin becomes the Director, other admins get the admin defaults */
+function migrate(list) {
+  let changed = false;
+  if (!list.some(p => p.role)) {
+    let dir = false;
+    list.forEach(p => {
+      if (p.admin && !dir) { p.role = "director"; dir = true; }
+      else if (p.admin) { p.role = "admin"; p.perms = ADMIN_DEFAULT.slice(); }
+      else { p.role = "tutor"; p.perms = []; }
+      delete p.admin; changed = true;
+    });
+  }
+  return changed;
+}
 const PREFIX = { quote: "Q", invoice: "INV", receipt: "RCT", card: "TC" };
 const TOKEN_DAYS = 120;
 const MAX_FAILS = 5, LOCK_MIN = 15;
@@ -41,17 +71,22 @@ function unsign(token) {
 }
 const hashPin = (pin, salt) => crypto.scryptSync(String(pin), salt, 32).toString("hex");
 const pinOk = pin => /^\d{4,6}$/.test(String(pin || ""));
-const pub = p => ({ id: p.id, name: p.name, admin: !!p.admin, tutor: !!p.tutor, active: p.active !== false });
+const pub = p => ({ id: p.id, name: p.name, role: p.role, admin: staff(p), tutor: !!p.tutor, perms: isDirector(p) ? PERMS.slice() : (p.perms || []), active: p.active !== false, home: p.home || null, seen: p.seen || 0 });
 
-async function getPeople() { return (await store().get("people", { type: "json" })) || []; }
+async function getPeople() {
+  const list = (await store().get("people", { type: "json" })) || [];
+  if (migrate(list)) await putPeople(list);
+  return list;
+}
 async function putPeople(list) { await store().setJSON("people", list); }
 function newToken(p) { return sign({ p: p.id, v: p.pv || 1, exp: Date.now() + TOKEN_DAYS * 864e5 }); }
 
 async function whoIs(req) {
   const t = unsign((req.headers.get("authorization") || "").replace(/^Bearer\s+/i, ""));
   if (!t || t.exp < Date.now()) return null;
-  const p = (await getPeople()).find(x => x.id === t.p);
+  const list = await getPeople(), p = list.find(x => x.id === t.p);
   if (!p || p.active === false || (p.pv || 1) !== t.v) return null;
+  if (!p.seen || Date.now() - p.seen > 10 * 60000) { p.seen = Date.now(); await putPeople(list); }   // "last seen", at most every 10 minutes
   return p;
 }
 
@@ -79,7 +114,7 @@ async function readAll(prefix) {
 /* ---------------- handlers ---------------- */
 async function people(req) {
   const list = await getPeople();
-  return json({ setup: list.length === 0, people: list.filter(p => p.active !== false).map(pub) });
+  return json({ setup: list.length === 0, people: list.filter(p => p.active !== false).map(p => ({ id: p.id, name: p.name, role: p.role, admin: staff(p), tutor: !!p.tutor })) });
 }
 
 async function setup(req) {
@@ -89,8 +124,20 @@ async function setup(req) {
   if (!String(name || "").trim()) return fail("Add your name.");
   if (!pinOk(pin)) return fail("Choose a PIN of 4 to 6 digits.");
   const salt = crypto.randomBytes(16).toString("hex");
-  const p = { id: "p" + crypto.randomBytes(5).toString("hex"), name: String(name).trim(), admin: true, tutor: false, active: true, salt, hash: hashPin(pin, salt), pv: 1 };
+  const p = { id: "p" + crypto.randomBytes(5).toString("hex"), name: String(name).trim(), role: "director", perms: [], tutor: false, active: true, salt, hash: hashPin(pin, salt), pv: 1 };
   await putPeople([p]);
+  return json({ token: newToken(p), me: pub(p) });
+}
+
+/* the Director forgot their PIN: the setup code (first 8 characters of LHQ_SECRET) sets a new one */
+async function recover(req) {
+  const { code, pin } = await req.json().catch(() => ({}));
+  if (String(code || "").trim() !== secret().slice(0, 8)) return fail("That setup code is wrong.", 403);
+  if (!pinOk(pin)) return fail("Choose a PIN of 4 to 6 digits.");
+  const list = await getPeople(), p = list.find(isDirector);
+  if (!p) return fail("There is no Director yet.", 404);
+  p.salt = crypto.randomBytes(16).toString("hex"); p.hash = hashPin(pin, p.salt); p.pv = (p.pv || 1) + 1; p.active = true;
+  await putPeople(list); await store().delete("fails/" + p.id);
   return json({ token: newToken(p), me: pub(p) });
 }
 
@@ -112,7 +159,7 @@ async function login(req) {
 }
 
 async function state(req, me) {
-  if (!me.admin) return fail("Only LHQ admin can open documents.", 403);
+  if (!staff(me)) return fail("Only LHQ admin can open documents.", 403);
   const [{ data: idx }, docs, kvs] = await Promise.all([getIndex(), readAll("doc/"), Promise.all(KV_KEYS.map(k => store().get("kv/" + k, { type: "json" })))]);
   const kv = {}; KV_KEYS.forEach((k, i) => { if (kvs[i] != null) kv[k] = kvs[i]; });
   docs.sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
@@ -121,12 +168,70 @@ async function state(req, me) {
 
 async function rev(req, me) { const { data } = await getIndex(); return json({ rev: data.rev, me: pub(me) }); }
 
+const SKIP_DIFF = ["savedAt", "updatedAt", "updatedBy", "createdBy", "total", "receivedAmt", "log"];
+function changedKeys(a, b) {
+  const keys = new Set([...Object.keys(a || {}), ...Object.keys(b || {})]);
+  return [...keys].filter(k => !SKIP_DIFF.includes(k) && JSON.stringify((a || {})[k] ?? "") !== JSON.stringify((b || {})[k] ?? ""));
+}
+/* what this save is allowed to do; returns a message for the first thing that isn't */
+async function checkSync(me, upserts, deletes, kv) {
+  if (isDirector(me)) return null;
+  const s = store();
+  for (const u of upserts) {
+    const d = u && u.doc; if (!d) continue;
+    const need = TYPE_PERM[d.type || "quote"];
+    if (can(me, need)) continue;
+    // saving a receipt also updates the amount paid on its invoice
+    const old = await s.get("doc/" + d.id, { type: "json" });
+    if (old && can(me, "receipts") && changedKeys(old, d).every(k => k === "paid")) continue;
+    if (old && changedKeys(old, d).every(k => /^(sentAt|sentTo|waSentAt|waSentTo)$/.test(k))) continue;   // recording that it was sent
+    return "You don't have permission to save " + (d.type === "card" ? "tuition cards" : d.type + "s") + ".";
+  }
+  if (deletes.length && !can(me, "delete")) return "You don't have permission to delete documents.";
+  for (const [k, v] of kv) {
+    const old = (await s.get("kv/" + k, { type: "json" })) || {};
+    if (k === "lhq_settings") {
+      const ch = changedKeys(Object.assign({}, SETTINGS_DEFAULT, old), Object.assign({}, SETTINGS_DEFAULT, v));
+      if (ch.some(f => !LIST_FIELDS.includes(f))) return "Only the Director can change bank, contact and payment details.";
+      if (ch.length && !can(me, "msgs")) return "You don't have permission to change the lists.";
+    } else if (k === "lhq_templates") {
+      if (changedKeys(old, v).length && !can(me, "msgs")) return "You don't have permission to change the messages.";
+    } else if (k === "lhq_counters") {
+      // saving a document moves its series forward; setting numbers by hand needs Numbering
+      const down = Object.keys(old).some(t => (v || {})[t] < old[t]);
+      if (down && !can(me, "numbering")) return "You don't have permission to change numbering.";
+    } else if (k === "lhq_students") {
+      const ch = changedKeys(old, v);
+      const onlyNew = ch.every(key => !(key in old));
+      if (ch.length && !can(me, "students") && !(onlyNew && can(me, "quotes"))) return "You don't have permission to change student details.";
+    }
+  }
+  return null;
+}
+function logEntry(old, d, me, now) {
+  const log = (old && old.log) || [];
+  const add = e => { const last = log[log.length - 1]; if (last && last.a === e.a && last.by === e.by && e.a === "edited" && now - last.at < 30 * 60000) last.at = now; else log.push(e); };
+  if (!old) add({ a: "created", by: me.name, at: now, from: d.from || "" });
+  else {
+    const ch = changedKeys(old, d);
+    if (d.sentAt && d.sentAt !== old.sentAt) add({ a: "emailed", by: me.name, at: now, to: d.sentTo || "" });
+    if (d.waSentAt && d.waSentAt !== old.waSentAt) add({ a: "whatsapp", by: me.name, at: now, to: d.waSentTo || "" });
+    const real = ch.filter(k => !/^(sentAt|sentTo|waSentAt|waSentTo)$/.test(k));
+    if (real.length === 1 && real[0] === "paid") add({ a: "paid", by: me.name, at: now, amount: d.paid });
+    else if (real.length) add({ a: "edited", by: me.name, at: now });
+  }
+  return log.slice(-40);
+}
+
 async function sync(req, me) {
-  if (!me.admin) return fail("Only LHQ admin can save documents.", 403);
+  if (!staff(me)) return fail("Only LHQ admin can save documents.", 403);
   const body = await req.json().catch(() => null);
   if (!body) return fail("Nothing to save.");
   const s = store(), now = Date.now();
   const upserts = Array.isArray(body.upserts) ? body.upserts : [], deletes = Array.isArray(body.deletes) ? body.deletes : [];
+  const kvIn = body.kv && typeof body.kv === "object" ? Object.entries(body.kv).filter(([k]) => KV_KEYS.includes(k)) : [];
+  const denied = await checkSync(me, upserts, deletes, kvIn);
+  if (denied) return json({ error: denied, denied: true }, 403);
   const remap = {}, conflicts = [], saved = [];
   for (let attempt = 0; attempt < 5; attempt++) {
     const { data: idx, etag } = await getIndex();
@@ -151,13 +256,15 @@ async function sync(req, me) {
       writes.push({ d, prev: !!prev });
     }
     for (const x of deletes) { if (x && x.id && docs[x.id]) { delete docs[x.id]; writes.push({ del: x.id }); } }
-    const kv = body.kv && typeof body.kv === "object" ? Object.entries(body.kv).filter(([k]) => KV_KEYS.includes(k)) : [];
+    const kv = kvIn;
     idx.docs = docs; idx.rev = (idx.rev || 0) + 1; idx.at = now;
     const res = await s.setJSON("index", idx, etag ? { onlyIfMatch: etag } : { onlyIfNew: true });
     if (res && res.modified === false) { Object.keys(remap).forEach(k => delete remap[k]); conflicts.length = 0; continue; }   // someone else saved at the same moment: redo
     for (const w of writes) {
       if (w.del) { const old = await s.get("doc/" + w.del, { type: "json" }); if (old) await s.setJSON("trash/" + w.del, Object.assign(old, { deletedBy: me.name, deletedAt: now })); await s.delete("doc/" + w.del); continue; }
-      if (w.prev) { const old = await s.get("doc/" + w.d.id, { type: "json" }); if (old) { if (old.createdBy) w.d.createdBy = old.createdBy; await s.setJSON(`hist/${w.d.id}/${now}`, old); } }
+      const old = w.prev ? await s.get("doc/" + w.d.id, { type: "json" }) : null;
+      if (old) { if (old.createdBy) w.d.createdBy = old.createdBy; await s.setJSON(`hist/${w.d.id}/${now}`, old); }
+      w.d.log = logEntry(old, w.d, me, now);
       await s.setJSON("doc/" + w.d.id, w.d); saved.push(w.d);
     }
     for (const [k, v] of kv) await s.setJSON("kv/" + k, v);
@@ -166,11 +273,45 @@ async function sync(req, me) {
   return fail("Too many saves at once. Try again.", 409);
 }
 
+/* Recently deleted: list (older than 30 days are removed for good) and restore */
+async function trash(req, me) {
+  if (!can(me, "restore")) return fail("You don't have permission to restore documents.", 403);
+  const s = store(), all = await readAll("trash/"), keep = [];
+  for (const d of all) {
+    if (Date.now() - (d.deletedAt || 0) > TRASH_DAYS * 864e5) await s.delete("trash/" + d.id);
+    else keep.push({ id: d.id, type: d.type || "quote", number: d.number, student: d.student || d.name || "", deletedBy: d.deletedBy || "", deletedAt: d.deletedAt || 0 });
+  }
+  keep.sort((a, b) => b.deletedAt - a.deletedAt);
+  return json({ trash: keep });
+}
+async function restore(req, me) {
+  if (!can(me, "restore")) return fail("You don't have permission to restore documents.", 403);
+  const { id } = await req.json().catch(() => ({}));
+  const s = store(), d = await s.get("trash/" + id, { type: "json" });
+  if (!d) return fail("That document is no longer in Recently deleted.", 404);
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { data: idx, etag } = await getIndex(), docs = idx.docs || {}, type = d.type || "quote", now = Date.now();
+    let note = "";
+    if (Object.entries(docs).some(([k, x]) => k !== d.id && x.type === type && String(x.number).toUpperCase() === String(d.number).toUpperCase())) {
+      let max = 0; Object.values(docs).forEach(x => { const q = parseNum(x.type, x.number); if (q && q.type === type && q.n > max) max = q.n; });
+      note = d.number; d.number = fmtNum(type, max + 1);
+    }
+    delete d.deletedBy; delete d.deletedAt;
+    d.savedAt = now; (d.log = d.log || []).push({ a: "restored", by: me.name, at: now, was: note });
+    docs[d.id] = { type, number: d.number, savedAt: now, by: me.name };
+    idx.docs = docs; idx.rev = (idx.rev || 0) + 1; idx.at = now;
+    const res = await s.setJSON("index", idx, etag ? { onlyIfMatch: etag } : { onlyIfNew: true });
+    if (res && res.modified === false) continue;
+    await s.setJSON("doc/" + d.id, d); await s.delete("trash/" + d.id);
+    return json({ ok: true, doc: d, rev: idx.rev, renumbered: note });
+  }
+  return fail("Too many saves at once. Try again.", 409);
+}
+
 async function managePeople(req, me) {
   const b = await req.json().catch(() => ({}));
   const list = await getPeople();
   const find = id => list.find(p => p.id === id);
-  const admins = () => list.filter(p => p.admin && p.active !== false).length;
   if (b.action === "mypin") {
     const p = find(me.id);
     if (hashPin(b.current, p.salt) !== p.hash) return fail("Your current PIN is wrong.", 401);
@@ -178,28 +319,44 @@ async function managePeople(req, me) {
     p.salt = crypto.randomBytes(16).toString("hex"); p.hash = hashPin(b.pin, p.salt); p.pv = (p.pv || 1) + 1;
     await putPeople(list); return json({ ok: true, token: newToken(p), people: list.map(pub) });
   }
-  if (!me.admin) return fail("Only LHQ admin can manage people.", 403);
+  if (b.action === "home") {   // each person's own Home cards
+    const p = find(me.id); p.home = Array.isArray(b.cards) ? b.cards.filter(x => typeof x === "string").slice(0, 6) : null;
+    await putPeople(list); return json({ ok: true, me: pub(p) });
+  }
+  if (!staff(me)) return fail("Only LHQ admin can manage people.", 403);
   if (b.action === "list") return json({ people: list.map(pub) });
+  const D = isDirector(me);
+  // admins with the "tutors" permission look after tutors only; everything else is the Director's
+  const mayTouch = p => D ? true : (can(me, "tutors") && p.role === "tutor");
   if (b.action === "add") {
+    const role = D && b.role === "admin" ? "admin" : "tutor";
+    if (!D && !can(me, "tutors")) return fail("Only the Director can add people.", 403);
     if (!String(b.name || "").trim()) return fail("Add a name.");
     if (!pinOk(b.pin)) return fail("Choose a PIN of 4 to 6 digits.");
     if (list.some(p => p.name.toLowerCase() === String(b.name).trim().toLowerCase())) return fail("Someone with that name already exists.");
     const salt = crypto.randomBytes(16).toString("hex");
-    list.push({ id: "p" + crypto.randomBytes(5).toString("hex"), name: String(b.name).trim(), admin: !!b.admin, tutor: !!b.tutor, active: true, salt, hash: hashPin(b.pin, salt), pv: 1 });
+    list.push({ id: "p" + crypto.randomBytes(5).toString("hex"), name: String(b.name).trim(), role, perms: role === "admin" ? ADMIN_DEFAULT.slice() : [], tutor: role === "tutor" ? true : !!b.tutor, active: true, salt, hash: hashPin(b.pin, salt), pv: 1 });
   } else {
     const p = find(b.id); if (!p) return fail("Person not found.", 404);
-    if (b.action === "update") {
-      if (p.id === me.id && p.admin && !b.admin) return fail("You can't remove your own admin role.");
-      if (b.name) p.name = String(b.name).trim(); p.admin = !!b.admin; p.tutor = !!b.tutor;
+    if (p.id === me.id) return fail("Change your own PIN under My account.");
+    if (isDirector(p)) return fail("Nobody can change the Director's account.", 403);
+    if (!mayTouch(p)) return fail("Only the Director can change this person.", 403);
+    if (b.action === "access") {   // Director: role, teaching, permissions
+      if (!D) return fail("Only the Director can change permissions.", 403);
+      if (b.role) { if (!["admin", "tutor"].includes(b.role)) return fail("Unknown role."); if (b.role !== p.role) p.perms = b.role === "admin" ? ADMIN_DEFAULT.slice() : []; p.role = b.role; }
+      if (Array.isArray(b.perms)) p.perms = p.role === "admin" ? b.perms.filter(x => PERMS.includes(x)) : [];
+      if (typeof b.tutor === "boolean") p.tutor = p.role === "tutor" ? true : b.tutor;
+      if (b.name && String(b.name).trim()) p.name = String(b.name).trim();
     } else if (b.action === "pin") {
       if (!pinOk(b.pin)) return fail("Choose a PIN of 4 to 6 digits.");
       p.salt = crypto.randomBytes(16).toString("hex"); p.hash = hashPin(b.pin, p.salt); p.pv = (p.pv || 1) + 1;
       await store().delete("fails/" + p.id);
-    } else if (b.action === "off") {
-      if (p.id === me.id) return fail("You can't switch yourself off.");
-      if (p.admin && admins() <= 1) return fail("LHQ Hub needs at least one admin.");
-      p.active = false; p.pv = (p.pv || 1) + 1;
-    } else if (b.action === "on") { p.active = true; }
+    } else if (b.action === "off") { p.active = false; p.pv = (p.pv || 1) + 1; }
+    else if (b.action === "on") { p.active = true; }
+    else if (b.action === "remove") {
+      if (!D) return fail("Only the Director can remove accounts.", 403);
+      list.splice(list.indexOf(p), 1);
+    }
     else return fail("Unknown action.");
   }
   await putPeople(list);
@@ -213,12 +370,15 @@ export default async (req) => {
     if (req.method === "GET" && path === "people") return await people(req);
     if (req.method === "POST" && path === "setup") return await setup(req);
     if (req.method === "POST" && path === "login") return await login(req);
+    if (req.method === "POST" && path === "recover") return await recover(req);
     const me = await whoIs(req);
     if (!me) return fail("Please sign in again.", 401);
     if (req.method === "GET" && path === "state") return await state(req, me);
     if (req.method === "GET" && path === "rev") return await rev(req, me);
     if (req.method === "POST" && path === "sync") return await sync(req, me);
     if (req.method === "POST" && path === "people") return await managePeople(req, me);
+    if (req.method === "GET" && path === "trash") return await trash(req, me);
+    if (req.method === "POST" && path === "restore") return await restore(req, me);
     return fail("Not found.", 404);
   } catch (e) {
     console.error(e);
