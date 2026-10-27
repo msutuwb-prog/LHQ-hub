@@ -220,7 +220,7 @@ function entryLine(e){
 }
 function renderHome(){
   F('studs').innerHTML = roster.items.length ? roster.items.map(it=>`
-    <div class="stud"><div class="stud-top"><div><b>${esc(it.st)}</b><div class="meta">${esc([it.sub + (it.code?` ${it.code}`:''), it.tier, it.lv].filter(Boolean).join(' · '))}${it.days.length?`<br>${it.days.map(d=>DAYN[d]||d).join(', ')}${it.time?` · ${esc(it.time)}`:''}`:''}</div></div>${it.ci!=null?`<button type="button" class="vc" data-card="${it.ci}">View card ›</button>`:''}</div>
+    <div class="stud"><div class="stud-top"><div><b>${esc(it.st)}</b><div class="meta">${esc([it.sub + (it.code?` ${it.code}`:''), it.tier, it.lv].filter(Boolean).join(' · '))}${it.days.length?`<br>${esc(it.days.map(d=>DAYN[d]||d).join(', '))}${it.time?` · ${esc(it.time)}`:''}`:''}</div></div>${it.ci!=null?`<button type="button" class="vc" data-card="${it.ci}">View card ›</button>`:''}</div>
       <div class="acts"><button type="button" class="pri" data-new="s" data-k="${esc(it.k)}">Log session</button><button type="button" data-new="r" data-k="${esc(it.k)}">Log SRA</button><button type="button" data-new="c" data-k="${esc(it.k)}">Monthly comments</button></div></div>`).join('')
     : '<p class="empty">No students yet. LHQ adds them when they put your name on a tuition card, then sends you a new link.</p>';
   const wk = monday(today()), list = live().sort((a,b)=>b.d.localeCompare(a.d) || b.at - a.at);

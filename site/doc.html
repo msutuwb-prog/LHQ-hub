@@ -1979,7 +1979,7 @@ async function checkServices(){
     setSvc('svcWa','warn','WhatsApp: direct sending works once the app is on Netlify.');
     return;
   }
-  const hasCode = !!store.get('lhq_code','');
+  const hasCode = true;   // sending now uses the LHQ Hub sign-in; no access code
   const [em, wa] = await Promise.allSettled([getJSON('/api/send-email'), getJSON('/api/send-whatsapp')]);
 
   if(em.status==='fulfilled'){
@@ -2011,21 +2011,16 @@ F('btnSendNow').onclick = async ()=>{
   const to = isEmail ? F('m_to').value.trim() : F('m_wa').value.trim();
   if(!to){ toast(isEmail ? 'Add the parent\'s email address first' : 'Add the parent\'s WhatsApp number first'); F(isEmail?'m_to':'m_wa').focus(); return; }
   if(!isEmail && waNumber(to).length < 10){ toast('Check the WhatsApp number, e.g. 0991 234 567'); F('m_wa').focus(); return; }
-  const code = store.get('lhq_code','');
-  if(!code){
-    F('sendDlg').close();
-    try{ sessionStorage.setItem('lhq_flash', 'Enter the access code once on this device, then send again'); }catch(e){}
-    location.href = 'index.html#set/sending';
-    return;
-  }
+  const sess = window.hub && hub.session();
+  if(!sess || !sess.token){ toast('Sign in to LHQ Hub again, then send.'); return; }
   const label = btn.textContent;
   btn.disabled = true; btn.textContent = 'Sending…';
   try{
     const pdfBase64 = await blobToBase64(await makePdfBlob());
     const payload = isEmail
-      ? {code, to, cc:F('m_cc').value, subject:F('m_subject').value, text:F('m_body').value, filename:fileName(), pdfBase64}
-      : (()=>{ const v = waVars(); return {code, to, filename:fileName(), pdfBase64, kind:v.kind, params:v.list}; })();
-    const r = await fetch(isEmail ? '/api/send-email' : '/api/send-whatsapp', {method:'POST', headers:{'content-type':'application/json'}, body: JSON.stringify(payload)});
+      ? {to, cc:F('m_cc').value, subject:F('m_subject').value, text:F('m_body').value, filename:fileName(), pdfBase64}
+      : (()=>{ const v = waVars(); return {to, filename:fileName(), pdfBase64, kind:v.kind, params:v.list}; })();
+    const r = await fetch(isEmail ? '/api/send-email' : '/api/send-whatsapp', {method:'POST', headers:{'content-type':'application/json', authorization:'Bearer ' + sess.token}, body: JSON.stringify(payload)});
     const j = await r.json().catch(()=>({}));
     if(!r.ok) throw new Error(j.error || (isEmail ? 'The email couldn\'t be sent.' : 'The WhatsApp message couldn\'t be sent.') + ' Try again in a minute.');
     if(isEmail){ doc.sentAt = Date.now(); doc.sentTo = to; }

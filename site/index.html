@@ -720,9 +720,7 @@ S.enrol = () => { const link = new URL('checklist.html', location.href).href;
 
 S.sending = () => `<h2 class="sec-h">Email & WhatsApp</h2><p class="sec-p">Sending documents straight from LHQ Hub.</p>
   <div class="card pad"><p class="svc" id="svcEmail"><i></i><span>Email: checking…</span></p><p class="svc" id="svcWa"><i></i><span>WhatsApp: checking…</span></p>
-  <label class="f" style="margin-top:12px"><span>Access code for this device</span><input class="in" id="accessCode" type="password" autocomplete="off" value="${esc(store.get('lhq_code', ''))}" placeholder="The code set in Netlify"></label>
-  <p class="note" style="margin:-6px 0 12px">Enter it once on each phone, tablet or computer. It stays on this device.</p>
-  <button class="btn n" id="codeSave">Save and check</button></div>`;
+  <p class="note" style="margin:6px 0 0">Anyone signed in to LHQ Hub as Director or admin can send. No access code is needed any more.</p></div>`;
 
 S.backup = () => { const last = store.get('lhq_lastBackup', 0);
   return `<h2 class="sec-h">Backup & restore</h2><p class="sec-p">Everything is stored online in LHQ Hub. A backup is an extra copy as one file: keep it in Google Drive or send it to yourself.</p>
@@ -853,7 +851,7 @@ function bind(){
 /* sending services */
 async function checkServices(){
   const set = (id, ok, text) => { const el = $(id); if(!el) return; el.className = 'svc ' + (ok ? 'ok' : 'warn'); el.querySelector('span').textContent = text; };
-  const hasCode = !!store.get('lhq_code', '');
+  const hasCode = true;   // sending uses the LHQ Hub sign-in
   const get = u => fetch(u, {cache:'no-store'}).then(r => r.json());
   const [em, wa] = await Promise.allSettled([get('/api/send-email'), get('/api/send-whatsapp')]);
   if(em.status === 'fulfilled' && em.value.configured) set('svcEmail', hasCode, hasCode ? `Email: ready. Sends from ${em.value.from}.` : `Email: connected to ${em.value.from}. Enter the access code below.`);

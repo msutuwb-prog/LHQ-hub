@@ -3,11 +3,12 @@
 // Required environment variables (Netlify → Site configuration → Environment variables):
 //   GMAIL_USER          the Gmail address to send from, e.g. learnhqes@gmail.com
 //   GMAIL_APP_PASSWORD  a 16-character Google App Password for that account (not the normal password)
-//   APP_ACCESS_CODE     a code staff type into the app once, so strangers can't use this to send email
+//   (Only people signed in to LHQ Hub as Director or admin can send; APP_ACCESS_CODE is no longer needed.)
 // Optional:
 //   FROM_NAME           display name on sent emails (default: LHQ Learning Solutions)
 
 import nodemailer from "nodemailer";
+import { staffFrom } from "./hub.mjs";
 
 const MAX_PDF_BYTES = 4 * 1024 * 1024; // 4 MB
 const EMAIL_RE = /^[^\s@<>(),;:"]+@[^\s@<>(),;:"]+\.[^\s@<>(),;:"]+$/;
@@ -33,8 +34,8 @@ function textToHtml(text) {
   return `<div style="font-family:Calibri,Arial,sans-serif;font-size:15px;line-height:1.5;color:#1d2433">${paras.join("")}</div>`;
 }
 
-export default async (req) => {
-  const configured = Boolean(env("GMAIL_USER") && env("GMAIL_APP_PASSWORD") && env("APP_ACCESS_CODE"));
+export default async (req, context) => {
+  const configured = Boolean(env("GMAIL_USER") && env("GMAIL_APP_PASSWORD") );
 
   // The app calls GET to find out whether email sending has been set up.
   if (req.method === "GET") {
@@ -42,7 +43,7 @@ export default async (req) => {
   }
   if (req.method !== "POST") return json({ error: "Method not allowed" }, 405);
   if (!configured) {
-    return json({ error: "Email sending isn't set up yet. Add GMAIL_USER, GMAIL_APP_PASSWORD and APP_ACCESS_CODE in Netlify." }, 503);
+    return json({ error: "Email sending isn't set up yet. Add GMAIL_USER and GMAIL_APP_PASSWORD in Netlify." }, 503);
   }
 
   let body;
@@ -52,9 +53,8 @@ export default async (req) => {
     return json({ error: "The request couldn't be read." }, 400);
   }
 
-  if (String(body.code || "") !== env("APP_ACCESS_CODE")) {
-    return json({ error: "The access code is wrong. Check it under Email sending in the app." }, 401);
-  }
+  // only someone signed in to LHQ Hub as Director or admin can send (no separate access code any more)
+  if (!(await staffFrom(req, context))) return json({ error: "Please sign in to LHQ Hub again, then send." }, 401);
 
   const to = splitAddresses(body.to);
   const cc = splitAddresses(body.cc);

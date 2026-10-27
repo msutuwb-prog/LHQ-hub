@@ -1,10 +1,11 @@
+import { staffFrom } from "./hub.mjs";
 // Sends a quote/invoice PDF to a parent on WhatsApp through Meta's WhatsApp Cloud API,
 // using LHQ's approved message template (document header + 6 body variables).
 //
 // Required environment variables (Netlify → Site configuration → Environment variables):
 //   WA_TOKEN             permanent access token for a System User in Meta Business Suite
 //   WA_PHONE_NUMBER_ID   the Phone Number ID of LHQ's WhatsApp number (from WhatsApp Manager / API Setup)
-//   APP_ACCESS_CODE      same staff code used for email
+//   (Only people signed in to LHQ Hub as Director or admin can send; APP_ACCESS_CODE is no longer needed.)
 // Optional:
 //   WA_TEMPLATE          approved template for quotes & invoices (default: lhq_tutoring_document)
 //   WA_RECEIPT_TEMPLATE  approved template for receipts (default: lhq_tutoring_receipt)
@@ -83,8 +84,8 @@ async function templatePreview(kind = "document") {
   }
 }
 
-export default async (req) => {
-  const configured = Boolean(env("WA_TOKEN") && env("WA_PHONE_NUMBER_ID") && env("APP_ACCESS_CODE"));
+export default async (req, context) => {
+  const configured = Boolean(env("WA_TOKEN") && env("WA_PHONE_NUMBER_ID") );
 
   if (req.method === "GET") {
     if (!configured) return json({ configured: false });
@@ -110,9 +111,8 @@ export default async (req) => {
   } catch {
     return json({ error: "The request couldn't be read." }, 400);
   }
-  if (String(body.code || "") !== env("APP_ACCESS_CODE")) {
-    return json({ error: "The access code is wrong. Check it under Sending in the app." }, 401);
-  }
+  // only someone signed in to LHQ Hub as Director or admin can send (no separate access code any more)
+  if (!(await staffFrom(req, context))) return json({ error: "Please sign in to LHQ Hub again, then send." }, 401);
 
   const to = normaliseNumber(body.to);
   if (to.length < 10 || to.length > 15) return json({ error: "Add the parent's WhatsApp number, e.g. 0991 234 567." }, 400);

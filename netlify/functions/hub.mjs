@@ -463,6 +463,14 @@ async function managePeople(req, me) {
   return json({ ok: true, people: list.map(pub) });
 }
 
+/* for the email and WhatsApp functions: only someone signed in to LHQ Hub as Director or admin may send */
+export async function staffFrom(req, context) {
+  site = (context && context.deploy && context.deploy.context) || "production";
+  if (!secret()) return null;
+  const me = await whoIs(req);
+  return me && staff(me) ? me : null;
+}
+
 export default async (req, context) => {
   site = (context && context.deploy && context.deploy.context) || "production";
   if (!secret()) return fail("LHQ Hub isn't set up yet: add LHQ_SECRET in Netlify's environment variables.", 500);
