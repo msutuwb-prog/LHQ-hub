@@ -15,7 +15,8 @@
 //   hist/<id>/<time>  the previous version whenever a document is overwritten
 //   trash/<id>        deleted documents (Recently deleted: can be restored for 30 days)
 //   kv/<key>          shared settings, message templates, numbering, report edits, tutor logs,
-//                     spending (lhq_spend: {id:{date, cat, amount, what, to, method, rep, sid, by, at, del}}) and budgets (lhq_budget)
+//                     spending (lhq_spend: {id:{date, cat, amount, what, to, method, rep, sid, by, at, del}}), other money in
+//                     (lhq_income: same shape, cat = Rent from tenant | Loan | Loan repayment | Owner investment | Grant | Refund received | Other) and budgets (lhq_budget)
 
 import { getStore } from "@netlify/blobs";
 import crypto from "node:crypto";
@@ -27,7 +28,7 @@ let site = "production";
 const isPreview = () => site !== "production";
 const store = () => testStore || getStore({ name: isPreview() ? "lhq-hub-preview" : "lhq-hub", consistency: "strong" });
 
-const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget"];
+const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income"];
 
 /* ---------- roles and permissions ---------- */
 const PERMS = ["quotes", "receipts", "cards", "delete", "restore", "students", "money", "tpay", "tutors", "msgs", "numbering", "backup", "classes", "moveclass", "spend", "pl"];
@@ -36,7 +37,8 @@ const TYPE_PERM = { quote: "quotes", invoice: "quotes", receipt: "receipts", car
 // settings fields: lists and wording can be given to admins; everything else (bank, contact, payment rules) is the Director's
 const LIST_FIELDS = ["subjects", "levels", "methods", "includes", "tutors", "grades", "gradeBasis", "sessionLengths", "spendCats", "heardFrom", "districts"];
 /* Business: who may read each part. Spending goes to whoever records it or sees profit and loss; budgets with profit and loss. */
-const KV_READ = { lhq_spend: p => can(p, "spend") || can(p, "pl"), lhq_budget: p => can(p, "pl") };
+const KV_READ = { lhq_spend: p => can(p, "spend") || can(p, "pl"), lhq_income: p => can(p, "spend") || can(p, "pl"), lhq_budget: p => can(p, "pl") };
+const MERGED = ["lhq_spend", "lhq_income"];   // recorded on several devices at once: merged entry by entry
 /* Spending is recorded on several devices at once, so entries are merged one by one (newest wins) instead of the whole list being replaced.
    Deleting marks an entry del:true, so a device that hasn't heard about it yet can't bring it back. */
 function mergeSpend(old, v, me) {
@@ -251,7 +253,7 @@ async function checkSync(me, upserts, deletes, kv) {
       // saving a document moves its series forward; setting numbers by hand needs Numbering
       const down = Object.keys(old).some(t => (v || {})[t] < old[t]);
       if (down && !can(me, "numbering")) return "You don't have permission to change numbering.";
-    } else if (k === "lhq_spend") {
+    } else if (MERGED.includes(k)) {
       const ch = Object.keys(v || {}).filter(id => JSON.stringify(v[id]) !== JSON.stringify(old[id]) && (!old[id] || (v[id].at || 0) >= (old[id].at || 0)));
       if (ch.length && !can(me, "spend")) return "You don't have permission to record spending.";
       if (ch.some(id => old[id] && old[id].by !== me.name)) return "You can only change spending you recorded. Ask the Director to change the others.";
@@ -318,7 +320,7 @@ async function sync(req, me) {
     // setting lists are written before the index moves on, so a device that sees the new rev also finds them
     const merged = {};
     for (const [k, v] of kvIn) {
-      if (k === "lhq_spend") { const m = mergeSpend(await s.get("kv/" + k, { type: "json" }), v, me); merged[k] = m; await s.setJSON("kv/" + k, m); }
+      if (MERGED.includes(k)) { const m = mergeSpend(await s.get("kv/" + k, { type: "json" }), v, me); merged[k] = m; await s.setJSON("kv/" + k, m); }
       else await s.setJSON("kv/" + k, v);
       (idx.kvr = idx.kvr || {})[k] = (idx.rev || 0) + 1;
     }
