@@ -483,7 +483,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
   #cardDoc{box-shadow:none}
   .layout{display:block;padding:0}
   .preview-wrap{position:static;display:block!important}
-  .preview-scale{transform:none!important;width:auto!important;height:auto!important}
+  .preview-scale{transform:none!important;width:auto!important;height:auto!important;margin-left:0!important}
   .sheet-shadow{box-shadow:none}
 }
 </style>
@@ -2083,11 +2083,13 @@ function fitPreview(){
     const s = Math.min(1.15, wrap.clientWidth / 540);
     sc.style.transform = `scale(${s})`;
     sc.style.width = '540px'; sc.style.height = (F('cardDoc').offsetHeight*s)+'px';
+    sc.style.marginLeft = Math.max(0, (wrap.clientWidth - 540*s) / 2) + 'px';   // centred when there is room to spare
     return;
   }
   const s = Math.min(1.25, wrap.clientWidth / 816);
   sc.style.transform = `scale(${s})`;
   sc.style.width = '816px'; sc.style.height = (1056*s)+'px';
+  sc.style.marginLeft = Math.max(0, (wrap.clientWidth - 816*s) / 2) + 'px';
 }
 window.addEventListener('resize', fitPreview);
 

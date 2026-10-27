@@ -11,7 +11,7 @@
 .hn-top .hn-logo img{height:40px;display:block}
 .hn-top .actions{margin-left:auto;display:flex;gap:8px;align-items:center}
 .hn-top .theme-btn{width:38px;height:38px;min-height:0;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--ink);display:grid;place-items:center;padding:0;flex:none;cursor:pointer}
-.hn-top .hub-acct{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:99px;padding:8px 13px;font:inherit;font-weight:700;font-size:13px;min-height:38px;cursor:pointer}
+.hn-top .hub-acct{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line)!important;background:var(--surface)!important;color:var(--ink)!important;border-radius:99px;padding:8px 13px;font:inherit;font-weight:700;font-size:13px;min-height:38px;cursor:pointer}
 
 /* bottom bar */
 .hn-bar{display:none;position:fixed;left:0;right:0;bottom:0;z-index:30;grid-auto-flow:column;grid-auto-columns:1fr;background:var(--surface);border-top:1px solid var(--line);padding:2px 0 env(safe-area-inset-bottom,0px)}

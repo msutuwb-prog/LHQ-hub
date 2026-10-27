@@ -1,7 +1,7 @@
 /* LHQ Hub: built-in lists, company details and message wording, used until someone changes them in Settings.
    Shared by the Hub pages and the document page. */
-const DEFAULT_SUBJECTS = ['Mathematics','Additional Mathematics','Physics','Chemistry','Biology','Combined Science',
-  'English Language','English Literature','Economics','Business Studies','Accounting','Computer Science','ICT',
+const DEFAULT_SUBJECTS = ['Mathematics','Additional Mathematics','Physics','Chemistry','Biology','Combined Science','Science',
+  'English','English Language','English Literature','Economics','Business Studies','Accounting','Computer Science','ICT',
   'Geography','History','French','Global Perspectives'];
 
 /* Business › Spending: the categories, in the order they are offered. Renovations and Purchases are one-off costs. */
@@ -17,7 +17,7 @@ const DEFAULT_SETTINGS = {
     'Year 10 · IGCSE','Year 11 · IGCSE','Year 12 · AS Level','Year 13 · A Level','IB','IELTS','SAT','College'].join('\n'),
   spendCats: DEFAULT_SPEND_CATS.join('\n'),
   methods: ['Bank transfer','Airtel Money','TNM Mpamba','Cash','Cheque'].join('\n'),
-  includes: ['Success Planner','Success Coaching','Progress Reports','Study Guides','Daily Assesments','Online Resource Hub'].join('\n'),
+  includes: ['Success Planner','Success Coaching','Progress Reports','Study Guides','Daily Assessments','Online Resource Hub'].join('\n'),
   tutors: ['Catherine Mkwinda','Emmanuel Mkwamba','Ungweru Kaonga','Mayamiko Goliati','Maureen Story','Wanangwa Msutu'].join('\n'),
   grades: ['A*','A','B','C','D','E','F','G','U'].join('\n'),
   gradeBasis: ['End of term results','Mid-term results','Mock exam','Class test','School report','Checkpoint results','LHQ assessment','Parent or student estimate'].join('\n'),

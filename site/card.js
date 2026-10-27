@@ -134,7 +134,7 @@ function cardFieldCfg(key){
         if(nk!==s.list){ s.list = nk; s.picks = {}; s.details = {}; s.openCh=''; } }},
     tf: {title:'Topical assessments', noun:'option', list:()=>['Weekly','Every 2 weeks'], get:()=>s.tf || 'Weekly', set:set('tf')},
     tier: {title:'Paper', noun:'option', clear:'Not set', list:()=>['Extended','Core'], get:()=>s.tier, set:set('tier')},
-    tutor: {title:'Tutor', noun:'tutor', clear:'To be confirmed', list:()=>lines(settings.tutors), get:()=>s.tutor, set:set('tutor')},
+    tutor: {title:'Tutor', noun:'tutor', clear:'To be confirmed', list:()=>{ /* the Tutors list in Settings, plus everyone who teaches and can sign in */ const L = lines(settings.tutors), P = (window.HD ? HD.people() : []).filter(p=>p.tutor && p.active !== false).map(p=>p.name); P.forEach(n=>{ if(!L.some(x=>x.toLowerCase()===n.toLowerCase())) L.push(n); }); return L; }, get:()=>s.tutor, set:set('tutor')},
     mins: {title:'Session length', noun:'length', clear:'Not set', list:()=>lines(settings.sessionLengths), get:()=>s.mins, set:set('mins')},
     grade: {title:'Current grade', noun:'grade', clear:'No grade', list:()=>lines(settings.grades), get:()=>s.grade, set:set('grade')},
     basis: {title:'Grade based on', noun:'option', clear:'Not given', list:()=>lines(settings.gradeBasis), get:()=>s.basis, set:set('basis')},
@@ -305,7 +305,7 @@ function cardHTML(d, only){
   const lab = (t, c='#5f6b7d') => `<div style="font-size:11px;color:${c};text-transform:uppercase;letter-spacing:.7px;font-weight:700">${t}</div>`;
   // weekly timetable
   const cols = CARD_DAYS.map(dd=>{
-    const here = subj.filter(([,s])=>(s.days||[]).includes(dd));
+    const here = subj.filter(([,s])=>(s.days||[]).includes(dd)).sort((a,b)=>(a[1].start||'99').localeCompare(b[1].start||'99'));   // earliest first
     const blocks = here.map(([i,s])=>{ const [c] = CARD_COLORS[i % CARD_COLORS.length];
       const short = cardShort(s.name);
       const tm = s.start ? `${s.start}–<br>${s.end||''}` : 'Time<br>TBC';

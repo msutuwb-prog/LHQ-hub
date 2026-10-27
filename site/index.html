@@ -196,6 +196,8 @@ a.mc:hover{border-color:var(--muted)}
 .track{height:8px;border-radius:99px;background:var(--gr-bg);overflow:hidden;margin-top:6px}.track i{display:block;height:100%;border-radius:99px}
 .bz-bf{display:grid;grid-template-columns:1fr 160px;align-items:center;gap:10px;margin-bottom:8px}.bz-bf > span{margin:0;font-size:13.5px;color:var(--ink)}
 .chip{text-decoration:none;color:var(--ink)}
+.bz-due{flex-wrap:wrap}.bz-due .t{min-width:200px}
+@media (max-width:600px){.bz-due .acts{width:100%}.bz-due .acts .btn{flex:1}}
 
 /* sheet + toast */
 .shbg{position:fixed;inset:0;background:rgba(7,20,40,.42);z-index:40}
@@ -230,7 +232,7 @@ const ic = (n, s = 20, w = 1.8) => `<svg viewBox="0 0 24 24" width="${s}" height
 const inits = n => String(n||'?').split(/\s+/).filter(Boolean).slice(0,2).map(x => x[0]).join('').toUpperCase();
 function toast(m){ const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 3200); }
 window.hubToast = toast;
-function openSheet(html){ $('sheet').innerHTML = html; $('sheet').hidden = false; $('shbg').hidden = false; const f = $('sheet').querySelector('input'); if(f && innerWidth > 700) setTimeout(() => f.focus(), 50); }
+function openSheet(html){ $('sheet').innerHTML = html; $('sheet').hidden = false; $('shbg').hidden = false; $('sheet').querySelectorAll('[data-close]').forEach(b => b.onclick = closeSheet); const f = $('sheet').querySelector('input'); if(f && innerWidth > 700) setTimeout(() => f.focus(), 50); }
 function closeSheet(){ $('sheet').hidden = true; $('shbg').hidden = true; if(/^#new/.test(location.hash)) history.replaceState(null, '', '#home'); }
 $('shbg').onclick = closeSheet;
 document.addEventListener('keydown', e => { if(e.key === 'Escape' && !$('sheet').hidden) closeSheet(); });
@@ -261,7 +263,7 @@ function render(){
   bind();
   if(route.page === 'new') newSheet(route.args[0]);
 }
-window.addEventListener('hashchange', () => { render(); if(!/^#new/.test(location.hash)) window.scrollTo(0, 0); });
+window.addEventListener('hashchange', () => { if(!/^#new/.test(location.hash) && !$('sheet').hidden){ $('sheet').hidden = true; $('shbg').hidden = true; } render(); if(!/^#new/.test(location.hash)) window.scrollTo(0, 0); });
 window.hubApply = render; window.hubReady = () => { render(); HD.refreshPeople().then(render); }; window.hubRemap = render; window.hubMe = render;
 window.addEventListener('pageshow', e => { if(e.persisted) render(); });
 
@@ -382,7 +384,7 @@ P.students = (f = 'all') => {
   const list = HD.students(); if(!S_F[f]) f = 'all';
   return `<div class="ph"><div class="tt"><h1>Students</h1><p>${list.length} student${list.length === 1 ? '' : 's'}</p></div>${can('students') || can('quotes') ? `<button class="btn" id="addStu">${ic('plus',16,2.2)} Add student</button>` : ''}</div>
   <label class="search">${ic('search',18)}<input id="sq" type="search" placeholder="Search name, parent or number" value="${esc(sQ)}" autocomplete="off"></label>
-  <div class="chips">${Object.entries(S_F).map(([k, [l, fn]]) => `<a class="chip ${f === k ? 'on' : ''}" href="#students/${k}" style="text-decoration:none;color:inherit">${l}<i>${list.filter(fn).length}</i></a>`).join('')}</div>
+  <div class="chips">${Object.entries(S_F).map(([k, [l, fn]]) => `<a class="chip ${f === k ? 'on' : ''}" href="#students/${k}">${l}<i>${list.filter(fn).length}</i></a>`).join('')}</div>
   <div class="card" id="slist">${studentRows(list, f)}</div>`;
 };
 function studentRows(list, f){
@@ -462,9 +464,15 @@ function newStudentSheet(thenQuote){
     <button class="btn n full" id="nsGo">${thenQuote ? 'Save and make a quote' : 'Save student'}</button>`);
   $('nsGo').onclick = () => {
     const name = $('ns_name').value.trim(); if(!name){ toast('Add the student\'s name'); $('ns_name').focus(); return; }
-    if(HD.studentRecords()[sk(name)] || saved.some(d => sk(d.student) === sk(name))){ if(!confirm(`${name} is already a student. Use the existing one?`)) return; }
-    const f = {}; HD.DETAIL.forEach(k => { const el = $('ns_' + k); if(el) f[k] = el.value; });
-    const key = HD.saveStudent(sk(name), f);
+    const f = {}; HD.DETAIL.forEach(k => { const el = $('ns_' + k); if(el && el.value.trim()) f[k] = el.value; });
+    let key;
+    if(HD.studentRecords()[sk(name)] || saved.some(d => sk(d.student) === sk(name))){
+      // an existing student: keep their details, only fill in what is new (never blank out what was there)
+      if(!confirm(`${name} is already a student. Use the existing one?`)) return;
+      const cur = HD.students().find(x => x.key === sk(name)) || {}, add = {};
+      Object.entries(f).forEach(([k, v]) => { if(!String(cur[k] || '').trim()) add[k] = v; });
+      key = Object.keys(add).length ? HD.saveStudent(sk(name), add) : sk(name);
+    } else key = HD.saveStudent(sk(name), f);
     closeSheet();
     if(thenQuote) location.href = D('new=quote&student=' + encodeURIComponent(key)); else { toast(`${name} added`); location.hash = stuLink(key); }
   };
@@ -519,7 +527,7 @@ P.docs = (type = 'all') => {
 function docRows(type){
   const q = sk(dQ);
   const rows = saved.slice().sort(HD.byDate).filter(d => type === 'all' || typeOf(d) === type).filter(d => !q || sk([d.number, d.student, d.name].join(' ')).includes(q));
-  return rows.slice(0, 300).map(d => docRow(d)).join('') || '<p class="empty">Nothing here.</p>';
+  return rows.slice(0, 300).map(d => docRow(d)).join('') + (rows.length > 300 ? `<p class="note" style="margin:10px 0 14px">Showing the newest 300 of ${rows.length}. Search to find older ones.</p>` : '') || '<p class="empty">Nothing here.</p>';
 }
 
 /* ================= business (business.js) ================= */
@@ -579,9 +587,9 @@ function personPage(id){
   const acts = saved.flatMap(d => (d.log || []).filter(a => a.by === p.name).map(a => ({...a, d}))).sort((a, b) => b.at - a.at).slice(0, 8);
   return `<h2 class="sec-h">${esc(p.name)}</h2><p class="sec-p">${roleText(p)}${p.seen ? ' · last seen ' + ago(p.seen) : ''}</p>
   ${D0 ? `<div class="card pad"><div class="cap">Role</div><div class="seg">${['tutor','admin'].map(r => `<button class="${p.role === r ? 'on' : ''}" data-role="${r}">${HD.ROLE[r]}</button>`).join('')}</div>
-      ${p.role === 'admin' ? `<div class="toggle"><div class="t"><b>Also teaches</b><small>Has their own students, calendar and SRAs</small></div><button class="sw-t ${p.tutor ? 'on' : ''}" data-teach></button></div>` : '<p class="note" style="margin:0">Tutors see only their own students. They have no access to money.</p>'}</div>
+      ${p.role === 'admin' ? `<div class="toggle"><div class="t"><b>Also teaches</b><small>Has their own students, calendar and SRAs</small></div><button class="sw-t ${p.tutor ? 'on' : ''}" data-teach role="switch" aria-checked="${!!p.tutor}" aria-label="Also teaches"></button></div>` : '<p class="note" style="margin:0">Tutors see only their own students. They have no access to money.</p>'}</div>
     ${p.role === 'admin' ? `<div class="card pad"><div class="cap">What ${esc(first(p.name))} can do</div>
-      ${PERMS.map(([g, list]) => `<div class="cap" style="font-size:10.5px;margin-top:16px">${g}</div>${list.map(([k, l, sub]) => `<div class="toggle"><div class="t"><b>${l}</b>${sub ? `<small>${sub}</small>` : ''}</div><button class="sw-t ${(p.perms || []).includes(k) ? 'on' : ''}" data-perm="${k}"></button></div>`).join('')}`).join('')}
+      ${PERMS.map(([g, list]) => `<div class="cap" style="font-size:10.5px;margin-top:16px">${g}</div>${list.map(([k, l, sub]) => `<div class="toggle"><div class="t"><b>${l}</b>${sub ? `<small>${sub}</small>` : ''}</div><button class="sw-t ${(p.perms || []).includes(k) ? 'on' : ''}" data-perm="${k}" role="switch" aria-checked="${(p.perms || []).includes(k)}" aria-label="${l}"></button></div>`).join('')}`).join('')}
       <div class="acts" style="margin-top:12px"><button class="btn sm" id="permDefault">Use admin defaults</button></div>
       <div class="cap" style="margin-top:18px">Only you, as Director</div>${DIRECTOR_ONLY.map(x => `<div class="lock">${ic('key',16)}${x}</div>`).join('')}</div>` : ''}` : ''}
   <div class="card pad"><div class="cap">PIN</div><div class="r2"><label class="f"><span>New PIN for ${esc(first(p.name))}</span><input class="in" id="ppin" inputmode="numeric" maxlength="6" placeholder="4 to 6 digits"></label></div><button class="btn" id="ppinGo">Reset PIN</button><p class="note">Tell ${esc(first(p.name))} the new PIN yourself. They are signed out until they use it.</p></div>
@@ -631,7 +639,7 @@ const LISTS = [['subjects','Subjects'],['levels','Year & level'],['methods','Pay
 S.lists = () => { const s = settingsKV();
   return `<h2 class="sec-h">Lists</h2><p class="sec-p">The choices in every dropdown. Changes save straight away.</p>
   ${LISTS.map(([k, l]) => `<div class="card pad"><div class="cap">${l}</div><div class="lchips">${lines(s[k]).map((x, i) => `<span>${esc(x)}<button data-lrm="${k}:${i}" aria-label="Remove ${esc(x)}">✕</button></span>`).join('')}</div>
-    <div class="addrow"><input class="in" id="la_${k}" placeholder="Add to ${l.toLowerCase()}" autocomplete="off"><button class="btn sm" data-ladd="${k}">Add</button></div></div>`).join('')}`; };
+    <div class="addrow"><input class="in" id="la_${k}" placeholder="Add an item" autocomplete="off"><button class="btn sm" data-ladd="${k}">Add</button></div></div>`).join('')}`; };
 
 S.enrol = () => { const link = new URL('checklist.html', location.href).href;
   return `<h2 class="sec-h">Student checklist</h2><p class="sec-p">New students choose their subjects and topics. Open the link in their reply on this device and a tuition card fills in with their choices.</p>
@@ -656,8 +664,8 @@ let PREVIEW = false; try{ PREVIEW = sessionStorage.getItem('lhq_preview') === '1
 fetch('/api/hub/people', {cache:'no-store'}).then(r => r.json()).then(j => { const was = PREVIEW; PREVIEW = !!j.preview; try{ sessionStorage.setItem('lhq_preview', PREVIEW ? '1' : '0'); }catch(e){} if(was !== PREVIEW) render(); }).catch(() => {});
 S.demo = () => `<h2 class="sec-h">Demo data</h2><p class="sec-p">This preview has its own storage, separate from LHQ's real documents. Fill it with six months of made-up students to try every page.</p>
   <div class="card pad"><div class="cap">What you get</div>
-  <p class="note" style="margin:0 0 6px">22 invented students from May to today: quotes, invoices, receipts and tuition cards; 50/50 plans; payments in grace and overdue; periods ending this week and renewed; ended students; quotes waiting; a card with no tutor; a sibling discount; a deleted receipt; tutors' session logs, SRAs and comments for Reports; and Business: spending from May to today with budgets, and repeating costs waiting to be confirmed.</p>
-  <p class="note" style="margin:0 0 12px">It also adds tutors: Catherine Mkwinda (Admin, who can record spending), Emmanuel Mkwamba, Ungweru Kaonga, Maureen Story, and Mayamiko Goliati (switched off). Their PIN is <b>1111</b>. Your own account stays as it is.</p>
+  <p class="note" style="margin:0 0 6px">About 50 invented students from May to today (around 40 at a time): quotes, invoices, receipts and tuition cards; 50/50 plans; payments in grace and overdue; periods ending this week and renewed; ended students; quotes waiting; a card with no tutor; a sibling discount; a deleted receipt; tutors' session logs, SRAs and comments for Reports; and Business: spending from May to today with budgets, and repeating costs waiting to be confirmed.</p>
+  <p class="note" style="margin:0 0 12px">It also adds Catherine Mkwinda (Admin, who can record spending), eight tutors, and Mayamiko Goliati (switched off). Their PIN is <b>1111</b>. Your own account stays as it is.</p>
   <div class="acts"><button class="btn n" id="demoGo">Load demo data</button><button class="btn rd" id="demoClear">Empty the preview</button></div>
   <p class="note">Loading replaces everything in this preview. The live site is never touched.</p></div>`;
 async function loadScript(src){ if(document.querySelector(`script[src="${src}"]`)) return; await new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); }); }

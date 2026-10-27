@@ -135,7 +135,7 @@ window.BIZ = (function(){
     const list = f.list.filter(e => !catF || e.cat === catF).sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.at || 0) - (a.at || 0));
     const present = Object.keys(f.byCat), max = Math.max(1, ...Object.values(f.byCat));
     return `${D.length ? `<div class="card pad" style="border-color:var(--gold)"><div class="cap">Repeating costs to confirm</div>
-        ${D.map(d => `<div class="it"><span class="t"><b>${esc(String(d.last.what || d.last.cat).replace(new RegExp('\\b' + MONL[+d.last.date.slice(5, 7) - 1] + '\\b', 'g'), MONL[+d.date.slice(5, 7) - 1]))}</b><small>${nice(d.date)} · ${esc(d.last.cat)} · last time ${mk(num(d.last.amount))}</small></span>
+        ${D.map(d => `<div class="it bz-due"><span class="t"><b>${esc(String(d.last.what || d.last.cat).replace(new RegExp('\\b' + MONL[+d.last.date.slice(5, 7) - 1] + '\\b', 'g'), MONL[+d.date.slice(5, 7) - 1]))}</b><small>${nice(d.date)} · ${esc(d.last.cat)} · last time ${mk(num(d.last.amount))}</small></span>
           <div class="acts"><button class="btn sm n" data-bzok="${d.sid}|${d.date}">Paid ${mkShort(num(d.last.amount))}</button><button class="btn sm" data-bzchg="${d.sid}|${d.date}">Other amount</button><button class="btn sm" data-bzskip="${d.sid}|${d.date}">Skip</button></div></div>`).join('')}
         <p class="note">Rent, internet and salaries set to repeat come back here each month. Confirm when they are paid.</p></div>` : ''}
       <div class="chips"><a class="chip ${catF ? '' : 'on'}" href="#biz/spending/${period}">All <i>${f.list.length}</i></a>${present.map(c => `<a class="chip ${catF === c ? 'on' : ''}" href="#biz/spending/${period}/${encodeURIComponent(c)}">${esc(c)}</a>`).join('')}</div>
