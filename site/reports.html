@@ -237,6 +237,7 @@ const store = {
 };
 function toast(m){ const t = F('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('show'), 3000); }
 window.hubToast = toast;
+LHQNav.visit('Reports');
 window.hubApply = ()=>{ saved = store.get('lhq_saved', []); LOG = store.get('lhq_logs', {e:{}, imports:[]}); RC = null; try{ render(); }catch(e){} };
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick = ()=>b.closest('dialog').close());
 
@@ -361,10 +362,10 @@ function studentModel(name, a, b){
 }
 function watchItems(m){   // for parents: at most 3, most important first
   const out = [];
-  m.subjects.forEach(s=>{ if(s.trend < 0) out.push([0, 'r', `<b>${esc(s.name)}</b> · working grade slipped from ${letter(s.gPrev)} to ${letter(s.gNow)}.`]); });
-  m.subjects.forEach(s=>{ if(s.sraMiss) out.push([1, 'r', `<b>${esc(s.name)}</b> · ${s.sraMiss} SRA${s.sraMiss>1?'s':''} not handed in.`]); });
-  m.subjects.forEach(s=>{ if(s.absences.length) out.push([2, 'a', `<b>${esc(s.name)}</b> · ${s.absences.length} session${s.absences.length>1?'s':''} missed (${s.absences.map(nice).join(', ')}).`]); });
-  m.subjects.forEach(s=>{ if(s.sraLate){ const topics = Object.entries(s.sraTopics).filter(([,t])=>t.late).map(([k])=>k); out.push([3, 'a', `<b>${esc(s.name)}</b> · ${s.sraLate} SRA${s.sraLate>1?'s':''} handed in late${topics.length?` (${esc(topics.join(', '))})`:''}.`]); } });
+  m.subjects.forEach(s=>{ if(s.trend < 0) out.push([0, 'r', `<b>${esc(s.name)}</b> · working grade moved from ${letter(s.gPrev)} to ${letter(s.gNow)}. We're giving extra practice on the topics behind it; encouraging regular revision at home helps.`]); });
+  m.subjects.forEach(s=>{ if(s.sraMiss) out.push([1, 'r', `<b>${esc(s.name)}</b> · ${s.sraMiss} SRA${s.sraMiss>1?'s':''} not handed in. Please check they are done each week.`]); });
+  m.subjects.forEach(s=>{ if(s.absences.length) out.push([2, 'a', `<b>${esc(s.name)}</b> · missed ${s.absences.map(nice).join(', ')}. A make-up session will be arranged.`]); });
+  m.subjects.forEach(s=>{ if(s.sraLate){ const topics = Object.entries(s.sraTopics).filter(([,t])=>t.late).map(([k])=>k); out.push([3, 'a', `<b>${esc(s.name)}</b> · ${s.sraLate} SRA${s.sraLate>1?'s':''} handed in late${topics.length?` (${esc(topics.join(', '))})`:''}. Handing them in on time keeps revision on schedule.`]); } });
   return out.sort((x,y)=>x[0]-y[0]).slice(0, 3);
 }
 function adminFlags(m){
@@ -408,7 +409,7 @@ function render(){
   F('students').innerHTML = models.map((m,i)=>{
     const chips = m.subjects.map(s=>`<span class="tag ${s.logged?'t-ok':'t-red'}">${esc(s.name)} ${s.logged?'✓':'· no log'}</span>`).join('');
     const missing = m.subjects.filter(s=>!s.logged).length, any = m.subjects.some(s=>s.logged);
-    const status = !any ? '<span class="tag t-red">No logs</span>' : missing ? '<span class="tag t-amb">Waiting</span>' : (watchItems(m).length ? `<span class="tag t-amb">Ready · ${watchItems(m).length} to watch</span>` : '<span class="tag t-ok">Ready</span>');
+    const status = !any ? '<span class="tag t-red">No logs</span>' : missing ? '<span class="tag t-amb">Waiting</span>' : (watchItems(m).length ? `<span class="tag t-amb">Ready · ${watchItems(m).length} to work on</span>` : '<span class="tag t-ok">Ready</span>');
     return `<div class="srow"><div><b>${esc(m.name)}</b><small>${esc(m.level)}</small></div><div class="tags">${chips}</div>${status}
       <div class="row" style="gap:6px;justify-content:flex-end"><button class="small" data-log="${i}">Log</button><button class="small ${any?'navy':''}" data-pv="${i}" ${any?'':'disabled'}>Preview &amp; share</button></div></div>`;
   }).join('') || '<p class="empty">No students yet. Students appear here from saved tuition cards and tutor logs.</p>';

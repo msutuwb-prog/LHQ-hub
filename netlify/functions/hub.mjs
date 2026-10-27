@@ -34,7 +34,7 @@ const PERMS = ["quotes", "receipts", "cards", "delete", "restore", "students", "
 const ADMIN_DEFAULT = ["quotes", "receipts", "cards", "delete", "restore", "students", "tutors", "msgs", "classes"];
 const TYPE_PERM = { quote: "quotes", invoice: "quotes", receipt: "receipts", card: "cards" };
 // settings fields: lists and wording can be given to admins; everything else (bank, contact, payment rules) is the Director's
-const LIST_FIELDS = ["subjects", "levels", "methods", "includes", "tutors", "grades", "gradeBasis", "sessionLengths", "spendCats"];
+const LIST_FIELDS = ["subjects", "levels", "methods", "includes", "tutors", "grades", "gradeBasis", "sessionLengths", "spendCats", "heardFrom", "districts"];
 /* Business: who may read each part. Spending goes to whoever records it or sees profit and loss; budgets with profit and loss. */
 const KV_READ = { lhq_spend: p => can(p, "spend") || can(p, "pl"), lhq_budget: p => can(p, "pl") };
 /* Spending is recorded on several devices at once, so entries are merged one by one (newest wins) instead of the whole list being replaced.
@@ -242,7 +242,9 @@ async function checkSync(me, upserts, deletes, kv) {
     if (k === "lhq_settings") {
       const ch = changedKeys(Object.assign({}, SETTINGS_DEFAULT, old), Object.assign({}, SETTINGS_DEFAULT, v));
       if (ch.some(f => !LIST_FIELDS.includes(f))) return "Only the Director can change bank, contact and payment details.";
-      if (ch.length && !can(me, "msgs")) return "You don't have permission to change the lists.";
+      // a new spending category can be added while recording spending; a new district while adding a student
+      const quick = ch.every(f => (f === "spendCats" && can(me, "spend")) || (f === "districts" && (can(me, "students") || can(me, "quotes"))));
+      if (ch.length && !can(me, "msgs") && !quick) return "You don't have permission to change the lists.";
     } else if (k === "lhq_templates") {
       if (changedKeys(old, v).length && !can(me, "msgs")) return "You don't have permission to change the messages.";
     } else if (k === "lhq_counters") {

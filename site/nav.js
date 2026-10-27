@@ -33,5 +33,26 @@
     if(window.lhqTheme) lhqTheme.apply(lhqTheme.get());
   }
   /* coming back to a page from the browser's back button shows it as it was left */
-  window.LHQNav = {mount, layout, setLayout, section: s => { current = s; draw(); }, ic};
+  /* where you came from, so a page's back link can say "‹ Home" or "‹ Documents" instead of always its parent.
+     A trail of pages in this tab: going back to a page already in it cuts the trail there. */
+  const TK = 'lhq_trail';
+  const here = () => location.pathname.replace(/^.*\//, '').replace(/^$/, 'index.html') + location.hash;
+  const norm = u => String(u || '').replace(/^index\.html#?$/, 'index.html#home').replace(/^#/, 'index.html#');
+  function trail(){ try{ return JSON.parse(sessionStorage.getItem(TK) || '[]'); }catch(e){ return []; } }
+  function visit(label){
+    const u = norm(here()); let t = trail();
+    const i = t.findIndex(x => x.u === u);
+    if(i >= 0) t = t.slice(0, i + 1); else t.push({u, l: label || ''});
+    t[t.length - 1].l = label || t[t.length - 1].l;
+    try{ sessionStorage.setItem(TK, JSON.stringify(t.slice(-30))); }catch(e){}
+  }
+  /* the page before this one, or the fallback when there isn't one (a link opened fresh) */
+  function back(fbHref, fbLabel, skip){
+    const u = norm(here()), t = trail().filter(x => x.u !== u && x.l && !(skip && skip(x.u)));
+    const p = t[t.length - 1];
+    return p ? {href: p.u, label: p.l} : {href: fbHref, label: fbLabel};
+  }
+  /* a section opened from the menu starts a fresh trail, so it shows no back link */
+  document.addEventListener('click', e => { if(e.target.closest && e.target.closest('#hnSide a, #hnBar a, .hn-top .hn-logo')){ try{ sessionStorage.setItem(TK, '[]'); }catch(err){} } }, true);
+  window.LHQNav = {mount, layout, setLayout, section: s => { current = s; draw(); }, ic, visit, back, trail};
 })();

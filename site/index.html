@@ -271,6 +271,7 @@ function render(){
   const m = $('main');
   m.className = 'main' + (['home','edithome','new','students','student','tutors'].includes(route.page) ? ' narrow' : '');
   m.innerHTML = P[route.page](...route.args) || '';
+  if(route.page !== 'new') LHQNav.visit(pageLabel());
   bind();
   if(route.page === 'new') newSheet(route.args[0]);
   if(route.page === 'tutors' && route.args[0] === 'none' && $('none')) $('none').scrollIntoView();
@@ -280,6 +281,18 @@ window.hubApply = render; window.hubReady = () => { render(); HD.refreshPeople()
 window.addEventListener('pageshow', e => { if(e.persisted) render(); });
 window.addEventListener('lhqinstall', () => { if(route.page === 'set') render(); });
 
+/* the back link: the page you came from ("‹ Home", "‹ Documents"), or the parent page when opened fresh.
+   With `within`, pages of the same section don't count, and nothing shows if you haven't come from elsewhere. */
+function crumb(fbHref, fbLabel, within){
+  const b = LHQNav.back(fbHref, fbLabel, within ? u => u.startsWith('index.html#' + within) : null);
+  return b.href ? `<a class="crumb" href="${esc(b.href)}">${ic('back',16,2.2)} ${esc(b.label)}</a>` : '';
+}
+const PAGE_LABEL = {home:'Home', edithome:'Edit Home', students:'Students', docs:'Documents', biz:'Business', settings:'Settings', tutors:'Tutors teaching now'};
+function pageLabel(){
+  const h = document.querySelector('#main h1, #main .sec-h');
+  if(['home','edithome','students','docs','biz','settings'].includes(route.page)) return PAGE_LABEL[route.page];
+  return h ? h.textContent.trim().slice(0, 40) : (PAGE_LABEL[route.page] || 'Back');
+}
 function docRow(d, o = {}){
   const t = typeOf(d), [s, c] = HD.docStatus(d);
   const amt = t === 'card' ? (d.subjects||[]).map(x => x.name).filter(Boolean).join(', ') || 'Tuition card' : t === 'receipt' ? 'Received ' + mk(num(d.received)) : mk(d.total != null ? d.total : HD.total(d));
@@ -399,7 +412,7 @@ const S_F = {all:['All', () => true], active:['Active', s => ['active','progress
 const S_HIDE = ['current'];   // opened from Home only, so the chips stay short
 P.students = (f = 'all') => {
   const list = HD.students(); if(!S_F[f]) f = 'all';
-  return `<div class="ph"><div class="tt"><h1>Students</h1><p>${list.length} student${list.length === 1 ? '' : 's'}</p></div>${can('students') || can('quotes') ? `<button class="btn" id="addStu">${ic('plus',16,2.2)} Add student</button>` : ''}</div>
+  return `${crumb(null, null, 'students')}<div class="ph"><div class="tt"><h1>Students</h1><p>${list.length} student${list.length === 1 ? '' : 's'}</p></div>${can('students') || can('quotes') ? `<button class="btn" id="addStu">${ic('plus',16,2.2)} Add student</button>` : ''}</div>
   <label class="search">${ic('search',18)}<input id="sq" type="search" placeholder="Search name, parent or number" value="${esc(sQ)}" autocomplete="off"></label>
   <div class="chips">${Object.entries(S_F).filter(([k]) => !S_HIDE.includes(k) || k === f).map(([k, [l, fn]]) => `<a class="chip ${f === k ? 'on' : ''}" href="#students/${k}">${l}<i>${list.filter(fn).length}</i></a>`).join('')}</div>
   <div class="card" id="slist">${studentRows(list, f)}</div>`;
@@ -417,7 +430,7 @@ function subjectsOf(s){
 let editDetails = false;
 P.student = (key, tab = 'overview') => {
   const s = HD.students().find(x => x.key === key);
-  if(!s) return `<a class="crumb" href="#students">${ic('back',16,2.2)} Students</a><p class="empty">That student isn't here. They may have been renamed.</p>`;
+  if(!s) return `${crumb('#students', 'Students')}<p class="empty">That student isn't here. They may have been renamed.</p>`;
   const tabs = [['overview','Overview'],['documents',`Documents (${s.docs.length})`],['details','Details']];
   let body = '';
   if(tab === 'overview') body = stuOverview(s);
@@ -434,7 +447,7 @@ P.student = (key, tab = 'overview') => {
          ${can('students') ? `<div class="acts" style="margin-top:12px"><button class="btn" id="sdEdit">${ic('edit',16)} Edit details</button></div>` : ''}
          <p class="note">New quotes, invoices, receipts and cards fill these in. Documents already saved or sent keep what they had.</p></div>`;
   }
-  return `<a class="crumb" href="#students">${ic('back',16,2.2)} Students</a>
+  return `${crumb('#students', 'Students', 'student/' + encodeURIComponent(key))}
   <div class="ph"><div class="tt"><h1>${esc(s.name)}</h1><p>${esc([s.level, s.school].filter(Boolean).join(' · ') || ' ')}</p></div><span class="tag ${s.status.cls}" style="font-size:12px">${s.status.text}</span></div>
   <div class="tabs">${tabs.map(([k, l]) => `<a class="${tab === k ? 'on' : ''}" href="${stuLink(s.key, k)}">${l}</a>`).join('')}</div>${body}`;
 };
@@ -556,7 +569,7 @@ function filterTotal(type, rows){
 P.docs = (type = 'all', f = '') => {
   const T = {all:'All', quote:'Quotes', invoice:'Invoices', receipt:'Receipts', card:'Cards'}; if(!T[type]) type = 'all';
   const F = docFilter(type, f), fr = F ? docList(type, f) : null;
-  return `<div class="ph"><div class="tt"><h1>Documents</h1><p>${saved.length} documents${can('restore') ? ' · deleted ones stay 30 days in <a href="#set/deleted">Recently deleted</a>' : ''}</p></div>
+  return `${crumb(null, null, 'docs')}<div class="ph"><div class="tt"><h1>Documents</h1><p>${saved.length} documents${can('restore') ? ' · deleted ones stay 30 days in <a href="#set/deleted">Recently deleted</a>' : ''}</p></div>
     ${can('quotes') || can('receipts') || can('cards') ? `<a class="btn n" href="#new${type !== 'all' ? '/' + type : ''}">${ic('plus',16,2.4)} New${type !== 'all' ? ' ' + (type === 'card' ? 'card' : WORD[type].toLowerCase()) : ''}</a>` : ''}</div>
   <div class="tabs">${Object.entries(T).map(([k, l]) => `<a class="${type === k ? 'on' : ''}" href="#docs${k === 'all' ? '' : '/' + k}">${l} <span style="opacity:.6">${k === 'all' ? saved.length : saved.filter(d => typeOf(d) === k).length}</span></a>`).join('')}</div>
   ${F ? `<div class="fbar">${ic('list',16)}<span>${esc(T[type])}: <b>${esc(F.label)}</b> · ${fr.length}${filterTotal(type, fr)}</span><a href="#docs${type === 'all' ? '' : '/' + type}">Show all</a></div>` : ''}
@@ -590,7 +603,7 @@ P.tutors = (show = '') => {
   const list = [...by.entries()].sort((a, b) => b[1].length - a[1].length);
   const ppl = HD.people(), pid = n => (ppl.find(p => p.name.toLowerCase() === n.toLowerCase()) || {}).id;
   const row = ({s, card, x}) => `<a class="it" href="${openLink(card)}"><span class="t"><b>${esc(s.name)}</b><small>${esc([x.name, (x.days || []).join(' '), x.start ? x.start + '–' + (x.end || '') : ''].filter(Boolean).join(' · '))}</small></span><span class="chev">${ic('chev',16,2)}</span></a>`;
-  return `<a class="crumb" href="#home">${ic('back',16,2.2)} Home</a>
+  return `${crumb('#home', 'Home', 'tutors')}
   <div class="ph"><div class="tt"><h1>Tutors teaching now</h1><p>${list.length} tutor${list.length === 1 ? '' : 's'} on current tuition cards${none.length ? ` · ${none.length} subject${none.length === 1 ? '' : 's'} without a tutor` : ''}</p></div></div>
   ${none.length ? `<div class="h2" id="none">No tutor yet <em>${none.length}</em></div><div class="card" style="border-color:var(--gold)">${none.map(row).join('')}</div>` : ''}
   ${list.map(([n, items]) => { const st = new Set(items.map(i => i.s.key)).size, open = show === encodeURIComponent(n) || show === n;
@@ -599,7 +612,7 @@ P.tutors = (show = '') => {
 };
 
 /* ================= business (business.js) ================= */
-P.biz = (tab, period, cat) => BIZ.page(tab, period, cat);
+P.biz = (tab, period, cat) => crumb(null, null, 'biz') + BIZ.page(tab, period, cat);
 
 /* ================= settings ================= */
 const SETS = [
@@ -617,7 +630,7 @@ function setWrap(id, person){
   const navH = SETS.map(([g, items]) => { const vis = items.filter(x => !x[3] || x[3]()); return vis.length ? `<div class="g">${g}</div>${vis.map(([k, i, l]) => `<a class="${id === k ? 'on' : ''}" href="#set/${k}">${ic(i,18)}${l}</a>`).join('')}` : ''; }).join('');
   const page = id ? (person ? personPage(person) : S[id]()) : '<h2 class="sec-h">Settings</h2><p class="sec-p">Choose a section.</p>';
   return `${id ? '' : `<div class="ph"><div class="tt"><h1>Settings</h1><p>${esc(me().name || '')} · ${roleText(me())}</p></div></div>`}
-  <div class="sw ${id ? 'page' : 'index'}"><nav class="snav">${navH}</nav><div class="spage">${id ? `<a class="crumb" href="${person ? '#set/people' : '#settings'}">${ic('back',16,2.2)} ${person ? 'People & access' : 'Settings'}</a>` : ''}${page}</div></div>`;
+  <div class="sw ${id ? 'page' : 'index'}"><nav class="snav">${navH}</nav><div class="spage">${id ? crumb(person ? '#set/people' : '#settings', person ? 'People & access' : 'Settings', person ? 'person/' : 'set/' + id) : ''}${page}</div></div>`;
 }
 const S = {};
 const settingsKV = () => Object.assign({}, DEFAULT_SETTINGS, store.get('lhq_settings', {}));
@@ -706,7 +719,7 @@ S.messages = () => { const t = templates();
   <div class="vars">${VARS.map(v => `<button data-var="${v}">${v}</button>`).join('')}</div>
   <div class="acts"><button class="btn n" id="tplSave">Save</button><button class="btn" id="tplReset">Restore the default wording</button></div></div>`; };
 
-const LISTS = [['subjects','Subjects'],['levels','Year & level'],['methods','Payment methods'],['includes','Every LHQ Enrollment Includes'],['tutors','Tutors on tuition cards'],['grades','Grades'],['gradeBasis','Grade based on'],['sessionLengths','Session lengths'],['spendCats','Spending categories']];
+const LISTS = [['subjects','Subjects'],['levels','Year & level'],['methods','Payment methods'],['includes','Every LHQ Enrollment Includes'],['tutors','Tutors on tuition cards'],['grades','Grades'],['gradeBasis','Grade based on'],['sessionLengths','Session lengths'],['spendCats','Spending categories'],['heardFrom','How families hear about LHQ (also marketing channels)'],['districts','Districts']];
 S.lists = () => { const s = settingsKV();
   return `<h2 class="sec-h">Lists</h2><p class="sec-p">The choices in every dropdown. Changes save straight away.</p>
   ${LISTS.map(([k, l]) => `<div class="card pad"><div class="cap">${l}</div><div class="lchips">${lines(s[k]).map((x, i) => `<span>${esc(x)}<button data-lrm="${k}:${i}" aria-label="Remove ${esc(x)}">✕</button></span>`).join('')}</div>

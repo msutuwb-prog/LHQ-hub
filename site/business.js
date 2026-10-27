@@ -20,6 +20,13 @@ window.BIZ = (function(){
   const thisMonth = () => ym(today());
   const cats = () => { const L = lines(settingsKV().spendCats || DEFAULT_SPEND_CATS.join('\n')); return L.length ? L : DEFAULT_SPEND_CATS; };
   const methods = () => lines(settingsKV().methods);
+  const channels = () => { const L = lines(settingsKV().heardFrom || DEFAULT_HEARD.join('\n')); return L.filter(x => !FREE_CHANNELS.includes(x)); };
+  const payees = () => [...new Set(spendAll().map(e => (e.to || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b)).slice(0, 200);
+  function guessChannel(what){
+    const w = String(what || '').toLowerCase(), C = channels();
+    const hit = [['instagram','Instagram'],['facebook','Facebook'],['tiktok','TikTok'],['whatsapp','WhatsApp'],['google','Google'],['flyer','Flyers or posters'],['poster','Flyers or posters'],['banner','Flyers or posters'],['study smart','Study Smart Session'],['school','Their school'],['radio','Radio or TV'],['tv','Radio or TV'],['event','An event'],['expo','An event']].find(([k]) => w.includes(k));
+    return hit && C.includes(hit[1]) ? hit[1] : '';
+  }
   const pct = (a, b) => b ? Math.round(a / b * 100) : 0;
 
   /* ---------- the figures ---------- */
@@ -186,14 +193,24 @@ window.BIZ = (function(){
     const C = cats();
     openSheet(`<div class="hx"><h3>${isNew ? 'Record spending' : 'Spending'}</h3><button class="ib" data-close>✕</button></div>
       <p class="sp">${isNew ? 'Any date works, so earlier spending can be added too.' : `Recorded by ${esc(e.by || '')}${e.editedBy && e.editedBy !== e.by ? `, changed by ${esc(e.editedBy)}` : ''}.`}</p>
-      <label class="f"><span>Category</span></label><div class="chips" id="bzCats">${C.map(c => `<button class="chip ${e.cat === c ? 'on' : ''}" data-c="${esc(c)}">${esc(c)}</button>`).join('')}</div>
+      <label class="f"><span>Category</span></label><div class="chips" id="bzCats">${[...C, ...(e.cat && !C.includes(e.cat) ? [e.cat] : [])].map(c => `<button class="chip ${e.cat === c ? 'on' : ''}" data-c="${esc(c)}">${esc(c)}</button>`).join('')}<button class="chip" id="bzCatNew" type="button">+ New category</button></div>
+      <div class="addrow" id="bzCatAdd" hidden style="margin:-6px 0 12px"><input class="in" id="bzCatName" placeholder="Name of the new category" autocomplete="off"><button class="btn sm" id="bzCatGo" type="button">Add</button></div>
+      <label class="f" id="bzChanF" ${e.cat === 'Marketing' ? '' : 'hidden'}><span>Marketing channel <small style="font-weight:500">(matched with how new families heard about LHQ)</small></span><select class="in" id="bzChan"><option value="">Choose</option>${channels().map(x => `<option ${e.chan === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
       <div class="r2"><label class="f"><span>Amount (MKW)</span><input class="in" id="bzAmt" inputmode="numeric" value="${e.amount ? Number(e.amount).toLocaleString('en-US') : ''}" placeholder="0"></label><label class="f"><span>Date</span><input class="in" id="bzDate" type="date" value="${esc(e.date)}"></label></div>
       <label class="f"><span>What for</span><input class="in" id="bzWhat" value="${esc(e.what)}" placeholder="e.g. Printing SRA sheets" autocomplete="off"></label>
-      <label class="f"><span>Paid to (optional)</span><input class="in" id="bzTo" value="${esc(e.to || '')}" placeholder="e.g. ESCOM, landlord, printer" autocomplete="off"></label>
+      <label class="f"><span>Paid to (optional)</span><input class="in" id="bzTo" value="${esc(e.to || '')}" placeholder="e.g. ESCOM, landlord, printer" autocomplete="off" list="bzPayees"><datalist id="bzPayees">${payees().map(x => `<option value="${esc(x)}">`).join('')}</datalist></label>
       <div class="r2"><label class="f"><span>Paid by</span><select class="in" id="bzMethod"><option value="">Choose</option>${methods().map(m => `<option ${e.method === m ? 'selected' : ''}>${esc(m)}</option>`).join('')}</select></label>
         <label class="f"><span>Repeats</span><select class="in" id="bzRep"><option value="">Once</option><option value="m" ${e.rep === 'm' ? 'selected' : ''}>Every month</option></select></label></div>
       <button class="btn n full" id="bzSave">Save</button>${isNew ? '' : `<button class="btn rd full" id="bzDel">${ic('bin',16)} Delete</button>`}`);
-    document.querySelectorAll('#bzCats .chip').forEach(b => b.onclick = () => { document.querySelectorAll('#bzCats .chip').forEach(x => x.classList.toggle('on', x === b)); });
+    const pickCat = b => { document.querySelectorAll('#bzCats .chip[data-c]').forEach(x => x.classList.toggle('on', x === b)); $('bzChanF').hidden = !b || b.dataset.c !== 'Marketing'; if(b && b.dataset.c === 'Marketing' && !$('bzChan').value) $('bzChan').value = guessChannel($('bzWhat').value); };
+    document.querySelectorAll('#bzCats .chip[data-c]').forEach(b => b.onclick = () => pickCat(b));
+    $('bzCatNew').onclick = () => { $('bzCatAdd').hidden = false; $('bzCatName').focus(); };
+    $('bzCatGo').onclick = () => { const n = $('bzCatName').value.trim(); if(!n) return;
+      let b = [...document.querySelectorAll('#bzCats .chip[data-c]')].find(x => x.dataset.c.toLowerCase() === n.toLowerCase());
+      if(!b){ $('bzCatNew').insertAdjacentHTML('beforebegin', `<button class="chip" data-c="${esc(n)}">${esc(n)}</button>`); b = $('bzCatNew').previousElementSibling; b.onclick = () => pickCat(b); }
+      pickCat(b); $('bzCatAdd').hidden = true; $('bzCatName').value = ''; };
+    $('bzCatName').onkeydown = ev => { if(ev.key === 'Enter'){ ev.preventDefault(); $('bzCatGo').click(); } };
+    $('bzWhat').addEventListener('change', () => { if(!$('bzChanF').hidden && !$('bzChan').value) $('bzChan').value = guessChannel($('bzWhat').value); });
     $('bzAmt').oninput = ev => { const d = ev.target.value.replace(/[^\d]/g, ''); ev.target.value = d ? Number(d).toLocaleString('en-US') : ''; };
     document.querySelectorAll('#sheet [data-close]').forEach(b => b.onclick = closeSheet);
     $('bzSave').onclick = () => {
@@ -202,6 +219,9 @@ window.BIZ = (function(){
       if(!amt){ toast('Enter the amount'); $('bzAmt').focus(); return; }
       if(!$('bzDate').value){ toast('Choose the date'); return; }
       Object.assign(e, {cat:c.c, amount:amt, date:$('bzDate').value, what:$('bzWhat').value.trim(), to:$('bzTo').value.trim(), method:$('bzMethod').value, rep:$('bzRep').value});
+      if(c.c === 'Marketing') e.chan = $('bzChan').value || guessChannel(e.what); else delete e.chan;
+      if(!cats().some(x => x.toLowerCase() === c.c.toLowerCase())){   // a new category joins the list for everyone
+        const st = Object.assign({}, store.get('lhq_settings', {})); st.spendCats = [...cats(), c.c].join('\n'); store.set('lhq_settings', st); }
       delete e.skip; saveEntry(e); closeSheet(); toast(isNew ? `Recorded: ${mk(amt)} for ${c.c}` : 'Saved');
       const p = ym(e.date); if(route.page === 'biz' && route.args[1] !== p && !String(route.args[1] || '').startsWith('fy')) location.hash = `#biz/spending/${p}`; else render();
     };

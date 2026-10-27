@@ -7,6 +7,11 @@ const DEFAULT_SUBJECTS = ['Mathematics','Additional Mathematics','Physics','Chem
 /* Business › Spending: the categories, in the order they are offered. Renovations and Purchases are one-off costs. */
 const DEFAULT_SPEND_CATS = ['Salaries','Rentals','Utilities','Communication','Stationery','Transportation','Marketing','Maintenance','Trainings','Renovations','Purchases'];
 
+/* How families hear about LHQ (students) and where marketing money goes (spending): one list, so they can be matched */
+const DEFAULT_HEARD = ['A friend or family member','Sibling at LHQ','Instagram','Facebook','TikTok','WhatsApp','Google','Their school','Study Smart Session','Flyers or posters','Radio or TV','An event','Other'];
+const FREE_CHANNELS = ['A friend or family member','Sibling at LHQ'];   // word of mouth: no spending behind it
+const DEFAULT_DISTRICTS = ['Lilongwe','Blantyre','Mzuzu','Zomba'];
+
 const DEFAULT_SETTINGS = {
   email:'learnhqes@gmail.com', phone:'265 992 525 250',
   bank:'National Bank of Malawi', accname:'LearnHQ Tutoring and Training',
@@ -16,6 +21,8 @@ const DEFAULT_SETTINGS = {
   levels: ['Year 1','Year 2','Year 3','Year 4','Year 5','Year 6 · Primary Checkpoint','Year 7','Year 8','Year 9 · Checkpoint',
     'Year 10 · IGCSE','Year 11 · IGCSE','Year 12 · AS Level','Year 13 · A Level','IB','IELTS','SAT','College'].join('\n'),
   spendCats: DEFAULT_SPEND_CATS.join('\n'),
+  heardFrom: DEFAULT_HEARD.join('\n'),
+  districts: DEFAULT_DISTRICTS.join('\n'),
   methods: ['Bank transfer','Airtel Money','TNM Mpamba','Cash','Cheque'].join('\n'),
   includes: ['Success Planner','Success Coaching','Progress Reports','Study Guides','Daily Assessments','Online Resource Hub'].join('\n'),
   tutors: ['Catherine Mkwinda','Emmanuel Mkwamba','Ungweru Kaonga','Mayamiko Goliati','Maureen Story','Wanangwa Msutu'].join('\n'),

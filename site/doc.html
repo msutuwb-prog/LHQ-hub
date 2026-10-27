@@ -333,6 +333,11 @@ dialog::backdrop{background:rgba(7,25,45,.55)}
 .svc .dot{width:9px;height:9px;border-radius:50%;background:var(--line3);flex:none}
 .svc.ok .dot{background:var(--ok)}
 .svc.warn .dot{background:#d08a00}
+.pay-pick{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+.pay-pick button{border:1px solid var(--line);background:var(--field);color:var(--ink);border-radius:99px;padding:7px 12px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.pay-pick button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+[data-theme=dark] .pay-pick button.on{background:#f4b223;border-color:#f4b223;color:#0d1420}
+.pay-note{margin:-4px 0 12px;font-weight:600}.pay-note.warn{color:#9a5b00}.pay-note.ok{color:var(--ok)}
 .sent{font-size:11px;font-weight:600;color:var(--ok);margin-left:6px;white-space:nowrap}
 .pv-label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
 .wapv{background:var(--ok-bg);border-radius:10px;padding:10px 12px;font-size:14px;line-height:1.45}
@@ -620,6 +625,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
 
     <div class="panel" id="payPanel" hidden>
       <h2>Payment received</h2>
+      <div class="pay-pick" id="payPick" role="group" aria-label="How much was paid"></div>
       <div class="grid2">
         <label><span>Amount received (MKW)</span><input id="f_received" inputmode="decimal" placeholder="0"></label>
         <label><span>Paid before this (MKW)</span><input id="f_prevPaid" inputmode="decimal" placeholder="0"></label>
@@ -628,6 +634,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
         <div class="fld"><span class="lbl">Payment method</span><button type="button" class="picker-btn" data-pickfield="method" id="btnMethod" aria-haspopup="listbox" aria-expanded="false"><span class="pb-dot"></span><span class="pb-text"></span><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>
         <label><span>Payment reference</span><input id="f_payRef" autocomplete="off" placeholder="Bank or mobile money ref."></label>
       </div>
+      <p class="hint pay-note" id="payNote"></p>
       <label><span>Received by (prints above the signature line)</span><input id="f_receivedBy" autocomplete="off" placeholder="Staff member's name"></label>
     </div>
 
@@ -1024,6 +1031,45 @@ function planInfo(d = doc){
   if(next) next.left = Math.round((next.n===1 ? a1 - paid : t.total - Math.max(paid, a1))*100)/100;
   return {rows, next, paid, total:t.total};
 }
+/* Receipts: quick amounts (the instalment due, the whole balance, or another amount) and what the amount means */
+function drawPayPick(t){
+  const before = Math.max(0, Math.round((t.total - t.prevPaid) * 100) / 100);
+  const Pb = planInfo(Object.assign({}, doc, {received:'0'})), next = Pb && Pb.next;
+  const opts = [];
+  if(next && next.left > 0.005 && Math.abs(next.left - before) > 0.005) opts.push([next.left, `${next.short} · MKW ${money(next.left)}`]);
+  if(before > 0.005) opts.push([before, next && Math.abs(next.left - before) < 0.005 ? `${next.short} (the rest) · MKW ${money(before)}` : `Full balance · MKW ${money(before)}`]);
+  const r = num(doc.received), on = opts.find(o => Math.abs(o[0] - r) < 0.005);
+  F('payPick').innerHTML = opts.map(([v, l]) => `<button type="button" data-amt="${v}" class="${on && on[0] === v ? 'on' : ''}">${esc(l)}</button>`).join('') + `<button type="button" data-amt="" class="${on ? '' : 'on'}">Other amount</button>`;
+  let note = '', cls = '';
+  if(r > 0.005){
+    if(r > before + 0.005){ note = `MKW ${money(r - before)} more than is owed. It is kept as credit and counted on ${doc.student || 'the student'}'s next invoice.`; cls = 'warn'; }
+    else if(Math.abs(r - before) < 0.005){ note = 'Pays the invoice in full.'; cls = 'ok'; }
+    else if(next && r < next.left - 0.005) { note = `MKW ${money(next.left - r)} is still owed on the ${next.short.toLowerCase()} (due ${niceDate(next.due)}).`; cls = 'warn'; }
+    else if(next && next.n === 1 && r > next.left + 0.005) { note = `Covers the 1st instalment and MKW ${money(r - next.left)} of the 2nd. MKW ${money(before - r)} is still owed.`; }
+    else { note = `MKW ${money(before - r)} is still owed after this payment.`; cls = before - r > 0.005 ? 'warn' : ''; }
+  }
+  F('payNote').textContent = note; F('payNote').className = 'hint pay-note ' + cls;
+}
+document.addEventListener('click', e=>{
+  const b = e.target.closest('#payPick [data-amt]'); if(!b) return;
+  if(b.dataset.amt === ''){ F('f_received').focus(); F('f_received').select(); return; }
+  doc.received = b.dataset.amt; F('f_received').value = b.dataset.amt; update();
+});
+/* credit: a parent who paid more than an invoice has the extra counted as already paid on their next invoice */
+function creditFor(key, exceptId){
+  let credit = 0, from = [];
+  saved.forEach(r => { if(r.type !== 'receipt' || studentKey(r.student || r.name) !== key) return;
+    const tot = num(r.total) || totals(r).total, over = num(r.prevPaid) + num(r.received) - tot;
+    if(over > 0.005){ credit += over; from.push(r.number); } });
+  saved.forEach(i => { if(i.type === 'invoice' && i.id !== exceptId && studentKey(i.student || i.name) === key) credit -= num(i.creditUsed); });
+  return {amt: Math.max(0, Math.round(credit * 100) / 100), from};
+}
+function applyCredit(d){
+  if(d.type !== 'invoice' || d.id) return '';
+  const c = creditFor(studentKey(d.student || d.name)); if(c.amt <= 0.005) return '';
+  d.creditUsed = String(c.amt); d.paid = String(num(d.paid) + c.amt);
+  return ` MKW ${money(c.amt)} credit from ${c.from.join(', ')} is counted as already paid.`;
+}
 /* "Every LHQ Enrollment Includes": all items by default; doc.incOff holds the ones removed from this document */
 const graceDays = () => Math.max(0, Math.round(num(settings.graceDays)));
 /* one line for the next payment; if it is the 2nd instalment the grace-period rule is joined on */
@@ -1320,6 +1366,7 @@ function update(){
     if(T==='quote') rows.push(['Total', 'MKW ' + money(t.total), 'big']);
     else { rows.push(['Total', 'MKW ' + money(t.total)]); rows.push(['Paid', 'MKW ' + money(t.paid)]); rows.push(['Balance due', 'MKW ' + money(t.balance), 'big']); }
   }
+  if(T==='receipt') drawPayPick(t);
   const PP = planInfo();
   if(PP) PP.rows.forEach(r=>rows.push([`${r.short} · due ${niceDate(r.due)}${r.paid?' · paid':''}`, 'MKW ' + money(r.amt), 'dr']));
   if(mode === 'edit') drawHead();
@@ -2037,13 +2084,18 @@ F('btnSendNow').onclick = async ()=>{
 };
 
 F('btnShare').onclick = async ()=>{
+  /* WhatsApp keeps either the file or the text when both are shared together, so on WhatsApp the message is
+     copied first and only the PDF is shared: paste the message as the PDF's caption. Email apps take both. */
+  const wa = channel !== 'email', text = F('m_body').value;
+  let copied = false;
+  if(wa){ try{ await navigator.clipboard.writeText(text); copied = true; }catch(e){} }
   try{
     const blob = await makePdfBlob();
     const file = new File([blob], fileName(), {type:'application/pdf'});
-    const data = {files:[file], text:F('m_body').value};
-    if(channel==='email') data.title = F('m_subject').value;
+    const data = wa ? {files:[file]} : {files:[file], text, title:F('m_subject').value};
+    if(copied) toast('Message copied. In WhatsApp, paste it as the caption, then send.');
     await navigator.share(data);
-    toast('Shared');
+    if(!copied) toast('Shared');
   }catch(err){ if(err && err.name!=='AbortError') toast('Sharing didn\'t work here. Use the Open button instead.'); }
 };
 F('btnOpenApp').onclick = async ()=>{
@@ -2180,8 +2232,10 @@ function route(){
     if(!h && !(doc.student || doc.name)){ location.replace('index.html#docs'); return; }
   }
   if(m === 'edit' && !doc.id && !mayEdit(doc.type)){ toast('You don\'t have permission to make this kind of document'); location.replace('index.html#docs'); return; }
+  if(get('new') || get('conv') || get('renew')){ const cm = applyCredit(doc); if(cm) msg = (msg || '') + cm; }
   if(get('new') || get('conv') || get('dup') || get('renew')) history.replaceState(null, '', location.pathname + '#draft');
   fillForm(); setMode(m); window.scrollTo(0,0);
+  drawBack(); if(doc.id && m === 'view') LHQNav.visit(doc.number);
   if(msg) toast(msg);
 }
 window.addEventListener('hashchange', route);
@@ -2206,7 +2260,11 @@ F('btnCancel').onclick = ()=>{
 };
 F('btnPvToggle').onclick = ()=>{ const pv = document.body.dataset.view !== 'preview'; setView(pv ? 'preview' : 'edit'); F('btnPvToggle').textContent = pv ? 'Back to editing' : 'Preview'; };
 F('btnMore').onclick = moreMenu;
-F('dpBack').onclick = e=>{ if(history.length > 1 && document.referrer && new URL(document.referrer).origin === location.origin){ e.preventDefault(); history.back(); } };
+/* the back link names the page you came from (Home, a student, Business, another document …) */
+function drawBack(){
+  const b = LHQNav.back('index.html#docs', 'Documents', u => u.startsWith('doc.html#d=' + doc.id));
+  F('dpBack').href = b.href; F('dpBackT').textContent = b.label;
+}
 
 const H = HD;
 const svg = (p, s=18) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
