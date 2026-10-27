@@ -168,6 +168,8 @@ a.mc:hover{border-color:var(--muted)}
 .bz-nav .ib{text-decoration:none}
 .kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
 @media (max-width:760px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.main{container-type:inline-size}
+@container (max-width:720px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .kpi{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;min-width:0}
 .kpi small{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:800}
 .kpi b{display:block;font-size:22px;font-weight:800;color:var(--brand);letter-spacing:-.4px;font-variant-numeric:tabular-nums;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -542,7 +544,7 @@ const SETS = [
   ['Data', [['backup','box','Backup & restore', () => can('backup')],['deleted','bin','Recently deleted', () => can('restore')],['demo','restore','Demo data (preview)', () => isDir() && PREVIEW]]],
 ];
 const allowed = id => SETS.some(([, items]) => items.some(x => x[0] === id && (!x[3] || x[3]())));
-P.settings = () => setWrap(null);
+P.settings = () => setWrap(innerWidth >= 900 ? 'account' : null);   // wide screens: open the first section instead of an empty page
 P.set = id => setWrap(allowed(id) ? id : null);
 P.person = id => setWrap('people', id);
 function setWrap(id, person){
@@ -569,7 +571,7 @@ S.account = () => { const m = me(), L = LHQNav.layout();
 S.people = () => { const list = HD.people(), D0 = isDir();
   return `<h2 class="sec-h">People & access</h2><p class="sec-p">${D0 ? 'Everyone who can sign in. You decide what each person can see and do.' : 'You can add tutors, reset their PINs and switch them off. Only the Director changes admins.'}</p>
   <div class="card">${list.map(p => { const self = p.id === me().id, mine = !self && p.role !== 'director' && (D0 || p.role === 'tutor');
-    return `<a class="it" ${mine ? `href="#person/${p.id}"` : self ? 'href="#set/account"' : 'style="cursor:default"'}><span class="av">${inits(p.name)}</span><span class="t"><b>${esc(p.name)}${self ? ' (you)' : ''}</b><small>${roleText(p)}${p.seen ? ' · last seen ' + ago(p.seen) : ''}</small></span>${p.role === 'director' ? '<span class="rolechip">Director</span>' : ''}${p.active ? '' : '<span class="tag rd">Off</span>'}${mine || self ? `<span class="chev">${ic('chev',16,2)}</span>` : '<span class="tag gr">Director only</span>'}</a>`; }).join('') || '<p class="empty">Loading…</p>'}</div>
+    return `<a class="it" ${mine ? `href="#person/${p.id}"` : self ? 'href="#set/account"' : 'style="cursor:default"'}><span class="av">${inits(p.name)}</span><span class="t"><b>${esc(p.name)}${self ? ' (you)' : ''}</b><small>${roleText(p)}${p.seen ? ' · last seen ' + ago(p.seen) : ''}</small></span>${p.role === 'director' ? '<span class="rolechip">Director</span>' : ''}${p.active ? '' : '<span class="tag rd">Off</span>'}${mine || self ? `<span class="chev">${ic('chev',16,2)}</span>` : p.role === 'director' ? '' : '<span class="tag gr">Director only</span>'}</a>`; }).join('') || '<p class="empty">Loading…</p>'}</div>
   <button class="btn" id="addPerson">${ic('plus',16,2.2)} ${D0 ? 'Add a person' : 'Add a tutor'}</button>`; };
 const PERMS = [
   ['Documents', [['quotes','Make and edit quotes and invoices'],['receipts','Record payments (receipts)'],['cards','Make tuition cards'],['delete','Delete documents'],['restore','Restore deleted documents']]],

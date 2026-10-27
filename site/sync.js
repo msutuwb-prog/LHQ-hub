@@ -153,6 +153,7 @@
   .hub-off{opacity:.55}
   .hub-ov,.hub-dlg{font-family:Manrope,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
   [data-theme=dark] .hub-ov{background:#0d1420;color:#e8edf4}
+  [data-theme=dark] .hub-err{color:#ff8a80}
   [data-theme=dark] .hub-box h2,[data-theme=dark] .hub-link{color:#f4b223}
   [data-theme=dark] .hub-who button,[data-theme=dark] .hub-btn,[data-theme=dark] .hub-pin span,[data-theme=dark] .hub-kp button,[data-theme=dark] .hub-in,[data-theme=dark] .hub-row button,[data-theme=dark] .hub-sm{background:#151e2c;border-color:#253246;color:#e8edf4}
   [data-theme=dark] .hub-pin span{color:#f4b223}

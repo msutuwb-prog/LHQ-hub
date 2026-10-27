@@ -2151,6 +2151,7 @@ function setMode(m){
   requestAnimationFrame(fitPreview);
 }
 function route(){
+  closeDpSheet(); document.querySelectorAll('dialog[open]').forEach(d=>d.close());   // a menu or window left open must not cover the next document
   HD.load(); saved = store.get('lhq_saved', []);
   const h = location.hash.slice(1), q = new URLSearchParams(h), get = k => q.get(k);
   let msg = '', m = 'edit';
@@ -2187,6 +2188,7 @@ function route(){
   if(msg) toast(msg);
 }
 window.addEventListener('hashchange', route);
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && F('dpSheet') && !F('dpSheet').hidden) closeDpSheet(); });
 function saveAndView(){
   const isNew = !doc.id;
   saveDoc();
