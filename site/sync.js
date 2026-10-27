@@ -7,7 +7,7 @@
   const DOCS = 'lhq_saved';
   const KV = ['lhq_settings','lhq_templates','lhq_counters','lhq_repEdits','lhq_logs','lhq_tlinks','lhq_students','lhq_spend','lhq_budget'];
   const PRIVATE = ['lhq_spend','lhq_budget'];   // only sent to people allowed to see them; removed here when that changes
-  const SESSION = 'lhq_session', BASE = 'lhq_syncBase', KVHASH = 'lhq_syncKv', REV = 'lhq_syncRev', DIRTY = 'lhq_syncDirty';
+  const SESSION = 'lhq_session', BASE = 'lhq_syncBase', KVHASH = 'lhq_syncKv', REV = 'lhq_syncRev', DIRTY = 'lhq_syncDirty', EPOCH = 'lhq_syncEpoch';
   const ls = window.localStorage;
   const rawSet = ls.setItem.bind(ls), rawGet = ls.getItem.bind(ls), rawDel = ls.removeItem.bind(ls);
   const get = (k, d) => { try{ const v = rawGet(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } };
@@ -67,7 +67,13 @@
       // fill in what the server added (who saved it, and any renumbering)
       const byId = {}; (r.saved || []).forEach(d => byId[d.id] = d);
       const docs = get(DOCS, []).map(d => byId[d.id] ? Object.assign(d, {number:byId[d.id].number, updatedBy:byId[d.id].updatedBy, createdBy:byId[d.id].createdBy}) : d);
-      put(DOCS, docs); put(BASE, base); put(KVHASH, hashes); put(REV, r.rev);
+      put(DOCS, docs); put(BASE, base); put(KVHASH, hashes);
+      // if only this save happened since the last download, this device is up to date; otherwise fetch what others changed
+      const before = get(REV, null);
+      if(r.epoch && get(EPOCH, null) != null && r.epoch !== get(EPOCH, null)){ rawDel(REV); setTimeout(() => pull().catch(() => {}), 300); }
+      else if(before != null && r.rev === before + 1) put(REV, r.rev);
+      else setTimeout(() => pull().catch(() => {}), 300);
+      if(r.epoch) put(EPOCH, r.epoch);
       const after = changes();
       put(DIRTY, !!(after.upserts.length || after.deletes.length || Object.keys(after.kv).length));
       Object.entries(r.remap || {}).forEach(([id, n]) => { if(window.hubRemap) window.hubRemap(id, n); note(`Saved as ${n}: the number you had was just used on another device.`); });
@@ -94,15 +100,26 @@
     const keepLocal = discard ? [] : local.filter(d => d && d.id && !ids[d.id] && !(get(BASE, {})[d.id] != null));
     put(DOCS, keepLocal.concat(server).sort((a,b)=>(b.savedAt||0)-(a.savedAt||0)));
     KV.forEach(k => { if(st.kv && st.kv[k] != null){ put(k, st.kv[k]); hashes[k] = hash(rawGet(k)); } else if(PRIVATE.includes(k)) rawDel(k); });
-    put(BASE, base); put(KVHASH, hashes); put(REV, st.rev);
+    put(BASE, base); put(KVHASH, hashes); put(REV, st.rev); put(EPOCH, st.epoch || '');
+  }
+  /* only what changed since this device's last download */
+  function applyDelta(st){
+    const base = get(BASE, {}), hashes = get(KVHASH, {}), byId = new Map(get(DOCS, []).filter(d => d && d.id).map(d => [d.id, d]));
+    (st.docs || []).forEach(d => { byId.set(d.id, d); base[d.id] = d.savedAt || 0; });
+    (st.gone || []).forEach(id => { byId.delete(id); delete base[id]; });
+    put(DOCS, [...byId.values()].sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0)));
+    Object.entries(st.kv || {}).forEach(([k, v]) => { if(!KV.includes(k)) return; put(k, v); hashes[k] = hash(rawGet(k)); });
+    (st.hide || []).forEach(k => { rawDel(k); delete hashes[k]; });
+    put(BASE, base); put(KVHASH, hashes); put(REV, st.rev); put(EPOCH, st.epoch || '');
   }
   async function pull(opts){
     if(get(DIRTY, false) && get(REV, null) != null){ await push(); if(get(DIRTY, false)) throw new Error('offline'); }
-    const st = await api('state');
+    const known = get(REV, null);
+    const st = await api(known != null && get(EPOCH, null) != null ? `state?since=${encodeURIComponent(known)}&epoch=${encodeURIComponent(get(EPOCH, ''))}` : 'state');
     const mine = session(); if(mine && st.me){ mine.me = st.me; put(SESSION, mine); }
-    const firstTime = get(REV, null) == null;
+    const firstTime = known == null;
     const localOnly = firstTime ? get(DOCS, []).filter(d => d && d.id && !(st.docs || []).some(x => x.id === d.id)) : [];
-    apply(st);
+    if(st.delta) applyDelta(st); else apply(st);
     if(window.hubApply) window.hubApply();
     if(localOnly.length) offerUpload(localOnly.length, st.docs.length === 0);
     else if(get(DIRTY, false)) schedulePush(200);
@@ -116,6 +133,7 @@
       const mine = session();
       if(mine && r.me && JSON.stringify(r.me) !== JSON.stringify(mine.me)){ mine.me = r.me; put(SESSION, mine); if(window.hubMe) window.hubMe(); }
       if(get(DIRTY, false)){ schedulePush(100); return; }
+      if(r.epoch !== undefined && get(EPOCH, null) != null && r.epoch !== get(EPOCH, null)) rawDel(REV);   // the store was replaced: reload everything
       if(r.rev !== get(REV, null)) await pull();
     }catch(e){}
   }
@@ -164,7 +182,7 @@
   const LOGO = () => window.lhqTheme ? window.lhqTheme.logo() : 'logo.png';
   function el(html){ const d = document.createElement('div'); d.innerHTML = html.trim(); return d.firstChild; }
   const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  function note(msg){ if(window.hubToast) window.hubToast(msg); else console.log(msg); }
+  function note(msg){ if(!msg) return; if(window.hubToast) window.hubToast(msg); else console.log(msg); }
 
   let statusEl = null;
   function status(s){
@@ -287,7 +305,7 @@
   }
   function signOut(){
     if(get(DIRTY, false) && !confirm('Some changes haven\'t uploaded yet. Sign out anyway? They will be lost.')) return;
-    [SESSION, BASE, KVHASH, REV, DIRTY, DOCS, 'lhq_draft', ...KV].forEach(k => rawDel(k));
+    [SESSION, BASE, KVHASH, REV, DIRTY, EPOCH, DOCS, 'lhq_draft', ...KV].forEach(k => rawDel(k));
     location.reload();
   }
   function myPinDlg(){

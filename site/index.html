@@ -9,6 +9,7 @@
 <link rel="icon" href="icon-32.png" sizes="32x32">
 <link rel="icon" href="icon-192.png" sizes="192x192">
 <link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
 <script>
 /* links made before LHQ Hub (student checklists) open the document page */
 if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash);
@@ -18,6 +19,8 @@ if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash)
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="hub.css">
 <script src="theme.js"></script>
+<script src="pako.min.js"></script>
+<script src="store.js"></script>
 <script src="sync.js"></script>
 <script src="defaults.js"></script>
 <script src="hubdata.js"></script>
@@ -120,7 +123,13 @@ textarea.in{min-height:200px;line-height:1.45;resize:vertical}
 .mcs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:22px}
 @media (min-width:1100px){.main.narrow .mcs{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .mc{text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:3px;position:relative;min-height:132px;color:var(--ink);text-decoration:none}
-a.mc:hover{border-color:var(--muted)}
+.mc[data-go]{cursor:pointer}.mc[data-go]:hover{border-color:var(--muted)}
+.mcl{display:flex;align-items:center;gap:3px;text-decoration:none;color:inherit;border-radius:6px;margin:0 -5px;padding:1px 5px;width:fit-content;max-width:calc(100% + 10px)}
+a.mcl:hover{background:var(--hover)}a.mcl .mca{opacity:.55;font-weight:800;margin-left:2px;flex:none}
+.fbar{display:flex;align-items:center;gap:8px;flex-wrap:wrap;background:var(--bl-bg);color:var(--bl);border-radius:12px;padding:9px 12px;margin:-4px 0 12px;font-size:13.5px}
+.fbar a{margin-left:auto;font-weight:800;color:inherit}
+a.kpi{text-decoration:none;color:inherit;display:block}a.kpi:hover{border-color:var(--muted)}a.kpi small::after{content:" ›";opacity:.7}
+a.bz-bud{display:block;text-decoration:none;color:inherit}a.bz-bud:hover b{text-decoration:underline;text-underline-offset:2px}
 .mc .l{font-size:11.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;gap:6px}
 .mc .l svg{color:var(--brand)}
 .mc .v{font-size:27px;font-weight:800;color:var(--brand);letter-spacing:-.6px;font-variant-numeric:tabular-nums;line-height:1.15;margin-top:4px}
@@ -257,17 +266,19 @@ function parse(){
 }
 function render(){
   load(); parse();
-  const sec = {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business'}[route.page] || route.page;
+  const sec = {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', tutors:'home'}[route.page] || route.page;
   LHQNav.section(sec);
   const m = $('main');
-  m.className = 'main' + (['home','edithome','new','students','student'].includes(route.page) ? ' narrow' : '');
+  m.className = 'main' + (['home','edithome','new','students','student','tutors'].includes(route.page) ? ' narrow' : '');
   m.innerHTML = P[route.page](...route.args) || '';
   bind();
   if(route.page === 'new') newSheet(route.args[0]);
+  if(route.page === 'tutors' && route.args[0] === 'none' && $('none')) $('none').scrollIntoView();
 }
 window.addEventListener('hashchange', () => { if(!/^#new/.test(location.hash) && !$('sheet').hidden){ $('sheet').hidden = true; $('shbg').hidden = true; } render(); if(!/^#new/.test(location.hash)) window.scrollTo(0, 0); });
 window.hubApply = render; window.hubReady = () => { render(); HD.refreshPeople().then(render); }; window.hubRemap = render; window.hubMe = render;
 window.addEventListener('pageshow', e => { if(e.persisted) render(); });
+window.addEventListener('lhqinstall', () => { if(route.page === 'set') render(); });
 
 function docRow(d, o = {}){
   const t = typeOf(d), [s, c] = HD.docStatus(d);
@@ -322,20 +333,22 @@ function metrics(list){
     waiting: waiting.length, waitingAmt: waiting.reduce((a, q) => a + HD.total(q), 0), qM: qM.length, qMconv: qMconv.length, oldest,
     tutors: tutorNames.size, perTutor: tutorNames.size ? Math.round(active.length / tutorNames.size * 10) / 10 : 0, noTutor};
 }
+/* a line on a Home card that opens the list behind it (plain text while editing Home) */
+const L = (href, html, cls = 's') => route.page === 'edithome' ? `<div class="${cls}">${html}</div>` : `<a class="mcl ${cls}" href="${href}">${html}<span class="mca">›</span></a>`;
 const trend = (now, before, word) => { if(!before && !now) return ''; if(!before) return `<div class="tr fl">First month with figures</div>`; const p = Math.round((now - before) / before * 100); return `<div class="tr ${p >= 0 ? 'up' : 'dn'}">${p >= 0 ? '▲' : '▼'} ${Math.abs(p)}% ${word}</div>`; };
 const CARDS = {
   money:{t:'Money this month', ic:'cash', need:'money', d:'Received this month against what was invoiced, and what is still owed', href:'#docs/invoice',
-    html:m => `<div class="v">${mkShort(m.recv)} <small>received</small></div><div class="bar"><i style="width:${m.invoiced ? Math.min(100, Math.round(m.recv / m.invoiced * 100)) : 0}%"></i></div><div class="s">${mkShort(m.invoiced)} invoiced this month</div><div class="s ${m.overN ? 'bad' : ''}">Outstanding ${mkShort(m.owed)}${m.overN ? ` · ${m.overN} overdue` : ''}</div>${trend(m.recv, m.recvLast, 'received vs last month')}`},
+    html:m => `${L('#docs/receipt/m-' + ym(today()), `${mkShort(m.recv)} <small>received</small>`, 'v')}<div class="bar"><i style="width:${m.invoiced ? Math.min(100, Math.round(m.recv / m.invoiced * 100)) : 0}%"></i></div>${L('#docs/invoice/m-' + ym(today()), `${mkShort(m.invoiced)} invoiced this month`)}${L('#docs/invoice/unpaid', `Outstanding ${mkShort(m.owed)}${m.overN ? ` · ${m.overN} overdue` : ''}`, 's' + (m.overN ? ' bad' : ''))}${trend(m.recv, m.recvLast, 'received vs last month')}`},
   owed:{t:'Outstanding & overdue', ic:'alert', need:'money', d:'Unpaid balances, with overdue ones first', href:'#docs/invoice',
-    html:m => `<div class="v">${mkShort(m.owed)}</div><div class="s">${m.owingN} invoice${m.owingN === 1 ? '' : 's'} not fully paid</div>${m.overN ? `<div class="s bad">${m.overN} overdue · ${mkShort(m.overAmt)}</div>` : '<div class="s">Nothing overdue</div>'}`},
+    html:m => `${L('#docs/invoice/unpaid', mkShort(m.owed), 'v')}${L('#docs/invoice/unpaid', `${m.owingN} invoice${m.owingN === 1 ? '' : 's'} not fully paid`)}${m.overN ? L('#docs/invoice/overdue', `${m.overN} overdue · ${mkShort(m.overAmt)}`, 's bad') : '<div class="s">Nothing overdue</div>'}`},
   students:{t:'Students', ic:'users', d:'Students in a tuition period now, new ones, and periods ending', href:'#students',
-    html:m => `<div class="v">${m.active} <small>active</small></div><div class="s">+${m.newM} new this month</div><div class="s">${m.ending} period${m.ending === 1 ? '' : 's'} end${m.ending === 1 ? 's' : ''} this week</div>${m.newL || m.newM ? `<div class="tr ${m.newM >= m.newL ? 'up' : 'dn'}">${m.newM >= m.newL ? '▲' : '▼'} ${Math.abs(m.newM - m.newL)} new vs last month</div>` : ''}`},
+    html:m => `${L('#students/current', `${m.active} <small>active</small>`, 'v')}${L('#students/new', `+${m.newM} new this month`)}${L('#students/ending', `${m.ending} period${m.ending === 1 ? '' : 's'} end${m.ending === 1 ? 's' : ''} this week`)}${m.newL || m.newM ? `<div class="tr ${m.newM >= m.newL ? 'up' : 'dn'}">${m.newM >= m.newL ? '▲' : '▼'} ${Math.abs(m.newM - m.newL)} new vs last month</div>` : ''}`},
   enrol:{t:'Enrolments', ic:'quote', d:'Quotes waiting for the parent, and how many become invoices', href:'#docs/quote',
-    html:m => `<div class="v">${m.waiting} <small>quote${m.waiting === 1 ? '' : 's'} waiting</small></div>${can('money') ? `<div class="s">Worth ${mkShort(m.waitingAmt)}</div>` : ''}<div class="s">${m.qMconv} of ${m.qM} quotes this month became invoices</div>${m.oldest ? `<div class="tr fl">Oldest waiting: ${m.oldest} days</div>` : ''}`},
+    html:m => `${L('#docs/quote/waiting', `${m.waiting} <small>quote${m.waiting === 1 ? '' : 's'} waiting</small>`, 'v')}${can('money') ? `<div class="s">Worth ${mkShort(m.waitingAmt)}</div>` : ''}${L('#docs/quote/m-' + ym(today()), `${m.qMconv} of ${m.qM} quotes this month became invoices`)}${m.oldest ? `<div class="tr fl">Oldest waiting: ${m.oldest} days</div>` : ''}`},
   renew:{t:'Renewals due', ic:'clock', d:'Tuition periods ending in the next 7 days', href:'#students/ending',
-    html:m => `<div class="v">${m.ending}</div><div class="s">period${m.ending === 1 ? '' : 's'} end in the next 7 days</div><div class="s">${m.renewed} renewed already</div>${m.endingNext ? `<div class="tr fl">Next: ${esc(m.endingNext.name)}, ${nice(m.endingNext.cur.inv.periodEnd)}</div>` : ''}`},
-  tutors:{t:'Tutors', ic:'user', d:'Tutors teaching now, and subjects with no tutor', href:'#set/people',
-    html:m => `<div class="v">${m.tutors} <small>teaching</small></div><div class="s">${m.perTutor ? `About ${m.perTutor} students each` : 'From the current tuition cards'}</div>${m.noTutor ? `<div class="s warn">${m.noTutor} subject${m.noTutor === 1 ? ' has' : 's have'} no tutor yet</div>` : '<div class="s">Every subject has a tutor</div>'}`},
+    html:m => `${L('#students/ending', `${m.ending}`, 'v')}${L('#students/ending', `period${m.ending === 1 ? '' : 's'} end in the next 7 days`)}<div class="s">${m.renewed} renewed already</div>${m.endingNext ? `<div class="tr fl">Next: ${esc(m.endingNext.name)}, ${nice(m.endingNext.cur.inv.periodEnd)}</div>` : ''}`},
+  tutors:{t:'Tutors', ic:'user', d:'Tutors teaching now, and subjects with no tutor', href:'#tutors',
+    html:m => `${L('#tutors', `${m.tutors} <small>teaching</small>`, 'v')}<div class="s">${m.perTutor ? `About ${m.perTutor} students each` : 'From the current tuition cards'}</div>${m.noTutor ? L('#tutors/none', `${m.noTutor} subject${m.noTutor === 1 ? ' has' : 's have'} no tutor yet`, 's warn') : '<div class="s">Every subject has a tutor</div>'}`},
   sessions:{t:'Sessions this week', ic:'clock', step2:true, d:'Sessions done and still to come, from tutors’ logs'},
   sras:{t:'SRAs due', ic:'restore', step2:true, d:'Spaced repetition reviews due this week'},
   reports:{t:'Reports to send', ic:'rep', step2:true, d:'Weekly reports ready for parents'},
@@ -360,7 +373,7 @@ P.home = () => {
   const draftRow = draft && !draft.id && (draft.student || draft.name) ? `<div class="card"><a class="it" href="doc.html#draft"><span class="ico">${ic('edit')}</span><span class="t"><b>Unsaved ${esc(WORD[draft.type || 'quote'].toLowerCase())} · ${esc(draft.student || draft.name)}</b><small>Not saved yet. Open it to finish and save.</small></span><span class="tag am">Draft</span></a></div>` : '';
   return `<div class="ph"><div class="tt"><h1>${greet}${me().name ? ', ' + esc(first(me().name)) : ''}</h1><p>${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()]} ${d.getDate()} ${MONTHL[d.getMonth()]}</p></div>
     <div class="acts"><a class="btn" href="#edithome" title="Edit Home" aria-label="Edit Home">${ic('edit',16)}</a>${can('quotes') || can('receipts') || can('cards') ? `<a class="btn n" href="#new">${ic('plus',16,2.4)} New</a>` : ''}</div></div>
-  ${cards.length ? `<div class="mcs">${cards.map(k => { const c = CARDS[k]; return `<a class="mc" href="${c.href}"><span class="l">${ic(c.ic,15,2)}${c.t}</span>${c.html(m)}</a>`; }).join('')}</div>` : ''}
+  ${cards.length ? `<div class="mcs">${cards.map(k => { const c = CARDS[k]; return `<div class="mc" data-go="${c.href}" role="link" tabindex="0" aria-label="${esc(c.t)}"><span class="l">${ic(c.ic,15,2)}${c.t}</span>${c.html(m)}</div>`; }).join('')}</div>` : ''}
   ${draftRow}
   ${PREVIEW && isDir() && !saved.length ? `<div class="card pad" style="border-color:var(--gold)"><div class="cap">Preview</div><p class="note" style="margin:0 0 10px">This preview has its own storage and is empty. Load six months of demo data to try every page.</p><a class="btn n" href="#set/demo">Demo data</a></div>` : ''}
   <div class="h2">Needs attention <span class="acts" style="align-items:center"><em>${att.length || ''}</em><button class="btn sm" id="attTog">${attOpen ? 'Hide' : 'Show'}</button></span></div>
@@ -381,12 +394,14 @@ P.edithome = () => {
 
 /* ================= students ================= */
 let sQ = '';
-const S_F = {all:['All', () => true], active:['Active', s => ['active','progress'].includes(s.status.k)], over:['Overdue', s => s.status.k === 'over'], ending:['Ends soon', s => s.status.k === 'ending'], quote:['Quote sent', s => s.status.k === 'quote'], ended:['Ended', s => s.status.k === 'ended']};
+const S_F = {all:['All', () => true], active:['Active', s => ['active','progress'].includes(s.status.k)], over:['Overdue', s => s.status.k === 'over'], ending:['Ends soon', s => s.status.k === 'ending'], quote:['Quote sent', s => s.status.k === 'quote'], ended:['Ended', s => s.status.k === 'ended'], new:['New this month', s => (s.first || '').slice(0, 7) === today().slice(0, 7)],
+  current:['In a tuition period now', s => s.cur && (!s.cur.inv.periodEnd || s.cur.inv.periodEnd >= today())]};
+const S_HIDE = ['current'];   // opened from Home only, so the chips stay short
 P.students = (f = 'all') => {
   const list = HD.students(); if(!S_F[f]) f = 'all';
   return `<div class="ph"><div class="tt"><h1>Students</h1><p>${list.length} student${list.length === 1 ? '' : 's'}</p></div>${can('students') || can('quotes') ? `<button class="btn" id="addStu">${ic('plus',16,2.2)} Add student</button>` : ''}</div>
   <label class="search">${ic('search',18)}<input id="sq" type="search" placeholder="Search name, parent or number" value="${esc(sQ)}" autocomplete="off"></label>
-  <div class="chips">${Object.entries(S_F).map(([k, [l, fn]]) => `<a class="chip ${f === k ? 'on' : ''}" href="#students/${k}">${l}<i>${list.filter(fn).length}</i></a>`).join('')}</div>
+  <div class="chips">${Object.entries(S_F).filter(([k]) => !S_HIDE.includes(k) || k === f).map(([k, [l, fn]]) => `<a class="chip ${f === k ? 'on' : ''}" href="#students/${k}">${l}<i>${list.filter(fn).length}</i></a>`).join('')}</div>
   <div class="card" id="slist">${studentRows(list, f)}</div>`;
 };
 function studentRows(list, f){
@@ -518,19 +533,70 @@ P.new = () => P.home();
 
 /* ================= documents ================= */
 let dQ = '';
-P.docs = (type = 'all') => {
+/* filters opened from Home and Business: m-YYYY-MM (dated that month), fy-YYYY (financial year), unpaid, overdue, waiting */
+const MONTHS = MONTHL;
+function docFilter(type, f){
+  if(!f) return null;
+  let m;
+  if((m = /^m-(\d{4})-(\d{2})$/.exec(f))) return {label: MONTHS[+m[2] - 1] + ' ' + m[1], test: d => ym(d.date) === `${m[1]}-${m[2]}`};
+  if((m = /^fy-(\d{4})$/.exec(f))) return {label: `July ${m[1]} – June ${+m[1] + 1}`, test: d => (d.date || '') >= `${m[1]}-07-01` && (d.date || '') <= `${+m[1] + 1}-06-30`};
+  if(f === 'unpaid'){ const st = new Map(), S = d => st.get(d.id) || (st.set(d.id, HD.invState(d)), st.get(d.id));
+    return {label: 'not fully paid, overdue first', test: d => typeOf(d) === 'invoice' && S(d).balance > 0.005, sort: (a, b) => (S(b).over ? 1 : 0) - (S(a).over ? 1 : 0) || (a.dueDate || a.date || '').localeCompare(b.dueDate || b.date || '')}; }
+  if(f === 'overdue') return {label: 'overdue', test: d => typeOf(d) === 'invoice' && HD.invState(d).over};
+  if(f === 'waiting'){ const open = new Set(HD.students().map(s => s.openQuote && s.openQuote.id).filter(Boolean)); return {label: 'waiting for the parent', test: d => open.has(d.id)}; }
+  return null;
+}
+function filterTotal(type, rows){
+  if(!can('money') || !rows.length) return '';
+  if(type === 'receipt') return ' · ' + mk(rows.reduce((a, d) => a + num(d.received), 0)) + ' received';
+  if(type === 'invoice' && /unpaid|overdue/.test(route.args[1] || '')) return ' · ' + mk(rows.reduce((a, d) => a + HD.invState(d).balance, 0)) + ' owed';
+  if(type === 'invoice' || type === 'quote') return ' · ' + mk(rows.reduce((a, d) => a + HD.total(d), 0));
+  return '';
+}
+P.docs = (type = 'all', f = '') => {
   const T = {all:'All', quote:'Quotes', invoice:'Invoices', receipt:'Receipts', card:'Cards'}; if(!T[type]) type = 'all';
+  const F = docFilter(type, f), fr = F ? docList(type, f) : null;
   return `<div class="ph"><div class="tt"><h1>Documents</h1><p>${saved.length} documents${can('restore') ? ' · deleted ones stay 30 days in <a href="#set/deleted">Recently deleted</a>' : ''}</p></div>
     ${can('quotes') || can('receipts') || can('cards') ? `<a class="btn n" href="#new${type !== 'all' ? '/' + type : ''}">${ic('plus',16,2.4)} New${type !== 'all' ? ' ' + (type === 'card' ? 'card' : WORD[type].toLowerCase()) : ''}</a>` : ''}</div>
   <div class="tabs">${Object.entries(T).map(([k, l]) => `<a class="${type === k ? 'on' : ''}" href="#docs${k === 'all' ? '' : '/' + k}">${l} <span style="opacity:.6">${k === 'all' ? saved.length : saved.filter(d => typeOf(d) === k).length}</span></a>`).join('')}</div>
+  ${F ? `<div class="fbar">${ic('list',16)}<span>${esc(T[type])}: <b>${esc(F.label)}</b> · ${fr.length}${filterTotal(type, fr)}</span><a href="#docs${type === 'all' ? '' : '/' + type}">Show all</a></div>` : ''}
   <label class="search">${ic('search',18)}<input id="dq" type="search" placeholder="Search number or student" value="${esc(dQ)}" autocomplete="off"></label>
-  <div class="card" id="dlist">${docRows(type)}</div>`;
+  <div class="card" id="dlist">${docRows(type, f)}</div>`;
 };
-function docRows(type){
+function docList(type, f){
+  const F = docFilter(type, f);
+  let rows = saved.slice().sort(HD.byDate).filter(d => type === 'all' || typeOf(d) === type);
+  if(F){ rows = rows.filter(F.test); if(F.sort) rows.sort(F.sort); }
+  return rows;
+}
+function docRows(type, f){
   const q = sk(dQ);
-  const rows = saved.slice().sort(HD.byDate).filter(d => type === 'all' || typeOf(d) === type).filter(d => !q || sk([d.number, d.student, d.name].join(' ')).includes(q));
+  const rows = docList(type, f).filter(d => !q || sk([d.number, d.student, d.name].join(' ')).includes(q));
   return rows.slice(0, 300).map(d => docRow(d)).join('') + (rows.length > 300 ? `<p class="note" style="margin:10px 0 14px">Showing the newest 300 of ${rows.length}. Search to find older ones.</p>` : '') || '<p class="empty">Nothing here.</p>';
 }
+
+/* ================= tutors teaching now (from current tuition cards) ================= */
+P.tutors = (show = '') => {
+  const t = today(), by = new Map(), none = [];
+  HD.students().forEach(s => {
+    const c = s.cur; if(!c || (c.inv.periodEnd && c.inv.periodEnd < t)) return;
+    const card = c.card || s.lastCard; if(!card) return;
+    (card.subjects || []).forEach(x => {
+      if(!x.tutor){ none.push({s, card, x}); return; }
+      if(!by.has(x.tutor)) by.set(x.tutor, []);
+      by.get(x.tutor).push({s, card, x});
+    });
+  });
+  const list = [...by.entries()].sort((a, b) => b[1].length - a[1].length);
+  const ppl = HD.people(), pid = n => (ppl.find(p => p.name.toLowerCase() === n.toLowerCase()) || {}).id;
+  const row = ({s, card, x}) => `<a class="it" href="${openLink(card)}"><span class="t"><b>${esc(s.name)}</b><small>${esc([x.name, (x.days || []).join(' '), x.start ? x.start + '–' + (x.end || '') : ''].filter(Boolean).join(' · '))}</small></span><span class="chev">${ic('chev',16,2)}</span></a>`;
+  return `<a class="crumb" href="#home">${ic('back',16,2.2)} Home</a>
+  <div class="ph"><div class="tt"><h1>Tutors teaching now</h1><p>${list.length} tutor${list.length === 1 ? '' : 's'} on current tuition cards${none.length ? ` · ${none.length} subject${none.length === 1 ? '' : 's'} without a tutor` : ''}</p></div></div>
+  ${none.length ? `<div class="h2" id="none">No tutor yet <em>${none.length}</em></div><div class="card" style="border-color:var(--gold)">${none.map(row).join('')}</div>` : ''}
+  ${list.map(([n, items]) => { const st = new Set(items.map(i => i.s.key)).size, open = show === encodeURIComponent(n) || show === n;
+    return `<div class="card"><a class="it" href="#tutors/${encodeURIComponent(open ? '' : n)}"><span class="av">${inits(n)}</span><span class="t"><b>${esc(n)}</b><small>${st} student${st === 1 ? '' : 's'} · ${esc([...new Set(items.map(i => i.x.name))].join(', '))}</small></span><span class="chev">${ic(open ? 'back' : 'chev',16,2)}</span></a>
+      ${open ? items.map(row).join('') + (pid(n) && (isDir() || can('tutors')) ? `<a class="btn sm" style="margin:4px 0 12px" href="#person/${pid(n)}">${ic('user',14)} ${esc(first(n))}'s account</a>` : '') : ''}</div>`; }).join('') || '<p class="empty">No current tuition cards have tutors yet.</p>'}`;
+};
 
 /* ================= business (business.js) ================= */
 P.biz = (tab, period, cat) => BIZ.page(tab, period, cat);
@@ -564,6 +630,9 @@ S.account = () => { const m = me(), L = LHQNav.layout();
   <div class="card pad"><div class="cap">Navigation on this device</div>
     <div class="seg"><button class="${L === 'bottom' ? 'on' : ''}" data-layout="bottom">Bottom bar</button><button class="${L === 'side' ? 'on' : ''}" data-layout="side">Sidebar</button></div>
     <p class="note" style="margin:0">Bottom bar: sections along the bottom on tablet and phone (a sidebar on a computer). Sidebar: sections down the left on tablet and computer. Phones always use the bottom bar.</p></div>
+  <div class="card pad"><div class="cap">LHQ Hub on this device</div>
+    ${window.lhqInstalled && lhqInstalled() ? '<p class="note" style="margin:0">Installed. It opens from your home screen, and also opens with no internet: what you save then uploads when the connection is back.</p>'
+    : `<p class="note" style="margin:0 0 10px">Install it to open LHQ Hub from your home screen like an app, faster, and also with no internet.</p>${window.lhqInstall ? `<button class="btn n" id="instGo">Install LHQ Hub</button>` : '<p class="note" style="margin:0"><b>iPhone or iPad:</b> Safari › Share › Add to Home Screen. <b>Android:</b> Chrome menu ⋮ › Install app (or Add to Home screen).</p>'}`}</div>
   <div class="card pad"><div class="cap">Change my PIN</div><div class="r3"><label class="f"><span>Current PIN</span><input class="in" id="pin0" type="password" inputmode="numeric" maxlength="6"></label><label class="f"><span>New PIN</span><input class="in" id="pin1" type="password" inputmode="numeric" maxlength="6"></label><label class="f"><span>New PIN again</span><input class="in" id="pin2" type="password" inputmode="numeric" maxlength="6"></label></div><button class="btn n" id="pinGo">Change PIN</button></div>
   ${isDir() ? `<div class="card pad"><div class="cap">If you forget your PIN</div><p class="note" style="margin:0">As Director, nobody else can reset your PIN. Tap "Forgot your PIN?" when signing in and use the setup code (the first 8 characters of LHQ_SECRET in Netlify). Keep it somewhere safe.</p></div>` : ''}
   <div class="card pad"><div class="cap">Sign out</div><p class="note" style="margin:0 0 10px">Removes LHQ's documents from this device. They stay online.</p><button class="btn rd" id="outGo">${ic('out',16)} Sign out of this device</button></div>`; };
@@ -657,7 +726,7 @@ S.sending = () => `<h2 class="sec-h">Email & WhatsApp</h2><p class="sec-p">Sendi
 
 S.backup = () => { const last = store.get('lhq_lastBackup', 0);
   return `<h2 class="sec-h">Backup & restore</h2><p class="sec-p">Everything is stored online in LHQ Hub. A backup is an extra copy as one file: keep it in Google Drive or send it to yourself.</p>
-  <div class="card pad"><dl class="kv"><dt>Last backup</dt><dd>${last ? ago(last) : 'Never'}</dd><dt>Documents</dt><dd>${saved.length}</dd></dl>
+  <div class="card pad"><dl class="kv"><dt>Last backup</dt><dd>${last ? ago(last) : 'Never'}</dd><dt>Documents</dt><dd>${saved.length}</dd>${window.lhqStorageUse ? `<dt>This device</dt><dd>${(lhqStorageUse() / 1048576).toFixed(1)} MB used of about 5 MB</dd>` : ''}</dl>
   <div class="acts" style="margin-top:12px"><button class="btn n" id="bkGo">Back up now</button><button class="btn" id="rsGo">Add from a backup</button></div>
   <p class="note">Adding from a backup brings back documents that are missing, and the newer copy wins where a document is in both. It never deletes anything.</p></div>`; };
 
@@ -691,12 +760,13 @@ function bind(){
   on('[data-close]', () => closeSheet());
   if(route.page === 'biz') BIZ.bind();
   on('[data-go]', (el, e) => { if(!e.target.closest('a')) location.href = el.dataset.go; });
+  document.querySelectorAll('[data-go][tabindex]').forEach(el => el.onkeydown = e => { if(e.key === 'Enter' && e.target === el) location.href = el.dataset.go; });
   if($('attTog')) $('attTog').onclick = () => { attOpen = !attOpen; try{ localStorage.setItem('lhq_attOpen', attOpen ? '1' : '0'); }catch(e){} render(); };
   on('[data-mv]', el => { const [i, d] = el.dataset.mv.split(':').map(Number), a = myCards(); [a[i], a[i + d]] = [a[i + d], a[i]]; saveHome(a); });
   on('[data-rm]', el => { const a = myCards(); a.splice(+el.dataset.rm, 1); saveHome(a); });
   on('[data-add]', el => { const a = myCards(); if(a.length < 6) a.push(el.dataset.add); saveHome(a); });
   if($('sq')) $('sq').oninput = e => { sQ = e.target.value; $('slist').innerHTML = studentRows(HD.students(), route.args[0]); };
-  if($('dq')) $('dq').oninput = e => { dQ = e.target.value; $('dlist').innerHTML = docRows(route.args[0] || 'all'); };
+  if($('dq')) $('dq').oninput = e => { dQ = e.target.value; $('dlist').innerHTML = docRows(route.args[0] || 'all', route.args[1] || ''); };
   if($('addStu')) $('addStu').onclick = () => newStudentSheet(false);
   // student details
   if($('sdEdit')) $('sdEdit').onclick = () => { editDetails = true; render(); };
@@ -717,6 +787,7 @@ function bind(){
     catch(e){ toast(e.message); }
   };
   if($('outGo')) $('outGo').onclick = () => hub.signOut();
+  if($('instGo')) $('instGo').onclick = async () => { const p = window.lhqInstall; if(!p) return; p.prompt(); const r = await p.userChoice.catch(() => ({})); window.lhqInstall = null; if(r.outcome === 'accepted') toast('Installing LHQ Hub'); render(); };
   // people
   if($('addPerson')) $('addPerson').onclick = () => {
     openSheet(`<div class="hx"><h3>${isDir() ? 'Add a person' : 'Add a tutor'}</h3><button class="ib" data-close>✕</button></div><p class="sp">They sign in by choosing their name and entering this PIN. They can change it afterwards.</p>

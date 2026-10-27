@@ -53,9 +53,10 @@ window.BIZ = (function(){
     Object.entries(series).forEach(([sid, list]) => {
       list.sort((a, b) => (a.date || '').localeCompare(b.date || '') || (a.at || 0) - (b.at || 0));
       const last = list[list.length - 1]; if(last.rep !== 'm') return;
+      const day = +list[0].date.slice(8);   // the day it was first paid, so the 31st stays the 31st after a short month
       for(let m = addMonth(ym(last.date), 1), i = 0; m <= cur && i < 3; m = addMonth(m, 1), i++){
         const [y, n] = m.split('-').map(Number), dim = new Date(y, n, 0).getDate();
-        const date = `${m}-${String(Math.min(+last.date.slice(8), dim)).padStart(2, '0')}`;
+        const date = `${m}-${String(Math.min(day, dim)).padStart(2, '0')}`;
         if(date <= t) out.push({sid, last, date});
       }
     });
@@ -92,7 +93,8 @@ window.BIZ = (function(){
     });
     return `<div class="bz-scroll"><svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:540px" role="img" aria-label="Money in and spending by month, ${fyLabel(fy)}">${g}</svg></div>`;
   }
-  const kpi = (l, v, s, cls = 'fl') => `<div class="kpi"><small>${l}</small><b>${v}</b>${s ? `<span class="${cls}">${s}</span>` : ''}</div>`;
+  const kpi = (l, v, s, cls = 'fl', href) => `<${href ? `a href="${href}"` : 'div'} class="kpi"><small>${l}</small><b>${v}</b>${s ? `<span class="${cls}">${s}</span>` : ''}</${href ? 'a' : 'div'}>`;
+  const docsFor = (type, period) => `#docs/${type}/${period.startsWith('fy') ? 'fy-' + period.slice(2) : 'm-' + period}`;
   const signed = v => (v < 0 ? '−' : '') + mk(Math.abs(v));
 
   /* ---------- profit and loss ---------- */
@@ -105,10 +107,10 @@ window.BIZ = (function(){
     const ch = prev && prev.exp ? Math.round((f.exp - prev.exp) / prev.exp * 100) : null;
     const rows = Object.entries(f.byCat).sort((a, b) => b[1] - a[1]);
     return `<div class="kpis">
-      ${kpi('Money in' + (live ? ' so far' : ''), mkShort(f.inc), `${mkShort(f.invoiced)} invoiced`)}
-      ${kpi('Spending' + (live ? ' so far' : ''), mkShort(f.exp), toRec ? `+ ${mkShort(toRec)} repeating to confirm` : ch == null ? (f.oneoff ? `incl. ${mkShort(f.oneoff)} one-off` : (bTot ? `budget ${mkShort(bTot)}` : '')) : `${ch > 0 ? '▲' : '▼'} ${Math.abs(ch)}% vs ${monShort(addMonth(period, -1))}`, toRec ? 'fl' : ch == null ? 'fl' : ch > 0 ? 'dn' : 'up')}
+      ${kpi('Money in' + (live ? ' so far' : ''), mkShort(f.inc), `${mkShort(f.invoiced)} invoiced`, 'fl', docsFor('receipt', period))}
+      ${kpi('Spending' + (live ? ' so far' : ''), mkShort(f.exp), toRec ? `+ ${mkShort(toRec)} repeating to confirm` : ch == null ? (f.oneoff ? `incl. ${mkShort(f.oneoff)} one-off` : (bTot ? `budget ${mkShort(bTot)}` : '')) : `${ch > 0 ? '▲' : '▼'} ${Math.abs(ch)}% vs ${monShort(addMonth(period, -1))}`, toRec ? 'fl' : ch == null ? 'fl' : ch > 0 ? 'dn' : 'up', `#biz/spending/${period}`)}
       ${kpi('Profit' + (live ? ' so far' : ''), (f.profit < 0 ? '−' : '') + mkShort(Math.abs(f.profit)), f.inc ? `${pct(f.profit, f.inc)}% margin` : '', f.profit >= 0 ? 'up' : 'dn')}
-      ${kpi('Owed to LHQ', mkShort(o.amt), o.overN ? `${o.overN} overdue · ${mkShort(o.overAmt)}` : 'nothing overdue', o.overN ? 'dn' : 'fl')}</div>
+      ${kpi('Owed to LHQ', mkShort(o.amt), o.overN ? `${o.overN} overdue · ${mkShort(o.overAmt)}` : 'nothing overdue', o.overN ? 'dn' : 'fl', '#docs/invoice/unpaid')}</div>
     <div class="card pad"><div class="cap bz-cap">Money in and spending · ${fyLabel(fy)}<span class="bz-leg"><span><i style="background:var(--inc)"></i>Money in</span><span><i style="background:var(--exp)"></i>Spending</span></span></div>${chart(fy, isY ? null : period)}<p class="note" style="margin:4px 0 0">Tap a month to see it.</p></div>
     <div class="card pad"><div class="cap">Profit and loss · ${isY ? `${monShort(ms[0])} – ${monShort(ms[ms.length - 1])} ${ms[ms.length - 1].slice(0, 4)}` : monthName(period)}</div>
       <table class="bz-pl"><tr><td><b>Money in</b> <small>payments received</small></td><td><b>${mk(f.inc)}</b></td></tr>
@@ -148,12 +150,12 @@ window.BIZ = (function(){
   function budgetView(period){
     const ms = months(period), f = figures(ms), B = budget(), C = cats(), isY = period.startsWith('fy');
     const tot = Object.values(B).reduce((a, v) => a + num(v), 0) * ms.length;
-    const row = (c, s, b) => { const p = b ? s / b : 0, exact = b && Math.abs(p - 1) < .005, col = !b ? 'var(--muted)' : exact ? 'var(--ok)' : p > 1 ? 'var(--rd)' : p > .8 ? 'var(--gold)' : 'var(--ok)';
-      return `<div class="bz-bud"><div class="h"><b>${esc(c)}${ONEOFF.includes(c) ? ' <span class="tag gr">one-off</span>' : ''}</b><span>${mkShort(s)} of ${b ? mkShort(b) : 'no budget'}${exact ? ' <span class="tag ok">on budget</span>' : b && p > 1 ? ' <span class="tag rd">over</span>' : b && p > .8 ? ' <span class="tag am">80%+</span>' : ''}</span></div><div class="track"><i style="width:${b ? Math.min(100, p * 100) : 0}%;background:${col}"></i></div></div>`; };
+    const row = (c, s, b, link = true) => { const p = b ? s / b : 0, exact = b && Math.abs(p - 1) < .005, col = !b ? 'var(--muted)' : exact ? 'var(--ok)' : p > 1 ? 'var(--rd)' : p > .8 ? 'var(--gold)' : 'var(--ok)';
+      return `<${link ? `a href="#biz/spending/${period}/${encodeURIComponent(c)}"` : 'div'} class="bz-bud"><div class="h"><b>${esc(c)}${ONEOFF.includes(c) ? ' <span class="tag gr">one-off</span>' : ''}</b><span>${mkShort(s)} of ${b ? mkShort(b) : 'no budget'}${exact ? ' <span class="tag ok">on budget</span>' : b && p > 1 ? ' <span class="tag rd">over</span>' : b && p > .8 ? ' <span class="tag am">80%+</span>' : ''}</span></div><div class="track"><i style="width:${b ? Math.min(100, p * 100) : 0}%;background:${col}"></i></div></${link ? 'a' : 'div'}>`; };
     const extra = Object.keys(f.byCat).filter(c => !C.includes(c));
     return `<p class="note" style="margin:-4px 0 12px">${isY ? `Spending in ${ms.length} month${ms.length === 1 ? '' : 's'} against ${ms.length} month${ms.length === 1 ? '' : 's'} of budget.` : `${monthName(period)}: spending against the monthly budget.`} Budgets repeat every month until they are changed.</p>
     ${Object.keys(B).length ? `<div class="card pad">${[...C, ...extra].map(c => row(c, f.byCat[c] || 0, num(B[c]) * ms.length)).join('')}</div>
-      <div class="card pad"><div class="cap">Total</div>${row('All spending', f.exp, tot)}${isY ? '' : `<p class="note">${f.exp <= tot ? `${mk(tot - f.exp)} of this month's budget is left.` : `${mk(f.exp - tot)} over this month's budget.`}</p>`}</div>`
+      <div class="card pad"><div class="cap">Total</div>${row('All spending', f.exp, tot, false)}${isY ? '' : `<p class="note">${f.exp <= tot ? `${mk(tot - f.exp)} of this month's budget is left.` : `${mk(f.exp - tot)} over this month's budget.`}</p>`}</div>`
     : `<div class="card pad"><p class="empty" style="margin:0">No budgets yet.${isDir() ? ' Set a monthly amount for each category, then spending is measured against it here and in Profit & loss.' : ' The Director sets them.'}</p></div>`}
     ${isDir() ? `<button class="btn" data-bzbud>${ic('edit',16)} ${Object.keys(B).length ? 'Change budgets' : 'Set budgets'}</button>` : ''}`;
   }
@@ -241,12 +243,12 @@ window.BIZ = (function(){
   function cardProfit(){
     const m = thisMonth(), f = figures([m]), p = figures([addMonth(m, -1)]);
     const tr = p.profit ? Math.round((f.profit - p.profit) / Math.abs(p.profit) * 100) : null;
-    return `<div class="v">${(f.profit < 0 ? '−' : '') + mkShort(Math.abs(f.profit))}</div><div class="s">${mkShort(f.inc)} in · ${mkShort(f.exp)} spent</div><div class="s">${f.inc ? pct(f.profit, f.inc) + '% margin' : 'Nothing received yet'}</div>${tr == null ? '' : `<div class="tr ${tr >= 0 ? 'up' : 'dn'}">${tr >= 0 ? '▲' : '▼'} ${Math.abs(tr)}% vs ${monShort(addMonth(m, -1))} so far</div>`}`;
+    return `${L('#biz/pl', (f.profit < 0 ? '−' : '') + mkShort(Math.abs(f.profit)), 'v')}${L('#docs/receipt/m-' + m, `${mkShort(f.inc)} in`)}${L('#biz/spending/' + m, `${mkShort(f.exp)} spent`)}<div class="s">${f.inc ? pct(f.profit, f.inc) + '% margin' : 'Nothing received yet'}</div><div class="tr fl">So far this month</div>`;
   }
   function cardSpend(){
     const m = thisMonth(), f = figures([m]), B = budget(), b = Object.values(B).reduce((a, v) => a + num(v), 0), D = due().length;
     const top = Object.entries(f.byCat).sort((a, c) => c[1] - a[1])[0];
-    return `<div class="v">${mkShort(f.exp)} <small>spent</small></div>${b && can('pl') ? `<div class="bar"><i style="width:${Math.min(100, pct(f.exp, b))}%"></i></div><div class="s">of ${mkShort(b)} budget</div>` : `<div class="s">${f.n} payment${f.n === 1 ? '' : 's'} recorded</div>`}${top ? `<div class="s">Most on ${esc(top[0])}: ${mkShort(top[1])}</div>` : ''}${D ? `<div class="s warn">${D} repeating cost${D === 1 ? '' : 's'} to confirm</div>` : ''}`;
+    return `${L('#biz/spending/' + m, `${mkShort(f.exp)} <small>spent</small>`, 'v')}${b && can('pl') ? `<div class="bar"><i style="width:${Math.min(100, pct(f.exp, b))}%"></i></div><div class="s">of ${mkShort(b)} budget</div>` : `<div class="s">${f.n} payment${f.n === 1 ? '' : 's'} recorded</div>`}${top ? L(`#biz/spending/${m}/${encodeURIComponent(top[0])}`, `Most on ${esc(top[0])}: ${mkShort(top[1])}`) : ''}${D ? L('#biz/spending/' + m, `${D} repeating cost${D === 1 ? '' : 's'} to confirm`, 's warn') : ''}`;
   }
 
   return {page, bind, cardProfit, cardSpend, figures, due, months, fyOf, thisMonth};

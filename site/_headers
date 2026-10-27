@@ -1,0 +1,5 @@
+# the offline copy's own file must always be checked, so updates reach every device
+/sw.js
+  Cache-Control: no-cache
+/manifest.webmanifest
+  Cache-Control: no-cache

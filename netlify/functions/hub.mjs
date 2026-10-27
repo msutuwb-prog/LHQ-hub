@@ -7,7 +7,10 @@
 //                     role: director (one, full access) | admin (only what the Director allows in perms) | tutor
 //                     pv = PIN version; changing a PIN signs that person out everywhere
 //   fails/<id>        {n, until}                                           (wrong-PIN counter for that person)
-//   index             {rev, docs:{id:{type, number, savedAt}}}             (one small file used for numbering and change checks)
+//   index             {rev, epoch, docs:{id:{type, number, savedAt, r}}, gone:{id:r}, kvr:{key:r}, floor}
+//                     one small file used for numbering and change checks. r = the rev a document (or setting list) last
+//                     changed at, so a device that already has rev N is sent only what changed after N (see state()).
+//                     epoch changes when the whole store is replaced (demo data, emptying a preview): devices then reload everything.
 //   doc/<id>          the saved quote / invoice / receipt / card
 //   hist/<id>/<time>  the previous version whenever a document is overwritten
 //   trash/<id>        deleted documents (Recently deleted: can be restored for 30 days)
@@ -150,7 +153,16 @@ async function setup(req) {
 /* the Director forgot their PIN: the setup code (first 8 characters of LHQ_SECRET) sets a new one */
 async function recover(req) {
   const { code, pin } = await req.json().catch(() => ({}));
-  if (String(code || "").trim() !== secret().slice(0, 8)) return fail("That setup code is wrong.", 403);
+  // the setup code can't be guessed by trying many times: 5 wrong tries lock it for 15 minutes
+  const s = store(), f = (await s.get("fails/_recover", { type: "json" })) || { n: 0, until: 0 };
+  if (f.until > Date.now()) return fail(`Too many wrong setup codes. Try again in ${Math.ceil((f.until - Date.now()) / 60000)} minutes.`, 429);
+  const want = Buffer.from(secret().slice(0, 8)), got = Buffer.from(String(code || "").trim());
+  if (got.length !== want.length || !crypto.timingSafeEqual(got, want)) {
+    f.n = (f.n || 0) + 1; if (f.n >= MAX_FAILS) { f.n = 0; f.until = Date.now() + LOCK_MIN * 60000; }
+    await s.setJSON("fails/_recover", f);
+    return fail("That setup code is wrong.", 403);
+  }
+  await s.delete("fails/_recover");
   if (!pinOk(pin)) return fail("Choose a PIN of 4 to 6 digits.");
   const list = await getPeople(), p = list.find(isDirector);
   if (!p) return fail("There is no Director yet.", 404);
@@ -178,13 +190,32 @@ async function login(req) {
 
 async function state(req, me) {
   if (!staff(me)) return fail("Only LHQ admin can open documents.", 403);
+  const q = new URL(req.url).searchParams, since = Number(q.get("since"));
+  const { data: cur } = await getIndex();
+  if (q.has("since") && since >= (cur.floor || 0) && q.get("epoch") === String(cur.epoch || "") && since <= cur.rev) return delta(cur, since, me);
   const [{ data: idx }, docs, kvs] = await Promise.all([getIndex(), readAll("doc/"), Promise.all(KV_KEYS.map(k => store().get("kv/" + k, { type: "json" })))]);
   const kv = {}; KV_KEYS.forEach((k, i) => { if (kvs[i] != null && (!KV_READ[k] || KV_READ[k](me))) kv[k] = kvs[i]; });
   docs.sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
-  return json({ rev: idx.rev, docs, kv, me: pub(me) });
+  return json({ rev: idx.rev, epoch: idx.epoch || "", docs, kv, me: pub(me) });
+}
+/* only what changed after rev `since` */
+async function delta(idx, since, me) {
+  const s = store(), ids = Object.entries(idx.docs || {}).filter(([, m]) => (m.r || 0) > since).map(([id]) => id);
+  const docs = (await Promise.all(ids.map(id => s.get("doc/" + id, { type: "json" })))).filter(Boolean);
+  // a save that has updated the index but not yet written its document: keep the device at `since` so it asks again
+  const late = docs.length < ids.length || docs.some(d => (idx.docs[d.id] || {}).savedAt !== d.savedAt);
+  const gone = Object.entries(idx.gone || {}).filter(([, r]) => r > since).map(([id]) => id);
+  const kv = {}, hide = [];
+  for (const k of KV_KEYS) {
+    if (KV_READ[k] && !KV_READ[k](me)) { hide.push(k); continue; }
+    if (((idx.kvr || {})[k] || 0) > since) { const v = await s.get("kv/" + k, { type: "json" }); if (v != null) kv[k] = v; }
+  }
+  return json({ delta: true, rev: late ? since : idx.rev, epoch: idx.epoch || "", docs, gone, kv, hide, me: pub(me) });
 }
 
-async function rev(req, me) { const { data } = await getIndex(); return json({ rev: data.rev, me: pub(me) }); }
+async function rev(req, me) { const { data } = await getIndex(); return json({ rev: data.rev, epoch: data.epoch || "", me: pub(me) }); }
+const GONE_KEEP = 3000;
+function markGone(idx, id, r) { const g = idx.gone = idx.gone || {}; g[id] = r; const ks = Object.keys(g); if (ks.length > GONE_KEEP) { ks.sort((a, b) => g[a] - g[b]).slice(0, ks.length - GONE_KEEP).forEach(k => { idx.floor = Math.max(idx.floor || 0, g[k]); delete g[k]; }); } }
 
 const SKIP_DIFF = ["savedAt", "updatedAt", "updatedBy", "createdBy", "total", "receivedAmt", "log"];
 function changedKeys(a, b) {
@@ -276,12 +307,20 @@ async function sync(req, me) {
       if (prev && u.base != null && prev.savedAt !== u.base && prev.savedAt !== d.savedAt) conflicts.push({ id: d.id, number: d.number, by: prev.by || "" });
       d.updatedBy = me.name; d.updatedAt = now;
       if (!prev) d.createdBy = d.createdBy || me.name;
-      docs[d.id] = { type, number: d.number, savedAt: d.savedAt || now, by: me.name };
+      d.savedAt = d.savedAt || now;
+      docs[d.id] = { type, number: d.number, savedAt: d.savedAt, by: me.name, r: (idx.rev || 0) + 1 };
+      if (idx.gone) delete idx.gone[d.id];
       writes.push({ d, prev: !!prev });
     }
-    for (const x of deletes) { if (x && x.id && docs[x.id]) { delete docs[x.id]; writes.push({ del: x.id }); } }
-    const kv = kvIn;
-    idx.docs = docs; idx.rev = (idx.rev || 0) + 1; idx.at = now;
+    for (const x of deletes) { if (x && x.id && docs[x.id]) { delete docs[x.id]; markGone(idx, x.id, (idx.rev || 0) + 1); writes.push({ del: x.id }); } }
+    // setting lists are written before the index moves on, so a device that sees the new rev also finds them
+    const merged = {};
+    for (const [k, v] of kvIn) {
+      if (k === "lhq_spend") { const m = mergeSpend(await s.get("kv/" + k, { type: "json" }), v, me); merged[k] = m; await s.setJSON("kv/" + k, m); }
+      else await s.setJSON("kv/" + k, v);
+      (idx.kvr = idx.kvr || {})[k] = (idx.rev || 0) + 1;
+    }
+    idx.docs = docs; idx.rev = (idx.rev || 0) + 1; idx.at = now; if (!idx.epoch) idx.epoch = crypto.randomBytes(6).toString("hex");
     const res = await s.setJSON("index", idx, etag ? { onlyIfMatch: etag } : { onlyIfNew: true });
     if (res && res.modified === false) { Object.keys(remap).forEach(k => delete remap[k]); conflicts.length = 0; continue; }   // someone else saved at the same moment: redo
     for (const w of writes) {
@@ -291,12 +330,7 @@ async function sync(req, me) {
       w.d.log = logEntry(old, w.d, me, now);
       await s.setJSON("doc/" + w.d.id, w.d); saved.push(w.d);
     }
-    const merged = {};
-    for (const [k, v] of kv) {
-      if (k === "lhq_spend") { const m = mergeSpend(await s.get("kv/" + k, { type: "json" }), v, me); merged[k] = m; await s.setJSON("kv/" + k, m); }
-      else await s.setJSON("kv/" + k, v);
-    }
-    return json({ rev: idx.rev, remap, conflicts, saved, kv: merged });
+    return json({ rev: idx.rev, epoch: idx.epoch, remap, conflicts, saved, kv: merged });
   }
   return fail("Too many saves at once. Try again.", 409);
 }
@@ -326,14 +360,15 @@ async function demo(req, me) {
   for (let i = 0; i < b.docs.length; i += 20) await Promise.all(b.docs.slice(i, i + 20).map(d => { docs[d.id] = { type: d.type || "quote", number: d.number, savedAt: d.savedAt || now, by: d.updatedBy || "" }; return s.setJSON("doc/" + d.id, d); }));
   for (const d of b.trash || []) await s.setJSON("trash/" + d.id, d);
   for (const [k, v] of Object.entries(b.kv || {})) if (KV_KEYS.includes(k)) await s.setJSON("kv/" + k, v);
-  await s.setJSON("index", { rev: now, docs, at: now });
+  Object.values(docs).forEach(m => { m.r = now; });
+  await s.setJSON("index", { rev: now, docs, at: now, epoch: crypto.randomBytes(6).toString("hex") });
   return json({ ok: true, docs: b.docs.length, people: list.map(pub) });
 }
 async function reset(req, me) {
   if (!isPreview()) return fail("This only works on a preview, never on the live site.", 403);
   if (!isDirector(me)) return fail("Only the Director can empty the preview.", 403);
   const list = await wipe(p => p.id === me.id);
-  await store().setJSON("index", { rev: Date.now(), docs: {}, at: Date.now() });
+  await store().setJSON("index", { rev: Date.now(), docs: {}, at: Date.now(), epoch: crypto.randomBytes(6).toString("hex") });
   return json({ ok: true, people: list.map(pub) });
 }
 
@@ -362,8 +397,9 @@ async function restore(req, me) {
     }
     delete d.deletedBy; delete d.deletedAt;
     d.savedAt = now; (d.log = d.log || []).push({ a: "restored", by: me.name, at: now, was: note });
-    docs[d.id] = { type, number: d.number, savedAt: now, by: me.name };
-    idx.docs = docs; idx.rev = (idx.rev || 0) + 1; idx.at = now;
+    docs[d.id] = { type, number: d.number, savedAt: now, by: me.name, r: (idx.rev || 0) + 1 };
+    if (idx.gone) delete idx.gone[d.id];
+    idx.docs = docs; idx.rev = (idx.rev || 0) + 1; idx.at = now; if (!idx.epoch) idx.epoch = crypto.randomBytes(6).toString("hex");
     const res = await s.setJSON("index", idx, etag ? { onlyIfMatch: etag } : { onlyIfNew: true });
     if (res && res.modified === false) continue;
     await s.setJSON("doc/" + d.id, d); await s.delete("trash/" + d.id);

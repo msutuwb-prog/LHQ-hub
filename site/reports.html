@@ -8,17 +8,19 @@
 <link rel="icon" href="icon-32.png" sizes="32x32">
 <link rel="icon" href="icon-192.png" sizes="192x192">
 <link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="hub.css">
 <script src="theme.js"></script>
 <script>lhqPdfSoon();</script>
+<script src="pako.min.js"></script>
+<script src="store.js"></script>
 <script src="sync.js"></script>
 <script src="nav.js"></script>
 <script src="topics.js"></script>
 <script src="card.js"></script>
-<script src="pako.min.js"></script>
 <script src="codec.js"></script>
 <style>
 :root{--navy:#073763;--gold:#f4b223;--ink:#14213d;--muted:#6b7585;--line:#e4e7ec;--bg:#f5f6f8;--field:#f6f8fb;--wa:#1f9d55;--ok:#1f7a4d;--red:#b42318;--panel:#fff}
@@ -235,7 +237,7 @@ const store = {
 };
 function toast(m){ const t = F('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('show'), 3000); }
 window.hubToast = toast;
-window.hubApply = ()=>{ saved = store.get('lhq_saved', []); LOG = store.get('lhq_logs', {e:{}, imports:[]}); try{ render(); }catch(e){} };
+window.hubApply = ()=>{ saved = store.get('lhq_saved', []); LOG = store.get('lhq_logs', {e:{}, imports:[]}); RC = null; try{ render(); }catch(e){} };
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick = ()=>b.closest('dialog').close());
 
 /* ---------- dates ---------- */
@@ -260,7 +262,7 @@ const norm = s => String(s||'').trim().toLowerCase().replace(/\s+/g,' ');
 const settings = Object.assign({tutors:''}, store.get('lhq_settings', {}));
 let saved = store.get('lhq_saved', []);
 let LOG = store.get('lhq_logs', {e:{}, imports:[]});
-const saveLog = () => store.set('lhq_logs', LOG);
+const saveLog = () => { RC = null; store.set('lhq_logs', LOG); };
 const GRADES = [[90,'A*'],[80,'A'],[70,'B'],[60,'C'],[50,'D'],[40,'E'],[30,'F'],[20,'G'],[0,'U']];
 const letter = p => p==null ? '' : GRADES.find(([m])=>p >= m)[1];
 const rank = l => GRADES.findIndex(([,g])=>g===l);
@@ -268,8 +270,17 @@ const avg = xs => xs.length ? Math.round(xs.reduce((a,b)=>a+b,0) / xs.length) : 
 const pct = e => e.sc!=null && e.mx>0 ? Math.round(e.sc / e.mx * 100) : null;
 const shortLevel = l => String(l||'').replace(' · ', ' · ');
 
-const cardSubjects = () => cardRosterSubjects(saved);
-const entries = () => Object.values(LOG.e).filter(e=>!e.x);
+/* card subjects and log entries, worked out once and grouped by student (thousands of entries stay quick) */
+let RC = null;
+function rc(){
+  if(RC) return RC;
+  const cs = cardRosterSubjects(saved), en = Object.values(LOG.e).filter(e=>!e.x), csBy = new Map(), enBy = new Map();
+  cs.forEach(x=>{ const k = norm(x.student); if(!csBy.has(k)) csBy.set(k, []); csBy.get(k).push(x); });
+  en.forEach(e=>{ const k = norm(e.st); if(!enBy.has(k)) enBy.set(k, []); enBy.get(k).push(e); });
+  return RC = {cs, en, csBy, enBy};
+}
+const cardSubjects = () => rc().cs;
+const entries = () => rc().en;
 
 /* ---------- importing a tutor's log (link …/reports.html#log=…) ---------- */
 async function importFromHash(){
@@ -310,8 +321,8 @@ F('next').onclick = ()=>{ state.end = addDays(state.end, 7); render(); };
 
 /* ---------- the numbers for one student over a period ---------- */
 function studentModel(name, a, b){
-  const subs = cardSubjects().filter(s=>norm(s.student)===norm(name));
-  const E = entries().filter(e=>norm(e.st)===norm(name));
+  const subs = (rc().csBy.get(norm(name)) || []).slice();
+  const E = rc().enBy.get(norm(name)) || [];
   // subjects only seen in tutor logs still count
   E.forEach(e=>{ if(!subs.some(s=>norm(s.name)===norm(e.sub))) subs.push({key:norm(name)+'|'+norm(e.sub), student:name, name:e.sub, tier:'', code:'', tutor:e.tutor, tf:1, level:'', periodStart:'', topics:[]}); });
   const info = subs[0] || {student:name};

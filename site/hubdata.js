@@ -34,7 +34,12 @@
   const roleText = p => (ROLE[p.role] || (p.admin ? 'Admin' : 'Tutor')) + (p.role !== 'tutor' && p.tutor ? ' + Tutor' : '');
 
   let saved = [], settings = {};
-  function load(){ saved = store.get('lhq_saved', []); settings = Object.assign({}, window.DEFAULT_SETTINGS || {}, store.get('lhq_settings', {})); return saved; }
+  let rIdx = null;   // receipts by the invoice number they pay, built once per load (lists with thousands of documents stay quick)
+  function load(){ saved = store.get('lhq_saved', []); settings = Object.assign({}, window.DEFAULT_SETTINGS || {}, store.get('lhq_settings', {})); rIdx = null; return saved; }
+  function receiptsFor(number){
+    if(!rIdx){ rIdx = new Map(); saved.forEach(r => { if(r.type === 'receipt' && r.ref){ const k = String(r.ref).trim().toUpperCase(); if(!rIdx.has(k)) rIdx.set(k, []); rIdx.get(k).push(r); } }); }
+    return rIdx.get(String(number || '').trim().toUpperCase()) || [];
+  }
   const grace = () => Math.max(0, Math.round(num(settings.graceDays ?? 3)));
 
   /* the same sums as the document page (doc.html: totals, planInfo, invoiceFlag) */
@@ -45,7 +50,7 @@
     return subtotal - discount;
   }
   function invState(inv, receipts){
-    receipts = receipts || saved.filter(r => r.type === 'receipt' && same(r.ref, inv.number));
+    receipts = receipts || receiptsFor(inv.number);
     const tot = total(inv), t = today();
     const fromRcts = receipts.reduce((m, r) => Math.max(m, num(r.prevPaid) + num(r.received)), 0);
     const paid = Math.max(num(inv.paid), fromRcts), balance = Math.round((tot - paid) * 100) / 100;

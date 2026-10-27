@@ -29,9 +29,24 @@
   let pdfP = null;
   window.lhqPdf = () => pdfP || (pdfP = window.html2pdf ? Promise.resolve(window.html2pdf) : new Promise((ok, no) => {
     const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js';
+    s.src = 'lib/html2pdf.bundle.min.js';   // kept inside the Hub so PDFs also work offline
     s.onload = () => ok(window.html2pdf); s.onerror = () => { pdfP = null; no(new Error('The PDF maker could not load. Check the connection.')); };
     document.head.appendChild(s);
   }));
+  /* the offline copy: install it, and offer a refresh when LHQ Hub has been updated */
+  if('serviceWorker' in navigator && location.protocol !== 'file:'){
+    window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+    navigator.serviceWorker.addEventListener('message', e => {
+      if(!e.data || e.data.type !== 'lhq-updated' || document.getElementById('lhqUpd')) return;
+      const b = document.createElement('div'); b.id = 'lhqUpd';
+      b.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:70;background:#073763;color:#fff;border-radius:14px;padding:10px 10px 10px 16px;display:flex;gap:12px;align-items:center;box-shadow:0 10px 30px rgba(0,0,0,.25);font:600 14px/1.3 Manrope,system-ui,sans-serif;max-width:calc(100vw - 24px)';
+      b.innerHTML = '<span>A newer version of LHQ Hub is ready.</span><button type="button" style="border:0;border-radius:10px;background:#f4b223;color:#14213d;font:800 13.5px Manrope,system-ui,sans-serif;padding:9px 14px;cursor:pointer">Refresh</button>';
+      b.querySelector('button').onclick = () => location.reload();
+      document.body.appendChild(b);
+    });
+  }
+  /* "Install LHQ Hub" (Android and computers); iPhone and iPad use Share › Add to Home Screen */
+  window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); window.lhqInstall = e; window.dispatchEvent(new Event('lhqinstall')); });
+  window.lhqInstalled = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
   window.lhqPdfSoon = () => window.addEventListener('load', () => setTimeout(() => window.lhqPdf().catch(() => {}), 1200));
 })();

@@ -9,19 +9,21 @@
 <link rel="icon" href="icon-32.png" sizes="32x32">
 <link rel="icon" href="icon-192.png" sizes="192x192">
 <link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400;1,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="hub.css">
 <script src="theme.js"></script>
 <script>lhqPdfSoon();</script>
+<script src="pako.min.js"></script>
+<script src="store.js"></script>
 <script src="sync.js"></script>
 <script src="defaults.js"></script>
 <script src="hubdata.js"></script>
 <script src="nav.js"></script>
 <script src="topics.js"></script>
 <script src="card.js"></script>
-<script src="pako.min.js"></script>
 <script src="codec.js"></script>
 <script src="schools.js"></script>
 <style>
@@ -2281,7 +2283,9 @@ async function menuAct(m){
   if(m === 'link'){ closeDpSheet(); try{ await navigator.clipboard.writeText(location.origin + location.pathname + '#d=' + doc.id); toast('Link copied'); }catch(e){ toast('Copy didn\'t work here'); } return; }
   if(m === 'del'){
     const ch = H.chainOf(doc), others = [ch.quote, ch.inv, ...ch.receipts, ch.card].filter(x=>x && x.id!==doc.id).map(x=>x.number);
-    dpSheet(`<div class="dp-sh-h"><b>Delete ${esc(doc.number)}?</b></div><p class="dp-note" style="margin:4px 0 14px">It moves to Settings › Recently deleted and can be restored for 30 days.${others.length ? ` ${others.join(', ')} stay${others.length===1?'s':''} as ${others.length===1?'it is':'they are'}.` : ''}</p><div class="dp-acts"><button class="dp-b rd" data-m="delGo">Delete</button><button class="dp-b" data-m="close">Keep it</button></div>`);
+    const paidBy = (doc.type === 'invoice') ? ch.receipts.map(x=>x.number) : [];
+    const warn = paidBy.length ? `<p class="dp-note" style="margin:0 0 14px;color:var(--rd);font-weight:700">${esc(paidBy.join(' and '))} ${paidBy.length===1?'is a payment':'are payments'} on this invoice. They would be left without an invoice, and ${esc(doc.student || 'the student')}'s current period would disappear from their page. If something on the invoice is wrong, Edit it instead.</p>` : '';
+    dpSheet(`<div class="dp-sh-h"><b>Delete ${esc(doc.number)}?</b></div><p class="dp-note" style="margin:4px 0 14px">It moves to Settings › Recently deleted and can be restored for 30 days.${others.length ? ` ${others.join(', ')} stay${others.length===1?'s':''} as ${others.length===1?'it is':'they are'}.` : ''}</p>${warn}<div class="dp-acts"><button class="dp-b rd" data-m="delGo">Delete</button><button class="dp-b" data-m="close">Keep it</button></div>`);
   }
   if(m === 'delGo'){
     const n = doc.number;
