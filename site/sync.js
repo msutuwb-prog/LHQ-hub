@@ -5,7 +5,8 @@
   'use strict';
   const API = '/api/hub/';
   const DOCS = 'lhq_saved';
-  const KV = ['lhq_settings','lhq_templates','lhq_counters','lhq_repEdits','lhq_logs','lhq_tlinks','lhq_students'];
+  const KV = ['lhq_settings','lhq_templates','lhq_counters','lhq_repEdits','lhq_logs','lhq_tlinks','lhq_students','lhq_spend','lhq_budget'];
+  const PRIVATE = ['lhq_spend','lhq_budget'];   // only sent to people allowed to see them; removed here when that changes
   const SESSION = 'lhq_session', BASE = 'lhq_syncBase', KVHASH = 'lhq_syncKv', REV = 'lhq_syncRev', DIRTY = 'lhq_syncDirty';
   const ls = window.localStorage;
   const rawSet = ls.setItem.bind(ls), rawGet = ls.getItem.bind(ls), rawDel = ls.removeItem.bind(ls);
@@ -56,6 +57,13 @@
       c.deletes.forEach(x => delete base[x.id]);
       (r.saved || []).forEach(d => base[d.id] = d.savedAt || 0);
       Object.keys(c.kv).forEach(k => hashes[k] = hash(rawGet(k) || ''));
+      // spending is merged on the server with what other devices recorded: keep the merged copy
+      // (anything recorded here while this save was on its way stays, and goes up next time)
+      Object.entries(r.kv || {}).forEach(([k, v]) => {
+        let cur = {}; try{ cur = JSON.parse(rawGet(k) || '{}') || {}; }catch(e){}
+        const m = Object.assign({}, v); Object.entries(cur).forEach(([id, e]) => { if(e && (!m[id] || (e.at || 0) > (m[id].at || 0))) m[id] = e; });
+        put(k, m); hashes[k] = hash(JSON.stringify(v));
+      });
       // fill in what the server added (who saved it, and any renumbering)
       const byId = {}; (r.saved || []).forEach(d => byId[d.id] = d);
       const docs = get(DOCS, []).map(d => byId[d.id] ? Object.assign(d, {number:byId[d.id].number, updatedBy:byId[d.id].updatedBy, createdBy:byId[d.id].createdBy}) : d);
@@ -85,7 +93,7 @@
     // documents saved on this device that never reached the server stay, and upload next
     const keepLocal = discard ? [] : local.filter(d => d && d.id && !ids[d.id] && !(get(BASE, {})[d.id] != null));
     put(DOCS, keepLocal.concat(server).sort((a,b)=>(b.savedAt||0)-(a.savedAt||0)));
-    KV.forEach(k => { if(st.kv && st.kv[k] != null){ put(k, st.kv[k]); hashes[k] = hash(rawGet(k)); } });
+    KV.forEach(k => { if(st.kv && st.kv[k] != null){ put(k, st.kv[k]); hashes[k] = hash(rawGet(k)); } else if(PRIVATE.includes(k)) rawDel(k); });
     put(BASE, base); put(KVHASH, hashes); put(REV, st.rev);
   }
   async function pull(opts){

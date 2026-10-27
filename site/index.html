@@ -23,6 +23,7 @@ if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash)
 <script src="hubdata.js"></script>
 <script src="nav.js"></script>
 <script src="schools.js"></script>
+<script src="business.js"></script>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0}
@@ -159,6 +160,43 @@ a.mc:hover{border-color:var(--muted)}
 .sec-p{margin:0 0 18px;color:var(--muted);font-size:13.5px}
 .rolechip{font-size:10.5px;font-weight:800;border-radius:6px;padding:3px 7px;background:var(--am-bg);color:var(--am)}
 
+/* business */
+:root{--inc:#073763;--exp:#f4b223}
+[data-theme=dark]{--inc:#a9c6ea;--exp:#f4b223}
+.bz-per{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:0 0 14px}
+.bz-nav{display:flex;align-items:center;gap:8px;margin-left:auto}.bz-nav b{min-width:150px;text-align:center;font-weight:800}
+.bz-nav .ib{text-decoration:none}
+.kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
+@media (max-width:760px){.kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;min-width:0}
+.kpi small{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:800}
+.kpi b{display:block;font-size:22px;font-weight:800;color:var(--brand);letter-spacing:-.4px;font-variant-numeric:tabular-nums;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.kpi span{font-size:12px;font-weight:700;display:block}.kpi .up{color:var(--ok)}.kpi .dn{color:var(--rd)}.kpi .fl{color:var(--muted)}
+@media (max-width:760px){.kpi{padding:11px 12px}.kpi b{font-size:18px;letter-spacing:-.3px}.kpi span{font-size:11.5px}}
+.bz-cap{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
+.bz-leg{display:flex;gap:12px;text-transform:none;letter-spacing:0;font-weight:700}.bz-leg span{display:inline-flex;align-items:center;gap:5px}.bz-leg i{width:10px;height:10px;border-radius:3px;display:inline-block}
+.bz-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.bz-pl{width:100%;border-collapse:collapse;font-size:14px;font-variant-numeric:tabular-nums}
+.bz-pl td{padding:8px 0;border-top:1px solid var(--line2)}.bz-pl td:last-child{text-align:right;white-space:nowrap;padding-left:10px}
+.bz-pl tr:first-child td{border-top:0}.bz-pl small{color:var(--muted);font-weight:600}
+.bz-pl tr.sub td:first-child{padding-left:14px;color:var(--muted)}.bz-pl tr.sub a{color:var(--ink);text-decoration:none}.bz-pl tr.sub a:hover{text-decoration:underline}
+.bz-pl tr.sub2 td{font-weight:700}
+.bz-pl tr.tot td{font-weight:800;font-size:15.5px;border-top:2px solid var(--line);color:var(--brand)}
+.bz-mt{border-collapse:collapse;font-size:13px;font-variant-numeric:tabular-nums;min-width:100%}
+.bz-mt th,.bz-mt td{padding:7px 8px;text-align:right;border-top:1px solid var(--line2);white-space:nowrap}
+.bz-mt th{border-top:0;color:var(--muted);font-size:11.5px}.bz-mt th a{color:inherit}
+.bz-mt td:first-child{text-align:left;font-weight:700;position:sticky;left:0;background:var(--surface)}
+.bz-mt tr.tot td{font-weight:800;color:var(--brand)}
+.bz-amt{font-variant-numeric:tabular-nums;white-space:nowrap;font-weight:800;flex:none}
+.bz-hb{display:grid;grid-template-columns:120px 1fr 86px;gap:10px;align-items:center;padding:6px 0;font-size:13px}
+.bz-hb .tr{height:9px;background:var(--gr-bg);border-radius:99px;overflow:hidden}.bz-hb .tr i{display:block;height:100%;background:var(--exp);border-radius:99px}
+.bz-hb b{text-align:right;font-variant-numeric:tabular-nums}
+.bz-bud{padding:10px 0;border-top:1px solid var(--line2)}.bz-bud:first-child,.cap+.bz-bud{border-top:0}
+.bz-bud .h{display:flex;justify-content:space-between;gap:8px;font-size:13.5px;align-items:center}.bz-bud .h b{font-weight:700}.bz-bud .h span{font-variant-numeric:tabular-nums;color:var(--muted);text-align:right}
+.track{height:8px;border-radius:99px;background:var(--gr-bg);overflow:hidden;margin-top:6px}.track i{display:block;height:100%;border-radius:99px}
+.bz-bf{display:grid;grid-template-columns:1fr 160px;align-items:center;gap:10px;margin-bottom:8px}.bz-bf > span{margin:0;font-size:13.5px;color:var(--ink)}
+.chip{text-decoration:none;color:var(--ink)}
+
 /* sheet + toast */
 .shbg{position:fixed;inset:0;background:rgba(7,20,40,.42);z-index:40}
 .sheet{position:fixed;z-index:41;left:50%;top:50%;transform:translate(-50%,-50%);width:min(520px,calc(100vw - 24px));max-height:calc(100dvh - 40px);overflow:auto;background:var(--surface);border-radius:18px;box-shadow:var(--shadow);padding:18px 18px 20px}
@@ -215,7 +253,7 @@ function parse(){
 }
 function render(){
   load(); parse();
-  const sec = {student:'students', set:'settings', person:'settings', new:'home', edithome:'home'}[route.page] || route.page;
+  const sec = {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business'}[route.page] || route.page;
   LHQNav.section(sec);
   const m = $('main');
   m.className = 'main' + (['home','edithome','new','students','student'].includes(route.page) ? ' narrow' : '');
@@ -297,6 +335,8 @@ const CARDS = {
   sessions:{t:'Sessions this week', ic:'clock', step2:true, d:'Sessions done and still to come, from tutors’ logs'},
   sras:{t:'SRAs due', ic:'restore', step2:true, d:'Spaced repetition reviews due this week'},
   reports:{t:'Reports to send', ic:'rep', step2:true, d:'Weekly reports ready for parents'},
+  profit:{t:'Profit this month', ic:'cash', need:'pl', d:'Money in less spending this month, and the margin', href:'#biz/pl', html:() => BIZ.cardProfit()},
+  spend:{t:'Spending this month', ic:'box', need:'spend', d:'What has been spent this month, against the budget', href:'#biz/spending', html:() => BIZ.cardSpend()},
   tpay:{t:'Tutor pay this month', ic:'cash', need:'tpay', step2:true, d:'Pay so far from logged sessions, and what is left after paying tutors'},
 };
 const DEFAULT_HOME = () => can('money') ? ['money','students','enrol','tutors'] : ['students','enrol','renew','tutors'];
@@ -482,6 +522,9 @@ function docRows(type){
   return rows.slice(0, 300).map(d => docRow(d)).join('') || '<p class="empty">Nothing here.</p>';
 }
 
+/* ================= business (business.js) ================= */
+P.biz = (tab, period, cat) => BIZ.page(tab, period, cat);
+
 /* ================= settings ================= */
 const SETS = [
   ['Account', [['account','user','My account']]],
@@ -524,6 +567,7 @@ const PERMS = [
   ['Documents', [['quotes','Make and edit quotes and invoices'],['receipts','Record payments (receipts)'],['cards','Make tuition cards'],['delete','Delete documents'],['restore','Restore deleted documents']]],
   ['Students', [['students','Add and edit student details']]],
   ['Money', [['money','See money totals and reports','Money cards on Home, money in Overview, totals and trends. Amounts on single documents stay visible to anyone who makes them.'],['tpay','See tutor pay','What each tutor earns (arrives with step 2)']]],
+  ['Business', [['spend','Record spending','Add spending and see the spending list. They can change only what they recorded.'],['pl','See profit and loss and budgets','Money in against spending, profit, budgets, and the Profit card on Home']]],
   ['People', [['tutors','Add tutors, reset their PINs, switch them off']]],
   ['Settings', [['msgs','Messages and lists'],['numbering','Numbering'],['backup','Backup and restore']]],
   ['Tutors · arrives with step 2', [['classes','See every tutor’s classes'],['moveclass','Move classes between tutors']]],
@@ -583,7 +627,7 @@ S.messages = () => { const t = templates();
   <div class="vars">${VARS.map(v => `<button data-var="${v}">${v}</button>`).join('')}</div>
   <div class="acts"><button class="btn n" id="tplSave">Save</button><button class="btn" id="tplReset">Restore the default wording</button></div></div>`; };
 
-const LISTS = [['subjects','Subjects'],['levels','Year & level'],['methods','Payment methods'],['includes','Every LHQ Enrollment Includes'],['tutors','Tutors on tuition cards'],['grades','Grades'],['gradeBasis','Grade based on'],['sessionLengths','Session lengths']];
+const LISTS = [['subjects','Subjects'],['levels','Year & level'],['methods','Payment methods'],['includes','Every LHQ Enrollment Includes'],['tutors','Tutors on tuition cards'],['grades','Grades'],['gradeBasis','Grade based on'],['sessionLengths','Session lengths'],['spendCats','Spending categories']];
 S.lists = () => { const s = settingsKV();
   return `<h2 class="sec-h">Lists</h2><p class="sec-p">The choices in every dropdown. Changes save straight away.</p>
   ${LISTS.map(([k, l]) => `<div class="card pad"><div class="cap">${l}</div><div class="lchips">${lines(s[k]).map((x, i) => `<span>${esc(x)}<button data-lrm="${k}:${i}" aria-label="Remove ${esc(x)}">✕</button></span>`).join('')}</div>
@@ -612,8 +656,8 @@ let PREVIEW = false; try{ PREVIEW = sessionStorage.getItem('lhq_preview') === '1
 fetch('/api/hub/people', {cache:'no-store'}).then(r => r.json()).then(j => { const was = PREVIEW; PREVIEW = !!j.preview; try{ sessionStorage.setItem('lhq_preview', PREVIEW ? '1' : '0'); }catch(e){} if(was !== PREVIEW) render(); }).catch(() => {});
 S.demo = () => `<h2 class="sec-h">Demo data</h2><p class="sec-p">This preview has its own storage, separate from LHQ's real documents. Fill it with six months of made-up students to try every page.</p>
   <div class="card pad"><div class="cap">What you get</div>
-  <p class="note" style="margin:0 0 6px">22 invented students from May to today: quotes, invoices, receipts and tuition cards; 50/50 plans; payments in grace and overdue; periods ending this week and renewed; ended students; quotes waiting; a card with no tutor; a sibling discount; a deleted receipt; tutors' session logs, SRAs and comments for Reports.</p>
-  <p class="note" style="margin:0 0 12px">It also adds tutors: Catherine Mkwinda (Admin), Emmanuel Mkwamba, Ungweru Kaonga, Maureen Story, and Mayamiko Goliati (switched off). Their PIN is <b>1111</b>. Your own account stays as it is.</p>
+  <p class="note" style="margin:0 0 6px">22 invented students from May to today: quotes, invoices, receipts and tuition cards; 50/50 plans; payments in grace and overdue; periods ending this week and renewed; ended students; quotes waiting; a card with no tutor; a sibling discount; a deleted receipt; tutors' session logs, SRAs and comments for Reports; and Business: spending from May to today with budgets, and repeating costs waiting to be confirmed.</p>
+  <p class="note" style="margin:0 0 12px">It also adds tutors: Catherine Mkwinda (Admin, who can record spending), Emmanuel Mkwamba, Ungweru Kaonga, Maureen Story, and Mayamiko Goliati (switched off). Their PIN is <b>1111</b>. Your own account stays as it is.</p>
   <div class="acts"><button class="btn n" id="demoGo">Load demo data</button><button class="btn rd" id="demoClear">Empty the preview</button></div>
   <p class="note">Loading replaces everything in this preview. The live site is never touched.</p></div>`;
 async function loadScript(src){ if(document.querySelector(`script[src="${src}"]`)) return; await new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); }); }
@@ -635,6 +679,7 @@ S.deleted = () => {
 function bind(){
   const on = (sel, fn) => document.querySelectorAll(sel).forEach(el => el.onclick = e => fn(el, e));
   on('[data-close]', () => closeSheet());
+  if(route.page === 'biz') BIZ.bind();
   on('[data-go]', (el, e) => { if(!e.target.closest('a')) location.href = el.dataset.go; });
   if($('attTog')) $('attTog').onclick = () => { attOpen = !attOpen; try{ localStorage.setItem('lhq_attOpen', attOpen ? '1' : '0'); }catch(e){} render(); };
   on('[data-mv]', el => { const [i, d] = el.dataset.mv.split(':').map(Number), a = myCards(); [a[i], a[i + d]] = [a[i + d], a[i]]; saveHome(a); });

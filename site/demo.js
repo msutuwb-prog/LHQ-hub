@@ -11,7 +11,7 @@
 
   const ADMINS = ['Wanangwa Msutu', 'Catherine Mkwinda'];
   const PEOPLE = [
-    {name:'Catherine Mkwinda', role:'admin', pin:'1111', seen:Date.now() - 2 * 3600e3},
+    {name:'Catherine Mkwinda', role:'admin', pin:'1111', seen:Date.now() - 2 * 3600e3, perms:['quotes','receipts','cards','delete','restore','students','tutors','msgs','classes','spend']},
     {name:'Emmanuel Mkwamba', role:'tutor', pin:'1111', seen:Date.now() - DAY},
     {name:'Ungweru Kaonga', role:'tutor', pin:'1111', seen:Date.now() - 3 * DAY},
     {name:'Maureen Story', role:'tutor', pin:'1111', seen:Date.now() - 5 * 3600e3},
@@ -218,7 +218,47 @@
     });
     [...new Set(Object.values(logs).map(e => e.tutor))].forEach(t => imports.push({t, at:T - Math.floor(rnd() * 3) * DAY, n:Object.values(logs).filter(e => e.tutor === t).length}));
 
-    return {docs, trash, people:PEOPLE, kv:{lhq_students:recs, lhq_logs:{e:logs, imports}, lhq_counters:{quote:C.quote, invoice:C.invoice, receipt:C.receipt + 1, card:C.card}}};
+    const money = spending(docs, now);
+    return {docs, trash, people:PEOPLE, kv:{lhq_students:recs, lhq_logs:{e:logs, imports}, lhq_counters:{quote:C.quote, invoice:C.invoice, receipt:C.receipt + 1, card:C.card}, lhq_spend:money.spend, lhq_budget:money.budget}};
+  }
+  /* Business: spending from the first month with payments to today, recorded by Wanangwa and Catherine.
+     Rent, internet and staff salaries repeat monthly; this month's internet and salaries are left for "to confirm". */
+  function spending(docs, now){
+    const ym = d => d.slice(0, 7), today = iso(now), cur = ym(today);
+    const inc = {}; docs.filter(d => d.type === 'receipt').forEach(r => { const m = ym(r.date); inc[m] = (inc[m] || 0) + Number(r.received || 0); });
+    let m = Object.keys(inc).sort()[0] || cur; const out = {}; let n = 0;
+    const who = () => ADMINS[Math.floor(rnd() * 2)], r10 = v => Math.round(v / 1e4) * 1e4;
+    const add = (day, cat, what, amount, method, o = {}) => {
+      const [y, mo] = m.split('-').map(Number), dim = new Date(y, mo, 0).getDate(), date = `${m}-${String(Math.min(day, dim)).padStart(2, '0')}`;
+      if(date > today) return;
+      const id = 'ds' + (++n).toString(36), sid = o.series ? 'dser-' + o.series : undefined;
+      out[id] = Object.assign({id, date, cat, what, amount, method, to:o.to || '', by:o.by || who(), at:new Date(date).getTime() + 10 * 3600e3}, o.rep ? {rep:'m'} : {}, sid ? {sid} : {});
+    };
+    for(let i = 0; m <= cur && i < 14; i++){
+      const mon = new Date(m + '-01').toLocaleString('en-GB', {month:'long'}), isCur = m === cur, mi = +m.slice(5);
+      add(1, 'Rentals', `Centre rent (${mon})`, 2500000, 'Bank transfer', {rep:true, series:'rent', to:'Landlord', by:'Wanangwa Msutu'});
+      if(!isCur) add(5, 'Communication', `Internet: Airtel Fibre (${mon})`, 180000, 'Bank transfer', {rep:true, series:'net', to:'Airtel'});
+      add(9, 'Communication', 'Airtime and data bundles', r10(60000 + rnd() * 40000), 'Airtel Money');
+      add(15, 'Utilities', 'ESCOM electricity', r10(170000 + rnd() * 70000), 'TNM Mpamba', {to:'ESCOM'});
+      add(18, 'Utilities', 'Water bill', r10(40000 + rnd() * 25000), 'Cash', {to:'Lilongwe Water Board'});
+      add(6 + Math.floor(rnd() * 8), 'Stationery', pick(['Printing: SRA sheets and planners','Exercise books and pens','Printer toner','Printing: progress reports']), r10(70000 + rnd() * 80000), 'Cash');
+      add(11, 'Transportation', 'Fuel: home visits and errands', r10(90000 + rnd() * 80000), 'Cash');
+      add(23, 'Transportation', 'Fuel: tutor transport', r10(80000 + rnd() * 60000), 'Cash');
+      add(20, 'Marketing', pick(['Facebook and Instagram ads','Instagram ads: next intake','Flyers for schools']), r10(150000 + rnd() * 180000), 'Airtel Money', {by:'Wanangwa Msutu'});
+      if(rnd() < .6) add(12 + Math.floor(rnd() * 10), 'Maintenance', pick(['Air conditioner service','Plumbing repair','Fixing classroom chairs','Generator service']), r10(60000 + rnd() * 140000), 'Cash');
+      if(mi === 8 || mi === 10) add(17, 'Trainings', mi === 8 ? 'Tutor training: SRA and session logs' : 'Cambridge marking workshop (2 tutors)', mi === 8 ? 450000 : 300000, 'Bank transfer', {by:'Wanangwa Msutu'});
+      if(mi === 8) add(8, 'Renovations', 'Classroom 2: partition and painting', 3200000, 'Bank transfer', {to:'Banda Builders', by:'Wanangwa Msutu'});
+      if(mi === 9) add(14, 'Purchases', 'Projector and screen', 1250000, 'Bank transfer', {by:'Wanangwa Msutu'});
+      if(mi === 6) add(14, 'Purchases', 'Two whiteboards', 450000, 'Cash');
+      if(!isCur){
+        add(25, 'Salaries', `Front desk and admin salary (${mon})`, 650000, 'Bank transfer', {rep:true, series:'staff', by:'Wanangwa Msutu'});
+        add(25, 'Salaries', `Cleaner and guard (${mon})`, 300000, 'Cash', {rep:true, series:'clean', by:'Catherine Mkwinda'});
+        add(28, 'Salaries', `Tutor pay: ${mon} sessions`, r10((inc[m] || 0) * .38), 'Bank transfer', {by:'Wanangwa Msutu'});
+      }
+      const [y, mo] = m.split('-').map(Number); m = mo === 12 ? `${y + 1}-01` : `${y}-${String(mo + 1).padStart(2, '0')}`;
+    }
+    const budget = {m:{Salaries:11500000, Rentals:2500000, Utilities:300000, Communication:300000, Stationery:250000, Transportation:350000, Marketing:400000, Maintenance:200000, Trainings:200000, Purchases:300000}, by:'Wanangwa Msutu', at:now.getTime()};
+    return {spend:out, budget};
   }
   window.LHQDemo = {build};
 })();

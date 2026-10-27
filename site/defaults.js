@@ -4,6 +4,9 @@ const DEFAULT_SUBJECTS = ['Mathematics','Additional Mathematics','Physics','Chem
   'English Language','English Literature','Economics','Business Studies','Accounting','Computer Science','ICT',
   'Geography','History','French','Global Perspectives'];
 
+/* Business › Spending: the categories, in the order they are offered. Renovations and Purchases are one-off costs. */
+const DEFAULT_SPEND_CATS = ['Salaries','Rentals','Utilities','Communication','Stationery','Transportation','Marketing','Maintenance','Trainings','Renovations','Purchases'];
+
 const DEFAULT_SETTINGS = {
   email:'learnhqes@gmail.com', phone:'265 992 525 250',
   bank:'National Bank of Malawi', accname:'LearnHQ Tutoring and Training',
@@ -12,6 +15,7 @@ const DEFAULT_SETTINGS = {
   subjects: DEFAULT_SUBJECTS.join('\n'),
   levels: ['Year 1','Year 2','Year 3','Year 4','Year 5','Year 6 · Primary Checkpoint','Year 7','Year 8','Year 9 · Checkpoint',
     'Year 10 · IGCSE','Year 11 · IGCSE','Year 12 · AS Level','Year 13 · A Level','IB','IELTS','SAT','College'].join('\n'),
+  spendCats: DEFAULT_SPEND_CATS.join('\n'),
   methods: ['Bank transfer','Airtel Money','TNM Mpamba','Cash','Cheque'].join('\n'),
   includes: ['Success Planner','Success Coaching','Progress Reports','Study Guides','Daily Assesments','Online Resource Hub'].join('\n'),
   tutors: ['Catherine Mkwinda','Emmanuel Mkwamba','Ungweru Kaonga','Mayamiko Goliati','Maureen Story','Wanangwa Msutu'].join('\n'),

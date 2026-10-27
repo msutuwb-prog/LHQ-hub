@@ -11,7 +11,8 @@
 //   doc/<id>          the saved quote / invoice / receipt / card
 //   hist/<id>/<time>  the previous version whenever a document is overwritten
 //   trash/<id>        deleted documents (Recently deleted: can be restored for 30 days)
-//   kv/<key>          shared settings, message templates, numbering, report edits, tutor logs
+//   kv/<key>          shared settings, message templates, numbering, report edits, tutor logs,
+//                     spending (lhq_spend: {id:{date, cat, amount, what, to, method, rep, sid, by, at, del}}) and budgets (lhq_budget)
 
 import { getStore } from "@netlify/blobs";
 import crypto from "node:crypto";
@@ -23,14 +24,28 @@ let site = "production";
 const isPreview = () => site !== "production";
 const store = () => testStore || getStore({ name: isPreview() ? "lhq-hub-preview" : "lhq-hub", consistency: "strong" });
 
-const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students"];
+const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget"];
 
 /* ---------- roles and permissions ---------- */
-const PERMS = ["quotes", "receipts", "cards", "delete", "restore", "students", "money", "tpay", "tutors", "msgs", "numbering", "backup", "classes", "moveclass"];
+const PERMS = ["quotes", "receipts", "cards", "delete", "restore", "students", "money", "tpay", "tutors", "msgs", "numbering", "backup", "classes", "moveclass", "spend", "pl"];
 const ADMIN_DEFAULT = ["quotes", "receipts", "cards", "delete", "restore", "students", "tutors", "msgs", "classes"];
 const TYPE_PERM = { quote: "quotes", invoice: "quotes", receipt: "receipts", card: "cards" };
 // settings fields: lists and wording can be given to admins; everything else (bank, contact, payment rules) is the Director's
-const LIST_FIELDS = ["subjects", "levels", "methods", "includes", "tutors", "grades", "gradeBasis", "sessionLengths"];
+const LIST_FIELDS = ["subjects", "levels", "methods", "includes", "tutors", "grades", "gradeBasis", "sessionLengths", "spendCats"];
+/* Business: who may read each part. Spending goes to whoever records it or sees profit and loss; budgets with profit and loss. */
+const KV_READ = { lhq_spend: p => can(p, "spend") || can(p, "pl"), lhq_budget: p => can(p, "pl") };
+/* Spending is recorded on several devices at once, so entries are merged one by one (newest wins) instead of the whole list being replaced.
+   Deleting marks an entry del:true, so a device that hasn't heard about it yet can't bring it back. */
+function mergeSpend(old, v, me) {
+  const out = Object.assign({}, old || {});
+  Object.entries(v || {}).forEach(([id, e]) => {
+    if (!e || typeof e !== "object" || JSON.stringify(e) === JSON.stringify(out[id])) return;
+    if (out[id] && (e.at || 0) < (out[id].at || 0)) return;
+    const was = out[id];
+    out[id] = Object.assign({}, e, { by: was ? was.by : me.name }, was ? { editedBy: me.name } : {});
+  });
+  return out;
+}
 const TRASH_DAYS = 30;
 // the editor's built-in values: a device saving settings for the first time sends these, which is not a change
 const SETTINGS_DEFAULT = { email: "learnhqes@gmail.com", phone: "265 992 525 250", bank: "National Bank of Malawi", accname: "LearnHQ Tutoring and Training",
@@ -164,7 +179,7 @@ async function login(req) {
 async function state(req, me) {
   if (!staff(me)) return fail("Only LHQ admin can open documents.", 403);
   const [{ data: idx }, docs, kvs] = await Promise.all([getIndex(), readAll("doc/"), Promise.all(KV_KEYS.map(k => store().get("kv/" + k, { type: "json" })))]);
-  const kv = {}; KV_KEYS.forEach((k, i) => { if (kvs[i] != null) kv[k] = kvs[i]; });
+  const kv = {}; KV_KEYS.forEach((k, i) => { if (kvs[i] != null && (!KV_READ[k] || KV_READ[k](me))) kv[k] = kvs[i]; });
   docs.sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0));
   return json({ rev: idx.rev, docs, kv, me: pub(me) });
 }
@@ -203,6 +218,12 @@ async function checkSync(me, upserts, deletes, kv) {
       // saving a document moves its series forward; setting numbers by hand needs Numbering
       const down = Object.keys(old).some(t => (v || {})[t] < old[t]);
       if (down && !can(me, "numbering")) return "You don't have permission to change numbering.";
+    } else if (k === "lhq_spend") {
+      const ch = Object.keys(v || {}).filter(id => JSON.stringify(v[id]) !== JSON.stringify(old[id]) && (!old[id] || (v[id].at || 0) >= (old[id].at || 0)));
+      if (ch.length && !can(me, "spend")) return "You don't have permission to record spending.";
+      if (ch.some(id => old[id] && old[id].by !== me.name)) return "You can only change spending you recorded. Ask the Director to change the others.";
+    } else if (k === "lhq_budget") {
+      if (changedKeys(old, v).length) return "Only the Director can set budgets.";
     } else if (k === "lhq_students") {
       const ch = changedKeys(old, v);
       const onlyNew = ch.every(key => !(key in old));
@@ -270,8 +291,12 @@ async function sync(req, me) {
       w.d.log = logEntry(old, w.d, me, now);
       await s.setJSON("doc/" + w.d.id, w.d); saved.push(w.d);
     }
-    for (const [k, v] of kv) await s.setJSON("kv/" + k, v);
-    return json({ rev: idx.rev, remap, conflicts, saved });
+    const merged = {};
+    for (const [k, v] of kv) {
+      if (k === "lhq_spend") { const m = mergeSpend(await s.get("kv/" + k, { type: "json" }), v, me); merged[k] = m; await s.setJSON("kv/" + k, m); }
+      else await s.setJSON("kv/" + k, v);
+    }
+    return json({ rev: idx.rev, remap, conflicts, saved, kv: merged });
   }
   return fail("Too many saves at once. Try again.", 409);
 }
@@ -294,7 +319,7 @@ async function demo(req, me) {
   for (const x of b.people || []) {
     if (list.some(p => p.name.toLowerCase() === String(x.name).toLowerCase())) continue;
     const salt = crypto.randomBytes(16).toString("hex");
-    list.push({ id: "p" + crypto.randomBytes(5).toString("hex"), name: String(x.name), role: x.role === "admin" ? "admin" : "tutor", perms: x.role === "admin" ? ADMIN_DEFAULT.slice() : [], tutor: true, active: x.active !== false, salt, hash: hashPin(x.pin || "1111", salt), pv: 1, seen: x.seen || 0 });
+    list.push({ id: "p" + crypto.randomBytes(5).toString("hex"), name: String(x.name), role: x.role === "admin" ? "admin" : "tutor", perms: x.role === "admin" ? (Array.isArray(x.perms) ? x.perms.filter(k => PERMS.includes(k)) : ADMIN_DEFAULT.slice()) : [], tutor: true, active: x.active !== false, salt, hash: hashPin(x.pin || "1111", salt), pv: 1, seen: x.seen || 0 });
   }
   await putPeople(list);
   const s = store(), docs = {}, now = Date.now();
