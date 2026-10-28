@@ -350,6 +350,34 @@ dialog::backdrop{background:rgba(7,25,45,.55)}
 .toast.show{opacity:1}
 #pdfStage{position:fixed;left:-10000px;top:0;width:612pt;pointer-events:none}
 
+/* ---------- THE DOCUMENT: Clean ledger (US Letter) ---------- */
+.doc .lg{position:absolute;inset:0;padding:44pt 50pt 34pt;display:flex;flex-direction:column;font-family:Manrope,Inter,"Segoe UI",sans-serif;font-size:10pt;line-height:1.45;color:#14213d}
+.doc .lg .cap{font-size:7pt;letter-spacing:.09em;text-transform:uppercase;color:#6b7585;font-weight:800}
+.doc .lg-hd{display:flex;justify-content:space-between;align-items:flex-start}.doc .lg-hd img{width:96pt;height:50pt;object-fit:contain;object-position:left top}
+.doc .lg-t{text-align:right;color:#6b7585;font-size:9.5pt}.doc .lg-t b{display:block;font-size:22pt;color:#073763;letter-spacing:.07em;line-height:1.1;margin-bottom:2pt}
+.doc .lg-valid{display:inline-block;background:#fdf3d9;color:#7a5400;font-weight:800;border-radius:4pt;padding:1pt 6pt;margin-top:3pt}
+.doc .lg-copy{align-self:flex-end;border:1pt solid #073763;border-radius:3pt;padding:1pt 7pt;font-size:7.5pt;font-weight:800;letter-spacing:1.2pt;color:#073763;margin-top:6pt}
+.doc .lg-gold{height:2pt;background:#f4b223;margin:14pt 0 14pt}
+.doc .lg-two{display:grid;grid-template-columns:1fr 210pt;gap:20pt;align-items:start}.doc .lg-two p{margin:3pt 0 0}.doc .lg-pd{color:#14213d}
+.doc .lg-due{background:#073763;color:#fff;border-radius:7pt;padding:11pt 13pt;text-align:right}.doc .lg-due .cap{color:#c9d6e8}
+.doc .lg-due b{display:block;font-size:20pt;margin:3pt 0;white-space:nowrap;letter-spacing:-.2pt}.doc .lg-due span:last-child{font-size:8.5pt;color:#f4b223;font-weight:800}
+.doc .lg-due.ok{background:#1f7a4d}.doc .lg-due.ok span:last-child{color:#fff}
+.doc .lg table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.doc .lg-tb{margin-top:18pt}.doc .lg-tb th{text-align:left;font-size:7pt;letter-spacing:.07em;text-transform:uppercase;color:#6b7585;border-bottom:1.2pt solid #073763;padding:4pt 4pt}
+.doc .lg-tb td{padding:6pt 4pt;border-bottom:.6pt solid #e8ebf0}.doc .lg .r{text-align:right;white-space:nowrap}.doc .lg-tb small{color:#6b7585}
+.doc .lg-sub{margin:5pt 0 0;color:#6b7585;font-size:9pt}
+.doc .lg-tot{width:46%!important;margin:6pt 0 0 auto}.doc .lg-tot td{padding:2.5pt 4pt}.doc .lg-tot tr.b td{font-weight:800;color:#073763;font-size:11.5pt;border-top:1.2pt solid #073763;padding-top:5pt}
+.doc .lg-sec{margin-top:16pt}.doc .lg-li{display:flex;gap:5pt;margin-top:3pt}.doc .lg-li > span:first-child{flex:none}
+.doc .lg-plan{margin-top:3pt}.doc .lg-plan td{padding:4pt 4pt;border-bottom:.6pt solid #e8ebf0}.doc .lg-plan .ok{color:#1f7a4d;font-weight:800}.doc .lg-plan .due{color:#7a5400;font-weight:800}
+.doc .lg-ch{display:grid;grid-template-columns:1fr 1fr;gap:10pt;margin-top:5pt}.doc .lg-ch.one{grid-template-columns:1fr 1fr}
+.doc .lg-ch > div{border:1.2pt solid #e4e7ec;border-radius:8pt;padding:9pt 11pt}.doc .lg-ch > div.rec{border-color:#073763}
+.doc .lg-ch b{display:block;font-size:13pt;color:#073763;margin:3pt 0 2pt}
+.doc .lg-ch .tag{display:inline-block;background:#f4b223;color:#073763;font-size:6.5pt;font-weight:800;border-radius:3pt;padding:1pt 5pt;letter-spacing:.06em}.doc .lg-ch .tag.bl{background:#eaf0f7}
+.doc .lg-note{margin:9pt 0 0}
+.doc .lg-sig{margin-top:34pt;width:260pt}.doc .lg-sig .ln{border-bottom:.75pt solid #14213d;height:24pt;margin-bottom:4pt}
+.doc .lg-foot{margin-top:auto;display:grid;grid-template-columns:1.15fr 1fr;gap:18pt;border-top:.75pt solid #e4e7ec;padding-top:10pt;font-size:8.5pt;line-height:1.5}
+.doc .lg-foot .lg-inc{color:#073763;font-weight:700}.doc .lg-foot .mut{color:#6b7585}
+
 /* ---------- THE DOCUMENT (US Letter, measured in pt from the original PDF) ---------- */
 .doc{position:relative;width:612pt;height:792pt;background:#fff;overflow:hidden;
   font-family:Calibri,Carlito,"Segoe UI",sans-serif;font-size:11pt;color:#000;line-height:1}
@@ -612,7 +640,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
         </div>
         <p class="hint" id="planHint" hidden style="margin:-4px 0 0"></p>
       </div>
-      <label class="chk" id="instLineRow" hidden><input type="checkbox" id="f_instLine" checked> Show “Instalment plans are available on request”</label>
+      <label class="chk" id="instLineRow" hidden><input type="checkbox" id="f_instLine" checked> Offer two instalments (50 / 50) on this quote</label>
       <label id="paidRow" style="margin-top:12px"><span>Amount already paid (MKW)</span><input id="f_paid" inputmode="decimal" placeholder="0"></label>
       <div class="sums" id="sums"></div>
     </div>
@@ -986,6 +1014,7 @@ function convertDoc(src, type){
 /* ================= formatting ================= */
 const num = v => { const n = parseFloat(String(v??'').replace(/,/g,'')); return isNaN(n)?0:n; };
 const money = n => n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const money0 = n => Math.abs(n % 1) > 0.004 ? money(n) : Math.round(n).toLocaleString('en-US');
 const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function fmtDate(iso){ if(!iso) return ''; const [y,m,d]=iso.split('-'); return `${d}/${m}/${y}`; }
 function totals(d = doc){
@@ -1076,8 +1105,8 @@ const graceDays = () => Math.max(0, Math.round(num(settings.graceDays)));
 function nextLine(P, html){
   if(!P || !P.next) return '';
   const g = graceDays(), r = P.next, b = x => html ? `<b>${x}</b>` : x;
-  let line = b(`Next payment: MKW ${money(r.left)} (${r.short}) is due by ${fmtDate(r.due)}.`);
-  if(r.n===2) line += g ? ` If it is not received by ${fmtDate(addDays(r.due, g))} (${g}-day grace period), sessions are paused until payment is confirmed. Paused sessions are made up once payment is received.`
+  let line = b(`Next payment: MKW ${money0(r.left)} (${r.short}) is due by ${niceDate(r.due)}.`);
+  if(r.n===2) line += g ? ` If it is not received by ${niceDate(addDays(r.due, g))} (${g}-day grace period), sessions are paused until payment is confirmed. Paused sessions are made up once payment is received.`
     : ' If it is not received by then, sessions are paused until payment is confirmed. Paused sessions are made up once payment is received.';
   else if(graceLine(P)) line += (html ? '</span></div><div class="li"><span>•</span><span>' : '\n') + graceLine(P);
   return line;
@@ -1085,8 +1114,8 @@ function nextLine(P, html){
 function graceLine(P){
   const r = P && P.rows[1]; if(!r || r.paid) return '';
   const g = graceDays();
-  return g ? `The second instalment is due by ${fmtDate(r.due)}. If it is not received by ${fmtDate(addDays(r.due, g))} (${g}-day grace period), sessions are paused until payment is confirmed. Paused sessions are made up once payment is received.`
-    : `The second instalment is due by ${fmtDate(r.due)}. If it is not received by then, sessions are paused until payment is confirmed. Paused sessions are made up once payment is received.`;
+  return g ? `The second instalment is due by ${niceDate(r.due)}. If it is not received by ${niceDate(addDays(r.due, g))} (${g}-day grace period), sessions are paused until payment is confirmed. Paused sessions are made up once payment is received.`
+    : `The second instalment is due by ${niceDate(r.due)}. If it is not received by then, sessions are paused until payment is confirmed. Paused sessions are made up once payment is received.`;
 }
 /* where an invoice stands, for the Saved list */
 function invoiceFlag(d){
@@ -1116,149 +1145,76 @@ function renderIncludes(){
 let docCopy = 'customer';   // receipts: which copy is being drawn
 function renderDoc(){
   if(doc.type==='card'){ renderCardPreview(); return; }
-  const S = settings, T = doc.type, t = totals();
-  const at = (x,y,html,extra='') => `<div class="a" style="left:${x}pt;top:${y-1}pt;${extra}">${html}</div>`;
-  const bar = (x,y,w,hh=13.4) => `<div class="bar" style="left:${x}pt;top:${y}pt;width:${w}pt;height:${hh}pt"></div>`;
-  let h = '';
+  /* the Clean ledger layout: who and how much first, the subjects, how to pay at the foot */
+  const S = settings, T = doc.type, t = totals(), m0 = n => Math.abs(n % 1) > 0.004 ? money(n) : Math.round(n).toLocaleString('en-US');
+  const P = planInfo(), hasDisc = t.discount > 0;
+  const who = [doc.student ? `For ${esc(doc.student)}${doc.level ? ' · ' + esc(doc.level) : ''}` : esc(doc.level || ''),
+    T!=='receipt' ? [doc.address, doc.email].filter(Boolean).map(esc).join(' · ') : '',
+    periodText() ? `Tuition period ${esc(periodText())}` : '', doc.forWhat && T!=='quote' ? `For: ${esc(doc.forWhat)}` : ''].filter(Boolean).join('<br>');
+  const meta = T==='quote' ? [`${esc(doc.number)} · ${esc(niceDate(doc.date))}`, doc.dueDate ? `<span class="lg-valid">Valid until ${esc(niceDate(doc.dueDate))}</span>` : '']
+    : T==='invoice' ? [`${esc(doc.number)} · ${esc(niceDate(doc.date))}`, doc.ref ? `Quote ${esc(doc.ref)}` : '']
+    : [`${esc(doc.number)} · ${esc(niceDate(doc.date))}`, doc.ref ? `For invoice ${esc(doc.ref)}` : ''];
+  let h = `<div class="lg"><div class="lg-hd"><img src="logo.png" alt="LHQ"><div class="lg-t"><b>${WORD[T].toUpperCase()}</b>${meta.filter(Boolean).join('<br>')}</div></div>
+    ${T==='receipt' ? `<div class="lg-copy">${docCopy==='office' ? 'OFFICE COPY' : 'CUSTOMER COPY'}</div>` : ''}<div class="lg-gold"></div>`;
 
-  h += `<img src="logo.png" alt="" style="position:absolute;left:50.5pt;top:65.2pt;width:104.2pt;height:54.4pt">`;
-  h += `<div class="title" style="top:${84.03-3.5}pt">TUTORING</div>`;
-  h += `<div class="title" style="top:${111.63-3.5}pt">${WORD[T].toUpperCase()}</div>`;
-  if(T==='receipt') h += `<div class="copy-tag" style="left:343.4pt;width:211pt;top:141pt"><span>${docCopy==='office' ? 'OFFICE COPY' : 'CUSTOMER COPY'}</span></div>`;
-  h += at(59.28,125.4,`<b>Email :</b> ${esc(S.email)}`);
-  h += at(59.28,139.22,`<b>Phone :</b> ${esc(S.phone)}`);
-
-  // top-left: bank details (quote, invoice) or payment details (receipt)
-  h += bar(57.6,164.9,223.9);
-  if(T==='receipt'){
-    h += at(59.28,166.82,'Payment Details','color:#fff;font-weight:700');
-    h += at(59.28,180.62,`<b>Amount Received:</b> MKW ${money(t.received)}`);
-    h += at(59.28,194.42,`<b>Payment Method:</b> ${esc(doc.method)}`);
-    h += at(59.28,208.22,`<b>Payment Reference:</b> ${esc(doc.payRef)}`);
-    h += at(59.28,222.02,`<b>Date Received:</b> ${esc(fmtDate(doc.date))}`);
-  } else {
-    h += at(59.28,166.82,'Bank Details','color:#fff;font-weight:700');
-    h += at(59.28,180.62,`<b>Bank Name:</b> ${esc(S.bank)}`);
-    h += at(59.28,194.42,`<b>Account Name:</b> ${esc(S.accname)}`);
-    h += at(59.28,208.22,`<b>Branch:</b> ${esc(S.branch)}`);
-    h += at(59.28,222.02,`<b>Account Number:</b> ${esc(S.accno)}`);
-  }
-
-  // top-right: number / date / valid-until, due date or invoice ref
-  const heads = {quote:['Quote No.','Date','Valid Until'], invoice:['Invoice No.','Date','Due Date'], receipt:['Receipt No.','Date','Invoice Ref']}[T];
-  const P = planInfo();
-  const vals = [doc.number, fmtDate(doc.date), T==='receipt' ? doc.ref : (T==='invoice' && P && P.next ? fmtDate(P.next.due) : fmtDate(doc.dueDate))];
-  const bx = 343.4, cw = (211 - 2.8) / 3;
-  h += bar(bx,164.9,211);
-  [0,1,2].forEach(i=>{
-    const x = bx + i*(cw+1.4);
-    if(i>0) h += `<div class="vline" style="left:${x-1.4}pt;top:164.9pt;height:13.4pt"></div>`;
-    h += `<div class="cell c w" style="left:${x}pt;width:${cw}pt;top:165.82pt">${heads[i]}</div>`;
-    h += `<div class="cell c" style="left:${x}pt;width:${cw}pt;top:179.62pt">${esc(vals[i])}</div>`;
-  });
-  if(T==='invoice' && doc.ref) h += `<div class="cell c" style="left:${bx}pt;width:211pt;top:194.4pt"><b>Quote Ref:</b> ${esc(doc.ref)}</div>`;
-  if(T==='receipt' && t.total > 0 && t.balance <= 0.005){
-    h += `<div class="stamp" style="left:${bx+211/2}pt;top:206pt"><span>PAID IN FULL</span><small>${esc(niceDate(doc.date).toUpperCase())}</small></div>`;
-  }
-
-  // who it's for
-  h += bar(57.6,247.7,223.9,13.2);
-  h += at(59.28,249.62,{quote:'Quotation for:',invoice:'Invoice for:',receipt:'Received from:'}[T],'color:#fff;font-weight:700');
-  const rows = [['Name', doc.name]];
-  if(doc.student || doc.level) rows.push(['Student', [doc.student, doc.level].filter(Boolean).join(' · ')]);
-  if(T!=='receipt'){ rows.push(['Address', doc.address]); rows.push(['Email', doc.email]); }
-  rows.push(['Being Payment for', doc.forWhat]);
-  rows.push(['Tuition Period', periodText()]);
-  rows.forEach(([k,v],i)=>{ h += at(59.28, 263.42 + i*13.8, `<b>${k}:</b> ${esc(v)}`); });
-  const lastY = 263.42 + (rows.length-1)*13.8;
-
-  // subjects table
-  const cols = [57.6,116.6,282.3,343.4,405.3,471.6,554.4];
-  const TOP = lastY + 26.25, HEAD_H = 12.2, ROW_H = 14.9;
-  h += bar(57.6,TOP,496.8,HEAD_H);
-  ['Item','Description','Days','Sessions','Cost/ Session','Amount (MKW)'].forEach((txt,i)=>{
-    if(i>0) h += `<div class="vline" style="left:${cols[i]-0.7}pt;top:${TOP}pt;height:${HEAD_H}pt"></div>`;
-    h += `<div class="cell c w" style="left:${cols[i]}pt;width:${cols[i+1]-cols[i]}pt;top:${TOP+0.35}pt">${txt}</div>`;
-  });
-  let y = TOP + HEAD_H;
-  doc.items.forEach((it,i)=>{
-    const amt = num(it.sessions)*num(it.cost), ty = y + 2.8;
-    h += `<div class="gline" style="left:57.6pt;top:${y+ROW_H-0.6}pt;width:496.8pt;height:0.6pt"></div>`;
-    cols.forEach(cx=>{ h += `<div class="gline" style="left:${cx-0.3}pt;top:${y}pt;width:0.6pt;height:${ROW_H}pt"></div>`; });
-    h += `<div class="cell c" style="left:${cols[0]}pt;width:${cols[1]-cols[0]}pt;top:${ty}pt">${i+1}</div>`;
-    h += `<div class="cell c" style="left:${cols[1]}pt;width:${cols[2]-cols[1]}pt;top:${ty}pt">${esc(it.desc)}</div>`;
-    h += `<div class="cell c" style="left:${cols[2]}pt;width:${cols[3]-cols[2]}pt;top:${ty}pt">${esc(it.days)}</div>`;
-    h += `<div class="cell c" style="left:${cols[3]}pt;width:${cols[4]-cols[3]}pt;top:${ty}pt">${esc(it.sessions)}</div>`;
-    h += `<div class="cell r" style="left:${cols[4]}pt;width:${466.04-cols[4]}pt;top:${ty}pt">${money(num(it.cost))}</div>`;
-    h += `<div class="cell r" style="left:${cols[5]}pt;width:${549.82-cols[5]}pt;top:${ty}pt">${money(amt)}</div>`;
-    y += ROW_H;
-  });
-
-  // totals band
-  const band = [];
-  const hasDisc = t.discount > 0;
-  if(T==='receipt'){
-    band.push([hasDisc ? `Invoice Total (after ${[discountInner(), 'discount'].filter(Boolean).join(' ')})` : 'Invoice Total', money(t.total)]);
-    if(t.prevPaid) band.push(['Previously Paid', money(t.prevPaid)]);
-    band.push(['Paid', money(t.received), true]);
-    band.push(['Balance Remaining', money(Math.max(0, t.balance))]);
-  } else {
-    if(hasDisc){ band.push(['Subtotal', money(t.subtotal)]); band.push([discountLabel(), '-' + money(t.discount)]); }
-    if(T==='quote') band.push(['Total', money(t.total), true]);
-    else { band.push(['Total', money(t.total)]); band.push(['Paid', t.paid ? money(t.paid) : '']); band.push(['Balance Due', money(t.balance), true]); }
-  }
-  const B = y + 0.1, bandH = band.length*13.8 - 1.1 + (band.some(r=>r[2]) ? 1.2 : 0);
-  h += bar(57.6,B,496.8,bandH);
-  h += `<div class="vline" style="left:${cols[5]-0.7}pt;top:${B}pt;height:${bandH}pt"></div>`;
-  let by = B + 0.1;
-  band.forEach(([label,value,big])=>{
-    const fs = big ? 'font-size:12pt;' : '';
-    h += `<div class="cell r w" style="left:120pt;width:${466.5-120}pt;top:${by}pt;font-style:italic;${fs}">${esc(label)}</div>`;
-    h += `<div class="cell r w" style="left:${cols[5]}pt;width:${549.7-cols[5]}pt;top:${by}pt;${fs}">${value}</div>`;
-    by += big ? 15 : 13.8;
-  });
-
-  // notes, then the enrolment list (quote, invoice) or signature lines (receipt)
-  const k = B + bandH + 16;
-  const bullet = txt => `<div class="li"><span>•</span><span>${txt}</span></div>`;
-  let n = '';
-  if(P && T!=='receipt'){
-    const st = T==='invoice';
-    n += `<div class="plan"><div class="plan-h"><b>Payment Plan</b> · 50% at the start, 50% half-way through the tuition period</div>
-      <div class="plan-t${st?' st':''}"><div class="ph">Instalment</div><div class="ph">Due by</div><div class="ph r">Amount (MKW)</div>${st?'<div class="ph">Status</div>':''}
-      ${P.rows.map(r=>`<div>${r.label}</div><div>${esc(wkDate(r.due))}</div><div class="r">${money(r.amt)}</div>${st?`<div class="${r.paid?'ok':P.next===r?'due':''}">${r.paid?'Paid':P.next===r?'Next due':'Due'}</div>`:''}`).join('')}</div></div>`;
-  }
+  /* who it's for, and the one number that matters */
+  let box = '';
   if(T==='quote'){
-    n += `<div><b>Kindly Note</b></div>`;
-    if(P) n += bullet(`${doc.dueDate ? `This quote is valid until ${esc(fmtDate(doc.dueDate))}. To accept it` : 'To accept this quote'}, pay the <b>first instalment of MKW ${money(P.rows[0].amt)} by ${esc(fmtDate(P.rows[0].due))}</b> by bank transfer (details above) or by mobile money to ${esc(S.mobile)}, including the withdrawal fee. The second instalment of MKW ${money(P.rows[1].amt)} is due by ${esc(fmtDate(P.rows[1].due))}.`);
-    else n += bullet(`${doc.dueDate ? `This quote is valid until ${esc(fmtDate(doc.dueDate))}. To accept it` : 'To accept this quote'}, pay the total by bank transfer (details above) or by mobile money to ${esc(S.mobile)}, including the withdrawal fee.`);
-    n += bullet(`Please send your proof of payment (PoP) to ${esc(S.popphone)} or ${esc(S.email)}.`);
-    n += bullet('A receipt will be issued once the payment has been confirmed.');
-    if(!doc.noInstLine) n += bullet('Instalment plans are available on request.');
+    const inst = !doc.noInstLine && t.total > 0;
+    box = `<div class="lg-due"><span class="cap">Total for the period</span><b>MKW ${m0(t.total)}</b><span>${inst ? `or 2 instalments of ${m0(Math.round(t.total*50)/100)}` : doc.items.length ? `${doc.items.reduce((a, x) => a + num(x.sessions), 0)} sessions · ${doc.items.length} subject${doc.items.length === 1 ? '' : 's'}` : ''}</span></div>`;
   } else if(T==='invoice'){
-    n += `<div><b>Kindly Note</b></div>`;
-    if(P && P.next) n += bullet(nextLine(P, true));
-    else if(doc.dueDate) n += bullet(`<b>Payment of the balance is due by ${esc(fmtDate(doc.dueDate))}.</b>`);
-    n += bullet(`For online banking transactions, please send a proof of payment (PoP) receipt via ${esc(S.popphone)} or email it to ${esc(S.email)}.`);
-    n += bullet(`For mobile banking transactions, transfer the funds (including the withdrawal fee) to ${esc(S.mobile)}.`);
-    n += bullet('A receipt will be issued once the payment has been confirmed.');
+    if(t.total > 0 && t.balance <= 0.005) box = `<div class="lg-due ok"><span class="cap">Paid in full</span><b>MKW ${m0(t.total)}</b><span>Thank you</span></div>`;
+    else box = `<div class="lg-due"><span class="cap">Balance due</span><b>MKW ${m0(Math.max(0, t.balance))}</b><span>${P && P.next ? `by ${esc(wkDate(P.next.due))} · ${P.next.short}` : doc.dueDate ? `by ${esc(wkDate(doc.dueDate))}` : ''}</span></div>`;
   } else {
-    n += `<div><b>Thank you</b></div>`;
-    n += bullet('Thank you for your payment. Please keep this receipt for your records.');
-    if(P && P.next && t.balance > 0.005) n += bullet(nextLine(P, true));
-    n += bullet(`For any questions about this receipt, call ${esc(S.popphone)} or email ${esc(S.email)}.`);
+    const full = t.total > 0 && t.balance <= 0.005;
+    box = `<div class="lg-due ok"><span class="cap">Received</span><b>MKW ${m0(t.received)}</b><span>${full ? 'Paid in full · nothing owed' : t.total > 0 ? `MKW ${m0(Math.max(0, t.balance))} still owed` : ''}</span></div>`;
   }
-  if(T==='receipt'){
-    n += `<div class="sig"><div style="width:260pt"><div class="ln"></div><b>Signature</b> · for LHQ Learning Solutions${doc.receivedBy?`<br>Received by: ${esc(doc.receivedBy)}`:''}</div></div>`;
-  } else {
-    const inc = includedList();
-    if(inc.length){
-      n += `<div class="inc-h"><b>Every LHQ Enrollment Includes:</b></div>`;
-      inc.forEach(x=>{ n += `<div class="inc2"><img src="arrow.png" alt="">${esc(x)}</div>`; });
-    }
-  }
-  h += `<div class="flow" style="left:59.28pt;top:${k-1}pt">${n}</div>`;
+  h += `<div class="lg-two"><div><span class="cap">${{quote:'Prepared for', invoice:'Billed to', receipt:'Received from'}[T]}</span><p><b>${esc(doc.name || '')}</b>${who ? '<br>' + who : ''}</p>
+    ${T==='receipt' ? `<p class="lg-pd">${[doc.method ? `<b>${esc(doc.method)}</b>` : '', doc.payRef ? `Ref ${esc(doc.payRef)}` : '', `Received ${esc(niceDate(doc.date))}`].filter(Boolean).join(' · ')}</p>` : ''}</div>${box}</div>`;
 
+  /* subjects (quote, invoice) or where the invoice stands (receipt) */
+  if(T==='receipt'){
+    h += `<table class="lg-tb"><tr><th>Invoice</th><th class="r">Invoice total</th>${t.prevPaid ? '<th class="r">Paid before</th>' : ''}<th class="r">Paid now</th><th class="r">Balance</th></tr>
+      <tr><td>${esc(doc.ref || '–')}${hasDisc ? ` <small>after ${esc([discountInner(), 'discount'].filter(Boolean).join(' '))}</small>` : ''}</td><td class="r">${m0(t.total)}</td>${t.prevPaid ? `<td class="r">${m0(t.prevPaid)}</td>` : ''}<td class="r"><b>${m0(t.received)}</b></td><td class="r">${m0(Math.max(0, t.balance))}</td></tr></table>`;
+    if(doc.items.length) h += `<p class="lg-sub">${doc.items.map(it => esc(it.desc)).filter(Boolean).join(' · ')}</p>`;
+  } else {
+    const days = doc.items.some(it => String(it.days || '').trim());
+    h += `<table class="lg-tb"><tr><th>Subject</th>${days ? '<th class="r">Days</th>' : ''}<th class="r">Sessions</th><th class="r">Per session</th><th class="r">Amount</th></tr>
+      ${doc.items.map(it => `<tr><td>${esc(it.desc)}</td>${days ? `<td class="r">${esc(it.days)}</td>` : ''}<td class="r">${esc(it.sessions)}</td><td class="r">${m0(num(it.cost))}</td><td class="r">${m0(num(it.sessions)*num(it.cost))}</td></tr>`).join('')}</table>`;
+    const rows = [];
+    if(hasDisc){ rows.push(['Subtotal', m0(t.subtotal)]); rows.push([esc(discountLabel()), '−' + m0(t.discount)]); }
+    if(T==='quote') rows.push(['Total (MKW)', m0(t.total), 1]);
+    else { rows.push(['Total', m0(t.total)]); rows.push(['Paid', m0(t.paid)]); rows.push(['Balance due (MKW)', m0(Math.max(0, t.balance)), 1]); }
+    h += `<table class="lg-tot">${rows.map(([l, v, b]) => `<tr${b ? ' class="b"' : ''}><td>${l}</td><td class="r">${v}</td></tr>`).join('')}</table>`;
+  }
+
+  /* how to pay, the plan, and the notes */
+  if(T==='quote'){
+    const start = doc.periodStart || doc.dueDate;
+    const Q = !doc.noInstLine && t.total > 0 ? planInfo(Object.assign({}, doc, {type:'invoice', plan:'half', paid:'0', plan1:'', plan2:''})) : null;
+    h += `<div class="lg-sec"><span class="cap">${Q ? 'Choose how to pay' : 'How to accept'}</span><div class="lg-ch${Q ? '' : ' one'}">
+      <div class="rec"><span class="tag">ONE PAYMENT</span><b>Pay in full</b>MKW ${m0(t.total)}${start ? ` before ${esc(niceDate(start))}` : ''}</div>
+      ${Q ? `<div><span class="tag bl">50 / 50</span><b>Two instalments</b>MKW ${m0(Q.rows[0].amt)} before ${esc(niceDate(Q.rows[0].due))}<br>MKW ${m0(Q.rows[1].amt)} by ${esc(niceDate(Q.rows[1].due))}</div>` : ''}</div>
+      <p class="lg-note">${doc.dueDate ? `This quote is valid until ${esc(niceDate(doc.dueDate))}. ` : ''}To accept, make the payment and send proof of payment to ${esc(S.popphone)} or ${esc(S.email)}. A receipt and the tuition card follow.</p></div>`;
+  } else if(T==='invoice'){
+    if(P) h += `<div class="lg-sec"><span class="cap">Payment plan · 50% at the start, 50% half-way through the tuition period</span><table class="lg-plan">${P.rows.map(r => `<tr><td>${r.short} · ${esc(wkDate(r.due))}</td><td class="r">${m0(r.amt)}</td><td class="r ${r.paid ? 'ok' : P.next === r ? 'due' : ''}">${r.paid ? 'Paid' : P.next === r ? 'Next due' : 'Due'}</td></tr>`).join('')}</table></div>`;
+    const notes = [];
+    if(P && P.next) notes.push(nextLine(P, true));
+    else if(doc.dueDate && t.balance > 0.005) notes.push(`<b>Payment of the balance is due by ${esc(niceDate(doc.dueDate))}.</b>`);
+    if(t.balance > 0.005) notes.push('A receipt is issued once the payment has been confirmed.');
+    if(notes.length) h += `<div class="lg-sec"><span class="cap">Please note</span>${notes.map(x => `<div class="lg-li"><span>•</span><span>${x}</span></div>`).join('')}</div>`;
+  } else {
+    const notes = ['Thank you for your payment. Please keep this receipt for your records.'];
+    if(P && P.next && t.balance > 0.005) notes.push(nextLine(P, true));
+    h += `<div class="lg-sec">${notes.map(x => `<div class="lg-li"><span>•</span><span>${x}</span></div>`).join('')}</div>
+      <div class="lg-sig"><div class="ln"></div><b>Signature</b> · for LHQ Learning Solutions${doc.receivedBy ? ` · received by ${esc(doc.receivedBy)}` : ''}</div>`;
+  }
+
+  /* the foot */
+  const inc = T==='receipt' ? [] : includedList();
+  const pay = T==='receipt' ? `<span class="cap">Questions</span><br>Call ${esc(S.popphone)} or email ${esc(S.email)}.`
+    : `<span class="cap">How to pay</span><br>${esc(S.bank)} · ${esc(S.accname)} · ${esc(S.branch)} · <b>${esc(S.accno)}</b><br>Mobile money ${esc(S.mobile)} (add the withdrawal fee). Proof of payment: ${esc(S.popphone)} or ${esc(S.email)}.`;
+  h += `<div class="lg-foot"><div>${pay}</div><div>${inc.length ? `<span class="cap">Every LHQ enrolment includes</span><br><span class="lg-inc">${inc.map(esc).join(' · ')}</span><br>` : ''}<span class="mut">${esc(S.email)} · ${esc(S.phone)}</span></div></div></div>`;
   F('doc').innerHTML = h;
 }
 

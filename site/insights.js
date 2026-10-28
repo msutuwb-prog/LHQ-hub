@@ -180,7 +180,7 @@ window.INS = (function(){
     const hours = [...new Set(Object.keys(grid).map(k => k.slice(2)))].filter(h => h !== '??').sort();
     if(!hours.length) return '<p class="empty" style="margin:0">Add start times on tuition cards to see this.</p>';
     const max = Math.max(...Object.values(grid));
-    return `<div class="bz-scroll"><table class="ins-heat"><tr><th></th>${DAYS.map(d => `<th>${NAME[d]}</th>`).join('')}</tr>${hours.map(h => `<tr><th>${h}:00</th>${DAYS.map(d => { const v = grid[d + h] || 0; return `<td style="background:${v ? `rgba(244,178,35,${.15 + .85 * v / max})` : 'transparent'}" title="${v} session${v === 1 ? '' : 's'}">${v || ''}</td>`; }).join('')}</tr>`).join('')}</table></div><p class="note">Sessions a week starting at each hour, from current tuition cards.</p>`;
+    return `<div class="bz-scroll"><table class="ins-heat"><tr><th></th>${DAYS.map(d => `<th>${NAME[d]}</th>`).join('')}</tr>${hours.map(h => `<tr><th>${h}:00</th>${DAYS.map(d => { const v = grid[d + h] || 0; return `<td style="background:${v ? `color-mix(in srgb, #f4b223 ${Math.round(20 + 80 * v / max)}%, #fff)` : 'transparent'};${v ? 'color:#14213d' : ''}" title="${v} session${v === 1 ? '' : 's'}">${v || ''}</td>`; }).join('')}</tr>`).join('')}</table></div><p class="note">Sessions a week starting at each hour, from current tuition cards.</p>`;
   }
 
   /* ---------- Money in, explained ---------- */
