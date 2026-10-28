@@ -3,9 +3,9 @@
    compared with the period before and the same dates last year. Student names are left out when it leaves LHQ.
    Shown as a page at #perf, downloaded as an A4 PDF. Uses BIZ, INS and HD, and index.html's helpers. */
 window.PERF = (function(){
-  const KEY = 'lhq_perf';
+  const KEY = 'lhq_perf';   // + '_' + kind for the other reports
   const SECTIONS = [['summary','One-page summary'],['trend','12-month trend'],['money','Money in, explained'],['spending','Spending'],['pl','Profit & loss'],
-    ['pipeline','Quotes and conversion'],['sessions','Sessions and tutors'],['students','Students and renewals'],['marketing','Marketing return'],['other','Other money in and loans'],['pots','Pots']];
+    ['pipeline','Quotes and conversion'],['sessions','Sessions and tutors'],['students','Students and renewals'],['marketing','Marketing return'],['other','Other money in and loans'],['pots','Allocations']];
   const AUD = {
     director: {n: 'Director', s: SECTIONS.map(x => x[0]), anon: false, money: true},
     staff: {n: 'Staff meeting', s: ['summary','trend','pipeline','sessions','students','marketing'], anon: false, money: false},
@@ -24,15 +24,20 @@ window.PERF = (function(){
   const mondayOf = iso => addDays(iso, -((HD.parseISO(iso).getDay() + 6) % 7));
   const fmtD = iso => { const d = HD.parseISO(iso); return `${d.getDate()} ${MONL[d.getMonth()].slice(0, 3)} ${d.getFullYear()}`; };
 
-  function cfg(){ let c = {}; try{ c = JSON.parse(localStorage.getItem(KEY) || '{}'); }catch(e){}
-    const a = AUD[c.aud] || AUD.director;
-    return Object.assign({kind: 'month', at: B().thisMonth(), from: '', to: '', aud: 'director', s: a.s.slice(), anon: a.anon, money: a.money}, c); }
-  const saveCfg = c => { try{ localStorage.setItem(KEY, JSON.stringify(c)); }catch(e){} };
+  let rk = 'business';   // the report on screen
+  const kkey = k => k === 'business' ? KEY : KEY + '_' + k;
+  function cfg(k = rk){ let c = {}; try{ c = JSON.parse(localStorage.getItem(kkey(k)) || '{}'); }catch(e){}
+    const K = KINDS[k], A = K.AUD, a = A[c.aud] || A[Object.keys(A)[0]];
+    return Object.assign({kind: K.dflt || 'month', at: B().thisMonth(), from: '', to: '', aud: Object.keys(A)[0], s: a.s.slice(), anon: a.anon, money: a.money}, c); }
+  const saveCfg = (c, k = rk) => { try{ localStorage.setItem(kkey(k), JSON.stringify(c)); }catch(e){} };
 
   /* the dates a choice covers, the period before it, and the same dates last year */
   function range(c){
     const b = B(), t = today(); let from, to, label, prevF, prevT;
-    if(c.kind === 'week'){ from = mondayOf(c.at || t); to = addDays(from, 6); label = `Week of ${fmtD(from)}`; }
+    if(c.kind === 'period'){ const st = HD.students().find(x => x.key === c.stu), inv = st && st.cur && st.cur.inv;
+      if(inv && inv.periodStart){ from = inv.periodStart; to = inv.periodEnd || t; label = `Tuition period ${fmtD(from)} – ${fmtD(to)}`; prevT = addDays(from, -1); const pv = st.periods[1] && st.periods[1].inv; prevF = pv && pv.periodStart ? pv.periodStart : addDays(prevT, -HD.dayDiff(from, to)); }
+      else { from = addDays(t, -29); to = t; label = 'Last 30 days'; } }
+    else if(c.kind === 'week'){ from = mondayOf(c.at || t); to = addDays(from, 6); label = `Week of ${fmtD(from)}`; }
     else if(c.kind === 'custom'){ from = c.from || addDays(t, -29); to = c.to || t; if(to < from) [from, to] = [to, from]; label = `${fmtD(from)} – ${fmtD(to)}`; }
     else {
       const p = c.kind === 'month' ? (c.at || b.thisMonth()) : c.kind === 'quarter' ? (c.at || b.qOf(b.thisMonth())) : (c.at || 'fy' + b.fyOf(b.thisMonth()));
@@ -79,7 +84,7 @@ window.PERF = (function(){
   const ar = (p, good = 1) => p == null ? '<i class="fl">–</i>' : p === 0 ? '<i class="fl">0%</i>' : `<i class="${(p > 0) === (good > 0) ? 'up' : 'dn'}">${p > 0 ? '▲' : '▼'} ${Math.abs(p)}%</i>`;
   const M = v => mk(v), Ms = v => (v < 0 ? '−' : '') + mkShort(Math.abs(v));
   function table(head, rows, o = {}){
-    return `<table class="pf-t"><tr>${head.map((h, i) => `<th${i ? ' class="r"' : ''}>${h}</th>`).join('')}</tr>${rows.map(r => `<tr${r.cls ? ` class="${r.cls}"` : ''}>${r.c.map((v, i) => `<td${i ? ' class="r"' : ''}>${v}</td>`).join('')}</tr>`).join('')}</table>${o.note ? `<p class="pf-n">${o.note}</p>` : ''}`;
+    return `<table class="pf-t${rows.length <= 12 ? ' sm' : ''}"><tr>${head.map((h, i) => `<th${i ? ' class="r"' : ''}>${h}</th>`).join('')}</tr>${rows.map(r => `<tr${r.cls ? ` class="${r.cls}"` : ''}>${r.c.map((v, i) => `<td${i ? ' class="r"' : ''}>${v}</td>`).join('')}</tr>`).join('')}</table>${o.note ? `<p class="pf-n">${o.note}</p>` : ''}`;
   }
   function bars(list, total, fmt = Ms){
     const max = Math.max(1, ...list.map(x => x[1]));
@@ -89,7 +94,7 @@ window.PERF = (function(){
   const kp = (l, v, s) => `<div class="pf-k"><small>${l}</small><b>${v}</b><span>${s || ''}</span></div>`;
   const cmp = (n, p, l, good = 1) => `${ar(chg(n, p), good)} vs before · ${ar(chg(n, l), good)} vs last year`;
 
-  function build(c){
+  function buildBusiness(c){
     const R = range(c), f = figs(R.from, R.to), p = figs(R.prev.from, R.prev.to), l = figs(R.ly.from, R.ly.to), b = B(), F = INS.facts();
     const has = k => c.s.includes(k), money = c.money !== false, anon = !!c.anon;
     const who = k => { const s = F.byStu.get(k); return anon ? 'A family' : (s ? s.name : k); };
@@ -175,63 +180,253 @@ window.PERF = (function(){
     }
     if(has('pots') && money){
       const P = ((store.get('lhq_budget', {}) || {}).pots || {}).list || [];
-      if(P.length) out.push(sec('Pots', table(['Pot', 'Share', 'Received', 'Spent', 'Difference'], P.map(pt => { const got = f.revenue * pt.p / 100, sp = sum(pt.cats || [], k => f.byCat[k] || 0);
-        return {c: [esc(pt.n), pt.p + '%', M(got), M(sp), `<b style="color:${got - sp < 0 ? '#b42318' : '#1f7a4d'}">${got - sp < 0 ? '−' : ''}${M(Math.abs(got - sp))}</b>`]}; })), {note: 'Each pot\'s share of money in during this period, and what its spending categories cost.'}));
+      if(P.length) out.push(sec('Allocations', table(['Allocation', 'Share', 'Received', 'Spent', 'Difference'], P.map(pt => { const got = f.revenue * pt.p / 100, sp = sum(pt.cats || [], k => f.byCat[k] || 0);
+        return {c: [esc(pt.n), pt.p + '%', M(got), M(sp), `<b style="color:${got - sp < 0 ? '#b42318' : '#1f7a4d'}">${got - sp < 0 ? '−' : ''}${M(Math.abs(got - sp))}</b>`]}; })), {note: 'Each allocation\'s share of money in during this period, and what its spending categories cost.'}));
     }
-    const head = `<header class="pf-h"><img src="logo.png" alt="LHQ" crossorigin="anonymous"><div><b>Performance report</b><span>${esc(R.label)}</span></div><div class="pf-m">${esc(AUD[c.aud] ? AUD[c.aud].n : 'Custom')}${anon ? ' · student names left out' : ''}<br>Prepared ${fmtD(today())} by ${esc(me().name || 'LHQ')}</div></header>`;
-    return {html: `<div class="pf-paper">${head}${out.join('') || '<p class="pf-n">Choose at least one section.</p>'}<footer class="pf-f">LHQ Learning Solutions · Lilongwe · Confidential${anon ? '' : ' · contains student names, keep inside LHQ'}</footer></div>`, R};
+    return paper('Business report', c, R, out);
   }
+  function paper(title, c, R, out, sub){
+    const K = KINDS[rk], anon = !!c.anon;
+    const head = `<header class="pf-h"><img src="logo.png" alt="LHQ" crossorigin="anonymous"><div><b>${esc(title)}</b><span>${sub ? esc(sub) + ' · ' : ''}${esc(R.label)}</span></div><div class="pf-m">${esc(K.AUD[c.aud] ? K.AUD[c.aud].n : 'Custom')}${anon ? ' · names left out' : ''}<br>Prepared ${fmtD(today())} by ${esc(me().name || 'LHQ')}</div></header>`;
+    return {html: `<div class="pf-paper">${head}${out.join('') || '<p class="pf-n">Choose at least one section.</p>'}<footer class="pf-f">LHQ Learning Solutions · Lilongwe · ${c.aud === 'parent' ? 'learnhqes@gmail.com · +265 992 525 250' : 'Confidential' + (anon ? '' : ' · contains student names, keep inside LHQ')}</footer></div>`, R};
+  }
+
+  /* ---------- shared facts for the teaching reports ---------- */
+  const DAYC = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+  const logsIn = (from, to) => (window.PC ? PC.rawLogs() : []).filter(e => e.d >= from && e.d <= to);
+  const plannedIn = (card, x, from, to) => window.PC ? Math.max(0, PC.planned(card, x, to) - PC.planned(card, x, addDays(from, -1))) : 0;
+  /* every card subject that runs during the dates: {s, card, inv, x, k: student|subject} */
+  function subjIn(from, to){
+    const out = [];
+    HD.students().forEach(s => s.periods.forEach(p => { const c = p.card, inv = p.inv; if(!c) return;
+      const a = c.periodStart || inv.periodStart || inv.date || '', z = c.periodEnd || inv.periodEnd || '9999';
+      if(a > to || z < from) return;
+      (c.subjects || []).forEach(x => x.name && out.push({s, card: c, inv, x, k: s.key + '|' + sk(x.name)})); }));
+    return out;
+  }
+  const isTaught = e => e.a === 'attended' || e.a === 'late';
+  const testPc = e => e.sc !== '' && e.sc != null && num(e.mx) > 0 ? num(e.sc) / num(e.mx) * 100 : null;
+  const avg = L => L.length ? Math.round(sum(L) / L.length) : null;
+  const pcs = v => v == null ? '–' : v + '%';
+
+  /* ---------- Tuition report: how teaching is going overall ---------- */
+  function buildTuition(c){
+    const R = range(c), anon = !!c.anon, has = k => c.s.includes(k), t = today();
+    const SJ = subjIn(R.from, R.to), E = logsIn(R.from, R.to), S = E.filter(e => e.ty === 's');
+    const pl = sum(SJ, j => plannedIn(j.card, j.x, R.from, R.to < t ? R.to : t)), done = S.filter(isTaught).length;
+    const absent = S.filter(e => e.a === 'absent').length, cant = S.filter(e => e.a === 'cancelled').length, made = S.filter(e => isTaught(e) && +e.mk).length;
+    const studs = new Set(SJ.map(j => j.s.key)), name = k => anon ? 'A student' : ((HD.students().find(s => s.key === k) || {}).name || k);
+    const prevE = logsIn(R.prev.from, R.prev.to).filter(e => e.ty === 's'), prevSJ = subjIn(R.prev.from, R.prev.to);
+    const prevPl = sum(prevSJ, j => plannedIn(j.card, j.x, R.prev.from, R.prev.to)), prevDone = prevE.filter(isTaught).length;
+    const tests = E.map(testPc).filter(v => v != null), out = [];
+    if(has('summary')){
+      out.push(sec('Summary', `<div class="pf-ks">${kp('Students taught', studs.size, `${SJ.length} subject${SJ.length === 1 ? '' : 's'}`)}${kp('Sessions delivered', `${done} of ${pl}`, `${pcs(pc(done, pl))} of planned · before ${prevE.length && prevPl ? pcs(pc(prevDone, prevPl)) : 'no logs'}`)}
+        ${kp('Missed', absent + cant, `${absent} student absent · ${cant} tutor couldn't teach`)}${kp('Test average', pcs(avg(tests)), `${tests.length} test${tests.length === 1 ? '' : 's'}`)}</div>
+        <p class="pf-n">"Planned" counts each subject's days on its tuition card between the dates (up to its number of sessions). "Delivered" is what tutors logged as attended or late, make-ups included (${made}).</p>`, 'first'));
+    }
+    if(has('delivery')){
+      const bySub = {}; SJ.forEach(j => { const o = bySub[j.x.name] = bySub[j.x.name] || {st: new Set(), pl: 0, done: 0, miss: 0, T: []}; o.st.add(j.s.key); o.pl += plannedIn(j.card, j.x, R.from, R.to < t ? R.to : t); });
+      S.forEach(e => { const o = bySub[e.sub]; if(!o) return; if(isTaught(e)) o.done++; else o.miss++; });
+      E.forEach(e => { const o = bySub[e.sub], v = testPc(e); if(o && v != null) o.T.push(v); });
+      out.push(sec('Delivery by subject', table(['Subject', 'Students', 'Planned', 'Delivered', 'Rate', 'Missed', 'Test avg'], srt(Object.fromEntries(Object.entries(bySub).map(([k, o]) => [k, o.st.size]))).map(([k]) => { const o = bySub[k];
+        return {c: [esc(k), o.st.size, o.pl, o.done, `<b style="color:${pc(o.done, o.pl) >= 90 ? '#1f7a4d' : pc(o.done, o.pl) >= 70 ? '#7a5400' : '#b42318'}">${pcs(pc(o.done, o.pl))}</b>`, o.miss, pcs(avg(o.T))]}; }))));
+      const wk = []; for(let d = mondayOf(R.from); d <= R.to; d = addDays(d, 7)) wk.push(d);
+      if(wk.length > 1 && wk.length <= 26){ const ser = [{name: 'Planned', col: '#9aa3b2', vals: wk.map(w => sum(SJ, j => plannedIn(j.card, j.x, w, addDays(w, 6) < t ? addDays(w, 6) : t)))}, {name: 'Delivered', col: '#073763', vals: wk.map(w => S.filter(e => isTaught(e) && e.d >= w && e.d <= addDays(w, 6)).length)}];
+        out.push(`<div class="pf-chart">${lit(INS.lineChart(wk.map(w => nice(w)), ser, {bars: true, fmt: v => Math.round(v), h: 200, label: 'Sessions by week'})).replace(/width="100%" style="min-width:520px"/, 'width="714" height="198"')}</div>`); }
+    }
+    if(has('programmes')){
+      const g = {}; [...studs].forEach(k => { const st = HD.students().find(s => s.key === k); const p = INS.progOf(st && st.level); g[p] = (g[p] || 0) + 1; });
+      const md = {}; S.filter(isTaught).forEach(e => { const m = e.md === 'o' ? 'Online' : e.md === 'h' ? 'At home' : 'At LHQ'; md[m] = (md[m] || 0) + 1; });
+      out.push(sec('Students and where they learn', `<div class="pf-2"><div><h3>Students by programme</h3>${bars(srt(g), studs.size, v => v)}</div><div><h3>Sessions by place</h3>${bars(srt(md), done, v => v + ' sessions')}</div></div>`));
+    }
+    if(has('missed')){
+      const owed = []; HD.students().forEach(s => { const cd = s.cur && s.cur.card; if(cd) HD.makeups(cd).filter(x => x.owed).forEach(x => owed.push([s.key, x])); });
+      out.push(sec('Missed sessions and make-ups', `<div class="pf-ks">${kp('Student absent', absent)}${kp("Tutor couldn't teach", cant)}${kp('Make-ups taught', made)}${kp('Make-ups owed now', sum(owed, o => o[1].owed))}</div>
+        ${owed.length ? '<h3>Make-ups owed now</h3>' + table(['Student', 'Subject', 'Tutor', 'Owed'], owed.sort((a, b) => b[1].owed - a[1].owed).slice(0, 20).map(([k, x]) => ({c: [esc(name(k)), esc(x.sub), esc(x.tutor || '–'), x.owed]}))) : ''}`));
+    }
+    if(has('topics')){
+      const T = {}; E.forEach(e => (e.tp || []).forEach(x => { (T[e.sub] = T[e.sub] || new Set()).add(x); }));
+      out.push(sec('Topics covered', Object.keys(T).length ? table(['Subject', 'Topics logged'], srt(Object.fromEntries(Object.entries(T).map(([k, v]) => [k, v.size]))).map(([k, n]) => ({c: [esc(k), n]})), {note: 'Different topics tutors logged in their session entries during the dates.'}) : '<p class="pf-n">No topics logged in these dates.</p>'));
+    }
+    if(has('renewals')){
+      const until = addDays(t, 30), L = HD.students().filter(s => s.cur && s.cur.inv.periodEnd && s.cur.inv.periodEnd >= t && s.cur.inv.periodEnd <= until);
+      out.push(sec('Renewals in the next 30 days', L.length ? table(['Student', 'Period ends', 'Renewed'], L.sort((a, b) => a.cur.inv.periodEnd.localeCompare(b.cur.inv.periodEnd)).map(s => ({c: [esc(anon ? 'A student' : s.name), nice(s.cur.inv.periodEnd), s.status.k === 'renewed' || s.periods[0] && s.periods[0].inv.periodStart > t ? 'Yes' : 'Not yet']}))) : '<p class="pf-n">No tuition periods end in the next 30 days.</p>'));
+    }
+    if(has('gaps')){
+      const noT = SJ.filter(j => !j.x.tutor && (j.card.periodEnd || '9999') >= t), noTime = SJ.filter(j => (j.x.days || []).length && !j.x.start && !(j.x.times && Object.keys(j.x.times).length) && (j.card.periodEnd || '9999') >= t);
+      out.push(sec('Gaps to fix', (noT.length || noTime.length) ? table(['Student', 'Subject', 'What is missing'], noT.map(j => ({c: [esc(name(j.s.key)), esc(j.x.name), 'No tutor']})).concat(noTime.map(j => ({c: [esc(name(j.s.key)), esc(j.x.name), 'No session time']})))) : '<p class="pf-n">Every current subject has a tutor and a time.</p>'));
+    }
+    return paper('Tuition report', c, R, out);
+  }
+
+  /* ---------- Tutor report ---------- */
+  const tutorList = () => { const T = new Set(); HD.students().forEach(s => s.periods.forEach(p => p.card && (p.card.subjects || []).forEach(x => x.tutor && T.add(x.tutor)))); return [...T].sort(); };
+  function buildTutor(c){
+    const R = range(c), has = k => c.s.includes(k), t = today(), end = R.to < t ? R.to : t, anon = !!c.anon;
+    const SJ = subjIn(R.from, R.to).filter(j => j.x.tutor), E = logsIn(R.from, R.to);
+    const T = c.tutor ? [c.tutor] : tutorList(), own = c.aud === 'tutor' && c.tutor;
+    const lw = s => (s || '').toLowerCase();
+    const of = n => { const J = SJ.filter(j => lw(j.x.tutor) === lw(n)), keys = new Set(J.map(j => j.k)), L = E.filter(e => keys.has(e.k.split('|')[0] + '|' + sk(e.sub)) || lw(e.tutor) === lw(n)), S = L.filter(e => e.ty === 's');
+      const delay = S.filter(e => e.at).map(e => Math.max(0, HD.dayDiff(e.d, HD.isoOf(new Date(e.at)))));
+      return {n, J, L, S, studs: new Set(J.map(j => j.s.key)).size, pl: sum(J, j => plannedIn(j.card, j.x, R.from, end)), done: S.filter(isTaught).length, cant: S.filter(e => e.a === 'cancelled').length, absent: S.filter(e => e.a === 'absent').length,
+        hrs: sum(S.filter(isTaught), e => { const m = String(j0(J, e).mins || '1 hour'); return (/min/i.test(m) ? parseFloat(m) / 60 : parseFloat(m) || 1); }), delay: delay.length ? Math.round(sum(delay) / delay.length * 10) / 10 : null, late: delay.filter(d => d > 2).length,
+        tests: avg(L.map(testPc).filter(v => v != null)), owed: sum(HD.students(), s => { const cd = s.cur && s.cur.card; return cd ? sum(HD.makeups(cd).filter(x => lw(x.tutor) === lw(n)), x => x.owed) : 0; })}; };
+    const j0 = (J, e) => (J.find(j => j.k === e.k.split('|')[0] + '|' + sk(e.sub)) || {x: {}}).x;
+    const D = T.map(of), out = [];
+    if(has('summary')){
+      out.push(sec(own ? 'Your summary' : 'Summary', table(['Tutor', 'Students', 'Planned', 'Logged', 'Rate', "Couldn't teach", 'Hours', 'Days to log', 'Test avg'],
+        D.sort((a, b) => b.pl - a.pl).map(d => ({c: [esc(d.n), d.studs, d.pl, d.done, `<b style="color:${pc(d.done, d.pl) >= 90 ? '#1f7a4d' : pc(d.done, d.pl) >= 70 ? '#7a5400' : '#b42318'}">${pcs(pc(d.done, d.pl))}</b>`, d.cant, Math.round(d.hrs), d.delay == null ? '–' : d.delay, pcs(d.tests)]})),
+        {note: '"Planned" comes from the days on each tuition card. "Rate" is sessions logged as taught against planned: a low rate means sessions were missed or not logged. "Days to log" is the average time between a session and its log.'}), 'first'));
+    }
+    if(has('students')) D.forEach(d => { if(!d.J.length) return;
+      out.push(sec(`${esc(d.n)}: students`, table(['Student', 'Subject', 'Planned', 'Taught', 'Absent', 'Test avg', 'Last log'], d.J.filter((j, i, a) => a.findIndex(y => y.k === j.k) === i).map(j0 => { const same = d.J.filter(y => y.k === j0.k), j = Object.assign({}, j0, {pl: sum(same, y => plannedIn(y.card, y.x, R.from, end))}); const L = d.L.filter(e => e.k.split('|')[0] + '|' + sk(e.sub) === j.k), S = L.filter(e => e.ty === 's'), last = L.map(e => e.d).sort().pop();
+        return {c: [esc(anon ? 'A student' : j.s.name), esc(j.x.name), j.pl, S.filter(isTaught).length, S.filter(e => e.a === 'absent').length, pcs(avg(L.map(testPc).filter(v => v != null))), last ? nice(last) : '<b style="color:#b42318">none</b>']}; })))); });
+    if(has('logging')){
+      const late = D.flatMap(d => d.S.filter(e => e.at && HD.dayDiff(e.d, HD.isoOf(new Date(e.at))) > 2).map(e => [d.n, e]));
+      out.push(sec('Logging', `<div class="pf-ks">${kp('Logs in these dates', sum(D, d => d.S.length))}${kp('Logged over 2 days late', late.length)}${kp('Tutors with no logs', D.filter(d => d.pl && !d.S.length).length)}${kp('Make-ups owed now', sum(D, d => d.owed))}</div>
+        ${D.filter(d => d.pl && !d.S.length).length ? `<p class="pf-n">No logs at all from: ${D.filter(d => d.pl && !d.S.length).map(d => esc(d.n)).join(', ')}.</p>` : ''}`));
+    }
+    if(has('makeups')){
+      const rows = []; HD.students().forEach(s => { const cd = s.cur && s.cur.card; if(cd) HD.makeups(cd).filter(x => x.owed && T.some(n => lw(n) === lw(x.tutor))).forEach(x => rows.push({c: [esc(x.tutor), esc(anon ? 'A student' : s.name), esc(x.sub), x.missT ? `${x.missT} tutor` : '', x.owed]})); });
+      out.push(sec('Make-ups owed', rows.length ? table(['Tutor', 'Student', 'Subject', 'Not taught by tutor', 'Owed'], rows) : '<p class="pf-n">No make-up sessions owed.</p>'));
+    }
+    return paper(own ? `Tutor report · ${c.tutor}` : 'Tutor report', c, R, out, c.tutor && !own ? c.tutor : '');
+  }
+
+  /* ---------- Student report ---------- */
+  function buildStudent(c){
+    const st = HD.students().find(x => x.key === c.stu);
+    if(!st) return {html: '<div class="pf-paper"><p class="pf-n">Choose a student.</p></div>', R: range(c)};
+    const R = range(c), has = k => c.s.includes(k), t = today(), end = R.to < t ? R.to : t;
+    const SJ = subjIn(R.from, R.to).filter(j => j.s.key === st.key), E = logsIn(R.from, R.to).filter(e => e.k && e.k.split('|')[0] === st.key), S = E.filter(e => e.ty === 's');
+    const pl = sum(SJ, j => plannedIn(j.card, j.x, R.from, end)), done = S.filter(isTaught).length, held = S.filter(e => e.a !== 'cancelled').length;
+    const tests = E.filter(e => testPc(e) != null).sort((a, b) => a.d.localeCompare(b.d)), out = [];
+    const subs = [...new Set(SJ.map(j => j.x.name))];
+    if(has('summary')){
+      out.push(sec(esc(st.name), `<p style="margin:0 0 8px">${esc([st.level, st.school].filter(Boolean).join(' · '))}</p>
+        <div class="pf-ks">${kp('Attendance', held ? pcs(pc(S.filter(isTaught).length, held)) : '–', `${S.filter(isTaught).length} of ${held} sessions`)}${kp('Sessions', `${done} of ${pl}`, 'taught of planned so far')}${kp('Test average', pcs(avg(tests.map(testPc))), `${tests.length} test${tests.length === 1 ? '' : 's'}`)}${kp('Subjects', subs.length, subs.join(', '))}</div>
+        <h3>Subjects and tutors</h3>${table(['Subject', 'Tutor', 'Days and times'], SJ.filter((j, i, a) => a.findIndex(y => y.x.name === j.x.name) === i).map(j => ({c: [esc(j.x.name), esc(j.x.tutor || 'To be confirmed'), esc((j.x.days || []).map(d => ({Mo:'Mon',Tu:'Tue',We:'Wed',Th:'Thu',Fr:'Fri',Sa:'Sat',Su:'Sun'})[d] || d).join(', ') + (j.x.start ? ' · ' + j.x.start + '–' + (j.x.end || '') : ''))]})))}`, 'first'));
+    }
+    if(has('attendance')){
+      out.push(sec('Attendance by subject', table(['Subject', 'Planned', 'Attended', 'Late', 'Absent', "Tutor couldn't teach", 'Make-ups'], subs.map(n => { const X = S.filter(e => e.sub === n), J = SJ.filter(j => j.x.name === n);
+        return {c: [esc(n), sum(J, j => plannedIn(j.card, j.x, R.from, end)), X.filter(e => e.a === 'attended').length, X.filter(e => e.a === 'late').length, X.filter(e => e.a === 'absent').length, X.filter(e => e.a === 'cancelled').length, X.filter(e => isTaught(e) && +e.mk).length]}; }))));
+    }
+    if(has('topics')){
+      const T = {}; E.forEach(e => (e.tp || []).forEach(x => { (T[e.sub] = T[e.sub] || []).includes(x) || T[e.sub].push(x); }));
+      out.push(sec('Topics covered', Object.keys(T).length ? Object.entries(T).map(([k, L]) => `<h3>${esc(k)} · ${L.length}</h3><p style="margin:0">${L.map(esc).join(' · ')}</p>`).join('') : '<p class="pf-n">No topics logged yet in these dates.</p>'));
+    }
+    if(has('tests')){
+      const bySub = subs.filter(n => tests.some(e => e.sub === n)).map(n => { const L = tests.filter(e => e.sub === n), v = L.map(testPc); return {n, L, v, avg: avg(v), first: Math.round(v[0]), last: Math.round(v[v.length - 1]), best: Math.round(Math.max(...v))}; });
+      const wk = []; if(tests.length) for(let d = mondayOf(tests[0].d); d <= tests[tests.length - 1].d; d = addDays(d, 7)) wk.push(d);
+      const series = bySub.map((x, i) => { let lastV = null; return {name: x.n, col: ['#073763','#f4b223','#1a74b0','#2c7a4b','#a85a14'][i % 5], vals: wk.map(w => { const v = x.L.filter(e => e.d >= w && e.d <= addDays(w, 6)).map(testPc); if(v.length) lastV = Math.round(sum(v) / v.length); return lastV == null ? 0 : lastV; })}; });
+      out.push(sec('Test scores', tests.length ? table(['Subject', 'Tests', 'Average', 'First', 'Latest', 'Best'], bySub.map(x => ({c: [esc(x.n), x.L.length, `<b>${x.avg}%</b>`, x.first + '%', `${x.last}% ${x.last > x.first ? '<i class="up">▲</i>' : x.last < x.first ? '<i class="dn">▼</i>' : ''}`, x.best + '%']})))
+        + (wk.length > 1 ? `<h3>Weekly average</h3><div class="pf-chart">${lit(INS.lineChart(wk.map(w => nice(w)), series, {fmt: v => Math.round(v) + '%', fmtTip: v => v + '%', h: 190, label: 'Test scores'})).replace(/width="100%" style="min-width:520px"/, 'width="714" height="188"')}</div>` : '')
+        + (c.aud === 'internal' ? '<h3>Every test</h3>' + table(['Date', 'Subject', 'Score', '%'], tests.map(e => ({c: [nice(e.d), esc(e.sub), `${e.sc} / ${e.mx}`, `${Math.round(testPc(e))}%`]}))) : '')
+        : '<p class="pf-n">No tests logged yet in these dates.</p>'));
+    }
+    if(has('comments')){
+      const C = E.filter(e => e.ty === 'c').sort((a, b) => b.d.localeCompare(a.d)), notes = S.filter(e => e.n).sort((a, b) => b.d.localeCompare(a.d)).slice(0, 8);
+      out.push(sec("Tutors' comments", (C.length ? C.slice(0, 6).map(e => `<h3>${esc(e.sub)} · ${nice(e.d)}</h3>${[['Doing well', e.cs], ['To work on', e.ci], ['Next', e.cn]].filter(x => x[1]).map(([l, v]) => `<p style="margin:2px 0"><b>${l}:</b> ${esc(String(v).replace(/^\s*(next( steps?)?|to work on|doing well)\s*:\s*/i, ''))}</p>`).join('')}`).join('') : '')
+        + (notes.length ? '<h3>From session logs</h3>' + notes.map(e => `<p style="margin:2px 0"><b>${nice(e.d)} · ${esc(e.sub)}:</b> ${esc(e.n)}</p>`).join('') : '') || '<p class="pf-n">No comments yet in these dates.</p>'));
+    }
+    if(has('next') && (c.next || '').trim()) out.push(sec('Next steps', `<p style="margin:0;white-space:pre-wrap">${esc(c.next.trim())}</p>`));
+    if(has('payments') && c.money !== false && can('money')){
+      const I0 = st.periods.map(p => p.inv).filter(i => (i.date || '') <= R.to && (i.periodEnd || i.date || '') >= R.from);
+      out.push(sec('Payments', I0.length ? table(['Invoice', 'Tuition period', 'Total', 'Paid', 'Balance'], I0.map(i => { const x = HD.invState(i); return {c: [esc(i.number), esc(range0(i)), M(x.total), M(x.paid), x.balance > 0.005 ? `<b>${M(x.balance)}</b>` : 'Paid']}; })) : '<p class="pf-n">No invoices in these dates.</p>'));
+    }
+    return paper('Student report', c, R, out);
+  }
+  const range0 = i => i.periodStart ? `${nice(i.periodStart)} – ${nice(i.periodEnd || '')}` : '';
+
+  /* ---------- the four reports ---------- */
+  const KINDS = {
+    business: {t: 'Business report', d: 'Money in, spending, profit, pipeline and marketing, for the Director, a staff meeting, partners or the board.', need: 'pl', SECTIONS, AUD, build: buildBusiness},
+    tuition: {t: 'Tuition report', d: 'How teaching is going: sessions delivered against planned, missed sessions, make-ups, tests, renewals and gaps.', need: 'pl|cards|students',
+      SECTIONS: [['summary','Summary'],['delivery','Delivery by subject'],['programmes','Students and where they learn'],['missed','Missed sessions and make-ups'],['topics','Topics covered'],['renewals','Renewals coming'],['gaps','Gaps to fix']],
+      AUD: {director: {n: 'Director', s: ['summary','delivery','programmes','missed','topics','renewals','gaps'], anon: false, money: false}, staff: {n: 'Staff meeting', s: ['summary','delivery','missed','renewals','gaps'], anon: false, money: false}, partners: {n: 'Partners', s: ['summary','delivery','programmes','topics'], anon: true, money: false}}, build: buildTuition},
+    tutor: {t: 'Tutor report', d: 'Each tutor’s students, sessions logged against planned, how promptly they log, test results and make-ups owed.', need: 'pl|tutors',
+      SECTIONS: [['summary','Summary'],['students','Each tutor’s students'],['logging','Logging'],['makeups','Make-ups owed']],
+      AUD: {director: {n: 'Director', s: ['summary','students','logging','makeups'], anon: false, money: false}, tutor: {n: 'The tutor’s own copy', s: ['summary','students','makeups'], anon: false, money: false}}, build: buildTutor, pick: 'tutor'},
+    student: {t: 'Student report', d: 'One student: attendance, sessions, topics covered, test scores, tutors’ comments, next steps and (for LHQ) payments.', need: 'pl|students|cards', dflt: 'period',
+      SECTIONS: [['summary','Summary'],['attendance','Attendance'],['topics','Topics covered'],['tests','Test scores'],['comments','Tutors’ comments'],['next','Next steps'],['payments','Payments']],
+      AUD: {parent: {n: 'Parent', s: ['summary','attendance','topics','tests','comments','next'], anon: false, money: false}, internal: {n: 'Inside LHQ', s: ['summary','attendance','topics','tests','comments','next','payments'], anon: false, money: true}}, build: buildStudent, pick: 'student'},
+  };
+  const okK = k => KINDS[k] && KINDS[k].need.split('|').some(x => can(x));
+  function build(c){ return KINDS[rk].build(c); }
 
   /* ---------- the choice sheet ---------- */
   function sheet(){
-    const b = B(), c = cfg(), tm = b.thisMonth();
+    const b = B(), K = KINDS[rk], c = cfg(), tm = b.thisMonth(), A = K.AUD;
     const qs = Array.from({length: 8}, (_, i) => b.shift(b.qOf(tm), -i)), ys = Array.from({length: 4}, (_, i) => 'fy' + (b.fyOf(tm) - i));
     const atFor = k => k === 'month' ? `<input class="in" type="month" id="pfAt" value="${esc(/^\d{4}-\d\d$/.test(c.at) ? c.at : tm)}" max="${tm}">`
       : k === 'quarter' ? `<select class="in" id="pfAt">${qs.map(q => `<option value="${q}" ${q === c.at ? 'selected' : ''}>${esc(b.periodLabel(q).replace(/ · to date$/, ''))}</option>`).join('')}</select>`
       : k === 'year' ? `<select class="in" id="pfAt">${ys.map(y => `<option value="${y}" ${y === c.at ? 'selected' : ''}>${esc(b.periodLabel(y).replace(/ · to date$/, ''))}</option>`).join('')}</select>`
       : k === 'week' ? `<input class="in" type="date" id="pfAt" value="${esc(/^\d{4}-\d\d-\d\d$/.test(c.at) ? c.at : today())}" max="${today()}">`
+      : k === 'period' ? '<p class="note" style="margin:0">The student’s current tuition period.</p>'
       : `<div class="r2"><input class="in" type="date" id="pfFrom" value="${esc(c.from || addDays(today(), -29))}"><input class="in" type="date" id="pfTo" value="${esc(c.to || today())}"></div>`;
-    openSheet(`<div class="hx"><h3>Performance report</h3><button class="ib" data-close>✕</button></div>
-      <div class="cap">Covering</div><div class="seg" id="pfKind">${[['week','Week'],['month','Month'],['quarter','Quarter'],['year','Year'],['custom','Dates']].map(([k, l]) => `<button class="${c.kind === k ? 'on' : ''}" data-k="${k}">${l}</button>`).join('')}</div>
+    const kinds = (rk === 'student' ? [['period','This period']] : []).concat([['week','Week'],['month','Month'],['quarter','Quarter'],['year','Year'],['custom','Dates']]);
+    const pick = K.pick === 'tutor' ? `<label class="f"><span>Tutor</span><select class="in" id="pfWho"><option value="">All tutors</option>${tutorList().map(n => `<option ${n === c.tutor ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>`
+      : K.pick === 'student' ? `<label class="f"><span>Student</span><select class="in" id="pfWho">${HD.students().slice().sort((a, b) => a.name.localeCompare(b.name)).map(s => `<option value="${esc(s.key)}" ${s.key === c.stu ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select></label>` : '';
+    openSheet(`<div class="hx"><h3>${esc(K.t)}</h3><button class="ib" data-close>✕</button></div>${pick}
+      <div class="cap">Covering</div><div class="seg" id="pfKind" style="flex-wrap:wrap">${kinds.map(([k, l]) => `<button class="${c.kind === k ? 'on' : ''}" data-k="${k}">${l}</button>`).join('')}</div>
       <div id="pfAtW" style="margin:10px 0 14px">${atFor(c.kind)}</div>
-      <div class="cap">For</div><div class="chips" id="pfAud">${Object.entries(AUD).map(([k, a]) => `<button class="chip ${c.aud === k ? 'on' : ''}" data-a="${k}">${a.n}</button>`).join('')}</div>
-      <div class="cap" style="margin-top:12px">Sections</div><div class="chips" id="pfSec">${SECTIONS.map(([k, l]) => `<button class="chip ${c.s.includes(k) ? 'on' : ''}" data-s="${k}">${l}</button>`).join('')}</div>
-      <label class="chk" style="display:flex;gap:8px;align-items:center;margin:12px 0 4px"><input type="checkbox" id="pfAnon" ${c.anon ? 'checked' : ''}> Leave out student names</label>
-      <label class="chk" style="display:flex;gap:8px;align-items:center;margin:0 0 12px"><input type="checkbox" id="pfMoney" ${c.money !== false ? 'checked' : ''}> Show money figures</label>
-      <button class="btn n full" id="pfGo">Make the report</button>`);
+      <div class="cap">For</div><div class="chips" id="pfAud">${Object.entries(A).map(([k, a]) => `<button class="chip ${c.aud === k ? 'on' : ''}" data-a="${k}">${a.n}</button>`).join('')}</div>
+      <div class="cap" style="margin-top:12px">Sections</div><div class="chips" id="pfSec">${K.SECTIONS.map(([k, l]) => `<button class="chip ${c.s.includes(k) ? 'on' : ''}" data-s="${k}">${l}</button>`).join('')}</div>
+      ${rk === 'student' ? `<label class="f" style="margin-top:10px"><span>Next steps (written by you, shown if the section is ticked)</span><textarea class="in" id="pfNext" rows="3" placeholder="e.g. Two past papers a week before the mocks">${esc(c.next || '')}</textarea></label>` : ''}
+      ${rk === 'student' ? '' : `<label class="chk" style="display:flex;gap:8px;align-items:center;margin:12px 0 4px"><input type="checkbox" id="pfAnon" ${c.anon ? 'checked' : ''}> Leave out student names</label>`}
+      ${rk === 'business' ? `<label class="chk" style="display:flex;gap:8px;align-items:center;margin:0 0 12px"><input type="checkbox" id="pfMoney" ${c.money !== false ? 'checked' : ''}> Show money figures</label>` : ''}
+      <button class="btn n full" id="pfGo" style="margin-top:10px">Make the report</button>`);
     let kind = c.kind;
     document.querySelectorAll('#pfKind button').forEach(x => x.onclick = () => { kind = x.dataset.k; document.querySelectorAll('#pfKind button').forEach(y => y.classList.toggle('on', y === x)); $('pfAtW').innerHTML = atFor(kind); });
-    document.querySelectorAll('#pfAud .chip').forEach(x => x.onclick = () => { const a = AUD[x.dataset.a]; document.querySelectorAll('#pfAud .chip').forEach(y => y.classList.toggle('on', y === x));
-      document.querySelectorAll('#pfSec .chip').forEach(y => y.classList.toggle('on', a.s.includes(y.dataset.s))); $('pfAnon').checked = a.anon; $('pfMoney').checked = a.money; });
+    document.querySelectorAll('#pfAud .chip').forEach(x => x.onclick = () => { const a = A[x.dataset.a]; document.querySelectorAll('#pfAud .chip').forEach(y => y.classList.toggle('on', y === x));
+      document.querySelectorAll('#pfSec .chip').forEach(y => y.classList.toggle('on', a.s.includes(y.dataset.s))); if($('pfAnon')) $('pfAnon').checked = a.anon; if($('pfMoney')) $('pfMoney').checked = a.money; });
     document.querySelectorAll('#pfSec .chip').forEach(x => x.onclick = () => x.classList.toggle('on'));
     $('pfGo').onclick = () => {
-      const aud = (document.querySelector('#pfAud .on') || {dataset: {}}).dataset.a || 'director';
-      const n = {kind, aud, s: [...document.querySelectorAll('#pfSec .on')].map(x => x.dataset.s), anon: $('pfAnon').checked, money: $('pfMoney').checked};
-      if(kind === 'custom'){ n.from = $('pfFrom').value; n.to = $('pfTo').value; n.at = ''; } else n.at = $('pfAt').value;
+      const aud = (document.querySelector('#pfAud .on') || {dataset: {}}).dataset.a || Object.keys(A)[0];
+      const n = {kind, aud, s: [...document.querySelectorAll('#pfSec .on')].map(x => x.dataset.s), anon: $('pfAnon') ? $('pfAnon').checked : false, money: $('pfMoney') ? $('pfMoney').checked : A[aud].money};
+      if(kind === 'custom'){ n.from = $('pfFrom').value; n.to = $('pfTo').value; n.at = ''; } else if($('pfAt')) n.at = $('pfAt').value;
+      if($('pfWho')) n[K.pick === 'tutor' ? 'tutor' : 'stu'] = $('pfWho').value;
+      if($('pfNext')) n.next = $('pfNext').value;
+      if(K.pick === 'tutor' && aud === 'tutor' && !n.tutor){ toast('Choose the tutor for their own copy'); return; }
       if(!n.s.length){ toast('Choose at least one section'); return; }
       saveCfg(Object.assign(cfg(), n)); closeSheet();
-      if(location.hash === '#perf') render(); else location.hash = '#perf';
+      const h = '#rep/' + rk + (rk === 'student' && n.stu ? '/' + encodeURIComponent(n.stu) : '');
+      if(location.hash === h) render(); else location.hash = h;
     };
   }
 
-  /* ---------- the page and the PDF ---------- */
-  function page(){
-    if(!can('pl')) return '<p class="empty">Only people who can see profit and loss can make performance reports.</p>';
-    const c = cfg(), {html, R} = build(c);
-    return `<div class="ph"><div class="tt"><h1>Performance report</h1><p>${esc(R.label)} · ${esc(AUD[c.aud] ? AUD[c.aud].n : 'Custom')}</p></div>
+  /* ---------- the pages and the PDF ---------- */
+  function hub(){
+    const K = Object.entries(KINDS).filter(([k]) => okK(k));
+    return `<div class="ph"><div class="tt"><h1>Reports</h1><p>Reports to download or send. Live numbers are on Business.</p></div></div>
+      <div class="rp-grid">${K.map(([k, x]) => `<a class="card pad rp-c" href="#rep/${k}"><b>${esc(x.t)}</b><span>${esc(x.d)}</span><i>${ic('chev',16,2.2)}</i></a>`).join('')}
+      <a class="card pad rp-c" href="reports.html"><b>Parent progress reports</b><span>The weekly, two-weekly and monthly reports sent to parents from tutors’ logs.</span><i>${ic('chev',16,2.2)}</i></a></div>
+      ${K.length ? '' : '<p class="note">Ask the Director for access to the LHQ reports.</p>'}`;
+  }
+  function page(kind, arg){
+    if(!kind) return hub();
+    if(!KINDS[kind]) kind = 'business';
+    if(!okK(kind)) return `${crumb('#reports', 'Reports', 'rep/')}<p class="empty">You don't have access to the ${esc(KINDS[kind].t.toLowerCase())}.</p>`;
+    rk = kind; const K = KINDS[kind];
+    if(kind === 'student' && arg){ const c0 = cfg(); if(c0.stu !== arg){ c0.stu = arg; c0.kind = 'period'; saveCfg(c0); } }
+    const c = cfg();
+    if(kind === 'student' && !c.stu){ const s0 = HD.students().find(s => s.cur) || HD.students()[0]; if(s0){ c.stu = s0.key; saveCfg(c); } }
+    const {html, R} = build(c);
+    return `${crumb('#reports', 'Reports', 'rep/' + kind)}<div class="ph"><div class="tt"><h1>${esc(K.t)}</h1><p>${esc(R.label)} · ${esc(K.AUD[c.aud] ? K.AUD[c.aud].n : 'Custom')}</p></div>
       <div class="acts"><button class="btn" id="pfChange">${ic('edit',16)} Change</button><button class="btn n" id="pfPdf">${ic('down',16,2.2)} Download PDF</button></div></div>
       <div class="pf-wrap">${html}</div><div id="pfStage" style="position:fixed;left:-10000px;top:0;width:794px"></div>`;
   }
   async function pdf(btn){
-    const c = cfg(), {html, R} = build(c), stage = $('pfStage'); stage.innerHTML = html; btn.disabled = true; toast('Preparing the PDF…');
+    const c = cfg(), K = KINDS[rk], {html, R} = build(c), stage = $('pfStage'); stage.innerHTML = html; btn.disabled = true; toast('Preparing the PDF…');
     try{
       if(document.fonts && document.fonts.ready) await document.fonts.ready;
       await Promise.all([...stage.querySelectorAll('img')].map(i => i.complete ? 0 : new Promise(r => { i.onload = i.onerror = r; })));
-      const el = stage.firstElementChild, w = el.offsetWidth, h = el.offsetHeight;
+      const el = stage.firstElementChild, w = el.offsetWidth;
       const blob = await (await lhqPdf())().set({margin: [10, 0, 12, 0], image: {type: 'jpeg', quality: 0.96},
         html2canvas: {scale: 2, useCORS: true, backgroundColor: '#ffffff', x: 0, y: 0, scrollX: 0, scrollY: 0, width: w, windowWidth: w},
-        jsPDF: {unit: 'mm', format: 'a4', orientation: 'portrait'}, pagebreak: {mode: ['css'], before: '.pf-s.first + .pf-s', avoid: ['.pf-t tr', '.pf-b', '.pf-ks', 'h2', 'h3', '.pf-chart', '.pf-hl li']}}).from(el).outputPdf('blob');
-      const name = `LHQ Performance report_ ${R.label}_ ${AUD[c.aud] ? AUD[c.aud].n : 'Custom'}.pdf`.replace(/[\\/:*?"<>|]/g, '');
+        jsPDF: {unit: 'mm', format: 'a4', orientation: 'portrait'}, pagebreak: {mode: ['css'], before: rk === 'business' ? '.pf-s.first + .pf-s' : [], avoid: ['.pf-t.sm', '.pf-t tr', '.pf-b', '.pf-ks', 'h2', 'h3', '.pf-chart', '.pf-hl li']}}).from(el).outputPdf('blob');
+      const who = rk === 'student' ? ((HD.students().find(s => s.key === c.stu) || {}).name || '') : rk === 'tutor' ? (c.tutor || 'All tutors') : (K.AUD[c.aud] || {}).n || '';
+      const name = `LHQ ${K.t}_ ${who ? who + '_ ' : ''}${R.label}.pdf`.replace(/[\\/:*?"<>|]/g, '');
       const u = URL.createObjectURL(blob), a = document.createElement('a'); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 30000);
       toast('PDF downloaded');
     }catch(e){ console.error(e); toast('Couldn\'t make the PDF. Try again.'); }
@@ -243,5 +438,5 @@ window.PERF = (function(){
     if($('pfChange')) $('pfChange').onclick = sheet;
     if($('pfPdf')) $('pfPdf').onclick = () => pdf($('pfPdf'));
   }
-  return {page, bind, sheet, build, range, figs, AUD, SECTIONS};
+  return {page, bind, sheet, build, range, figs, KINDS, okK};
 })();

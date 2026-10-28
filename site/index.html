@@ -29,6 +29,7 @@ if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash)
 <script src="business.js"></script>
 <script src="insights.js"></script>
 <script src="perf.js"></script>
+<script src="cards.js"></script>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0}
@@ -220,6 +221,16 @@ a.bz-bud{display:block;text-decoration:none;color:inherit}a.bz-bud:hover b{text-
 .pf-b{margin:5px 0}.pf-b .h{display:flex;justify-content:space-between;gap:8px}.pf-b .h span{color:#6b7585;font-weight:600}.pf-b .tr{height:6px;background:#f1f3f6;border-radius:9px;overflow:hidden;margin-top:3px}.pf-b .tr i{display:block;height:100%;background:#073763}
 .pf-paper .ins-leg{font-size:10.5px}.pf-paper svg{width:100%}
 .pf-f{border-top:1px solid #e4e7ec;padding-top:8px;margin-top:10px;color:#6b7585;font-size:10px}
+.pc-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:4px}.pc-h:empty{display:none}
+.pc-g{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))!important}
+@media (max-width:699px){.pc-g{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+.pc-spark{margin:4px -4px 0}.pc-spark svg{min-width:0!important;height:70px}
+.bz-secs{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
+.bz-secs a{display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:11px 14px;font-weight:700;color:var(--ink);text-decoration:none}
+.bz-secs a:hover{border-color:var(--muted)}.bz-secs a span{color:var(--muted)}
+.rp-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.rp-c{display:flex;flex-direction:column;gap:6px;text-decoration:none;color:var(--ink);position:relative;margin:0;padding-right:40px!important}.rp-c:hover{border-color:var(--muted)}
+.rp-c b{font-size:16px;color:var(--brand)}.rp-c span{font-size:13px;color:var(--muted)}.rp-c i{position:absolute;right:14px;top:50%;transform:translateY(-50%);color:var(--muted)}
 /* insights */
 .ins-row{display:block;padding:9px 0;border-top:1px solid var(--line2);text-decoration:none;color:inherit}.ins-row:first-of-type{border-top:0}
 a.ins-row:hover b{text-decoration:underline;text-underline-offset:2px}
@@ -314,7 +325,7 @@ function parse(){
 }
 function render(){
   load(); parse();
-  const sec = {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'business', tutors:'home'}[route.page] || route.page;
+  const sec = {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', tutors:'home'}[route.page] || route.page;
   LHQNav.section(sec);
   const m = $('main');
   m.className = 'main' + (['home','edithome','new','students','student','tutors'].includes(route.page) ? ' narrow' : '');
@@ -325,7 +336,20 @@ function render(){
   if(route.page === 'makeups') makeupSheet(route.args[0]);
   if(route.page === 'tutors' && route.args[0] === 'none' && $('none')) $('none').scrollIntoView();
 }
-window.addEventListener('hashchange', () => { if(!/^#(new|makeups)/.test(location.hash) && !$('sheet').hidden){ $('sheet').hidden = true; $('shbg').hidden = true; } render(); if(!/^#new/.test(location.hash)) window.scrollTo(0, 0); });
+/* where you were on each page: a tap inside the same page keeps your place, a new page starts at the top, Back returns to your spot */
+const SCROLL = (() => { try{ return JSON.parse(sessionStorage.getItem('lhq_scroll') || '{}'); }catch(e){ return {}; } })();
+let byTap = false, lastPage = '', scrollT = 0;
+if('scrollRestoration' in history) history.scrollRestoration = 'manual';
+document.addEventListener('click', e => { const a = e.target.closest('a[href]'); if(a && /^#|index\.html#/.test(a.getAttribute('href'))) byTap = true; }, true);
+addEventListener('scroll', () => { clearTimeout(scrollT); scrollT = setTimeout(() => { SCROLL[location.hash || '#home'] = scrollY; try{ sessionStorage.setItem('lhq_scroll', JSON.stringify(SCROLL)); }catch(e){} }, 120); }, {passive:true});
+const pageKey = () => route.page === 'biz' ? 'biz/' + (route.args[0] || '') : route.page === 'student' ? 'student/' + (route.args[0] || '') : route.page;
+function placeScroll(prevPage, tap){
+  const same = prevPage === pageKey(), saved = SCROLL[location.hash || '#home'];
+  if(same && tap) return;                                        // filter, tab, period on the same page
+  if(!tap && saved != null) requestAnimationFrame(() => scrollTo(0, saved));   // Back / Forward
+  else if(!same) scrollTo(0, 0);
+}
+window.addEventListener('hashchange', () => { if(!/^#(new|makeups)/.test(location.hash) && !$('sheet').hidden){ $('sheet').hidden = true; $('shbg').hidden = true; } const prev = pageKey(), tap = byTap; byTap = false; const y = scrollY; render(); if(/^#(new|makeups)/.test(location.hash)) scrollTo(0, y); else placeScroll(prev, tap); });
 window.hubApply = render; window.hubReady = () => { render(); HD.refreshPeople().then(render); }; window.hubRemap = render; window.hubMe = render;
 window.addEventListener('pageshow', e => { if(e.persisted) render(); });
 window.addEventListener('lhqinstall', () => { if(route.page === 'set') render(); });
@@ -336,10 +360,11 @@ function crumb(fbHref, fbLabel, within){
   const b = LHQNav.back(fbHref, fbLabel, within ? u => u.startsWith('index.html#' + within) : null);
   return b.href ? `<a class="crumb" href="${esc(b.href)}">${ic('back',16,2.2)} ${esc(b.label)}</a>` : '';
 }
-const PAGE_LABEL = {home:'Home', edithome:'Edit Home', students:'Students', docs:'Documents', biz:'Business', settings:'Settings', tutors:'Tutors teaching now', perf:'Performance report'};
+const PAGE_LABEL = {home:'Home', edithome:'Edit Home', students:'Students', docs:'Documents', biz:'Business', settings:'Settings', tutors:'Tutors teaching now', perf:'Reports', reports:'Reports', rep:'Report'};
 function pageLabel(){
   const h = document.querySelector('#main h1, #main .sec-h');
-  if(['home','edithome','students','docs','biz','settings'].includes(route.page)) return PAGE_LABEL[route.page];
+  if(route.page === 'biz' && route.args[0] && route.args[0] !== 'home'){ const h = document.querySelector('#main h1'); if(h) return h.textContent.trim(); }
+  if(['home','edithome','students','docs','biz','settings','reports'].includes(route.page)) return PAGE_LABEL[route.page];
   return h ? h.textContent.trim().slice(0, 40) : (PAGE_LABEL[route.page] || 'Back');
 }
 function docRow(d, o = {}){
@@ -405,10 +430,10 @@ function metrics(list){
 const L = (href, html, cls = 's') => route.page === 'edithome' ? `<div class="${cls}">${html}</div>` : `<a class="mcl ${cls}" href="${href}">${html}<span class="mca">›</span></a>`;
 const trend = (now, before, word) => { if(!before && !now) return ''; if(!before) return `<div class="tr fl">First month with figures</div>`; const p = Math.round((now - before) / before * 100); return `<div class="tr ${p >= 0 ? 'up' : 'dn'}">${p >= 0 ? '▲' : '▼'} ${Math.abs(p)}% ${word}</div>`; };
 const CARDS = {
-  money:{t:'Money this month', ic:'cash', need:'money', d:'Received this month against what was invoiced, and what is still owed', href:'#docs/invoice',
-    html:m => `${L(can('pl') ? '#biz/money/' + ym(today()) : '#docs/receipt/m-' + ym(today()), `${mkShort(m.recv)} <small>received</small>`, 'v')}<div class="bar"><i style="width:${m.invoiced ? Math.min(100, Math.round(m.recv / m.invoiced * 100)) : 0}%"></i></div>${L('#docs/invoice/m-' + ym(today()), `${mkShort(m.invoiced)} invoiced this month`)}${L('#docs/invoice/unpaid', `Outstanding ${mkShort(m.owed)}${m.overN ? ` · ${m.overN} overdue` : ''}`, 's' + (m.overN ? ' bad' : ''))}${trend(m.recv, m.recvLast, 'received vs last month')}`},
-  owed:{t:'Outstanding & overdue', ic:'alert', need:'money', d:'Unpaid balances, with overdue ones first', href:'#docs/invoice',
-    html:m => `${L('#docs/invoice/unpaid', mkShort(m.owed), 'v')}${L('#docs/invoice/unpaid', `${m.owingN} invoice${m.owingN === 1 ? '' : 's'} not fully paid`)}${m.overN ? L('#docs/invoice/overdue', `${m.overN} overdue · ${mkShort(m.overAmt)}`, 's bad') : '<div class="s">Nothing overdue</div>'}`},
+  money:{t:'Money this month', ic:'cash', need:'money', d:'Received this month against what was invoiced, and what is still owed', href:() => can('pl') ? '#biz/money/' + ym(today()) : '#docs/receipt/m-' + ym(today()),
+    html:m => `${L(can('pl') ? '#biz/money/' + ym(today()) : '#docs/receipt/m-' + ym(today()), `${mkShort(m.recv)} <small>received</small>`, 'v')}<div class="bar"><i style="width:${m.invoiced ? Math.min(100, Math.round(m.recv / m.invoiced * 100)) : 0}%"></i></div>${L(can('pl') ? '#biz/money/' + ym(today()) : '#docs/invoice/m-' + ym(today()), `${mkShort(m.invoiced)} invoiced this month`)}${L('#docs/invoice/unpaid', `Outstanding ${mkShort(m.owed)}${m.overN ? ` · ${m.overN} overdue` : ''}`, 's' + (m.overN ? ' bad' : ''))}${trend(m.recv, m.recvLast, 'received vs last month')}`},
+  owed:{t:'Outstanding & overdue', ic:'alert', need:'money', d:'Unpaid balances, with overdue ones first', href:'#biz/owed',
+    html:m => `${L('#biz/owed', mkShort(m.owed), 'v')}${L('#biz/owed', `${m.owingN} invoice${m.owingN === 1 ? '' : 's'} not fully paid`)}${m.overN ? L('#biz/owed', `${m.overN} overdue · ${mkShort(m.overAmt)}`, 's bad') : '<div class="s">Nothing overdue</div>'}`},
   students:{t:'Students', ic:'users', d:'Students in a tuition period now, new ones, and periods ending', href:'#students',
     html:m => `${L('#students/current', `${m.active} <small>active</small>`, 'v')}${L('#students/new', `+${m.newM} new this month`)}${L('#students/ending', `${m.ending} period${m.ending === 1 ? '' : 's'} end${m.ending === 1 ? 's' : ''} this week`)}${m.newL || m.newM ? `<div class="tr ${m.newM >= m.newL ? 'up' : 'dn'}">${m.newM >= m.newL ? '▲' : '▼'} ${Math.abs(m.newM - m.newL)} new vs last month</div>` : ''}`},
   enrol:{t:'Enrolments', ic:'quote', d:'Quotes waiting for the parent, and how many become invoices', href:'#docs/quote',
@@ -441,7 +466,7 @@ P.home = () => {
   const draftRow = draft && !draft.id && (draft.student || draft.name) ? `<div class="card"><a class="it" href="doc.html#draft"><span class="ico">${ic('edit')}</span><span class="t"><b>Unsaved ${esc(WORD[draft.type || 'quote'].toLowerCase())} · ${esc(draft.student || draft.name)}</b><small>Not saved yet. Open it to finish and save.</small></span><span class="tag am">Draft</span></a></div>` : '';
   return `<div class="ph"><div class="tt"><h1>${greet}${me().name ? ', ' + esc(first(me().name)) : ''}</h1><p>${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()]} ${d.getDate()} ${MONTHL[d.getMonth()]}</p></div>
     <div class="acts"><a class="btn" href="#edithome" title="Edit Home" aria-label="Edit Home">${ic('edit',16)}</a>${can('quotes') || can('receipts') || can('cards') ? `<a class="btn n" href="#new">${ic('plus',16,2.4)} New</a>` : ''}</div></div>
-  ${cards.length ? `<div class="mcs">${cards.map(k => { const c = CARDS[k]; return `<div class="mc" data-go="${c.href}" role="link" tabindex="0" aria-label="${esc(c.t)}"><span class="l">${ic(c.ic,15,2)}${c.t}</span>${c.html(m)}</div>`; }).join('')}</div>` : ''}
+  ${cards.length ? `<div class="mcs">${cards.map(k => { const c = CARDS[k]; return `<div class="mc" data-go="${typeof c.href === 'function' ? c.href() : c.href}" role="link" tabindex="0" aria-label="${esc(c.t)}"><span class="l">${ic(c.ic,15,2)}${c.t}</span>${c.html(m)}</div>`; }).join('')}</div>` : ''}
   ${draftRow}
   ${PREVIEW && isDir() && !saved.length ? `<div class="card pad" style="border-color:var(--gold)"><div class="cap">Preview</div><p class="note" style="margin:0 0 10px">This preview has its own storage and is empty. Load six months of demo data to try every page.</p><a class="btn n" href="#set/demo">Demo data</a></div>` : ''}
   <div class="h2">Needs attention <span class="acts" style="align-items:center"><em>${att.length || ''}</em><button class="btn sm" id="attTog">${attOpen ? 'Hide' : 'Show'}</button></span></div>
@@ -463,11 +488,12 @@ P.edithome = () => {
 /* ================= students ================= */
 let sQ = '';
 const S_F = {all:['All', () => true], active:['Active', s => ['active','progress'].includes(s.status.k)], over:['Overdue', s => s.status.k === 'over'], ending:['Ends soon', s => s.status.k === 'ending'], quote:['Quote sent', s => s.status.k === 'quote'], ended:['Ended', s => s.status.k === 'ended'], new:['New this month', s => (s.first || '').slice(0, 7) === today().slice(0, 7)],
-  current:['In a tuition period now', s => s.cur && (!s.cur.inv.periodEnd || s.cur.inv.periodEnd >= today())]};
-const S_HIDE = ['current'];   // opened from Home only, so the chips stay short
+  current:['In a tuition period now', s => s.cur && (!s.cur.inv.periodEnd || s.cur.inv.periodEnd >= today())], missing:['Details missing', s => !s.heard || !s.district || !s.phone]};
+const S_HIDE = ['current','missing'];   // opened from Home only, so the chips stay short
 P.students = (f = 'all') => {
   const list = HD.students(); if(!S_F[f]) f = 'all';
   return `${crumb(null, null, 'students')}<div class="ph"><div class="tt"><h1>Students</h1><p>${list.length} student${list.length === 1 ? '' : 's'}</p></div>${can('students') || can('quotes') ? `<button class="btn" id="addStu">${ic('plus',16,2.2)} Add student</button>` : ''}</div>
+  ${window.PC ? PC.block('students', {}, 'At a glance') : ''}
   <label class="search">${ic('search',18)}<input id="sq" type="search" placeholder="Search name, parent or number" value="${esc(sQ)}" autocomplete="off"></label>
   <div class="chips">${Object.entries(S_F).filter(([k]) => !S_HIDE.includes(k) || k === f).map(([k, [l, fn]]) => `<a class="chip ${f === k ? 'on' : ''}" href="#students/${k}">${l}<i>${list.filter(fn).length}</i></a>`).join('')}</div>
   <div class="card" id="slist">${studentRows(list, f)}</div>`;
@@ -488,7 +514,7 @@ P.student = (key, tab = 'overview') => {
   if(!s) return `${crumb('#students', 'Students')}<p class="empty">That student isn't here. They may have been renamed.</p>`;
   const tabs = [['overview','Overview'],['documents',`Documents (${s.docs.length})`],['details','Details']];
   let body = '';
-  if(tab === 'overview') body = stuOverview(s);
+  if(tab === 'overview') body = (window.PC ? PC.block('student', {s}, 'This period') : '') + stuOverview(s);
   if(tab === 'documents'){
     body = `<div class="card">${s.docs.map(d => docRow(d, {noName:true})).join('') || '<p class="empty">No documents yet.</p>'}</div>
       ${can('quotes') ? `<a class="btn" href="${D('new=quote&student=' + encodeURIComponent(s.key))}">${ic('plus',16,2.2)} New quote for ${esc(first(s.name))}</a>` : ''}`;
@@ -503,7 +529,7 @@ P.student = (key, tab = 'overview') => {
          <p class="note">New quotes, invoices, receipts and cards fill these in. Documents already saved or sent keep what they had.</p></div>`;
   }
   return `${crumb('#students', 'Students', 'student/' + encodeURIComponent(key))}
-  <div class="ph"><div class="tt"><h1>${esc(s.name)}</h1><p>${esc([s.level, s.school].filter(Boolean).join(' · ') || ' ')}</p></div><span class="tag ${s.status.cls}" style="font-size:12px">${s.status.text}</span></div>
+  <div class="ph"><div class="tt"><h1>${esc(s.name)}</h1><p>${esc([s.level, s.school].filter(Boolean).join(' · ') || ' ')}</p></div><div class="acts" style="align-items:center"><span class="tag ${s.status.cls}" style="font-size:12px">${s.status.text}</span><a class="btn sm" href="#rep/student/${encodeURIComponent(s.key)}">${ic('rep',15)} Report</a></div></div>
   <div class="tabs">${tabs.map(([k, l]) => `<a class="${tab === k ? 'on' : ''}" href="${stuLink(s.key, k)}">${l}</a>`).join('')}</div>${body}`;
 };
 function stuOverview(s){
@@ -707,6 +733,7 @@ P.tutors = (show = '') => {
   const row = ({s, card, x}) => `<a class="it" href="${openLink(card)}"><span class="t"><b>${esc(s.name)}</b><small>${esc([x.name, (x.days || []).join(' '), x.start ? x.start + '–' + (x.end || '') : ''].filter(Boolean).join(' · '))}</small></span><span class="chev">${ic('chev',16,2)}</span></a>`;
   return `${crumb('#home', 'Home', 'tutors')}
   <div class="ph"><div class="tt"><h1>Tutors teaching now</h1><p>${list.length} tutor${list.length === 1 ? '' : 's'} on current tuition cards${none.length ? ` · ${none.length} subject${none.length === 1 ? '' : 's'} without a tutor` : ''}</p></div></div>
+  ${window.PC ? PC.block('tutors', {}, 'At a glance') : ''}
   ${none.length ? `<div class="h2" id="none">No tutor yet <em>${none.length}</em></div><div class="card" style="border-color:var(--gold)">${none.map(row).join('')}</div>` : ''}
   ${list.map(([n, items]) => { const st = new Set(items.map(i => i.s.key)).size, open = show === encodeURIComponent(n) || show === n;
     return `<div class="card"><a class="it" href="#tutors/${encodeURIComponent(open ? '' : n)}"><span class="av">${inits(n)}</span><span class="t"><b>${esc(n)}</b><small>${st} student${st === 1 ? '' : 's'} · ${esc([...new Set(items.map(i => i.x.name))].join(', '))}</small></span><span class="chev">${ic(open ? 'back' : 'chev',16,2)}</span></a>
@@ -714,8 +741,10 @@ P.tutors = (show = '') => {
 };
 
 /* ================= business (business.js) ================= */
-P.biz = (tab, period, cat) => crumb(null, null, 'biz') + BIZ.page(tab, period, cat);
-P.perf = () => crumb('#biz', 'Business') + PERF.page();
+P.biz = (tab, period, cat) => (!tab || tab === 'home' ? crumb(null, null, 'biz') : '') + BIZ.page(tab, period, cat);
+P.perf = () => { setTimeout(() => location.replace('#rep/business'), 0); return ''; };
+P.reports = () => PERF.page();
+P.rep = (kind, arg) => PERF.page(kind, arg);
 
 /* ================= settings ================= */
 const SETS = [
@@ -903,7 +932,8 @@ function bind(){
   const on = (sel, fn) => document.querySelectorAll(sel).forEach(el => el.onclick = e => fn(el, e));
   on('[data-close]', () => closeSheet());
   if(route.page === 'biz') BIZ.bind();
-  if(route.page === 'perf') PERF.bind();
+  if(['perf','rep','reports'].includes(route.page)) PERF.bind();
+  if(window.PC) PC.bind();
   on('[data-go]', (el, e) => { if(!e.target.closest('a')) location.href = el.dataset.go; });
   document.querySelectorAll('[data-go][tabindex]').forEach(el => el.onkeydown = e => { if(e.key === 'Enter' && e.target === el) location.href = el.dataset.go; });
   if($('attTog')) $('attTog').onclick = () => { attOpen = !attOpen; try{ localStorage.setItem('lhq_attOpen', attOpen ? '1' : '0'); }catch(e){} render(); };
@@ -1043,7 +1073,7 @@ $('restoreFile').onchange = e => {
 
 /* show a message left by the document page (for example after deleting) */
 try{ const m = sessionStorage.getItem('lhq_flash'); if(m){ sessionStorage.removeItem('lhq_flash'); setTimeout(() => toast(m), 300); } }catch(e){}
-render();
+render(); { const y0 = SCROLL[location.hash || '#home']; if(y0) requestAnimationFrame(() => scrollTo(0, y0)); }
 if(hub.session()) HD.refreshPeople().then(render);
 </script>
 </body>

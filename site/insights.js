@@ -1,5 +1,5 @@
 /* LHQ Hub › Business insights: Overview, Money in, Pipeline, Sessions, Spending comparisons, a category's own page,
-   Charts, Marketing return, and Pots (the budgeting tool that splits money in by percentage).
+   Charts, Marketing return, and Allocations (the budgeting tool that splits money in by percentage).
    Loaded by index.html after business.js; uses BIZ for periods and figures, HD for students and documents,
    and index.html's helpers (esc, mk, mkShort, num, nice, ic, openSheet, toast, render, store, can …).
 
@@ -124,7 +124,7 @@ window.INS = (function(){
       ${kpi('Money in' + (live ? ' so far' : ''), mkShort(f.revenue), cmp(f.revenue, prev.revenue, ly && ly.revenue), '#biz/money/' + period)}
       ${kpi('Spending' + (live ? ' so far' : ''), mkShort(f.exp), cmp(f.exp, prev.exp, ly && ly.exp, -1), '#biz/spending/' + period)}
       ${kpi('Profit' + (live ? ' so far' : ''), (f.profit < 0 ? '−' : '') + mkShort(Math.abs(f.profit)), `${f.revenue ? pc(f.profit, f.revenue) + '% margin · ' : ''}${arrow(chg(f.profit, prev.profit))}`, '#biz/pl/' + period)}
-      ${kpi('New students', String(R.newStu), `${R.active} in a tuition period now`, '#students/new')}</div>
+      ${kpi('New students', String(R.newStu), `${R.active} in a tuition period now`, '#biz/marketing/' + period)}</div>
     <div class="card pad"><div class="cap">Money in and spending, last 12 months</div>${lineChart(lastMonths(endOf(period), 12).map(m => b.monShort(m)), [
       {name:'Money in', col:'var(--inc)', vals: lastMonths(endOf(period), 12).map(m => b.figures([m]).revenue)},
       {name:'Spending', col:'var(--exp)', vals: lastMonths(endOf(period), 12).map(m => b.figures([m]).exp)},
@@ -173,6 +173,7 @@ window.INS = (function(){
       stay: stays.length ? sum(stays) / stays.length : 0, perStu, daysToPay: days.length ? Math.round(sum(days) / days.length) : null,
       onTime: paidInvs.length ? pc(onTime, paidInvs.length) : null, late: Object.values(lateBy).filter(x => x.n >= 2).sort((a, c) => c.n - a.n).slice(0, 5), discounts, bestChan: best};
   }
+  const gold = p => '#' + [0xf4, 0xb2, 0x23].map(c => Math.round(255 + (c - 255) * p).toString(16).padStart(2, '0')).join('');   // gold mixed with white
   function busy(){
     const F = facts(), t = today(), DAYS = ['Mo','Tu','We','Th','Fr','Sa','Su'], NAME = {Mo:'Mon',Tu:'Tue',We:'Wed',Th:'Thu',Fr:'Fri',Sa:'Sat',Su:'Sun'}, grid = {};
     F.S.forEach(s => { const c = s.cur && s.cur.card; if(!c || (s.cur.inv.periodEnd && s.cur.inv.periodEnd < t)) return;
@@ -180,7 +181,7 @@ window.INS = (function(){
     const hours = [...new Set(Object.keys(grid).map(k => k.slice(2)))].filter(h => h !== '??').sort();
     if(!hours.length) return '<p class="empty" style="margin:0">Add start times on tuition cards to see this.</p>';
     const max = Math.max(...Object.values(grid));
-    return `<div class="bz-scroll"><table class="ins-heat"><tr><th></th>${DAYS.map(d => `<th>${NAME[d]}</th>`).join('')}</tr>${hours.map(h => `<tr><th>${h}:00</th>${DAYS.map(d => { const v = grid[d + h] || 0; return `<td style="background:${v ? `color-mix(in srgb, #f4b223 ${Math.round(20 + 80 * v / max)}%, #fff)` : 'transparent'};${v ? 'color:#14213d' : ''}" title="${v} session${v === 1 ? '' : 's'}">${v || ''}</td>`; }).join('')}</tr>`).join('')}</table></div><p class="note">Sessions a week starting at each hour, from current tuition cards.</p>`;
+    return `<div class="bz-scroll"><table class="ins-heat"><tr><th></th>${DAYS.map(d => `<th>${NAME[d]}</th>`).join('')}</tr>${hours.map(h => `<tr><th>${h}:00</th>${DAYS.map(d => { const v = grid[d + h] || 0; return `<td style="background:${v ? gold(.2 + .8 * v / max) : 'transparent'};${v ? 'color:#14213d' : ''}" title="${v} session${v === 1 ? '' : 's'}">${v || ''}</td>`; }).join('')}</tr>`).join('')}</table></div><p class="note">Sessions a week starting at each hour, from current tuition cards.</p>`;
   }
 
   /* ---------- Money in, explained ---------- */
@@ -200,7 +201,7 @@ window.INS = (function(){
     const other = f.income.slice().sort((a, c) => (c.date || '').localeCompare(a.date || ''));
     const grow = list.filter(x => x.tag.includes('growing')).length, dec = list.filter(x => x.tag.includes('declining'));
     return `<div class="kpis">
-      ${kpi('Tuition received', mkShort(total), `${arrow(chg(total, sum(F.rows.filter(r => pms.includes(ym(r.date))), r => r.amt)))} vs ${pw}`, `#docs/receipt/${b.isY(period) ? 'fy-' + period.slice(2) : b.isQ(period) ? 'q-' + period.slice(1) : 'm-' + period}`)}
+      ${kpi('Tuition received', mkShort(total), `${arrow(chg(total, sum(F.rows.filter(r => pms.includes(ym(r.date))), r => r.amt)))} vs ${pw}`)}
       ${kpi('Other money in', mkShort(f.other), f.capital ? `+ ${mkShort(f.capital)} loans or investment` : 'rent, grants, refunds received')}
       ${kpi('Biggest ' + DIM[dim].toLowerCase(), list[0] ? esc(list[0].k) : '–', list[0] ? `${pc(list[0].v, total)}% of tuition` : '')}
       ${kpi('Declining', String(dec.length), dec.length ? esc(dec.slice(0, 2).map(x => x.k).join(', ')) : `${grow} growing`)}</div>
@@ -211,8 +212,11 @@ window.INS = (function(){
     <div class="h2">Other money in <em>${mk(f.other + f.capital)}</em></div>
     ${D.length ? `<div class="card pad" style="border-color:var(--gold)"><div class="cap">Repeating money in to confirm</div>${D.map(d => `<div class="it"><span class="t"><b>${esc(d.last.cat)}${d.last.from ? ' · ' + esc(d.last.from) : ''}</b><small>${nice(d.date)} · last time ${mk(num(d.last.amount))}</small></span><button class="btn sm n" data-inok="${d.sid}|${d.date}">Received ${mkShort(num(d.last.amount))}</button></div>`).join('')}</div>` : ''}
     <div class="card">${other.map(e => `<${b.mayEdit(e) ? `button class="it" data-inedit="${e.id}"` : 'div class="it"'}><span class="t"><b>${esc(e.cat)}${e.from ? ' · ' + esc(e.from) : ''}</b><small>${[nice(e.date), e.what, e.method, e.by ? 'by ' + first(e.by) : ''].filter(Boolean).map(esc).join(' · ')}</small></span>${b.NOT_INCOME.includes(e.cat) ? '<span class="tag gr">not income</span>' : ''}${e.rep === 'm' ? '<span class="tag bl">Monthly</span>' : ''}<b class="bz-amt">${mk(num(e.amount))}</b></${b.mayEdit(e) ? 'button' : 'div'}>`).join('') || `<p class="empty">Nothing recorded for ${b.periodLabel(period)}. Use "+ Money in" for rent from a tenant, a loan, a grant …</p>`}</div>
-    ${loans.length ? `<div class="h2">Loans</div><div class="card pad">${loans.map(x => `<div class="bz-bud" style="border-top:0"><div class="h"><b>${esc(x.lender)}</b><span>${mkShort(x.repaid)} repaid of ${mkShort(x.borrowed)} · <b>${mkShort(x.left)} left</b></span></div><div class="track"><i style="width:${pc(x.repaid, x.borrowed)}%;background:var(--ok)"></i></div></div>`).join('')}<p class="note">Repayments are spending in the "Loan repayment" category, paid to the lender's name. Loans never count as revenue or profit.</p></div>` : ''}`;
+    ${loans.length ? `<div class="h2">Loans</div><div class="card pad">${loans.map(x => `<div class="bz-bud" style="border-top:0"><div class="h"><b>${esc(x.lender)}</b><span>${mkShort(x.repaid)} repaid of ${mkShort(x.borrowed)} · <b>${mkShort(x.left)} left</b></span></div><div class="track"><i style="width:${pc(x.repaid, x.borrowed)}%;background:var(--ok)"></i></div></div>`).join('')}<p class="note">Repayments are spending in the "Loan repayment" category, paid to the lender's name. Loans never count as revenue or profit.</p></div>` : ''}
+    ${docsLink('receipt', period, F.rcts.filter(r => ms.includes(ym(r.date))).length, 'receipt')}`;
   }
+  /* the documents behind a page's numbers: the last layer, at the bottom */
+  const docsLink = (type, period, n, word) => n ? `<a class="btn sm" style="margin-top:4px" href="#docs/${type}/${B().isY(period) ? 'fy-' + period.slice(2) : B().isQ(period) ? 'q-' + period.slice(1) : 'm-' + period}">See the ${n} ${word}${n === 1 ? '' : 's'} ›</a>` : '';
   function trendChart(d, end){
     const F = facts(), b = B(), M = lastMonths(end, 12), keys = sortObj(groupSum(F.rows.filter(r => M.includes(ym(r.date))), r => r[d], r => r.amt)).map(x => x[0]);
     const topK = keys.slice(0, 6), series = topK.map((k, i) => ({name: k, col: COLORS[i], vals: M.map(m => sum(F.rows.filter(r => ym(r.date) === m && r[d] === k), r => r.amt))}));
@@ -245,9 +249,9 @@ window.INS = (function(){
     const s = k => F.byStu.get(k) || {};
     const row = (title, sub, actions, href) => `<div class="it"><span class="t">${href ? `<a href="${href}" style="text-decoration:none;color:inherit">` : ''}<b>${esc(title)}</b><small>${esc(sub)}</small>${href ? '</a>' : ''}</span><div class="acts">${actions}</div></div>`;
     return `<div class="kpis">
-      ${kpi('Quoted', mkShort(P.quoted.v), `${P.quoted.n} quotes`, '#docs/quote')}
+      ${kpi('Quoted', mkShort(P.quoted.v), `${P.quoted.n} quotes`)}
       ${kpi('Became invoices', P.quoted.n ? pc(P.conv.n, P.quoted.n) + '%' : '–', `${P.conv.n} of ${P.quoted.n} · ${mkShort(P.conv.v)}`)}
-      ${kpi('Waiting now', String(waiting.length), mkShort(sum(waiting, HD.total)) + ' quoted', '#docs/quote/waiting')}
+      ${kpi('Waiting now', String(waiting.length), mkShort(sum(waiting, HD.total)) + ' quoted')}
       ${kpi('Lost', String(P.lost.length), P.lost.length ? 'in this period' : 'none marked lost')}</div>
     <div class="card pad"><div class="cap">Quoted, invoiced, received · ${b.periodLabel(period)}</div>
       ${funnel.map(([l, v, sub, col]) => `<div class="ins-row"><div class="h"><b>${l}</b><span class="amt">${mk(v)}</span></div><div class="ins-bar"><i style="width:${v / fmax * 100}%;background:${col}"></i></div><div class="m">${sub}</div></div>`).join('')}
@@ -266,7 +270,8 @@ window.INS = (function(){
     <div class="card pad">${Object.keys(reasons).length ? shareRows(sortObj(reasons).map(([k, v]) => ({k, v, col: 'var(--rd)'})), sum(Object.values(reasons)), {fmt: v => v + (v === 1 ? ' family' : ' families')}) : '<p class="empty" style="margin:0">Mark quotes or students as lost, with a reason, and the reasons add up here.</p>'}</div>
     <div class="h2">Conversion over time</div>
     <div class="card pad">${lineChart(M.map(m => b.monShort(m)), [{name: '% of quotes invoiced', col: 'var(--inc)', vals: byM.map(x => x.quoted.n ? pc(x.conv.n, x.quoted.n) : 0)}], {fmt: v => Math.round(v) + '%', fmtTip: v => v + '%', h: 180, label: 'Conversion by month'})}
-      ${Object.keys(progs).length ? `<div class="cap" style="margin-top:12px">By programme · last 6 months</div>${shareRows(Object.entries(progs).map(([k, o]) => ({k, v: pc(o.c, o.n), extra: `${o.c} of ${o.n} quotes`})), 0, {fmt: v => v + '%'})}` : ''}</div>`;
+      ${Object.keys(progs).length ? `<div class="cap" style="margin-top:12px">By programme · last 6 months</div>${shareRows(Object.entries(progs).map(([k, o]) => ({k, v: pc(o.c, o.n), extra: `${o.c} of ${o.n} quotes`})), 0, {fmt: v => v + '%'})}` : ''}</div>
+    ${docsLink('quote', period, P.quoted.n, 'quote')}`;
   }
   function lostSheet(what){
     const [kind, id] = [what.slice(0, 1), decodeURIComponent(what.slice(2))];
@@ -281,6 +286,36 @@ window.INS = (function(){
       else { const recs = HD.studentRecords(); recs[id] = Object.assign(recs[id] || {name: id}, {lost}); store.set('lhq_students', recs); }
       closeSheet(); toast('Marked as lost'); render();
     };
+  }
+
+  /* ---------- Owed to LHQ: who, how much, how late ---------- */
+  function owedFacts(){
+    const F = facts(), t = today();
+    return F.invs.map(inv => ({inv, st: HD.invState(inv)})).filter(x => x.st.balance > 0.005 && HD.total(x.inv) > 0).map(({inv, st}) => {
+      const due = st.next ? st.next.due : inv.dueDate || inv.date || t, now = st.next ? Math.min(st.balance, st.next.left) : st.balance;
+      const kind = st.next ? st.next.short : st.paid > 0 ? 'Rest of the balance' : 'Full payment';
+      return {inv, st, due, now, later: Math.max(0, st.balance - now), kind, late: HD.dayDiff(due, t), key: sk(inv.student || inv.name)};
+    }).sort((a, c) => c.late - a.late);
+  }
+  function owed(){
+    const F = facts(), t = today(), L = owedFacts(), total = sum(L, x => x.st.balance);
+    const bucket = x => x.late <= 0 ? 'Not due yet' : x.late <= 7 ? '1–7 days late' : x.late <= 30 ? '8–30 days late' : 'Over 30 days late';
+    const B = ['Not due yet', '1–7 days late', '8–30 days late', 'Over 30 days late'], byB = groupSum(L, bucket, x => x.now);
+    const COL = {'Not due yet': 'var(--bl)', '1–7 days late': 'var(--gold)', '8–30 days late': '#d9822b', 'Over 30 days late': 'var(--rd)'};
+    const late = L.filter(x => x.late > 0), wk = HD.addDays(t, 7), mo = HD.addDays(t, 30);
+    const soon = L.filter(x => x.due >= t && x.due <= wk), month = L.filter(x => x.due >= t && x.due <= mo);
+    const later = sum(L, x => x.later);   // second instalments not yet due
+    const kinds = groupSum(L, x => x.kind, x => x.now);
+    const row = x => { const s = F.byStu.get(x.key) || {}, msg = `Hello ${x.inv.name || ''}, a gentle reminder from LHQ Learning Solutions that ${mk(x.now)} (${x.kind.toLowerCase()}) ${x.late > 0 ? 'was due on' : 'is due on'} ${nice(x.due)} for ${x.inv.student || 'your child'} (invoice ${x.inv.number}). Thank you.`;
+      return `<div class="it"><span class="t"><a href="doc.html#d=${x.inv.id}" style="text-decoration:none;color:inherit"><b>${esc(x.inv.student || x.inv.name)} · ${esc(x.inv.number)}</b><small>${esc(x.kind)} ${mk(x.now)} · ${x.late > 0 ? `<span style="font-weight:800;color:${x.late > 30 ? 'var(--rd)' : 'var(--am)'}">${x.late} day${x.late === 1 ? '' : 's'} late</span>` : `due ${nice(x.due)}`}${x.later ? ` · then ${mk(x.later)} later` : ''}${s.parent ? ' · ' + esc(s.parent) : ''}</small></a></span>
+        <div class="acts"><a class="btn sm g" target="_blank" rel="noopener" href="${waLink(s.phone || x.inv.phone, msg)}">${ic('wa',14)} Remind</a>${can('receipts') ? `<a class="btn sm" href="doc.html#conv=receipt:${x.inv.id}">Payment</a>` : ''}</div></div>`; };
+    return `<div class="kpis">${kpi('Owed to LHQ', mkShort(total), `${L.length} invoice${L.length === 1 ? '' : 's'} not fully paid`)}${kpi('Late now', mkShort(sum(late, x => x.now)), `${late.length} famil${late.length === 1 ? 'y' : 'ies'}`)}
+      ${kpi('Due in 7 days', mkShort(sum(soon, x => x.now)), `${soon.length} payment${soon.length === 1 ? '' : 's'}`)}${kpi('Due in 30 days', mkShort(sum(month, x => x.now) + 0), later ? `+ ${mkShort(later)} second instalments after that` : 'expected in')}</div>
+    <div class="grid2"><div class="card pad"><div class="cap">How late</div>${shareRows(B.map(k => ({k, v: byB[k] || 0, col: COL[k], extra: `${L.filter(x => bucket(x) === k).length} invoice${L.filter(x => bucket(x) === k).length === 1 ? '' : 's'}`})), sum(Object.values(byB)))}
+      <p class="note">Late counts from the due date of the instalment or invoice; the grace period is ${num(HD.settings.graceDays) || 0} days.</p></div>
+      <div class="card pad"><div class="cap">What is owed</div>${shareRows(sortObj(kinds).map(([k, v]) => ({k, v, col: 'var(--inc)'})), sum(Object.values(kinds)))}${later ? `<p class="note">Plus ${mk(later)} in second instalments that aren't due yet.</p>` : ''}</div></div>
+    <div class="h2">Families <em>most late first</em></div><div class="card">${L.map(row).join('') || '<p class="empty">Nothing is owed. Every invoice is paid.</p>'}</div>
+    ${L.length ? `<a class="btn sm" href="#docs/invoice/unpaid" style="margin-top:4px">See the ${L.length} invoice${L.length === 1 ? '' : 's'} ›</a>` : ''}`;
   }
 
   /* ---------- Sessions ---------- */
@@ -418,7 +453,7 @@ window.INS = (function(){
       <label class="f"><span>Split by</span>${splits.length ? sel('chS', splits.map(k => [k, k === 'cat' ? 'Spending category' : DIM[k]]), c.s) : '<select class="in" disabled><option>Nothing to split</option></select>'}</label>
       <label class="f"><span>Over</span>${sel('chO', [['m','Months'],['q','Quarters'],['y','Financial years']], c.over)}</label></div>
       <div class="r2"><label class="f"><span>Period</span>${sel('chN', [[6,'Last 6 months'],[12,'Last 12 months'],[24,'Last 2 years'],[36,'Last 3 years']].map(([k, l]) => [String(k), l]), String(c.n))}</label>
-      <div class="f"><span style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:5px">Saved views</span><div class="acts">${saves.map((s, i) => `<button class="chip" data-chload="${i}">${esc(s.name)}</button>`).join('')}<button class="chip" id="chSave">+ Save this view</button></div></div></div>
+      <div class="f"><span style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:5px">Saved views</span><div class="acts">${saves.map((s, i) => `<button class="chip" data-chload="${i}">${esc(s.name)}</button>`).join('')}<button class="chip" id="chSave">+ Save this view</button>${window.PC ? '<button class="chip" id="chPin">Pin as a card on Business</button>' : ''}</div></div></div>
       ${D.allKeys.length > 1 && splits.length ? `<div class="cap">Include <small style="text-transform:none;letter-spacing:0;font-weight:600">(none ticked = the top 6)</small></div><div class="chips">${D.allKeys.slice(0, 24).map(k => `<button class="chip ${(c.inc || []).includes(k) ? 'on' : ''}" data-chinc="${esc(k)}">${esc(k)}</button>`).join('')}</div>` : ''}</div>
     <div class="card pad">${D.series.length ? lineChart(D.labels, D.series, {bars: c.over !== 'm' || D.labels.length <= 6, fmt: money ? undefined : v => Math.round(v), fmtTip: money ? undefined : v => Math.round(v * 10) / 10, label: meas[0]}) : '<p class="empty">Nothing to show for this choice.</p>'}
       ${D.series.length ? `<div class="bz-scroll"><table class="bz-mt"><tr><th></th>${D.labels.map(l => `<th>${esc(l)}</th>`).join('')}<th>Total</th></tr>${D.series.map(s => `<tr><td><i style="display:inline-block;width:9px;height:9px;border-radius:3px;background:${s.col};margin-right:6px"></i>${esc(s.name)}</td>${s.vals.map(v => `<td>${money ? mkShort(v).replace('MKW ', '') : Math.round(v * 10) / 10}</td>`).join('')}<td><b>${money ? mkShort(sum(s.vals)).replace('MKW ', '') : Math.round(sum(s.vals))}</b></td></tr>`).join('')}</table></div>` : ''}</div>`;
@@ -430,7 +465,7 @@ window.INS = (function(){
   function pots(period){
     if(!can('pl')) return '';
     const b = B(), P = potsCfg(), ms = b.months(period), f = b.figures(ms);
-    if(!P || !P.list || !P.list.length) return `<div class="h2">Pots</div><div class="card pad"><p class="note" style="margin:0 0 10px">Pots split every kwacha that comes in by percentage: for example 40% for tutor pay and salaries, 15% for rent, 7% set aside for tax, 5% profit. Each spending category draws from a pot, so you see what's left in each, and how much to move into real accounts each month.</p>${isDir() ? '<button class="btn n" data-pots>Set up pots</button>' : '<p class="empty" style="margin:0">The Director sets them up.</p>'}</div>`;
+    if(!P || !P.list || !P.list.length) return `<div class="h2">Allocations</div><div class="card pad"><p class="note" style="margin:0 0 10px">Allocations split every kwacha that comes in by percentage: for example 40% for tutor pay and salaries, 15% for rent, 7% set aside for tax, 5% profit. Each spending category draws from an allocation, so you see what's left in each, and how much to move into real accounts each month.</p>${isDir() ? '<button class="btn n" data-pots>Set up allocations</button>' : '<p class="empty" style="margin:0">The Director sets them up.</p>'}</div>`;
     const income = ms2 => b.figures(ms2).revenue;
     const since = P.from || ms[0], allMs = []; for(let m = since; m <= b.thisMonth(); m = b.addMonth(m, 1)) allMs.push(m);
     const inAll = income(allMs), spentIn = (pot, M) => sum(pot.cats || [], c => b.figures(M).byCat[c] || 0);
@@ -438,14 +473,14 @@ window.INS = (function(){
     const rows = P.list.map(pt => { const per = f.revenue * pt.p / 100, sp = spentIn(pt, ms), bal = inAll * pt.p / 100 - spentIn(pt, allMs);
       return `<div class="bz-bud" style="border-top:1px solid var(--line2)"><div class="h"><b>${esc(pt.n)} <small style="font-weight:600;color:var(--muted)">${pt.p}%</small></b><span>${mkShort(sp)} spent of ${mkShort(per)} · <b style="color:${bal < 0 ? 'var(--rd)' : 'var(--ok)'}">${bal < 0 ? '−' : ''}${mkShort(Math.abs(bal))} left</b></span></div>
         <div class="track"><i style="width:${per ? Math.min(100, sp / per * 100) : 0}%;background:${sp > per ? 'var(--rd)' : sp > per * .8 ? 'var(--gold)' : 'var(--ok)'}"></i></div>
-        <div class="m" style="font-size:12px;color:var(--muted);margin-top:4px">${(pt.cats || []).length ? 'Pays for: ' + esc(pt.cats.join(', ')) : 'Kept aside: nothing is paid from it'}${bal < 0 ? ' · <b style="color:var(--rd)">spending is ahead of what this pot has received</b>' : ''}</div></div>`; }).join('');
+        <div class="m" style="font-size:12px;color:var(--muted);margin-top:4px">${(pt.cats || []).length ? 'Pays for: ' + esc(pt.cats.join(', ')) : 'Kept aside: nothing is paid from it'}${bal < 0 ? ' · <b style="color:var(--rd)">spending is ahead of what this allocation has received</b>' : ''}</div></div>`; }).join('');
     const unmapped = Object.keys(f.byCat).filter(c => !P.list.some(pt => (pt.cats || []).includes(c)));
-    return `<div class="h2">Pots <em>since ${b.monthName(since)}</em></div>
-    <div class="card pad"><p class="note" style="margin:0 0 6px">Money in for ${b.periodLabel(period)}: ${mk(f.revenue)}, split by percentage. "Left" counts everything since the pots started.</p>${rows}
-      ${unmapped.length ? `<p class="note" style="color:var(--am)">Not in any pot: ${esc(unmapped.join(', '))}. Add them to a pot.</p>` : ''}</div>
+    return `<div class="h2">Allocations <em>since ${b.monthName(since)}</em></div>
+    <div class="card pad"><p class="note" style="margin:0 0 6px">Money in for ${b.periodLabel(period)}: ${mk(f.revenue)}, split by percentage. "Left" counts everything since the allocations started.</p>${rows}
+      ${unmapped.length ? `<p class="note" style="color:var(--am)">Not in any allocation: ${esc(unmapped.join(', '))}. Add them to an allocation.</p>` : ''}</div>
     <div class="card pad"><div class="cap">To move into real accounts for ${b.monthName(thisM)}</div><p class="note" style="margin:0 0 8px">From ${mk(inThisM)} received so far this month. Move these into separate accounts (savings, mobile money) so the money really is set aside.</p>
       ${P.list.map(pt => `<div class="it" style="padding:8px 0"><span class="t"><b>${esc(pt.n)}</b></span><b class="bz-amt">${mk(inThisM * pt.p / 100)}</b></div>`).join('')}</div>
-    ${isDir() ? '<button class="btn" data-pots>' + ic('edit',16) + ' Change pots</button>' : ''}`;
+    ${isDir() ? '<button class="btn" data-pots>' + ic('edit',16) + ' Change allocations</button>' : ''}`;
   }
   function potsSheet(){
     const b = B(), P = potsCfg(), C = b.cats().filter(c => !b.NOT_COST.includes(c));
@@ -465,22 +500,22 @@ window.INS = (function(){
       document.querySelectorAll('[data-pc]').forEach(el => el.onclick = () => { const pt = list[+el.dataset.pc], c = el.dataset.c;
         list.forEach(x => { x.cats = x.cats.filter(y => y !== c); }); if(!el.classList.contains('on')) pt.cats.push(c); draw(); });
     };
-    openSheet(`<div class="hx"><h3>Pots</h3><button class="ib" data-close>✕</button></div>
-      <p class="sp">Each pot gets a share of every kwacha that comes in. Tap the spending categories each pot pays for (a category belongs to one pot). Pots with no categories are kept aside, like tax and profit.</p>
+    openSheet(`<div class="hx"><h3>Allocations</h3><button class="ib" data-close>✕</button></div>
+      <p class="sp">Each allocation gets a share of every kwacha that comes in. Tap the spending categories each allocation pays for (a category belongs to one allocation). Allocations with no categories are kept aside, like tax and profit.</p>
       <div class="note" style="margin:0 0 10px">Last 6 months: money in ${mk(inc6)}. ${inc6 ? 'What each category actually took: ' + esc(sortObj(f6.byCat).slice(0, 6).map(([c, v]) => `${c} ${pc(v, inc6)}%`).join(', ')) + '.' : ''}</div>
       <button class="btn sm" id="potSug">Suggest percentages from the last 6 months</button>
       <div id="potRows" style="margin-top:10px"></div>
-      <div class="acts" style="margin:6px 0 12px"><button class="btn sm" id="potAdd">+ Add a pot</button><span id="potTot" style="align-self:center;margin-left:auto"></span></div>
+      <div class="acts" style="margin:6px 0 12px"><button class="btn sm" id="potAdd">+ Add an allocation</button><span id="potTot" style="align-self:center;margin-left:auto"></span></div>
       <label class="f"><span>Start counting from</span><input class="in" type="month" id="potFrom" value="${esc((P && P.from) || b.thisMonth())}"></label>
       <p class="note" style="margin:-4px 0 12px">I'm not an accountant: please check the tax reserve with yours. It depends on how LHQ is registered with MRA.</p>
-      <button class="btn n full" id="potGo">Save pots</button>`);
+      <button class="btn n full" id="potGo">Save allocations</button>`);
     draw();
     $('potSug').onclick = () => { suggest(); draw(); };
-    $('potAdd').onclick = () => { list.push({n: 'New pot', p: 0, cats: []}); draw(); };
+    $('potAdd').onclick = () => { list.push({n: 'New allocation', p: 0, cats: []}); draw(); };
     $('potGo').onclick = () => {
       const t = sum(list, pt => +pt.p || 0); if(t !== 100){ toast('The percentages need to add up to 100%'); return; }
-      const cfg = Object.assign({}, store.get('lhq_budget', {}) || {}); cfg.pots = {from: $('potFrom').value || b.thisMonth(), list: list.map(pt => ({n: pt.n.trim() || 'Pot', p: +pt.p, cats: pt.cats}))}; cfg.at = Date.now(); cfg.by = me().name;
-      store.set('lhq_budget', cfg); closeSheet(); toast('Pots saved'); render();
+      const cfg = Object.assign({}, store.get('lhq_budget', {}) || {}); cfg.pots = {from: $('potFrom').value || b.thisMonth(), list: list.map(pt => ({n: pt.n.trim() || 'Allocation', p: +pt.p, cats: pt.cats}))}; cfg.at = Date.now(); cfg.by = me().name;
+      store.set('lhq_budget', cfg); closeSheet(); toast('Allocations saved'); render();
     };
   }
 
@@ -489,6 +524,7 @@ window.INS = (function(){
     if(tab === 'overview') return overview(period);
     if(tab === 'money') return money(period);
     if(tab === 'pipeline') return pipeline(period);
+    if(tab === 'owed') return owed();
     if(tab === 'sessions') return sessions(period);
     if(tab === 'marketing') return marketing(period);
     if(tab === 'charts') return charts();
@@ -505,7 +541,8 @@ window.INS = (function(){
     ch('chM', 'm'); ch('chS', 's'); ch('chO', 'over'); ch('chN', 'n', Number);
     on('[data-chinc]', el => { const c = getC(), k = el.dataset.chinc; c.inc = (c.inc || []).includes(k) ? c.inc.filter(x => x !== k) : (c.inc || []).concat(k); setC(c); render(); });
     if($('chSave')) $('chSave').onclick = () => { const n = (prompt('Name this view, e.g. "IGCSE money in by subject"') || '').trim(); if(!n) return; let L = []; try{ L = JSON.parse(localStorage.getItem(CS) || '[]'); }catch(e){} L.push({name: n, c: getC()}); try{ localStorage.setItem(CS, JSON.stringify(L.slice(-12))); }catch(e){} toast('View saved on this device'); render(); };
+    if($('chPin')) $('chPin').onclick = () => { const c = getC(), n = (prompt('Name the card, e.g. "IGCSE money in"', MEAS[c.m][0]) || '').trim(); if(n) PC.pinChart(n, c); };
     on('[data-chload]', el => { let L = []; try{ L = JSON.parse(localStorage.getItem(CS) || '[]'); }catch(e){} const v = L[+el.dataset.chload]; if(v){ setC(v.c); render(); } });
   }
-  return {view, bind, spendTop, pots, facts, progOf, habits, sessFigures, pipeFigures, mkt, lineChart, shareRows, DIMS};
+  return {view, bind, spendTop, pots, facts, owedFacts, chartData, setChart: c => setC(Object.assign({m: 'in', s: 'prog', inc: [], over: 'm', n: 12}, c)), progOf, habits, sessFigures, pipeFigures, mkt, lineChart, shareRows, DIMS};
 })();

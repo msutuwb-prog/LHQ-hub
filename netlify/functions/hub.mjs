@@ -94,7 +94,7 @@ function unsign(token) {
 }
 const hashPin = (pin, salt) => crypto.scryptSync(String(pin), salt, 32).toString("hex");
 const pinOk = pin => /^\d{4,6}$/.test(String(pin || ""));
-const pub = p => ({ id: p.id, name: p.name, role: p.role, admin: staff(p), tutor: !!p.tutor, perms: isDirector(p) ? PERMS.slice() : (p.perms || []), active: p.active !== false, home: p.home || null, seen: p.seen || 0 });
+const pub = p => ({ id: p.id, name: p.name, role: p.role, admin: staff(p), tutor: !!p.tutor, perms: isDirector(p) ? PERMS.slice() : (p.perms || []), active: p.active !== false, home: p.home || null, cards: p.cards || {}, seen: p.seen || 0 });
 
 async function getPeople() {
   const list = (await store().get("people", { type: "json" })) || [];
@@ -426,6 +426,15 @@ async function managePeople(req, me) {
   }
   if (b.action === "home") {   // each person's own Home cards
     const p = find(me.id); p.home = Array.isArray(b.cards) ? b.cards.filter(x => typeof x === "string").slice(0, 6) : null;
+    await putPeople(list); return json({ ok: true, me: pub(p) });
+  }
+  if (b.action === "cards") {   // each person's own cards on Business, Students, a student's page, Tutors
+    const page = String(b.page || "");
+    if (!/^(biz|students|student|tutors)$/.test(page)) return fail("Unknown page.");
+    const ok = x => typeof x === "string" ? x.length <= 40 : x && typeof x === "object" && JSON.stringify(x).length <= 600;
+    const chosen = Array.isArray(b.cards) ? b.cards.filter(ok).slice(0, 16) : null;
+    const p = find(me.id); p.cards = Object.assign({}, p.cards || {}, { [page]: chosen });
+    if (JSON.stringify(p.cards).length > 8000) return fail("Too many cards.");
     await putPeople(list); return json({ ok: true, me: pub(p) });
   }
   if (!staff(me)) return fail("Only LHQ admin can manage people.", 403);
