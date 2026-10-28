@@ -28,7 +28,7 @@ let site = "production";
 const isPreview = () => site !== "production";
 const store = () => testStore || getStore({ name: isPreview() ? "lhq-hub-preview" : "lhq-hub", consistency: "strong" });
 
-const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income"];
+const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes"];
 
 /* ---------- roles and permissions ---------- */
 const PERMS = ["quotes", "receipts", "cards", "delete", "restore", "students", "money", "tpay", "tutors", "msgs", "numbering", "backup", "classes", "moveclass", "spend", "pl"];
@@ -50,6 +50,15 @@ function mergeSpend(old, v, me) {
     out[id] = Object.assign({}, e, { by: was ? was.by : me.name }, was ? { editedBy: me.name } : {});
   });
   return out;
+}
+/* Tutors' logs arrive from tutors' own sign-ins and from LHQ admin importing WhatsApp logs at the same time:
+   merged entry by entry (newest "at" wins; a deleted entry stays as {x:1} so it can't come back) */
+function mergeLogs(old, v) {
+  const o = old && typeof old === "object" ? old : {}, n = v && typeof v === "object" ? v : {};
+  const e = Object.assign({}, o.e || {});
+  Object.entries(n.e || {}).forEach(([id, x]) => { if (!x || typeof x !== "object") return; if (!e[id] || (x.at || 0) >= (e[id].at || 0)) e[id] = x; });
+  const seen = new Set(), imports = [...(o.imports || []), ...(n.imports || [])].filter(i => { const k = JSON.stringify(i); if (seen.has(k)) return false; seen.add(k); return true; }).slice(-200);
+  return Object.assign({}, o, n, { e, imports });
 }
 const TRASH_DAYS = 30;
 // the editor's built-in values: a device saving settings for the first time sends these, which is not a change
@@ -322,6 +331,8 @@ async function sync(req, me) {
     const merged = {};
     for (const [k, v] of kvIn) {
       if (MERGED.includes(k)) { const m = mergeSpend(await s.get("kv/" + k, { type: "json" }), v, me); merged[k] = m; await s.setJSON("kv/" + k, m); }
+      else if (k === "lhq_logs") { const m = mergeLogs(await s.get("kv/" + k, { type: "json" }), v); merged[k] = m; await s.setJSON("kv/" + k, m); }
+      else if (k === "lhq_classes") { const m = mergeSpend(await s.get("kv/" + k, { type: "json" }), v, me); merged[k] = m; await s.setJSON("kv/" + k, m); }
       else await s.setJSON("kv/" + k, v);
       (idx.kvr = idx.kvr || {})[k] = (idx.rev || 0) + 1;
     }
@@ -477,6 +488,74 @@ async function managePeople(req, me) {
   return json({ ok: true, people: list.map(pub) });
 }
 
+/* ---------- the tutor area: a tutor sees only their own students' tuition cards and logs ---------- */
+const nk = v => String(v || "").trim().toLowerCase().replace(/\s+/g, " ");
+const isTutor = p => p && (p.role === "tutor" || p.tutor);
+async function tutorData(me) {
+  const mine = n => nk(n) === nk(me.name);
+  const cards = (await readAll("doc/")).filter(d => d.type === "card" && (d.subjects || []).some(x => mine(x.tutor)))
+    .map(c => ({ id: c.id, number: c.number, date: c.date, student: c.student, level: c.level, exam: c.exam, school: c.school, where: c.where,
+      periodStart: c.periodStart, periodEnd: c.periodEnd, period: c.period, cardNote: c.cardNote, savedAt: c.savedAt, subjects: (c.subjects || []).filter(x => mine(x.tutor)) }));
+  const keys = new Set(); cards.forEach(c => c.subjects.forEach(x => keys.add(nk(c.student) + "|" + nk(x.name))));
+  const [logs, classes] = await Promise.all([store().get("kv/lhq_logs", { type: "json" }), store().get("kv/lhq_classes", { type: "json" })]);
+  const entries = Object.values((logs && logs.e) || {}).filter(e => e && (keys.has(e.k) || mine(e.tutor)));
+  const cls = Object.values(classes || {}).filter(c => c && !c.del && mine(c.tutor));
+  return { cards, keys, entries, classes: cls };
+}
+/* write one shared key safely when several tutors save at once, then tell staff devices it changed */
+async function writeKv(k, change) {
+  const s = store();
+  for (let i = 0; i < 6; i++) {
+    const r = await s.getWithMetadata("kv/" + k, { type: "json" });
+    const next = change(r ? r.data : null);
+    const res = await s.setJSON("kv/" + k, next, r ? { onlyIfMatch: r.etag } : { onlyIfNew: true });
+    if (res && res.modified === false) continue;
+    for (let j = 0; j < 6; j++) {
+      const { data: idx, etag } = await getIndex();
+      (idx.kvr = idx.kvr || {})[k] = (idx.rev || 0) + 1; idx.rev = (idx.rev || 0) + 1; idx.at = Date.now(); if (!idx.epoch) idx.epoch = crypto.randomBytes(6).toString("hex");
+      const w = await s.setJSON("index", idx, etag ? { onlyIfMatch: etag } : { onlyIfNew: true });
+      if (!(w && w.modified === false)) break;
+    }
+    return next;
+  }
+  throw new Error("Too many saves at once. Try again.");
+}
+async function tutorGet(me) {
+  if (!isTutor(me)) return fail("This part is for tutors.", 403);
+  const d = await tutorData(me);
+  return json({ me: pub(me), cards: d.cards, entries: d.entries, classes: d.classes, now: Date.now() });
+}
+async function tutorPost(req, me) {
+  if (!isTutor(me)) return fail("This part is for tutors.", 403);
+  const b = await req.json().catch(() => ({}));
+  const d = await tutorData(me), now = Date.now();
+  if (b.action === "entries") {
+    const list = (Array.isArray(b.entries) ? b.entries : []).slice(0, 200);
+    for (const e of list) {
+      if (!e || typeof e !== "object" || !/^[\w-]{4,40}$/.test(String(e.id || ""))) return fail("An entry couldn't be read.");
+      if (!d.keys.has(e.k)) return fail("That student isn't on your tuition cards.", 403);
+      if (JSON.stringify(e).length > 4000) return fail("An entry is too long.");
+    }
+    const prev = {}; d.entries.forEach(e => prev[e.id] = e);
+    const add = {}; list.forEach(e => { if (prev[e.id] && nk(prev[e.id].tutor) && nk(prev[e.id].tutor) !== nk(me.name)) return; add[e.id] = Object.assign({}, e, { tutor: me.name, at: now, via: "hub" }); });
+    await writeKv("lhq_logs", old => mergeLogs(old, { e: add }));
+    return json({ ok: true, saved: Object.values(add) });
+  }
+  if (b.action === "class") {
+    const c = b.cls || {}, id = /^[\w-]{4,40}$/.test(String(c.id || "")) ? c.id : "cl" + crypto.randomBytes(5).toString("hex");
+    const stuKeys = new Set([...d.keys].map(k => k.split("|")[0]));
+    const stu = (Array.isArray(c.stu) ? c.stu : []).map(nk).filter(k => stuKeys.has(k));
+    const cur = (await store().get("kv/lhq_classes", { type: "json" })) || {};
+    if (cur[id] && nk(cur[id].tutor) !== nk(me.name)) return fail("That class belongs to another tutor.", 403);
+    if (!c.del && !String(c.name || "").trim()) return fail("Give the class a name.");
+    if (!c.del && stu.length < 2) return fail("A class needs at least two of your students.");
+    const cls = c.del ? Object.assign({}, cur[id] || {}, { id, del: true, at: now }) : { id, name: String(c.name).trim().slice(0, 60), sub: String(c.sub || "").trim().slice(0, 60), mode: c.mode === "online" ? "online" : "in person", stu, tutor: me.name, at: now };
+    await writeKv("lhq_classes", old => Object.assign({}, old || {}, { [id]: Object.assign({}, cls, { by: (old && old[id] && old[id].by) || me.name }) }));
+    return json({ ok: true, cls });
+  }
+  return fail("Unknown action.");
+}
+
 /* for the email and WhatsApp functions: only someone signed in to LHQ Hub as Director or admin may send */
 export async function staffFrom(req, context) {
   site = (context && context.deploy && context.deploy.context) || "production";
@@ -498,6 +577,8 @@ export default async (req, context) => {
     if (!me) return fail("Please sign in again.", 401);
     if (req.method === "GET" && path === "state") return await state(req, me);
     if (req.method === "GET" && path === "rev") return await rev(req, me);
+    if (req.method === "GET" && path === "tutor") return await tutorGet(me);
+    if (req.method === "POST" && path === "tutor") return await tutorPost(req, me);
     if (req.method === "POST" && path === "sync") return await sync(req, me);
     if (req.method === "POST" && path === "people") return await managePeople(req, me);
     if (req.method === "GET" && path === "trash") return await trash(req, me);

@@ -30,6 +30,8 @@ if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash)
 <script src="insights.js"></script>
 <script src="perf.js"></script>
 <script src="cards.js"></script>
+<script src="sra.js"></script>
+<script src="teach.js"></script>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0}
@@ -325,10 +327,11 @@ function parse(){
 }
 function render(){
   load(); parse();
-  const sec = {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', tutors:'home'}[route.page] || route.page;
+  if(me().role === 'tutor' && !['teach','settings','set'].includes(route.page)){ location.replace('#teach'); route = {page:'teach', args:[]}; }
+  const sec = {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', teach:'teach', tutors:'home'}[route.page] || route.page;
   LHQNav.section(sec);
   const m = $('main');
-  m.className = 'main' + (['home','edithome','new','students','student','tutors'].includes(route.page) ? ' narrow' : '');
+  m.className = 'main' + (['home','edithome','new','students','student','tutors','teach'].includes(route.page) ? ' narrow' : '');
   m.innerHTML = P[route.page](...route.args) || '';
   if(!['new','makeups'].includes(route.page)) LHQNav.visit(pageLabel());
   bind();
@@ -360,7 +363,7 @@ function crumb(fbHref, fbLabel, within){
   const b = LHQNav.back(fbHref, fbLabel, within ? u => u.startsWith('index.html#' + within) : null);
   return b.href ? `<a class="crumb" href="${esc(b.href)}">${ic('back',16,2.2)} ${esc(b.label)}</a>` : '';
 }
-const PAGE_LABEL = {home:'Home', edithome:'Edit Home', students:'Students', docs:'Documents', biz:'Business', settings:'Settings', tutors:'Tutors teaching now', perf:'Reports', reports:'Reports', rep:'Report'};
+const PAGE_LABEL = {home:'Home', edithome:'Edit Home', students:'Students', docs:'Documents', biz:'Business', settings:'Settings', tutors:'Tutors teaching now', perf:'Reports', reports:'Reports', rep:'Report', teach:'Teaching'};
 function pageLabel(){
   const h = document.querySelector('#main h1, #main .sec-h');
   if(route.page === 'biz' && route.args[0] && route.args[0] !== 'home'){ const h = document.querySelector('#main h1'); if(h) return h.textContent.trim(); }
@@ -744,6 +747,7 @@ P.tutors = (show = '') => {
 P.biz = (tab, period, cat) => (!tab || tab === 'home' ? crumb(null, null, 'biz') : '') + BIZ.page(tab, period, cat);
 P.perf = () => { setTimeout(() => location.replace('#rep/business'), 0); return ''; };
 P.reports = () => PERF.page();
+P.teach = (sub, a1, a2) => TUT.page(sub, a1, a2);
 P.rep = (kind, arg) => PERF.page(kind, arg);
 
 /* ================= settings ================= */
@@ -751,7 +755,7 @@ const SETS = [
   ['Account', [['account','user','My account']]],
   ['LHQ', [['people','users','People & access', () => isDir() || can('tutors')],['company','bank','Company & bank details', isDir],['payments','cash','Payments & due dates', isDir],['tutorinfo','users','Tutors\' contacts', () => isDir() || can('tutors') || can('msgs')]]],
   ['Documents', [['numbering','hash','Numbering', () => can('numbering')],['messages','msg','Messages', () => can('msgs')],['lists','list','Lists', () => can('msgs')]]],
-  ['Enrolment & sending', [['enrol','link','Student checklist'],['sending','wa','Email & WhatsApp']]],
+  ['Enrolment & sending', [['enrol','link','Student checklist', () => me().role !== 'tutor'],['sending','wa','Email & WhatsApp', () => me().role !== 'tutor']]],
   ['Data', [['backup','box','Backup & restore', () => can('backup')],['deleted','bin','Recently deleted', () => can('restore')],['demo','restore','Demo data (preview)', () => isDir() && PREVIEW]]],
 ];
 const allowed = id => SETS.some(([, items]) => items.some(x => x[0] === id && (!x[3] || x[3]())));
@@ -934,6 +938,7 @@ function bind(){
   if(route.page === 'biz') BIZ.bind();
   if(['perf','rep','reports'].includes(route.page)) PERF.bind();
   if(window.PC) PC.bind();
+  if(route.page === 'teach') TUT.bind();
   on('[data-go]', (el, e) => { if(!e.target.closest('a')) location.href = el.dataset.go; });
   document.querySelectorAll('[data-go][tabindex]').forEach(el => el.onkeydown = e => { if(e.key === 'Enter' && e.target === el) location.href = el.dataset.go; });
   if($('attTog')) $('attTog').onclick = () => { attOpen = !attOpen; try{ localStorage.setItem('lhq_attOpen', attOpen ? '1' : '0'); }catch(e){} render(); };

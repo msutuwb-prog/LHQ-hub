@@ -449,8 +449,9 @@ function openLog(m){
   F('logBody').innerHTML = E.length ? `<table class="log"><tr><th>Date</th><th>Subject</th><th>Entry</th><th>Tutor</th></tr>${E.map(e=>{
     let w = '';
     if(e.ty==='s') w = (e.a==='absent' ? '<span class="tag t-red">Absent</span>' : e.a==='cancelled' ? '<span class="tag t-red">Not taught · make-up owed</span>' : (e.mk ? '<span class="tag t-blue">Make-up</span> ' : '') + (e.a==='late' ? 'Attended (late)' : 'Attended')) + (e.md==='o' ? ' · online' : e.md==='h' ? ' · at home' : '') + (pct(e)!=null ? ` · topical test ${e.sc}/${e.mx} (${pct(e)}%)` : '') + (e.tp&&e.tp.length ? `<br><small>${esc(e.tp.join(', '))}</small>` : '') + (e.n ? `<br><i>${esc(e.n)}</i>` : '');
-    else if(e.ty==='r') w = `SRA · ${esc(e.tk)} · review ${e.rv} · ${e.h==='m'?'<span class="tag t-red">not handed in</span>':e.h==='l'?'<span class="tag t-amb">late</span>':'on time'}${pct(e)!=null ? ` · ${e.sc}/${e.mx} (${pct(e)}%)` : ''}`;
-    else w = `Monthly comments<br><small>${esc([e.cs,e.ci,e.cn].filter(Boolean).join(' / '))}</small>`;
+    else if(e.ty==='g') w = `SRA given · ${esc(e.tk)} · ${e.rv===0?'Learning Day':'review '+e.rv}`;
+    else if(e.ty==='r') w = `SRA · ${esc(e.tk)} · ${e.v===2&&e.rv===0?'Learning Day':'review '+e.rv} · ${e.h==='m'?'<span class="tag t-red">not handed in</span>':e.h==='l'?'<span class="tag t-amb">late</span>':'on time'}${pct(e)!=null ? ` · ${e.sc}/${e.mx} (${pct(e)}%)` : ''}`;
+    else if(e.ty==='c') w = `Monthly comments<br><small>${esc([e.cs,e.ci,e.cn].filter(Boolean).join(' / '))}</small>`;
     return `<tr><td>${nice(e.d)}</td><td>${esc(e.sub)}</td><td>${w}</td><td>${esc(e.tutor)}</td></tr>`; }).join('')}</table>`
     : '<p class="empty">Nothing logged for this student in this period.</p>';
   F('logDlg').showModal();

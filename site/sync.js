@@ -5,7 +5,7 @@
   'use strict';
   const API = '/api/hub/';
   const DOCS = 'lhq_saved';
-  const KV = ['lhq_settings','lhq_templates','lhq_counters','lhq_repEdits','lhq_logs','lhq_tlinks','lhq_students','lhq_spend','lhq_budget','lhq_income'];
+  const KV = ['lhq_settings','lhq_templates','lhq_counters','lhq_repEdits','lhq_logs','lhq_tlinks','lhq_students','lhq_spend','lhq_budget','lhq_income','lhq_classes'];
   const PRIVATE = ['lhq_spend','lhq_budget','lhq_income'];   // only sent to people allowed to see them; removed here when that changes
   const SESSION = 'lhq_session', BASE = 'lhq_syncBase', KVHASH = 'lhq_syncKv', REV = 'lhq_syncRev', DIRTY = 'lhq_syncDirty', EPOCH = 'lhq_syncEpoch';
   const ls = window.localStorage;
@@ -61,6 +61,10 @@
       // (anything recorded here while this save was on its way stays, and goes up next time)
       Object.entries(r.kv || {}).forEach(([k, v]) => {
         let cur = {}; try{ cur = JSON.parse(rawGet(k) || '{}') || {}; }catch(e){}
+        if(k === 'lhq_logs'){   // tutors' logs: entries by id, the newest wins
+          const e = Object.assign({}, v.e || {}); Object.entries(cur.e || {}).forEach(([id, x]) => { if(x && (!e[id] || (x.at || 0) > (e[id].at || 0))) e[id] = x; });
+          put(k, Object.assign({}, v, {e})); hashes[k] = hash(JSON.stringify(v)); return;
+        }
         const m = Object.assign({}, v); Object.entries(cur).forEach(([id, e]) => { if(e && (!m[id] || (e.at || 0) > (m[id].at || 0))) m[id] = e; });
         put(k, m); hashes[k] = hash(JSON.stringify(v));
       });
@@ -132,6 +136,7 @@
       const r = await api('rev');
       const mine = session();
       if(mine && r.me && JSON.stringify(r.me) !== JSON.stringify(mine.me)){ mine.me = r.me; put(SESSION, mine); if(window.hubMe) window.hubMe(); }
+      if(!(mine && mine.me || {}).admin) return;   // tutors don't hold LHQ's documents
       if(get(DIRTY, false)){ schedulePush(100); return; }
       if(r.epoch !== undefined && get(EPOCH, null) != null && r.epoch !== get(EPOCH, null)) rawDel(REV);   // the store was replaced: reload everything
       if(r.rev !== get(REV, null)) await pull();
@@ -276,7 +281,9 @@
   async function signedIn(j){
     put(SESSION, {token:j.token, me:j.me});
     const box = overlay(); box.innerHTML = `<img class="lhq-logo" src="${LOGO()}" alt="LHQ"><h2>Welcome, ${esc(j.me.name.split(' ')[0])}</h2><p class="s">Getting LHQ's documents…</p>`;
-    if(!j.me.admin){ box.innerHTML = `<img class="lhq-logo" src="${LOGO()}" alt="LHQ"><h2>Hello ${esc(j.me.name.split(' ')[0])}</h2><p class="s">The tutor part of LHQ Hub is coming next. For now, keep using the session-log link LHQ sent you on WhatsApp.</p><button class="hub-go" id="hubOut">Sign out</button>`; box.querySelector('#hubOut').onclick = signOut; return; }
+    if(!j.me.admin){
+      if(j.me.tutor || j.me.role === 'tutor'){ document.getElementById('hubOv')?.remove(); mountAccount(); if(!/^#(teach|settings|set)/.test(location.hash)) location.hash = '#teach'; if(window.hubReady) window.hubReady(); return; }
+      box.innerHTML = `<img class="lhq-logo" src="${LOGO()}" alt="LHQ"><h2>Hello ${esc(j.me.name.split(' ')[0])}</h2><p class="s">Your account isn't set up for anything yet. Ask LHQ admin.</p><button class="hub-go" id="hubOut">Sign out</button>`; box.querySelector('#hubOut').onclick = signOut; return; }
     try{ await pull(); }catch(e){}
     document.getElementById('hubOv')?.remove();
     mountAccount();
@@ -370,6 +377,7 @@
     if(!session()){ showSignIn(); return; }
     mountAccount();
     if(window.hubReady) window.hubReady();
+    if(!(session().me || {}).admin) return;   // tutors: their part fetches only their own students
     // this device already has LHQ's documents: only fetch them again if something changed
     if(get(REV, null) == null) pull().catch(() => status('offline'));
     else check().then(() => { if(!navigator.onLine) status('offline'); });
