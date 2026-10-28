@@ -176,7 +176,7 @@ window.INS = (function(){
   function busy(){
     const F = facts(), t = today(), DAYS = ['Mo','Tu','We','Th','Fr','Sa','Su'], NAME = {Mo:'Mon',Tu:'Tue',We:'Wed',Th:'Thu',Fr:'Fri',Sa:'Sat',Su:'Sun'}, grid = {};
     F.S.forEach(s => { const c = s.cur && s.cur.card; if(!c || (s.cur.inv.periodEnd && s.cur.inv.periodEnd < t)) return;
-      (c.subjects || []).forEach(x => (x.days || []).forEach(d => { const h = String(x.start || '').slice(0, 2) || '??'; grid[d + h] = (grid[d + h] || 0) + 1; })); });
+      (c.subjects || []).forEach(x => (x.days || []).forEach(d => { const o = (x.times || {})[d], h = String((o && o.s) || x.start || '').slice(0, 2) || '??'; grid[d + h] = (grid[d + h] || 0) + 1; })); });
     const hours = [...new Set(Object.keys(grid).map(k => k.slice(2)))].filter(h => h !== '??').sort();
     if(!hours.length) return '<p class="empty" style="margin:0">Add start times on tuition cards to see this.</p>';
     const max = Math.max(...Object.values(grid));

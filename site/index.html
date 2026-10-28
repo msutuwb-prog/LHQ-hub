@@ -185,6 +185,7 @@ a.bz-bud{display:block;text-decoration:none;color:inherit}a.bz-bud:hover b{text-
 .kpi small{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:800}
 .kpi b{display:block;font-size:22px;font-weight:800;color:var(--brand);letter-spacing:-.4px;font-variant-numeric:tabular-nums;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .kpi span{font-size:12px;font-weight:700;display:block}.kpi .up{color:var(--ok)}.kpi .dn{color:var(--rd)}.kpi .fl{color:var(--muted)}.kpi span span{display:inline;font-size:inherit}
+.ti-row{padding:10px 0;border-top:1px solid var(--line2)}.ti-row:first-child{border-top:0}.ti-row > b{display:block;margin-bottom:6px}.ti-row .r2{margin:0}.ti-row.new{background:var(--am-bg);margin:0 -12px;padding:10px 12px;border-radius:10px}
 @media (max-width:760px){.kpi{padding:11px 12px}.kpi b{font-size:18px;letter-spacing:-.3px}.kpi span{font-size:11.5px}}
 .bz-cap{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap}
 .bz-leg{display:flex;gap:12px;text-transform:none;letter-spacing:0;font-weight:700}.bz-leg span{display:inline-flex;align-items:center;gap:5px}.bz-leg i{width:10px;height:10px;border-radius:3px;display:inline-block}
@@ -719,7 +720,7 @@ P.perf = () => crumb('#biz', 'Business') + PERF.page();
 /* ================= settings ================= */
 const SETS = [
   ['Account', [['account','user','My account']]],
-  ['LHQ', [['people','users','People & access', () => isDir() || can('tutors')],['company','bank','Company & bank details', isDir],['payments','cash','Payments & due dates', isDir]]],
+  ['LHQ', [['people','users','People & access', () => isDir() || can('tutors')],['company','bank','Company & bank details', isDir],['payments','cash','Payments & due dates', isDir],['tutorinfo','users','Tutors\' contacts', () => isDir() || can('tutors') || can('msgs')]]],
   ['Documents', [['numbering','hash','Numbering', () => can('numbering')],['messages','msg','Messages', () => can('msgs')],['lists','list','Lists', () => can('msgs')]]],
   ['Enrolment & sending', [['enrol','link','Student checklist'],['sending','wa','Email & WhatsApp']]],
   ['Data', [['backup','box','Backup & restore', () => can('backup')],['deleted','bin','Recently deleted', () => can('restore')],['demo','restore','Demo data (preview)', () => isDir() && PREVIEW]]],
@@ -827,6 +828,36 @@ S.lists = () => { const s = settingsKV();
   ${LISTS.map(([k, l]) => `<div class="card pad"><div class="cap">${l}</div><div class="lchips">${lines(s[k]).map((x, i) => `<span>${esc(x)}<button data-lrm="${k}:${i}" aria-label="Remove ${esc(x)}">✕</button></span>`).join('')}</div>
     <div class="addrow"><input class="in" id="la_${k}" placeholder="Add an item" autocomplete="off"><button class="btn sm" data-ladd="${k}">Add</button></div></div>`).join('')}`; };
 
+/* tutors' WhatsApp numbers and emails, so tuition cards go straight to each tutor */
+const tutorNames = () => { const s = settingsKV(), n = new Set(lines(s.tutors));
+  HD.people().filter(p => p.tutor && p.active !== false).forEach(p => n.add(p.name));
+  saved.filter(d => d.type === 'card').forEach(c => (c.subjects || []).forEach(x => x.tutor && n.add(x.tutor)));
+  Object.keys(s.tutorInfo || {}).forEach(k => n.add(k));
+  return [...n].filter(Boolean).sort((a, b) => a.localeCompare(b)); };
+let tiDraft = null;   // contacts read from pasted text, waiting for Save
+S.tutorinfo = () => { const info = Object.assign({}, settingsKV().tutorInfo || {}, tiDraft || {}), names = [...new Set(tutorNames().concat(Object.keys(tiDraft || {})))].sort((a, b) => a.localeCompare(b));
+  return `<h2 class="sec-h">Tutors' contacts</h2><p class="sec-p">Used to send each tutor their tuition-card link straight to their WhatsApp or email.</p>
+  <div class="card pad"><div class="cap">Paste contacts</div><p class="note" style="margin:0 0 8px">Paste names with numbers and emails, in any layout. They are matched to the tutors below; check them, then Save.</p>
+    <textarea class="in" id="tiPaste" rows="4" placeholder="Maureen Story +265 886 394 944&#10;storymaureen0@gmail.com"></textarea><button class="btn sm" id="tiRead" style="margin-top:8px">Fill in from the text</button></div>
+  <div class="card pad">${names.map((n, i) => { const o = info[n] || {}, d = tiDraft && tiDraft[n];
+    return `<div class="ti-row${d ? ' new' : ''}"><b>${esc(n)}${d ? ` <span class="tag am">${d.as ? 'from the text: ' + esc(d.as) : 'from the text'}</span>` : ''}</b><div class="r2"><input class="in" data-tiph="${i}" value="${esc(o.phone || '')}" placeholder="WhatsApp, e.g. 0991 234 567" inputmode="tel"><input class="in" data-tiem="${i}" value="${esc(o.email || '')}" placeholder="Email" type="email" inputmode="email"></div></div>`; }).join('') || '<p class="empty" style="margin:0">No tutors yet. Add them under Lists › Tutors, or as people who teach.</p>'}
+    <button class="btn n" id="tiSave" style="margin-top:6px">Save</button></div>`; };
+/* "Cathy Mkwinda • +265 887 57 50 30 / mkwindacathie@gmail.com" → {name, phone, email}, matched to known tutors by surname, then first name */
+function parseContacts(text, names){
+  const out = {}, parts = String(text).split(/([^\s<>()\[\]]+@[^\s<>()\[\]]+\.[a-z]{2,})/i);
+  for(let i = 1; i < parts.length; i += 2){
+    const before = parts[i - 1].replace(/\(mailto:[^)]*\)/gi, ' ').replace(/[\[\]]/g, ' '), email = parts[i].replace(/^mailto:/i, '').toLowerCase();
+    const ph = (before.match(/\+?\d[\d\s-]{7,}\d/g) || []).pop() || '';
+    const nm = before.replace(/\+?\d[\d\s-]{7,}\d/g, ' ').replace(/[•·|,:;]/g, ' ').replace(/\s+/g, ' ').trim().split(' ').filter(w => /^[a-z'’-]+$/i.test(w)).slice(-3).join(' ');
+    if(!nm) continue;
+    const title = nm.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()), w = title.split(' '), sur = w[w.length - 1].toLowerCase(), fst = w[0].toLowerCase();
+    // same surname and a first name starting the same way (Cathy → Catherine); anything less certain stays a new name to check
+    const hit = names.find(n => n.toLowerCase() === title.toLowerCase()) || names.find(n => { const v = n.toLowerCase().split(' '); return v.length > 1 && v[v.length - 1] === sur && v[0].slice(0, 3) === fst.slice(0, 3); });
+    out[hit || title] = {phone: ph.replace(/\s+/g, ' ').trim(), email, as: hit && hit !== title ? title : ''};
+  }
+  return out;
+}
+
 S.enrol = () => { const link = new URL('checklist.html', location.href).href;
   return `<h2 class="sec-h">Student checklist</h2><p class="sec-p">New students choose their subjects and topics. Open the link in their reply on this device and a tuition card fills in with their choices.</p>
   <div class="card pad"><div class="code"><span>${esc(link)}</span><button class="btn sm" id="clCopy">${ic('copy',14)} Copy</button></div>
@@ -930,6 +961,13 @@ function bind(){
     };
   }
   // settings sections
+  if($('tiRead')) $('tiRead').onclick = () => { const r = parseContacts($('tiPaste').value, tutorNames()); const n = Object.keys(r).length; if(!n){ toast('No email addresses found in the text'); return; } tiDraft = r; render(); toast(`${n} contact${n === 1 ? '' : 's'} filled in. Check them, then Save.`); };
+  if($('tiSave')) $('tiSave').onclick = () => { const names = [...new Set(tutorNames().concat(Object.keys(tiDraft || {})))].sort((a, b) => a.localeCompare(b)), info = {};
+    names.forEach((n, i) => { const ph = document.querySelector(`[data-tiph="${i}"]`).value.trim(), em = document.querySelector(`[data-tiem="${i}"]`).value.trim(); if(ph || em) info[n] = {phone: ph, email: em}; });
+    const bad = Object.entries(info).find(([, o]) => o.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(o.email)); if(bad){ toast(`Check ${bad[0]}'s email`); return; }
+    const s = settingsKV(), L = lines(s.tutors), add = Object.keys(info).filter(n => !L.includes(n) && !HD.people().some(p => p.name === n));
+    const f = {tutorInfo: info}; if(add.length) f.tutors = L.concat(add).join('\n');
+    tiDraft = null; saveSettings(f); render(); };
   on('[data-save]', el => { const f = {}; el.dataset.save.split(',').forEach(k => f[k] = $('c_' + k).value.trim()); saveSettings(f); });
   if($('numSave')) $('numSave').onclick = () => {
     const c = store.get('lhq_counters', {}), problems = [];

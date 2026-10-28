@@ -243,9 +243,10 @@ async function checkSync(me, upserts, deletes, kv) {
     const old = (await s.get("kv/" + k, { type: "json" })) || {};
     if (k === "lhq_settings") {
       const ch = changedKeys(Object.assign({}, SETTINGS_DEFAULT, old), Object.assign({}, SETTINGS_DEFAULT, v));
-      if (ch.some(f => !LIST_FIELDS.includes(f))) return "Only the Director can change bank, contact and payment details.";
+      if (ch.some(f => !LIST_FIELDS.includes(f) && f !== "tutorInfo")) return "Only the Director can change bank, contact and payment details.";
+      if (ch.includes("tutorInfo") && !(can(me, "tutors") || can(me, "msgs"))) return "You don't have permission to change tutors' contacts.";
       // a new spending category can be added while recording spending; a new district while adding a student
-      const quick = ch.every(f => (f === "spendCats" && can(me, "spend")) || (f === "districts" && (can(me, "students") || can(me, "quotes"))));
+      const quick = ch.every(f => (f === "spendCats" && can(me, "spend")) || (f === "districts" && (can(me, "students") || can(me, "quotes"))) || (f === "tutorInfo" && can(me, "tutors")) || (f === "tutors" && can(me, "tutors")));
       if (ch.length && !can(me, "msgs") && !quick) return "You don't have permission to change the lists.";
     } else if (k === "lhq_templates") {
       if (changedKeys(old, v).length && !can(me, "msgs")) return "You don't have permission to change the messages.";

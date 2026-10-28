@@ -269,7 +269,8 @@ function openCard(ci){
     const s = subjOf(x), set = cardTopicSet(s.list), tier = cardTier(s);
     const it = roster.items.find(i=>i.ci===ci && i.si===si);
     const days = (x.y||[]).map(d=>DAYN[d]||d).join(', ');
-    const when = [days, x.m && x.m!=='–' ? x.m.replace(/–$/,'') : '', x.mi].filter(Boolean).join(' · ');
+    const perDay = /[A-Z][a-z]{2}/.test(x.m||'');   // times differ by day: the time text already names the days
+    const when = [perDay ? '' : days, x.m && x.m!=='–' ? x.m.replace(/–$/,'') : '', x.mi].filter(Boolean).join(' · ');
     const grade = x.g ? `${esc(x.g)}${[x.gb, x.gw].filter(Boolean).length ? ` <small>· ${esc([x.gb, x.gw].filter(Boolean).join(', '))}</small>` : ''}` : '';
     const kv = [['Days', when ? esc(when) : 'To be confirmed'], ['Tests', (x.f===2 ? 'Topical test every 2 weeks' : 'Topical test weekly')], ['Starting grade', grade]].filter(r=>r[1]);
     h += `<section class="panel"><div class="subj"><b>${esc(x.u)}</b>${set?`<span class="cd">${esc(set.code)}</span>`:''}${tier?`<span class="pill">${esc(tier)}</span>`:''}</div>

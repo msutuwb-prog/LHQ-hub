@@ -108,6 +108,15 @@ function cardPicked(s){
 }
 const cardMins = v => String(v||'').replace(/\s*minutes?/i,' min');
 const cardDayText = s => (s.days||[]).length ? s.days.map(d=>CARD_DAYNAME[d]).join(' & ') : '';
+/* a day can have its own time (s.times = {Mo:{s:'14:00', e:'15:00'}}); otherwise the subject's usual time */
+const cardTimeOf = (s, d) => { const o = (s.times||{})[d]; return o && o.s ? {start:o.s, end:o.e||''} : {start:s.start||'', end:s.end||''}; };
+const cardHasDayTimes = s => (s.days||[]).some(d => { const o = (s.times||{})[d]; return o && o.s; });
+/* days grouped by time: "Mon & Wed · 14:00–15:00; Fri · 16:00–17:00" */
+function cardWhenText(s, tbc = 'time to be confirmed'){
+  const g = new Map();
+  (s.days||[]).forEach(d => { const t = cardTimeOf(s, d), k = t.start ? `${t.start}–${t.end}` : ''; if(!g.has(k)) g.set(k, []); g.get(k).push(d); });
+  return [...g].map(([k, ds]) => ds.map(d => CARD_DAYNAME[d]).join(' & ') + ' · ' + (k || tbc)).join('; ');
+}
 function cardGradeText(s){
   if(!s.grade) return '';
   const extra = [s.basis, s.when].filter(Boolean).join(', ');
@@ -193,7 +202,7 @@ function renderCardEditor(){
     const [col] = CARD_COLORS[i % CARD_COLORS.length], open = i===cardOpen;
     const n = cardPicked(s), set = cardTopicSet(s.list);
     const cover = s.mode==='full' && set ? `Full course · ${cardEntries(set).filter(e=>e.kind!=='group').length} topics` : (n ? `${n} topic${n>1?'s':''}` : 'no topics yet');
-    const sum = [cardTier(s), s.tutor || 'Tutor TBC', cardDayText(s) || 'days not set', s.start ? `${s.start}–${s.end}` : (s.days.length?'time TBC':''), cover].filter(Boolean).join(' · ');
+    const sum = [cardTier(s), s.tutor || 'Tutor TBC', cardDayText(s) || 'days not set', cardHasDayTimes(s) ? 'times vary by day' : s.start ? `${s.start}–${s.end}` : (s.days.length?'time TBC':''), cover].filter(Boolean).join(' · ');
     let h = `<div class="cs${open?' open':''}" style="--c:${col}">
       <button type="button" class="cs-head" data-act="toggle" data-cs="${i}" aria-expanded="${open}"><span class="cs-dot"></span><span class="cs-title"><b>${esc(s.name||'New subject')}</b><small>${esc(sum)}</small></span>${cardChev(open)}</button>`;
     if(open){
@@ -219,6 +228,10 @@ function renderCardEditor(){
           <span class="cs-dash">–</span>
           <label><span>End time (optional)</span><input type="time" data-k="end" value="${esc(s.end)}"></label>
         </div>
+        ${s.days.length > 1 ? (s.perDay || cardHasDayTimes(s) ? `<div class="cs-perday"><div class="lbl">Times on each day <small>(blank = the usual time above)</small></div>${s.days.map(d => { const o = (s.times||{})[d] || {};
+          return `<div class="cs-pdrow"><b>${CARD_DAYNAME[d]}</b><input type="time" data-dk="${d}" data-de="s" value="${esc(o.s||'')}" aria-label="${CARD_DAYNAME[d]} start"><span>–</span><input type="time" data-dk="${d}" data-de="e" value="${esc(o.e||'')}" aria-label="${CARD_DAYNAME[d]} end"></div>`; }).join('')}
+          <button type="button" class="small" data-act="samedays">Same time every day</button></div>`
+          : `<button type="button" class="small" data-act="perday" style="margin:0 0 10px">Different times on some days</button>`) : ''}
         <p class="hint" style="margin:-4px 0 12px">Leave the times blank if the timetable isn't ready. The card shows "time to be confirmed", and you can reshare it later.</p>
         ${set ? `<div class="fld"><span class="lbl">What to cover</span><div class="seg seg2" role="group" aria-label="What to cover">
           <button type="button" data-act="mode" data-m="selected" class="${s.mode!=='full'?'on':''}">Selected topics</button>
@@ -254,6 +267,8 @@ function cardEditorEvents(){
     if(!s) return;
     if(act==='day'){ const d = b.dataset.d; s.days = s.days.includes(d) ? s.days.filter(x=>x!==d) : CARD_DAYS.filter(x=>x===d || s.days.includes(x)); }
     else if(act==='mode'){ s.mode = b.dataset.m; }
+    else if(act==='perday'){ s.perDay = true; }
+    else if(act==='samedays'){ s.perDay = false; delete s.times; }
     else if(act==='topic'){ const k = b.dataset.key; if(s.picks[k]) delete s.picks[k]; else s.picks[k] = true; }
     else if(act==='chopen'){ s.openCh = s.openCh===b.dataset.key ? '' : b.dataset.key; }
     else if(act==='chap'){ const k = b.dataset.key; if(s.picks[k]==='all') delete s.picks[k]; else { s.picks[k] = 'all'; } }
@@ -273,6 +288,7 @@ function cardEditorEvents(){
     const t = e.target, body = t.closest('[data-cs]'); if(!body) return;
     const s = doc.subjects[+body.dataset.cs]; if(!s) return;
     if(t.dataset.k){ s[t.dataset.k] = t.value; }
+    else if(t.dataset.dk){ s.times = s.times || {}; const o = s.times[t.dataset.dk] = s.times[t.dataset.dk] || {}; o[t.dataset.de] = t.value; if(!o.s && !o.e) delete s.times[t.dataset.dk]; }
     else if(t.dataset.act==='detail'){ s.details[t.dataset.key] = t.value; }
     else return;
     update();
@@ -305,20 +321,20 @@ function cardHTML(d, only){
   const lab = (t, c='#5f6b7d') => `<div style="font-size:11px;color:${c};text-transform:uppercase;letter-spacing:.7px;font-weight:700">${t}</div>`;
   // weekly timetable
   const cols = CARD_DAYS.map(dd=>{
-    const here = subj.filter(([,s])=>(s.days||[]).includes(dd)).sort((a,b)=>(a[1].start||'99').localeCompare(b[1].start||'99'));   // earliest first
+    const here = subj.filter(([,s])=>(s.days||[]).includes(dd)).sort((a,b)=>(cardTimeOf(a[1],dd).start||'99').localeCompare(cardTimeOf(b[1],dd).start||'99'));   // earliest first
     const blocks = here.map(([i,s])=>{ const [c] = CARD_COLORS[i % CARD_COLORS.length];
       const short = cardShort(s.name);
-      const tm = s.start ? `${s.start}–<br>${s.end||''}` : 'Time<br>TBC';
+      const T = cardTimeOf(s, dd), tm = T.start ? `${T.start}–<br>${T.end||''}` : 'Time<br>TBC';
       return `<div style="background:${c};color:#fff;border-radius:7px;padding:5px 3px;display:flex;flex-direction:column;gap:1px"><b style="font-size:12px;line-height:1.15;word-break:break-word">${esc(short)}</b><span style="font-size:10.5px;line-height:1.2">${tm}</span></div>`; }).join('');
     return `<div style="display:flex;flex-direction:column;gap:5px;min-width:0"><div style="font-weight:700;font-size:12.5px;color:${here.length?'#1d2433':'#8a94a3'}">${CARD_DAYNAME[dd]}</div><div style="background:#f3f5f8;border-radius:9px;min-height:74px;padding:4px;display:flex;flex-direction:column;gap:4px">${blocks || '<div style="color:#b3bcc8;font-size:12px;padding-top:6px">–</div>'}</div></div>`;
   }).join('');
-  const anyDays = subj.some(([,s])=>(s.days||[]).length), anyTbc = subj.some(([,s])=>(s.days||[]).length && !s.start);
+  const anyDays = subj.some(([,s])=>(s.days||[]).length), anyTbc = subj.some(([,s])=>(s.days||[]).some(dd=>!cardTimeOf(s,dd).start));
   // subject sections
   const sections = subj.map(([i,s])=>{
     const [c, tint] = CARD_COLORS[i % CARD_COLORS.length], set = cardTopicSet(s.list);
     const tutor = s.tutor ? `<b>${esc(s.tutor)}</b>` : '<b style="color:#9a5b00">To be confirmed</b>';
-    const when = [cardDayText(s) || '<span style="color:#9a5b00">days to be confirmed</span>',
-      s.start ? `${esc(s.start)}–${esc(s.end)}` : '<span style="color:#9a5b00">time to be confirmed</span>',
+    const when = [cardHasDayTimes(s) ? esc(cardWhenText(s)) : cardDayText(s) || '<span style="color:#9a5b00">days to be confirmed</span>',
+      cardHasDayTimes(s) ? '' : s.start ? `${esc(s.start)}–${esc(s.end)}` : '<span style="color:#9a5b00">time to be confirmed</span>',
       s.sessions ? `${esc(s.sessions)} sessions${s.mins ? ` of ${esc(cardMins(s.mins))}` : ''}` : (s.mins ? esc(cardMins(s.mins)) + ' sessions' : '')].filter(Boolean).join(' · ');
     const grade = cardGradeText(s) ? `<div style="font-size:13px"><span style="color:#5f6b7d">Current grade:</span> <b>${esc(s.grade)}</b>${[s.basis,s.when].filter(Boolean).length?` <span style="color:#5f6b7d">(${esc([s.basis,s.when].filter(Boolean).join(', '))})</span>`:''}</div>` : '';
     let topics = '';
@@ -437,8 +453,12 @@ function renderCardShare(){
   F('csTutors').innerHTML = tutors.length ? tutors.map(t=>{
       const subs = doc.subjects.filter(x=>x.tutor===t).map(x=>x.name).join(', ');
       const n = new Set(cardRosterSubjects(others.concat([doc])).filter(x=>x.tutor===t).map(x=>cardNormName(x.student))).size;
-      return `<div class="cs-trow"><span><b>${esc(t)}</b><small>${esc(subs)} · ${n} student${n===1?'':'s'} in total</small><small>${esc(cardTutorSentText(t))}</small></span><button type="button" class="small wa" data-tutor="${esc(t)}">Send link</button></div>`; }).join('')
+      const ct = cardTutorContact(t);
+      return `<div class="cs-trow"><span><b>${esc(t)}</b><small>${esc(subs)} · ${n} student${n===1?'':'s'} in total</small><small>${esc(cardTutorSentText(t))}</small>${!ct.phone && !ct.email ? '<small class="warn">No WhatsApp number or email yet · <a href="index.html#set/tutorinfo">add</a></small>' : ''}</span>
+        <span class="cs-tb"><button type="button" class="small wa" data-tutor="${esc(t)}">${ct.phone ? 'WhatsApp' : 'Send link'}</button>${ct.email ? `<button type="button" class="small" data-temail="${esc(t)}">Email</button>` : ''}</span></div>`; }).join('')
     : '<p class="hint" style="margin:0">Choose a tutor for each subject on the card to send them their link.</p>';
+  const em = tutors.filter(t => cardTutorContact(t).email);
+  if(em.length > 1) F('csTutors').innerHTML += `<button type="button" class="small" data-temail="*" style="margin-top:8px">Email all ${em.length} tutors their link and card</button>`;
 }
 async function cardShareFile(kind, save){
   const btns = document.querySelectorAll('#cardShareDlg .cs-actions button'); btns.forEach(b=>b.disabled = true);
@@ -463,7 +483,14 @@ function initCard(){
   F('csImage').onclick = ()=>cardShareFile('png', false);
   F('csPdf').onclick = ()=>cardShareFile('pdf', false);
   F('csSave').onclick = ()=>cardShareFile('png', true);
-  F('csTutors').onclick = async e=>{ const b = e.target.closest('[data-tutor]'); if(!b) return; saveDoc(true); await cardSendTutorLink(saved, b.dataset.tutor); renderCardShare(); };
+  F('csTutors').onclick = async e=>{
+    const m = e.target.closest('[data-temail]');
+    if(m){ saveDoc(true); const all = m.dataset.temail === '*', list = all ? [...new Set((doc.subjects||[]).map(x=>x.tutor).filter(t=>t && cardTutorContact(t).email))] : [m.dataset.temail];
+      m.disabled = true; const done = [], failed = [];
+      for(const t of list){ toast(`Emailing ${t}…`); try{ await cardEmailTutor(saved, t); done.push(t); }catch(err){ failed.push(t + ': ' + err.message); } }
+      m.disabled = false; renderCardShare();
+      toast(failed.length ? failed[0] : done.length === 1 ? `Emailed ${done[0]}` : `Emailed ${done.length} tutors`); return; }
+    const b = e.target.closest('[data-tutor]'); if(!b) return; saveDoc(true); await cardSendTutorLink(saved, b.dataset.tutor); renderCardShare(); };
   F('clLink').value = cardChecklistLink();
   const invite = ()=>`Hello! Please fill in this short LHQ Learning Solutions topic checklist so we know which subjects and topics you'd like help with. It takes about 3 minutes:\n${cardChecklistLink()}`;
   F('btnClCopy').onclick = async ()=>{ try{ await navigator.clipboard.writeText(cardChecklistLink()); toast('Link copied'); }catch(e){ F('clLink').select(); toast('Select the link and copy it'); } };
@@ -570,7 +597,7 @@ function cardTutorPayload(savedList, tutor){
     put(it,'ls',s.list); put(it,'r',cardTier(s)); if(s.mode==='full') it.md = 'f';
     if(s.mode!=='full'){ put(it,'pk',s.picks); }
     const dt = {}; Object.entries(s.details||{}).forEach(([k,v])=>{ if(String(v).trim() && (s.mode==='full' || (s.picks||{})[k])) dt[k] = String(v).trim(); }); put(it,'dt',dt);
-    put(it,'cu',s.custom); put(it,'y',s.days); if(s.start) it.m = `${s.start}–${s.end||''}`; put(it,'mi',s.mins);
+    put(it,'cu',s.custom); put(it,'y',s.days); if(cardHasDayTimes(s)) it.m = cardWhenText(s, 'time TBC'); else if(s.start) it.m = `${s.start}–${s.end||''}`; put(it,'mi',s.mins);
     if(s.tf==='Every 2 weeks') it.f = 2;
     put(it,'g',s.grade); put(it,'gb',s.basis); put(it,'gw',s.when); put(it,'nt',(s.note||'').trim());
     if(+s.cf) it.cf = +s.cf;   // make-up sessions carried in from the last period
@@ -595,10 +622,29 @@ function cardTutorMessage(tutor, link, howTo){
     ? `Hello ${first}, here is your LHQ link. It has the tuition card for each of your students. Open it on your phone and keep it. After each session, log attendance, topics and any assessment score, then send your log to LHQ at the end of the week.\n\n${link}`
     : `${first}, your updated LHQ link:\n${link}`;
 }
+/* a tutor's WhatsApp number and email, from Settings › Tutors' contacts */
+function cardTutorContact(t){ const I = (settings && settings.tutorInfo) || {}; const o = I[t] || I[Object.keys(I).find(k => k.toLowerCase() === String(t).toLowerCase())] || {}; return {phone: o.phone || '', email: o.email || ''}; }
+const cardWaNum = raw => { let n = String(raw || '').replace(/\D/g, ''); if(n.startsWith('0')) n = '265' + n.slice(1); else if(n.length === 9) n = '265' + n; return n; };
+/* email a tutor their link, with this card (their subjects) as a PDF */
+async function cardEmailTutor(savedList, tutor){
+  const ct = cardTutorContact(tutor), sess = window.hub && hub.session();
+  if(!ct.email) throw new Error(`Add ${tutor}'s email under Settings › Tutors' contacts.`);
+  if(!sess || !sess.token) throw new Error('Sign in to LHQ Hub again, then send.');
+  const link = await cardTutorLink(savedList, tutor), howTo = F('csHowTo') && F('csHowTo').checked ? true : null;
+  const idx = (doc.subjects || []).map((x, i) => x.tutor === tutor ? i : -1).filter(i => i >= 0), only = idx.length === 1 ? idx[0] : null;
+  const pdfBase64 = await blobToBase64(await cardPdf(only));
+  const subs = idx.map(i => doc.subjects[i].name).filter(Boolean).join(', ');
+  const r = await fetch('/api/send-email', {method:'POST', headers:{'content-type':'application/json', authorization:'Bearer ' + sess.token},
+    body: JSON.stringify({to: ct.email, subject: `LHQ tuition card · ${doc.student || 'Student'}${subs ? ' · ' + subs : ''}`, filename: cardFileName(only, 'pdf'), pdfBase64,
+      text: cardTutorMessage(tutor, link, howTo) + `\n\nAttached: ${doc.student || 'the student'}'s tuition card (${doc.number}).\n\nLHQ Learning Solutions`})});
+  const j = await r.json().catch(() => ({}));
+  if(!r.ok) throw new Error(j.error || 'The email couldn\'t be sent. Try again in a minute.');
+  cardMarkTutorSent(tutor);
+}
 async function cardSendTutorLink(savedList, tutor){
   const link = await cardTutorLink(savedList, tutor);
-  const howTo = F('csHowTo') && F('csHowTo').checked ? true : null;
-  const url = 'https://wa.me/?text=' + encodeURIComponent(cardTutorMessage(tutor, link, howTo));
+  const howTo = F('csHowTo') && F('csHowTo').checked ? true : null, ph = cardWaNum(cardTutorContact(tutor).phone);
+  const url = 'https://wa.me/' + (ph.length >= 11 ? ph : '') + '?text=' + encodeURIComponent(cardTutorMessage(tutor, link, howTo));
   cardMarkTutorSent(tutor);
   const w = window.open(url, '_blank'); if(!w) location.href = url;
 }
