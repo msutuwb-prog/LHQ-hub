@@ -28,7 +28,7 @@ let site = "production";
 const isPreview = () => site !== "production";
 const store = () => testStore || getStore({ name: isPreview() ? "lhq-hub-preview" : "lhq-hub", consistency: "strong" });
 
-const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes"];
+const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes", "lhq_treps"];
 
 /* ---------- roles and permissions ---------- */
 const PERMS = ["quotes", "receipts", "cards", "delete", "restore", "students", "money", "tpay", "tutors", "msgs", "numbering", "backup", "classes", "moveclass", "spend", "pl"];
@@ -331,7 +331,7 @@ async function sync(req, me) {
     const merged = {};
     for (const [k, v] of kvIn) {
       if (MERGED.includes(k)) { const m = mergeSpend(await s.get("kv/" + k, { type: "json" }), v, me); merged[k] = m; await s.setJSON("kv/" + k, m); }
-      else if (k === "lhq_logs") { const m = mergeLogs(await s.get("kv/" + k, { type: "json" }), v); merged[k] = m; await s.setJSON("kv/" + k, m); }
+      else if (k === "lhq_logs" || k === "lhq_treps") { const m = mergeLogs(await s.get("kv/" + k, { type: "json" }), v); merged[k] = m; await s.setJSON("kv/" + k, m); }
       else if (k === "lhq_classes") { const m = mergeSpend(await s.get("kv/" + k, { type: "json" }), v, me); merged[k] = m; await s.setJSON("kv/" + k, m); }
       else await s.setJSON("kv/" + k, v);
       (idx.kvr = idx.kvr || {})[k] = (idx.rev || 0) + 1;
@@ -441,7 +441,7 @@ async function managePeople(req, me) {
   }
   if (b.action === "cards") {   // each person's own cards on Business, Students, a student's page, Tutors
     const page = String(b.page || "");
-    if (!/^(biz|students|student|tutors)$/.test(page)) return fail("Unknown page.");
+    if (!/^(biz|students|student|tutors|teach|tstudent)$/.test(page)) return fail("Unknown page.");
     const ok = x => typeof x === "string" ? x.length <= 40 : x && typeof x === "object" && JSON.stringify(x).length <= 600;
     const chosen = Array.isArray(b.cards) ? b.cards.filter(ok).slice(0, 16) : null;
     const p = find(me.id); p.cards = Object.assign({}, p.cards || {}, { [page]: chosen });
@@ -497,10 +497,12 @@ async function tutorData(me) {
     .map(c => ({ id: c.id, number: c.number, date: c.date, student: c.student, level: c.level, exam: c.exam, school: c.school, where: c.where,
       periodStart: c.periodStart, periodEnd: c.periodEnd, period: c.period, cardNote: c.cardNote, savedAt: c.savedAt, subjects: (c.subjects || []).filter(x => mine(x.tutor)) }));
   const keys = new Set(); cards.forEach(c => c.subjects.forEach(x => keys.add(nk(c.student) + "|" + nk(x.name))));
-  const [logs, classes] = await Promise.all([store().get("kv/lhq_logs", { type: "json" }), store().get("kv/lhq_classes", { type: "json" })]);
+  const [logs, classes, reps] = await Promise.all(["lhq_logs", "lhq_classes", "lhq_treps"].map(k => store().get("kv/" + k, { type: "json" })));
   const entries = Object.values((logs && logs.e) || {}).filter(e => e && (keys.has(e.k) || mine(e.tutor)));
   const cls = Object.values(classes || {}).filter(c => c && !c.del && mine(c.tutor));
-  return { cards, keys, entries, classes: cls };
+  const since = new Date(Date.now() - 100 * 864e5).toISOString().slice(0, 10);
+  const reports = Object.values((reps && reps.e) || {}).filter(r => r && mine(r.tutor) && (r.d || "") >= since);
+  return { cards, keys, entries, classes: cls, reports };
 }
 /* write one shared key safely when several tutors save at once, then tell staff devices it changed */
 async function writeKv(k, change) {
@@ -523,7 +525,7 @@ async function writeKv(k, change) {
 async function tutorGet(me) {
   if (!isTutor(me)) return fail("This part is for tutors.", 403);
   const d = await tutorData(me);
-  return json({ me: pub(me), cards: d.cards, entries: d.entries, classes: d.classes, now: Date.now() });
+  return json({ me: pub(me), cards: d.cards, entries: d.entries, classes: d.classes, reports: d.reports, now: Date.now() });
 }
 async function tutorPost(req, me) {
   if (!isTutor(me)) return fail("This part is for tutors.", 403);
@@ -540,6 +542,18 @@ async function tutorPost(req, me) {
     const add = {}; list.forEach(e => { if (prev[e.id] && nk(prev[e.id].tutor) && nk(prev[e.id].tutor) !== nk(me.name)) return; add[e.id] = Object.assign({}, e, { tutor: me.name, at: now, via: "hub" }); });
     await writeKv("lhq_logs", old => mergeLogs(old, { e: add }));
     return json({ ok: true, saved: Object.values(add) });
+  }
+  if (b.action === "report") {   // the tutor's daily report: one per tutor per day, sent again replaces it
+    const r = b.report || {}, d0 = String(r.d || "");
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(d0)) return fail("The report needs a date.");
+    const stuKeys = new Set([...d.keys].map(k => k.split("|")[0]));
+    const txt = (v, n) => String(v || "").trim().slice(0, n);
+    const req = (Array.isArray(r.req) ? r.req : []).slice(0, 20).map(q => ({ item: txt(q.item, 200), qty: txt(q.qty, 10), by: /^\d{4}-\d{2}-\d{2}$/.test(q.by || "") ? q.by : "", for: stuKeys.has(nk(q.for)) ? nk(q.for) : "" })).filter(q => q.item);
+    const f = r.flag || {}, flag = stuKeys.has(nk(f.st)) ? { st: nk(f.st), why: (Array.isArray(f.why) ? f.why : []).map(w => txt(w, 30)).slice(0, 6), text: txt(f.text, 500) } : null;
+    const rep = { id: "r" + nk(me.name).replace(/[^a-z0-9]/g, "") + d0.replace(/-/g, ""), d: d0, tutor: me.name, req, flag, comment: txt(r.comment, 1500), rate: [1, 2, 3, 4, 5].includes(+r.rate) ? +r.rate : 0, gaps: Math.max(0, Math.min(99, +r.gaps || 0)), hours: Math.max(0, Math.min(24, +r.hours || 0)), sent: now, at: now };
+    rep.id = rep.id.slice(0, 40);
+    await writeKv("lhq_treps", old => mergeLogs(old, { e: { [rep.id]: rep } }));
+    return json({ ok: true, report: rep });
   }
   if (b.action === "class") {
     const c = b.cls || {}, id = /^[\w-]{4,40}$/.test(String(c.id || "")) ? c.id : "cl" + crypto.randomBytes(5).toString("hex");

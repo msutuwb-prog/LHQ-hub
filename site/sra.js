@@ -1,7 +1,8 @@
 /* LHQ Hub › spaced review (SRA) schedule. One schedule, worked out the same way for tutors, students, parents and LHQ.
    A topic's Learning Day is the session where the tutor marked it finished. Its SRAs are on the Learning Day itself and
    then 1, 3, 7 and 14 days and a month later ("do on"). An SRA for a day with no session is handed out at the session
-   before ("give on"). SRAs come back the next session day; one not handed in moves forward, it isn't counted as missed.
+   before ("give on"). SRAs come back at the first session after they are given and after their do-on day; one not handed in moves to the
+   next session day and shows as late, it isn't counted as missed.
    Works on plain data so any page can use it: entries (tutors' logs) and roster items ({k, days, card period}). */
 window.SRA = (function(){
   const STAGES = [{n: 0, l: 'Learning Day', d: 0}, {n: 1, l: 'Review 1', d: 1}, {n: 2, l: 'Review 2', d: 3}, {n: 3, l: 'Review 3', d: 7}, {n: 4, l: 'Review 4', d: 14}, {n: 5, l: 'Review 5', m: 1}];
@@ -35,14 +36,15 @@ window.SRA = (function(){
         const giveOn = S.n === 0 ? x.d : isDay(it, doOn) ? doOn : prevDay(it, doOn, x.d);
         const m = marks.get(x.k + '\u0001' + x.topic + '\u0001' + S.n) || {};
         const after = !!(it.b && doOn > it.b && !m.g && !m.r);   // after the tuition period: waits for the next one
-        let st = 'upcoming', due = m.g ? nextDay(it, add(m.g.d, 1)) : null;
+        // it comes back at the first session after it was given and after its do-on day (given early, it keeps its day)
+        let st = 'upcoming', due = m.g ? nextDay(it, add(m.g.d > doOn ? m.g.d : doOn, 1)) : null, moved = null;
         if(m.r && m.r.h !== 'm') st = 'in';
-        else if(m.g){ if(m.r && m.r.h === 'm'){ due = nextDay(it, add(m.r.d, 1)); } st = today > due ? 'late' : today === due ? 'collect' : 'given'; }
+        else if(m.g){ if(m.r && m.r.h === 'm' && m.r.d >= m.g.d){ moved = m.r.d; due = nextDay(it, add(m.r.d, 1)); } st = today > due || moved ? (today >= due ? 'late' : 'given') : today === due ? 'collect' : 'given'; }
         else if(after) st = 'after';
         else if(giveOn < today) st = 'overdue';
         else if(giveOn === today) st = 'give';
         out.push({k: x.k, st: it.st || x.st, sub: it.sub || x.sub, topic: x.topic, stage: S.n, label: label(S.n), learnt: x.d, doOn, giveOn, due, status: st,
-          score: m.r && m.r.sc != null && m.r.sc !== '' ? {sc: m.r.sc, mx: m.r.mx} : null, given: m.g || null, handed: m.r || null, paused: !!(it.b && it.b < today && !it.next)});
+          score: m.r && m.r.h !== 'm' && m.r.sc != null && m.r.sc !== '' ? {sc: m.r.sc, mx: m.r.mx} : null, moved, given: m.g || null, handed: m.r || null, paused: !!(it.b && it.b < today && !it.next)});
       });
     });
     return out.sort((a, b) => a.giveOn.localeCompare(b.giveOn) || a.topic.localeCompare(b.topic) || a.stage - b.stage);

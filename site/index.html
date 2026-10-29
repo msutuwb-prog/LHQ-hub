@@ -328,7 +328,7 @@ function parse(){
 function render(){
   load(); parse();
   if(me().role === 'tutor' && !['teach','settings','set'].includes(route.page)){ location.replace('#teach'); route = {page:'teach', args:[]}; }
-  const sec = {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', teach:'teach', tutors:'home'}[route.page] || route.page;
+  const sec = route.page === 'teach' && me().role === 'tutor' ? ({sra:'tsra', report:'trep'}[route.args[0]] || 'teach') : {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', teach:'teach', tutors:'home'}[route.page] || route.page;
   LHQNav.section(sec);
   const m = $('main');
   m.className = 'main' + (['home','edithome','new','students','student','tutors','teach'].includes(route.page) ? ' narrow' : '');
