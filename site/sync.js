@@ -337,7 +337,7 @@
   function pwSignIn(msg, err, locked, id){
     const box = overlay();
     box.innerHTML = head('Sign in to LHQ Hub', esc(msg || 'Students, parents and staff all sign in here.')) + errBox(err, locked) +
-      `<label class="hub-l">Username or email<input class="hub-in" id="hubId" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="e.g. linga.phiri" value="${esc(id || '')}"></label>
+      `<label class="hub-l">Name, username or email<input class="hub-in" id="hubId" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="e.g. Linga Phiri" value="${esc(id || '')}"></label>
       ${pwIn('hubPw', 'Password', 'current-password')}
       ${tick('hubKeep', keepMe, 'Keep me signed in on this device', 'For 30 days. Leave it off on a shared or family phone: you are signed out after 12 hours.')}
       <button class="hub-go" data-k="go">Sign in</button>
@@ -345,7 +345,7 @@
       <p class="hub-foot">Staff: the first time, sign in with your username and your old PIN.</p>`;
     wire(box, {forgot:() => pwForgot(), code:() => pwCode(), go:async () => {
       const i = box.querySelector('#hubId').value.trim(), pw = box.querySelector('#hubPw').value;
-      if(!i || !pw) return pwSignIn(msg, 'Type your username or email and your password.', false, i);
+      if(!i || !pw) return pwSignIn(msg, 'Type your name, username or email, and your password.', false, i);
       busy(box, true);
       try{ const r = await post('signin', {id:i, password:pw, keep:keepMe});
         if(!r.ok) return pwSignIn(msg, r.j.error || 'Something went wrong. Try again.', r.j.locked, i);

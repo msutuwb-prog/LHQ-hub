@@ -129,7 +129,14 @@ export async function personFromToken(token) {
 }
 
 /* ---------- signing in ---------- */
-const findLogin = async (T, id) => { const v = String(id || "").trim().toLowerCase(); return v ? T.one("SELECT * FROM people WHERE NOT del AND (lower(username) = $1 OR lower(email) = $1)", [v]) : null; };
+/* a username, an email, or the full name (as long as nobody else has the same name: then the username is needed) */
+const findLogin = async (T, id) => {
+  const v = String(id || "").trim().toLowerCase().replace(/\s+/g, " "); if (!v) return null;
+  const exact = await T.one("SELECT * FROM people WHERE NOT del AND (lower(username) = $1 OR lower(username) = $2 OR lower(email) = $1)", [v, v.replace(/ /g, ".")]);
+  if (exact) return exact;
+  const byName = await T.q("SELECT * FROM people WHERE NOT del AND lower(regexp_replace(trim(name), '\\s+', ' ', 'g')) = $1", [v]);
+  return byName.length === 1 ? byName[0] : null;
+};
 const ticket = (p, k, extra = {}) => sign(Object.assign({ p: p.id, v: p.pv || 1, k, exp: Date.now() + 15 * 60000 }, extra));
 const WRONG = "That username or email and password don't match.";
 

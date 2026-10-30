@@ -50,6 +50,7 @@ test("staff move from their PIN: once with the PIN, then a password; the PIN sto
   assert.equal(ok.status, 200); CHI = ok.j.token;
   assert.equal((await signIn("chisomo.banda", "2580")).status, 401, "the PIN no longer works");
   assert.equal((await signIn("CHISOMO@example.com", "Maths#2026")).status, 200, "email works too, any case");
+  assert.equal((await signIn("Chisomo  Banda", "Maths#2026")).status, 200, "the full name works too");
   DIR = await firstPw("wanangwa.msutu", "2468", "Director!2026");
 });
 
@@ -168,4 +169,13 @@ test("wrong setup codes are counted too: 10 in 15 minutes wait", async () => {
   for (let i = 0; i < 10; i++) await call("code", { code: "AAAA-AAA" + "BCDEFGHJKM"[i] });
   const r = await call("code", { code: "AAAA-AAAZ" });
   assert.equal(r.status, 429);
+});
+
+test("a name two people share needs the username", async () => {
+  await q("DELETE FROM settings WHERE key = 'code_fails'");   // the test before locked wrong codes for a while
+  const DIRt = (await signIn("wanangwa.msutu", "NewDirector#1")).j.token;
+  const a = await call("people", { action: "add", name: "Tiwonge Banda", role: "tutor" }, DIRt), b = await call("people", { action: "add", name: "Tiwonge Banda", role: "tutor" }, DIRt);
+  for (const x of [a, b]) { const c = await call("code", { code: x.j.code }); await call("password", { ticket: c.j.ticket, password: "Teach#2026x" }); }
+  assert.equal((await signIn("Tiwonge Banda", "Teach#2026x")).status, 401);
+  assert.equal((await signIn(b.j.username, "Teach#2026x")).status, 200);
 });
