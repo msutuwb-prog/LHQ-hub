@@ -69,12 +69,14 @@ export default async (req, context) => {
     }
     if (req.method === "POST" && path === "import") {
       if (!isDir(me)) return fail("Only Wanangwa can copy the Hub into the new records.", 403);
-      return json(await importFromBlobs(me, { preview }));
+      const b = await req.json().catch(() => ({}));
+      return json(await importFromBlobs(me, { preview, part: Math.max(0, Number(b.part) || 0) }));
     }
     if (req.method === "POST" && path === "demo") {
       if (!isDir(me)) return fail("Only Wanangwa can do that.", 403);
       if (!preview) return fail("Made-up data only goes into a preview, never into LHQ's real records.", 403);
-      return json(await seedDemo(me));
+      const b = await req.json().catch(() => ({}));
+      return json(await seedDemo(me, Math.max(0, Math.min(4, Number(b.step) || 0))));
     }
     return fail("Not found.", 404);
   } catch (e) {

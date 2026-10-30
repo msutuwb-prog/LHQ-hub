@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shared records · LHQ Hub</title>
+<link rel="icon" href="icon-32.png">
+<link rel="stylesheet" href="hub.css">
+<script src="theme.js"></script>
+<style>
+body{background:var(--bg);color:var(--ink);font:15px/1.45 Inter,system-ui,sans-serif;margin:0}
+main{max-width:720px;margin:0 auto;padding:20px 16px 60px}
+.crumb{color:var(--muted);font-weight:700;text-decoration:none;font-size:14px}
+h1{font-size:26px;margin:8px 0 2px;color:var(--brand)}.sub{color:var(--muted);margin:0 0 16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}
+.cap{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.row{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-top:1px solid var(--line2)}.row:first-of-type{border-top:0}
+.st{display:inline-flex;align-items:center;gap:6px;font-weight:700}.st .c{width:16px;height:16px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:900;border:2px solid currentColor}
+.ok{color:var(--ok)}.ok .c{background:var(--ok);border-color:var(--ok);color:#fff}.am{color:var(--am)}.rd{color:var(--rd)}
+.btn{display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:11px 16px;font:inherit;font-weight:800;cursor:pointer;width:100%;margin-top:10px}
+.btn.n{background:var(--accent);color:var(--onaccent);border-color:var(--accent)}.btn:disabled{opacity:.5;cursor:default}
+.note{color:var(--muted);font-size:13px;margin:8px 0 0}
+.out{white-space:pre-wrap;font-size:13px;background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:10px;display:none}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px 16px;font-size:14px}.grid span{color:var(--muted)}
+</style></head>
+<body><main>
+<a class="crumb" href="index.html#home">‹ Home</a>
+<h1>Shared records</h1><p class="sub">The one set of records every account will work from. Director only.</p>
+<div class="card"><div class="cap">Status</div><div id="status">Checking…</div></div>
+<div class="card" id="countsCard" style="display:none"><div class="cap">What's in the records</div><div class="grid" id="counts"></div></div>
+<div class="card" id="actions" style="display:none">
+  <div class="cap">Fill the records</div>
+  <div id="demoBox"><b>Demo people (test copy only)</b><p class="note">Adds the mockup's made-up people: Linga, Tadala, Chisomo's students, Grace (Linga's parent), five tutors, three weeks of sessions, a make-up waiting, two requisitions and pay profiles. Refused on the live Hub.</p>
+    <button class="btn n" id="demo">Fill the test copy with demo people</button></div>
+  <div style="margin-top:18px"><b>Copy the current Hub in</b><p class="note">Copies people (with their PINs, for the move to passwords), students, tuition cards, classes and the session and SRA logs. The current Hub isn't changed, and copying again adds nothing twice.</p>
+    <button class="btn" id="imp">Copy the current Hub into the records</button></div>
+  <div class="out" id="out"></div>
+</div>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const token = () => { try{ return (JSON.parse(localStorage.getItem('lhq_session') || 'null') || {}).token || ''; }catch(e){ return ''; } };
+const api = async (path, opt = {}) => { const r = await fetch('/api/v2/' + path, Object.assign({headers:{'content-type':'application/json', authorization:'Bearer ' + token()}, cache:'no-store'}, opt)); const j = await r.json().catch(() => ({})); return {ok:r.ok, status:r.status, j}; };
+const st = (cls, t) => `<span class="st ${cls}"><span class="c">${cls === 'ok' ? '✓' : cls === 'rd' ? '!' : ''}</span>${t}</span>`;
+const LABELS = {people:'People', students:'Students', guardians:'Parent links', periods:'Tuition periods', groups:'Groups and classes', slots:'Timetable slots', sessions:'Sessions', attendance:'Attendance', makeups:'Make-ups', sras:'SRA reviews', assessments:'Assessments', marks:'Marks', requisitions:'Requisitions', pay_profiles:'Pay profiles', payslips:'Payslips', activity:'Activity lines'};
+async function load(){
+  const h = await api('health'); let html = '';
+  html += `<div class="row"><span>Database</span>${h.j.database === 'on' ? st('ok', 'On') : st('rd', h.j.database === 'off' ? 'Off' : 'Problem')}</div>`;
+  html += `<div class="row"><span>This copy</span><b>${h.j.preview ? 'Test copy (preview)' : 'Live Hub'}</b></div>`;
+  if(h.j.database !== 'on'){ $('status').innerHTML = html + `<p class="note">${h.j.detail || ''}</p>`; return; }
+  const me = await api('me');
+  if(!me.ok){ $('status').innerHTML = html + `<div class="row"><span>You</span>${st('am', 'Not signed in')}</div><p class="note">Sign in to the Hub first (as Director), then come back to this page.</p><a class="btn n" href="index.html#home" style="text-decoration:none">Go to the Hub and sign in</a>`; return; }
+  html += `<div class="row"><span>You</span><b>${me.j.me.name} · ${me.j.me.role}</b></div>`;
+  $('status').innerHTML = html;
+  if(me.j.me.role !== 'director'){ $('status').innerHTML += '<p class="note">Only the Director can fill the records.</p>'; return; }
+  const c = await api('changes?since=0'); const rows = (c.j && c.j.rows) || {};
+  $('counts').innerHTML = Object.entries(LABELS).map(([k, l]) => `<div><span>${l}</span> <b>${(rows[k] || []).filter(r => !r.del).length}</b></div>`).join('');
+  $('countsCard').style.display = ''; $('actions').style.display = '';
+  $('demoBox').style.display = h.j.preview ? '' : 'none';
+}
+/* both run in parts (each request has a time limit): keep asking for the next part until there is no more */
+async function act(btn, path, busy, key){
+  btn.disabled = true; const t = btn.textContent; btn.textContent = busy; $('out').style.display = 'block';
+  const total = {}; let skipped = [], r = {ok:true, j:{more:true, next:0}}, n = 0;
+  while(r.ok && r.j.more){
+    $('out').textContent = `Working… part ${++n}. Keep this page open.`;
+    r = await api(path, {method:'POST', body:JSON.stringify({[key]: r.j.next})});
+    if(r.ok) Object.entries(r.j).forEach(([k, v]) => { if(typeof v === 'number' && !['part','next','step','logs'].includes(k)) total[k] = (total[k] || 0) + v; if(k === 'skipped') skipped = skipped.concat(v); });
+  }
+  $('out').textContent = !r.ok ? 'Stopped at part ' + n + ': ' + (r.j.error || r.status) + '\nPress the button again to carry on from where it stopped.'
+    : r.j.already ? 'Already done: the demo people are in.'
+    : 'Done.\n' + Object.entries(total).map(([k, v]) => `${k}: ${v}`).join('\n') + (skipped.length ? `\nLeft out (${skipped.length}):\n  ` + skipped.slice(0, 20).join('\n  ') : '');
+  btn.textContent = t; btn.disabled = false; load();
+}
+$('demo').onclick = () => act($('demo'), 'demo', 'Filling…', 'step');
+$('imp').onclick = () => { if(confirm('Copy the current Hub into the shared records? The current Hub stays as it is.')) act($('imp'), 'import', 'Copying…', 'part'); };
+load();
+</script>
+</body></html>

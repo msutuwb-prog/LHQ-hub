@@ -26,13 +26,18 @@ async function readDocs(s) {
   return out;
 }
 
-export async function importFromBlobs(me, { preview = false } = {}) {
+/* in parts, so each request finishes well inside Netlify's time limit: part 0 = people, students, classes, cards;
+   parts 1, 2, … = the logs, `size` at a time. The answer says whether there is more and which part is next. */
+const LOG_TABLES = ["sessions", "attendance", "makeups", "assessments", "marks", "sras"];
+export async function importFromBlobs(me, { preview = false, part = 0, size = 300 } = {}) {
   const s = store(preview);
   const [people, students, classes, logs, docs] = await Promise.all([
     s.get("people", { type: "json" }), s.get("kv/lhq_students", { type: "json" }), s.get("kv/lhq_classes", { type: "json" }), s.get("kv/lhq_logs", { type: "json" }), readDocs(s)]);
   const n = { people: 0, students: 0, periods: 0, groups: 0, slots: 0, sessions: 0, attendance: 0, makeups: 0, sras: 0, assessments: 0, skipped: [] };
   return writeTx(async T => {
     const add = async (table, row) => {
+      if (part > 0 && !LOG_TABLES.includes(table)) return false;
+      if (part === 0 && LOG_TABLES.includes(table)) return false;
       const keys = Object.keys(row);
       const r = await T.q(`INSERT INTO ${table} (${keys.join(", ")}) VALUES (${keys.map((_, i) => "$" + (i + 1)).join(", ")}) ON CONFLICT DO NOTHING RETURNING id`,
         keys.map(k => row[k] !== null && typeof row[k] === "object" ? JSON.stringify(row[k]) : row[k]));
@@ -42,6 +47,7 @@ export async function importFromBlobs(me, { preview = false } = {}) {
     /* people */
     const tutorId = new Map();
     for (const p of people || []) {
+      if (part > 0) { tutorId.set(nk(p.name), p.id); continue; }
       const role = ["director", "admin", "tutor"].includes(p.role) ? p.role : (p.admin ? "admin" : "tutor");
       let u = nk(p.name).replace(/[^a-z ]/g, "").split(" ").filter(Boolean).join(".") || "user", base = u, i = 2;
       while (await T.one("SELECT 1 FROM people WHERE username = $1 AND id <> $2", [u, p.id])) u = base + i++;
@@ -50,11 +56,11 @@ export async function importFromBlobs(me, { preview = false } = {}) {
       tutorId.set(nk(p.name), p.id);
     }
     /* students */
-    const studentId = new Map();
+    const studentId = new Map(), known = new Map((await T.q("SELECT key, id FROM students")).map(r => [r.key, r.id]));
     const ensureStudent = async (name, extra = {}) => {
       const key = nk(name); if (!key) return null;
       if (studentId.has(key)) return studentId.get(key);
-      const cur = await T.one("SELECT id FROM students WHERE key = $1", [key]);
+      const cur = known.has(key) ? { id: known.get(key) } : null;
       const id = cur ? cur.id : hid("st", key);
       if (!cur) await add("students", Object.assign({ id, key, name: String(name).trim() }, extra));
       studentId.set(key, id); return id;
@@ -95,10 +101,10 @@ export async function importFromBlobs(me, { preview = false } = {}) {
       }
     }
     /* logs: sessions, attendance, make-ups owed, SRA reviews, marks */
-    for (const e of Object.values((logs && logs.e) || {})) {
-      if (!e || e.x || !isDay(e.d)) continue;
+    const L = Object.values((logs && logs.e) || {}).filter(e => e && !e.x && isDay(e.d) && e.id).sort((a, b) => String(a.id).localeCompare(String(b.id)));
+    for (const e of part === 0 ? [] : L.slice((part - 1) * size, part * size)) {
       const tid = tutorId.get(nk(e.tutor)), skey = nk(e.st), gid = tid && (groupFor.get(skey + "|" + nk(e.sub) + "|" + tid) || inClass.get(skey + "|" + nk(e.sub) + "|" + tid));
-      const sid = studentId.get(skey) || (await T.one("SELECT id FROM students WHERE key = $1", [skey]) || {}).id;
+      const sid = studentId.get(skey) || known.get(skey);
       if (!gid || !sid) { n.skipped.push(`Log ${e.id}: no matching group`); continue; }
       if (e.ty === "s") {
         const wd = new Date(e.d + "T00:00:00Z").getUTCDay();
@@ -119,9 +125,10 @@ export async function importFromBlobs(me, { preview = false } = {}) {
           status: e.sc != null ? "marked" : e.h === "m" ? "missed" : "in", score: e.sc ?? null, out_of: e.mx ?? null, marked_by: e.sc != null ? tid : null });
       }
     }
-    await T.q("INSERT INTO activity (id, actor_id, action, area, summary, data) VALUES ($1, $2, 'import', 'teaching', $3, $4)",
+    const more = part === 0 ? L.length > 0 : part * size < L.length;
+    if (!more) await T.q("INSERT INTO activity (id, actor_id, action, area, summary, data) VALUES ($1, $2, 'import', 'teaching', $3, $4)",
       [hid("ac", "import", String(Date.now())), me.id, "Copied the current Hub into the shared records", JSON.stringify(Object.assign({}, n, { skipped: n.skipped.length }))]);
     n.skipped = n.skipped.slice(0, 50);
-    return n;
+    return Object.assign(n, { part, more, next: more ? part + 1 : null, logs: L.length });
   });
 }

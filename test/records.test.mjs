@@ -24,7 +24,8 @@ const DIR = { id: "pdir", name: "Wanangwa Msutu", role: "director", perms: [] };
 await q("SELECT 1");   // runs the migrations
 await q("INSERT INTO people (id, name, role, status) VALUES ($1, $2, 'director', 'active')", [DIR.id, DIR.name]);
 const dir = await one("SELECT * FROM people WHERE id = $1", [DIR.id]);
-const seeded = await seedDemo(dir);
+let seeded = await seedDemo(dir, 0);
+while (seeded.more) seeded = await seedDemo(dir, seeded.next);
 const who = async name => one("SELECT * FROM people WHERE name = $1", [name]);
 const sid = async name => (await one("SELECT id FROM students WHERE name = $1", [name])).id;
 const feed = async p => (await changes(p, 0)).rows;
@@ -262,7 +263,8 @@ test("the current Hub copies into the records, and copying again adds nothing", 
   const blobs = { people, "kv/lhq_students": D.kv.lhq_students, "kv/lhq_classes": {}, "kv/lhq_logs": D.kv.lhq_logs };
   D.docs.forEach(d => { blobs["doc/" + d.id] = d; });
   _setBlobStore({ get: async k => blobs[k] ?? null, list: async ({ prefix }) => ({ blobs: Object.keys(blobs).filter(k => k.startsWith(prefix)).map(key => ({ key })) }) });
-  const a = await importFromBlobs(dir);
+  const all = async () => { const t = {}; let r = { more: true, next: 0 }; while (r.more) { r = await importFromBlobs(dir, { part: r.next, size: 400 }); for (const [k, v] of Object.entries(r)) if (typeof v === "number" && !["part", "next", "logs"].includes(k)) t[k] = (t[k] || 0) + v; t.skipped = (t.skipped || []).concat(r.skipped); } return t; };
+  const a = await all();
   assert.ok(a.students > 20 && a.groups > 20 && a.slots > 20 && a.sessions > 100 && a.sras > 50, JSON.stringify(a));
   const logged = Object.values(D.kv.lhq_logs.e).filter(e => e.ty === "s" && e.tutor);
   const inDb = (await q("SELECT count(*)::int n FROM attendance a JOIN sessions s ON s.id = a.session_id WHERE s.logged_by LIKE 'b%'"))[0].n;
@@ -271,6 +273,6 @@ test("the current Hub copies into the records, and copying again adds nothing", 
   assert.ok((await q("SELECT count(*)::int n FROM makeups WHERE why LIKE '%old logs%'"))[0].n === absent, "absences became make-ups owed");
   const may = await one("SELECT status, pin_hash FROM people WHERE id = 'b10'");
   assert.equal(may.status, "off", "an inactive tutor stays off"); assert.ok(may.pin_hash, "PIN hash kept for the move to passwords");
-  const b = await importFromBlobs(dir);
+  const b = await all();
   assert.equal((b.sessions || 0) + (b.students || 0) + (b.groups || 0) + (b.sras || 0), 0, "a second copy adds nothing");
 });
