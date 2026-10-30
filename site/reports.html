@@ -3,31 +3,43 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#073763">
+<meta name="theme-color" content="#f5f6f8">
 <title>LHQ Reports</title>
-<link rel="icon" href="arrow.png">
-<link rel="apple-touch-icon" href="logo.png">
+<link rel="icon" href="icon-32.png" sizes="32x32">
+<link rel="icon" href="icon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400&family=Manrope:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="hub.css">
+<script src="theme.js"></script>
+<script>lhqPdfSoon();</script>
+<script src="pako.min.js"></script>
+<script src="store.js"></script>
 <script src="sync.js"></script>
+<script src="nav.js"></script>
 <script src="topics.js"></script>
 <script src="card.js"></script>
-<script src="pako.min.js"></script>
 <script src="codec.js"></script>
 <style>
-:root{--navy:#073763;--gold:#f4b223;--ink:#1d2433;--muted:#5f6b7d;--line:#dde2ea;--bg:#eef1f5;--field:#f6f8fb;--wa:#1f9d55;--ok:#1f7a4d;--red:#b42318}
+:root{--navy:#073763;--gold:#f4b223;--ink:#14213d;--muted:#6b7585;--line:#e4e7ec;--bg:#f5f6f8;--field:#f6f8fb;--wa:#1f9d55;--ok:#1f7a4d;--red:#b42318;--panel:#fff}
+[data-theme=dark]{--navy:#f4b223;--ink:#e8edf4;--muted:#93a0b3;--line:#253246;--bg:#0d1420;--field:#111a27;--ok:#5fd093;--red:#ff8a80;--panel:#151e2c;color-scheme:dark}
+[data-theme=dark] button{background:var(--panel)}[data-theme=dark] button.navy,[data-theme=dark] .seg button.on{color:#0d1420}
+[data-theme=dark] .panel{background:var(--panel)}[data-theme=dark] .dlg-foot{background:var(--panel)}[data-theme=dark] dialog{background:var(--panel);color:var(--ink)}
+[data-theme=dark] .t-blue{background:rgba(120,165,220,.16);color:#a9c6ea}[data-theme=dark] .t-ok{background:rgba(52,168,103,.16)}[data-theme=dark] .t-amb{background:rgba(244,178,35,.16);color:#f4c35a}[data-theme=dark] .t-red{background:rgba(240,82,70,.16)}
+[data-theme=dark] button.ghost{background:var(--panel);color:var(--navy);border-color:var(--line)}
+[data-theme=dark] .banner{background:rgba(52,168,103,.16);border-color:var(--line)}
+.rh{max-width:1000px;margin:0 auto;padding:4px 16px 0;display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.rh h1{margin:0;flex:1;font-size:25px;font-weight:800;letter-spacing:-.3px;color:var(--navy)}
+[data-theme=dark] .rh h1{color:var(--ink)}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0}
-body{background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 Manrope,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 [hidden]{display:none!important}
-.topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:12px;padding:10px 20px;padding-top:calc(10px + env(safe-area-inset-top,0px));background:var(--navy);color:#fff}
-.topbar img{height:30px;background:#fff;border-radius:6px;padding:3px 6px}
-.topbar h1{font-size:16px;font-weight:600;margin:0;flex:1}
 button{font:inherit;cursor:pointer;border-radius:9px;border:1px solid var(--line);background:#fff;color:var(--ink);padding:8px 13px;min-height:38px}
 button:disabled{opacity:.5;cursor:default}
-button.ghost{background:transparent;color:#fff;border-color:rgba(255,255,255,.35)}
+button.ghost{background:#fff;color:var(--navy);font-weight:700;border-color:#e4e7ec}
 button.navy{background:var(--navy);border-color:var(--navy);color:#fff;font-weight:600}
 button.wa{background:var(--wa);border-color:var(--wa);color:#fff;font-weight:600}
 button.small{padding:5px 10px;font-size:13px;min-height:32px}
@@ -38,7 +50,7 @@ main{max-width:1000px;margin:0 auto;padding:16px;display:grid;grid-template-colu
 .hint{font-size:12.5px;color:var(--muted);margin:6px 0 0}
 .row{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
 .seg{display:inline-grid;grid-auto-flow:column;border:1px solid var(--line);border-radius:10px;overflow:hidden}
-.seg button{border:0;border-radius:0;border-left:1px solid var(--line);padding:8px 16px;font-weight:600;color:#3b4555}
+.seg button{border:0;border-radius:0;border-left:1px solid var(--line);padding:8px 16px;font-weight:600;color:var(--muted)}
 .seg button:first-child{border-left:0}.seg button.on{background:var(--navy);color:#fff}
 .nav{display:flex;align-items:center;gap:6px}
 .nav b{min-width:190px;text-align:center;font-size:15px}
@@ -149,12 +161,9 @@ table.log td{padding:6px 8px;border-bottom:1px solid #eef1f5;vertical-align:top}
 </style>
 </head>
 <body>
-<header class="topbar">
-  <img src="logo.png" alt="LHQ">
-  <h1>Reports</h1>
-  <button class="ghost small" id="btnLinks">Tutor links</button>
-  <a class="ghost" href="./">Quotes &amp; Invoices</a>
-</header>
+<script>LHQNav.mount('reports');</script>
+<a href="index.html#reports" style="display:inline-flex;align-items:center;gap:4px;color:var(--muted);font-weight:700;font-size:13.5px;text-decoration:none;margin:0 0 4px">‹ Reports</a>
+<div class="rh"><h1>Parent progress reports</h1><button class="ghost" id="btnLinks">Tutor links</button></div>
 
 <main>
   <div class="banner" id="importBanner" hidden></div>
@@ -229,7 +238,8 @@ const store = {
 };
 function toast(m){ const t = F('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('show'), 3000); }
 window.hubToast = toast;
-window.hubApply = ()=>{ saved = store.get('lhq_saved', []); LOG = store.get('lhq_logs', {e:{}, imports:[]}); try{ render(); }catch(e){} };
+LHQNav.visit('Reports');
+window.hubApply = ()=>{ saved = store.get('lhq_saved', []); LOG = store.get('lhq_logs', {e:{}, imports:[]}); RC = null; try{ render(); }catch(e){} };
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick = ()=>b.closest('dialog').close());
 
 /* ---------- dates ---------- */
@@ -254,7 +264,7 @@ const norm = s => String(s||'').trim().toLowerCase().replace(/\s+/g,' ');
 const settings = Object.assign({tutors:''}, store.get('lhq_settings', {}));
 let saved = store.get('lhq_saved', []);
 let LOG = store.get('lhq_logs', {e:{}, imports:[]});
-const saveLog = () => store.set('lhq_logs', LOG);
+const saveLog = () => { RC = null; store.set('lhq_logs', LOG); };
 const GRADES = [[90,'A*'],[80,'A'],[70,'B'],[60,'C'],[50,'D'],[40,'E'],[30,'F'],[20,'G'],[0,'U']];
 const letter = p => p==null ? '' : GRADES.find(([m])=>p >= m)[1];
 const rank = l => GRADES.findIndex(([,g])=>g===l);
@@ -262,8 +272,17 @@ const avg = xs => xs.length ? Math.round(xs.reduce((a,b)=>a+b,0) / xs.length) : 
 const pct = e => e.sc!=null && e.mx>0 ? Math.round(e.sc / e.mx * 100) : null;
 const shortLevel = l => String(l||'').replace(' · ', ' · ');
 
-const cardSubjects = () => cardRosterSubjects(saved);
-const entries = () => Object.values(LOG.e).filter(e=>!e.x);
+/* card subjects and log entries, worked out once and grouped by student (thousands of entries stay quick) */
+let RC = null;
+function rc(){
+  if(RC) return RC;
+  const cs = cardRosterSubjects(saved), en = Object.values(LOG.e).filter(e=>!e.x), csBy = new Map(), enBy = new Map();
+  cs.forEach(x=>{ const k = norm(x.student); if(!csBy.has(k)) csBy.set(k, []); csBy.get(k).push(x); });
+  en.forEach(e=>{ const k = norm(e.st); if(!enBy.has(k)) enBy.set(k, []); enBy.get(k).push(e); });
+  return RC = {cs, en, csBy, enBy};
+}
+const cardSubjects = () => rc().cs;
+const entries = () => rc().en;
 
 /* ---------- importing a tutor's log (link …/reports.html#log=…) ---------- */
 async function importFromHash(){
@@ -304,8 +323,8 @@ F('next').onclick = ()=>{ state.end = addDays(state.end, 7); render(); };
 
 /* ---------- the numbers for one student over a period ---------- */
 function studentModel(name, a, b){
-  const subs = cardSubjects().filter(s=>norm(s.student)===norm(name));
-  const E = entries().filter(e=>norm(e.st)===norm(name));
+  const subs = (rc().csBy.get(norm(name)) || []).slice();
+  const E = rc().enBy.get(norm(name)) || [];
   // subjects only seen in tutor logs still count
   E.forEach(e=>{ if(!subs.some(s=>norm(s.name)===norm(e.sub))) subs.push({key:norm(name)+'|'+norm(e.sub), student:name, name:e.sub, tier:'', code:'', tutor:e.tutor, tf:1, level:'', periodStart:'', topics:[]}); });
   const info = subs[0] || {student:name};
@@ -313,7 +332,8 @@ function studentModel(name, a, b){
   const res = subs.map(s=>{
     const X = E.filter(e=>norm(e.sub)===norm(s.name));
     const inP = e => e.d >= a && e.d <= b;
-    const sess = X.filter(e=>e.ty==='s' && inP(e)).sort((x,y)=>x.d.localeCompare(y.d));
+    // sessions the tutor couldn't teach aren't the student's attendance: they show as make-ups owed instead
+    const sess = X.filter(e=>e.ty==='s' && inP(e) && e.a!=='cancelled').sort((x,y)=>x.d.localeCompare(y.d));
     const attended = sess.filter(e=>e.a!=='absent').length, absences = sess.filter(e=>e.a==='absent').map(e=>e.d);
     const tests = sess.filter(e=>pct(e)!=null).map(pct);
     const gradeTo = end => avg(X.filter(e=>e.ty==='s' && pct(e)!=null && e.d <= end && (!ps || e.d >= ps)).map(pct));
@@ -344,10 +364,10 @@ function studentModel(name, a, b){
 }
 function watchItems(m){   // for parents: at most 3, most important first
   const out = [];
-  m.subjects.forEach(s=>{ if(s.trend < 0) out.push([0, 'r', `<b>${esc(s.name)}</b> · working grade slipped from ${letter(s.gPrev)} to ${letter(s.gNow)}.`]); });
-  m.subjects.forEach(s=>{ if(s.sraMiss) out.push([1, 'r', `<b>${esc(s.name)}</b> · ${s.sraMiss} SRA${s.sraMiss>1?'s':''} not handed in.`]); });
-  m.subjects.forEach(s=>{ if(s.absences.length) out.push([2, 'a', `<b>${esc(s.name)}</b> · ${s.absences.length} session${s.absences.length>1?'s':''} missed (${s.absences.map(nice).join(', ')}).`]); });
-  m.subjects.forEach(s=>{ if(s.sraLate){ const topics = Object.entries(s.sraTopics).filter(([,t])=>t.late).map(([k])=>k); out.push([3, 'a', `<b>${esc(s.name)}</b> · ${s.sraLate} SRA${s.sraLate>1?'s':''} handed in late${topics.length?` (${esc(topics.join(', '))})`:''}.`]); } });
+  m.subjects.forEach(s=>{ if(s.trend < 0) out.push([0, 'r', `<b>${esc(s.name)}</b> · working grade moved from ${letter(s.gPrev)} to ${letter(s.gNow)}. We're giving extra practice on the topics behind it; encouraging regular revision at home helps.`]); });
+  m.subjects.forEach(s=>{ if(s.sraMiss) out.push([1, 'r', `<b>${esc(s.name)}</b> · ${s.sraMiss} SRA${s.sraMiss>1?'s':''} not handed in. Please check they are done each week.`]); });
+  m.subjects.forEach(s=>{ if(s.absences.length) out.push([2, 'a', `<b>${esc(s.name)}</b> · missed ${s.absences.map(nice).join(', ')}. A make-up session will be arranged.`]); });
+  m.subjects.forEach(s=>{ if(s.sraLate){ const topics = Object.entries(s.sraTopics).filter(([,t])=>t.late).map(([k])=>k); out.push([3, 'a', `<b>${esc(s.name)}</b> · ${s.sraLate} SRA${s.sraLate>1?'s':''} handed in late${topics.length?` (${esc(topics.join(', '))})`:''}. Handing them in on time keeps revision on schedule.`]); } });
   return out.sort((x,y)=>x[0]-y[0]).slice(0, 3);
 }
 function adminFlags(m){
@@ -391,7 +411,7 @@ function render(){
   F('students').innerHTML = models.map((m,i)=>{
     const chips = m.subjects.map(s=>`<span class="tag ${s.logged?'t-ok':'t-red'}">${esc(s.name)} ${s.logged?'✓':'· no log'}</span>`).join('');
     const missing = m.subjects.filter(s=>!s.logged).length, any = m.subjects.some(s=>s.logged);
-    const status = !any ? '<span class="tag t-red">No logs</span>' : missing ? '<span class="tag t-amb">Waiting</span>' : (watchItems(m).length ? `<span class="tag t-amb">Ready · ${watchItems(m).length} to watch</span>` : '<span class="tag t-ok">Ready</span>');
+    const status = !any ? '<span class="tag t-red">No logs</span>' : missing ? '<span class="tag t-amb">Waiting</span>' : (watchItems(m).length ? `<span class="tag t-amb">Ready · ${watchItems(m).length} to work on</span>` : '<span class="tag t-ok">Ready</span>');
     return `<div class="srow"><div><b>${esc(m.name)}</b><small>${esc(m.level)}</small></div><div class="tags">${chips}</div>${status}
       <div class="row" style="gap:6px;justify-content:flex-end"><button class="small" data-log="${i}">Log</button><button class="small ${any?'navy':''}" data-pv="${i}" ${any?'':'disabled'}>Preview &amp; share</button></div></div>`;
   }).join('') || '<p class="empty">No students yet. Students appear here from saved tuition cards and tutor logs.</p>';
@@ -408,7 +428,7 @@ function render(){
 F('btnLinks').onclick = async ()=>{
   const cs = cardSubjects(), tutors = [...new Set(cs.map(s=>s.tutor).filter(Boolean))].sort();
   F('linksList').innerHTML = tutors.map((t,i)=>{ const n = cs.filter(s=>s.tutor===t);
-    return `<div class="links-row"><b>${esc(t)}<small style="display:block;font-weight:400;color:var(--muted);font-size:12.5px">${n.length} subject${n.length===1?'':'s'}: ${esc(n.map(s=>`${s.student} (${s.name})`).join(', '))} · ${esc(cardTutorSentText(t))}</small></b>
+    return `<div class="links-row"><b>${esc(t)}<small style="display:block;font-weight:400;color:var(--muted);font-size:12.5px">${(()=>{ const st = new Set(n.map(s=>s.student)).size, subs = [...new Set(n.map(s=>s.name))]; return `${st} student${st===1?'':'s'} · ${esc(subs.join(', '))}`; })()} · ${esc(cardTutorSentText(t))}</small></b>
       <button class="small wa" data-send="${i}">Send on WhatsApp</button><button class="small" data-copy="${i}">Copy link</button></div>`; }).join('')
     || '<p class="empty">No tuition cards with a tutor yet. Open a tuition card in the app, choose a tutor for each subject, and save it.</p>';
   F('linksList').onclick = async e=>{
@@ -428,9 +448,10 @@ function openLog(m){
   F('logTitle').textContent = `${m.name} · ${range(m.a, m.b)}`;
   F('logBody').innerHTML = E.length ? `<table class="log"><tr><th>Date</th><th>Subject</th><th>Entry</th><th>Tutor</th></tr>${E.map(e=>{
     let w = '';
-    if(e.ty==='s') w = (e.a==='absent' ? '<span class="tag t-red">Absent</span>' : e.a==='late' ? 'Attended (late)' : 'Attended') + (pct(e)!=null ? ` · topical test ${e.sc}/${e.mx} (${pct(e)}%)` : '') + (e.tp&&e.tp.length ? `<br><small>${esc(e.tp.join(', '))}</small>` : '') + (e.n ? `<br><i>${esc(e.n)}</i>` : '');
-    else if(e.ty==='r') w = `SRA · ${esc(e.tk)} · review ${e.rv} · ${e.h==='m'?'<span class="tag t-red">not handed in</span>':e.h==='l'?'<span class="tag t-amb">late</span>':'on time'}${pct(e)!=null ? ` · ${e.sc}/${e.mx} (${pct(e)}%)` : ''}`;
-    else w = `Monthly comments<br><small>${esc([e.cs,e.ci,e.cn].filter(Boolean).join(' / '))}</small>`;
+    if(e.ty==='s') w = (e.a==='absent' ? '<span class="tag t-red">Absent</span>' : e.a==='cancelled' ? '<span class="tag t-red">Not taught · make-up owed</span>' : (e.mk ? '<span class="tag t-blue">Make-up</span> ' : '') + (e.a==='late' ? 'Attended (late)' : 'Attended')) + (e.md==='o' ? ' · online' : e.md==='h' ? ' · at home' : '') + (pct(e)!=null ? ` · topical test ${e.sc}/${e.mx} (${pct(e)}%)` : '') + (e.tp&&e.tp.length ? `<br><small>${esc(e.tp.join(', '))}</small>` : '') + (e.n ? `<br><i>${esc(e.n)}</i>` : '');
+    else if(e.ty==='g') w = `SRA given · ${esc(e.tk)} · ${e.rv===0?'Learning Day':'review '+e.rv}`;
+    else if(e.ty==='r') w = `SRA · ${esc(e.tk)} · ${e.v===2&&e.rv===0?'Learning Day':'review '+e.rv} · ${e.h==='m'?'<span class="tag t-red">not handed in</span>':e.h==='l'?'<span class="tag t-amb">late</span>':'on time'}${pct(e)!=null ? ` · ${e.sc}/${e.mx} (${pct(e)}%)` : ''}`;
+    else if(e.ty==='c') w = `Monthly comments<br><small>${esc([e.cs,e.ci,e.cn].filter(Boolean).join(' / '))}</small>`;
     return `<tr><td>${nice(e.d)}</td><td>${esc(e.sub)}</td><td>${w}</td><td>${esc(e.tutor)}</td></tr>`; }).join('')}</table>`
     : '<p class="empty">Nothing logged for this student in this period.</p>';
   F('logDlg').showModal();

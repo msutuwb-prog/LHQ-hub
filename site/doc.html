@@ -1,0 +1,2433 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#f5f6f8">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<title>LHQ Hub · Document</title>
+<link rel="icon" href="icon-32.png" sizes="32x32">
+<link rel="icon" href="icon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400;1,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="hub.css">
+<script src="theme.js"></script>
+<script>lhqPdfSoon();</script>
+<script src="pako.min.js"></script>
+<script src="store.js"></script>
+<script src="sync.js"></script>
+<script src="defaults.js"></script>
+<script src="hubdata.js"></script>
+<script src="nav.js"></script>
+<script src="topics.js"></script>
+<script src="card.js"></script>
+<script src="codec.js"></script>
+<script src="schools.js"></script>
+<style>
+:root{
+  --navy:#073763; --onnavy:#fff; --gold:#f4b223; --ink:#14213d; --muted:#6b7585; --line:#e4e7ec; --line2:#eef0f3; --line3:#c3cad5;
+  --bg:#f5f6f8; --panel:#ffffff; --surface2:#fafbfc; --field:#f6f8fb; --danger:#b42318; --ok:#1f7a4d;
+  --wa:#1f9d55; --bl-bg:#eaf0f7; --am-bg:#fdf3d9; --am:#7a5400; --ok-bg:#e6f4ec; --rd-bg:#fdecea;
+}
+[data-theme=dark]{
+  --navy:#f4b223; --onnavy:#0d1420; --ink:#e8edf4; --muted:#93a0b3; --line:#253246; --line2:#1f2a3a; --line3:#3a4a61;
+  --bg:#0d1420; --panel:#151e2c; --surface2:#1a2433; --field:#111a27; --danger:#ff8a80; --ok:#5fd093;
+  --bl-bg:rgba(120,165,220,.16); --am-bg:rgba(244,178,35,.16); --am:#f4c35a; --ok-bg:rgba(52,168,103,.16); --rd-bg:rgba(240,82,70,.16);
+  color-scheme:dark;
+}
+[data-theme=dark] button.primary{color:#0d1420}
+[data-theme=dark] .flag.over{color:#ff8a80}
+[data-theme=dark] .tag.tc{background:rgba(160,120,220,.2);color:#cdb4f0}
+[data-theme=dark] .sheet-shadow,[data-theme=dark] #cardDoc{box-shadow:0 0 0 1px #253246}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:14px/1.45 Manrope,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;-webkit-font-smoothing:antialiased}
+
+/* ---------- top bar ---------- */
+.theme-btn{width:38px;height:38px;min-height:0;padding:0;border-radius:50%!important;display:grid;place-items:center;flex:none}
+
+button{font:inherit;cursor:pointer;border-radius:9px;border:1px solid var(--line);background:var(--panel);color:var(--ink);padding:8px 13px;min-height:38px}
+button:hover{border-color:var(--line3)}
+button:focus-visible,input:focus-visible,select:focus-visible,textarea:focus-visible{outline:2px solid #4d7fc0;outline-offset:1px}
+button.primary{background:var(--gold);border-color:var(--gold);color:#1a1a1a;font-weight:600}
+button.navy{background:var(--navy);border-color:var(--navy);color:var(--onnavy);font-weight:600}
+button.wa{background:var(--wa);border-color:var(--wa);color:#fff;font-weight:600}
+button.ghost{background:var(--panel);color:var(--navy);font-weight:700}
+button.ghost:hover{border-color:var(--line3)}
+button.danger{color:var(--danger)}
+button.small{padding:5px 10px;font-size:13px;min-height:32px}
+button:disabled{opacity:.55;cursor:wait}
+
+/* ---------- layout ---------- */
+.layout{display:grid;grid-template-columns:minmax(360px,470px) minmax(0,1fr);gap:20px;padding:20px;align-items:start}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:16px}
+.editor{display:grid;grid-template-columns:minmax(0,1fr);gap:16px;min-width:0}
+.panel h2{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:0 0 12px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:14px}
+.seg button{border:0;border-radius:0;padding:8px 18px;min-height:38px}
+.seg button.on{background:var(--navy);color:var(--onnavy)}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+label{display:block;font-size:12px;color:var(--muted);margin-bottom:10px}
+label > span{display:block;margin-bottom:3px}
+input,textarea,select{width:100%;font:inherit;font-size:15px;color:var(--ink);background:var(--field);border:1px solid var(--line);border-radius:8px;padding:8px 10px;min-height:38px}
+select{appearance:none;-webkit-appearance:none;padding-right:30px;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1l5 5 5-5' fill='none' stroke='%235f6b7d' stroke-width='1.6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:right 10px center}
+textarea{resize:vertical;line-height:1.45}
+input:focus,textarea:focus,select:focus{background-color:var(--panel)}
+.hint{font-size:12px;color:var(--muted);margin:4px 0 0}
+
+/* ---------- subject rows ---------- */
+.items{display:grid;gap:8px}
+.item-head,.item{display:grid;grid-template-columns:minmax(0,2.2fr) minmax(0,.75fr) minmax(0,.85fr) minmax(0,1.15fr) minmax(0,1.1fr) 34px;gap:6px;align-items:start}
+.item-head span{font-size:11px;font-weight:600;color:var(--muted);padding:0 2px}
+.item-head span.r{text-align:right}
+.item .f{min-width:0}
+.item .f > small{display:none;font-size:11px;color:var(--muted);margin-bottom:2px}
+.item .subj{display:grid;gap:6px}
+.item .amt{text-align:right;font-variant-numeric:tabular-nums;font-size:13px;padding-top:10px;white-space:nowrap}
+.item .rm{padding:0;min-height:38px;width:34px}
+[hidden]{display:none!important}
+.num-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.num-grid label{margin-bottom:0}
+.num-grid small{display:block;margin-top:4px;font-size:12px;color:var(--navy);font-weight:600}
+.num-grid small.warn{color:var(--am);font-weight:400}
+@media (max-width:420px){ .num-grid{grid-template-columns:1fr} }
+.fld{display:block;font-size:12px;color:var(--muted);margin-bottom:10px}
+.fld > .lbl,.disc > .lbl{display:block;margin-bottom:3px;font-size:12px;color:var(--muted)}
+.seg.seg3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));width:100%;max-width:380px}
+.date-btn{width:100%;display:flex;align-items:center;gap:8px;text-align:left;background:var(--field);border:1px solid var(--line);border-radius:8px;
+  padding:8px 10px;min-height:42px;font-size:15px;font-weight:600;color:var(--navy);cursor:pointer}
+.date-btn svg{flex:none;color:var(--muted)}
+.date-btn span{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.date-btn.empty span{color:var(--muted);font-weight:400}
+.date-btn:hover{border-color:var(--line3);background:var(--panel)}
+.date-btn[aria-expanded="true"]{border-color:var(--navy);background:var(--panel);box-shadow:0 0 0 3px rgba(7,55,99,.12)}
+.due-wrap{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.due-wrap .date-btn{flex:1 1 170px;width:auto}
+.chips{display:flex;gap:6px}
+.chips button{border-radius:99px;padding:5px 11px;min-height:36px;font-size:13px}
+.chips button.on{background:var(--navy);border-color:var(--navy);color:var(--onnavy);font-weight:600}
+.grid-student{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr);gap:10px}
+.picker-btn.empty .pb-dot{background:var(--line)}
+.disc{margin-top:14px}
+.disc-row{display:grid;grid-template-columns:auto minmax(0,.7fr) minmax(0,1.6fr);gap:8px;align-items:center}
+.seg.mini{margin:0}
+.seg.mini button{padding:6px 12px;min-height:38px}
+.sums{margin-top:12px;border-top:1px solid var(--line);padding-top:8px;display:grid;gap:3px;font-variant-numeric:tabular-nums}
+.sums .row{display:flex;justify-content:space-between;gap:12px}
+.sums .row.dr{color:var(--am)}
+.sums .row.big{font-weight:700;font-size:15px;margin-top:3px}
+.tag.rct{background:var(--ok-bg);color:#1f7a4d}
+.cal{width:320px;overflow:auto}
+.cal-range{display:grid;grid-template-columns:minmax(0,1fr) 18px minmax(0,1fr);gap:6px;align-items:center;padding:10px 12px 0;color:var(--muted)}
+.cal-end{display:flex;flex-direction:column;align-items:flex-start;text-align:left;padding:5px 10px;min-height:46px;background:var(--field);min-width:0}
+.cal-end small{font-size:11px;color:var(--muted)}
+.cal-end span{font-weight:600;font-size:13.5px;color:var(--ink);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.cal-end.active{border:2px solid var(--navy);background:var(--panel);padding:4px 9px}
+.cal-end.active span{color:var(--navy)}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;padding:10px 12px 4px}
+.cal-nav button{width:38px;height:38px;min-height:0;padding:0;display:grid;place-items:center}
+.cal-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));row-gap:2px;padding:0 10px 8px;text-align:center}
+.cal-grid .wd{font-size:11px;font-weight:600;color:var(--muted);padding:4px 0}
+.cal-grid .cw{display:flex;align-items:center;justify-content:center;height:40px}
+.cal-grid .cw.band{background:var(--bl-bg)}
+.cal-grid .cw.bs{background:linear-gradient(90deg,transparent 50%,var(--bl-bg) 50%)}
+.cal-grid .cw.be{background:linear-gradient(90deg,var(--bl-bg) 50%,transparent 50%)}
+.cd{width:36px;height:36px;min-height:0;padding:0;border-radius:50%;border:0;background:transparent;font-size:14px;color:var(--ink)}
+.cd:hover{background:var(--bl-bg)}
+.cd.today{box-shadow:inset 0 0 0 1px var(--line3)}
+.cd.inr{color:var(--navy);font-weight:600}
+.cd.sel,.cd.sel:hover{background:var(--navy);color:var(--onnavy);font-weight:700}
+.cal-foot{display:flex;align-items:center;gap:8px;padding:8px 12px 12px;border-top:1px solid var(--line)}
+.cal-foot span{flex:1;font-size:12px;color:var(--muted)}
+@media (max-width:640px){
+  .cal{width:auto}
+  .cd{width:40px;height:40px;font-size:15px}
+  .cal-grid .cw{height:44px}
+  .cal-foot{padding-bottom:calc(12px + env(safe-area-inset-bottom,0px))}
+}
+@media (max-width:420px){ .grid-student{grid-template-columns:1fr} .disc-row{grid-template-columns:auto minmax(0,1fr)} .disc-row #f_discReason{grid-column:1 / -1} }
+/* subject picker */
+.picker-btn{width:100%;display:flex;align-items:center;gap:8px;text-align:left;background:var(--field);border:1px solid var(--line);border-radius:8px;
+  padding:8px 10px 8px 12px;min-height:44px;font-size:15px;font-weight:600;color:var(--navy);cursor:pointer}
+.picker-btn:hover{border-color:var(--line3);background:var(--panel)}
+.picker-btn .pb-dot{width:8px;height:8px;border-radius:50%;background:var(--gold);flex:none}
+.picker-btn.empty .pb-dot{background:var(--line)}
+.picker-btn .pb-text{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.picker-btn.empty .pb-text{color:var(--muted);font-weight:400}
+.picker-btn .pb-tag{font-size:11px;font-weight:700;letter-spacing:.03em;padding:2px 7px;border-radius:99px;background:var(--am-bg);color:var(--am);flex:none}
+.picker-btn svg{flex:none;color:var(--muted);transition:transform .15s}
+.picker-btn[aria-expanded="true"]{border-color:var(--navy);background:var(--panel);box-shadow:0 0 0 3px rgba(7,55,99,.12)}
+.picker-btn[aria-expanded="true"] svg{transform:rotate(180deg);color:var(--navy)}
+.picker{position:fixed;z-index:60;background:var(--panel);border:1px solid var(--line);border-radius:12px;
+  box-shadow:0 18px 44px rgba(7,25,45,.2);display:flex;flex-direction:column;overflow:hidden}
+.picker[hidden]{display:none}
+.pk-grab,.pk-head{display:none}
+.pk-search{display:flex;align-items:center;gap:8px;padding:6px 12px;border-bottom:1px solid var(--line);color:var(--muted)}
+.pk-search svg{flex:none}
+.pk-search input{border:0;background:transparent;padding:6px 0;min-height:34px;font-size:15px;outline:none}
+.pk-search input:focus{background:transparent}
+.pk-list{list-style:none;margin:0;padding:6px;overflow:auto;flex:1;overscroll-behavior:contain}
+.pk-opt{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:8px;cursor:pointer;font-size:15px;color:var(--ink)}
+.pk-opt.active{background:var(--bl-bg)}
+.pk-opt[aria-selected="true"]{color:var(--navy);font-weight:600}
+.pk-opt .ck{margin-left:auto;color:var(--navy);flex:none;visibility:hidden}
+.pk-opt[aria-selected="true"] .ck{visibility:visible}
+.pk-opt .ic{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;flex:none;background:var(--am-bg);color:var(--am)}
+.pk-opt.pk-special{color:var(--navy);font-weight:600}
+.pk-opt.pk-special small{display:block;font-weight:400;font-size:12px;color:var(--muted)}
+.pk-sep{height:1px;background:var(--line);margin:6px 4px}
+.pk-empty{padding:8px 10px 4px;color:var(--muted);font-size:13px}
+.pick-backdrop{position:fixed;inset:0;background:rgba(7,25,45,.45);z-index:59}
+.pick-backdrop[hidden]{display:none}
+@media (max-width:640px){
+  .picker{left:0!important;right:0!important;bottom:0!important;top:auto!important;width:auto!important;max-height:78dvh!important;
+    border-radius:18px 18px 0 0;border:0;padding-bottom:env(safe-area-inset-bottom,0px);animation:pkUp .2s ease-out}
+  .pk-grab{display:block;width:40px;height:4px;border-radius:99px;background:var(--line);margin:8px auto 0}
+  .pk-head{display:flex;align-items:center;justify-content:space-between;padding:8px 16px 8px}
+  .pk-head b{font-size:16px;color:var(--ink)}
+  .pk-search{margin:0 12px 4px;border:1px solid var(--line);border-radius:10px;background:var(--field)}
+  .pk-search input{font-size:16px}
+  .pk-list{padding:4px 10px 12px}
+  .pk-opt{padding:13px 12px;font-size:16px}
+}
+/* ---------- tuition card editor ---------- */
+.seg.seg4{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));width:100%;max-width:480px}
+.seg.seg4 button{padding:8px 6px}
+.seg.seg2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));width:100%}
+.tag.tc{background:#ece6f5;color:#5b3a86}
+.cs{border:1px solid var(--line);border-left:5px solid var(--c);border-radius:10px;margin-bottom:10px;background:var(--panel)}
+.cs-head{width:100%;display:flex;align-items:center;gap:10px;border:0;background:transparent;text-align:left;padding:10px 12px;min-height:54px;border-radius:10px}
+.cs-dot{width:10px;height:10px;border-radius:50%;background:var(--c);flex:none}
+.cs-title{flex:1;min-width:0;display:flex;flex-direction:column}
+.cs-title b{font-size:15px;color:var(--ink)}
+.cs-title small{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cs-head svg{flex:none;color:var(--muted)}
+.cs-body{padding:4px 12px 14px;border-top:1px solid var(--line)}
+.cs-body > .grid2:first-child,.cs-body > .fld:first-child{margin-top:10px}
+.cs-hint{font-style:normal;color:var(--am)}
+.cs-days{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.cs-days button{padding:0;min-height:42px;font-weight:600;color:var(--muted);background:var(--field)}
+.cs-days button.on{background:var(--navy);border-color:var(--navy);color:var(--onnavy)}
+.cs-times{display:grid;grid-template-columns:minmax(0,1fr) 14px minmax(0,1fr);gap:6px;align-items:end}
+.cs-times label{margin-bottom:10px}
+.cs-tb{display:flex;gap:6px;flex:none;align-items:center}
+.cs-trow small.warn{color:var(--am);font-weight:600}
+.cs-trow .warn a{color:inherit}
+.cs-perday{border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin:0 0 12px;display:flex;flex-direction:column;gap:6px;align-items:flex-start}
+.cs-perday .lbl small{font-weight:500;color:var(--muted)}
+.cs-pdrow{display:grid;grid-template-columns:44px minmax(0,1fr) 12px minmax(0,1fr);gap:6px;align-items:center;width:100%}
+.cs-dash{text-align:center;padding-bottom:20px;color:var(--muted)}
+.cs-full{background:var(--am-bg);border-radius:8px;padding:9px 11px;font-size:13px;color:var(--am);margin:0}
+.cl{border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.cl-head{display:flex;justify-content:space-between;gap:8px;background:var(--surface2);padding:7px 10px;font-size:11.5px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em}
+.cl-tip{font-size:12px;color:var(--muted);padding:6px 10px 2px}
+.cl-grp{font-size:11.5px;font-weight:700;color:var(--navy);text-transform:uppercase;letter-spacing:.05em;padding:10px 10px 2px}
+.cl-item{border-top:1px solid var(--line2)}
+.cl-item:first-of-type{border-top:0}
+.cl-row{width:100%;display:flex;align-items:center;gap:9px;border:0;border-radius:0;background:transparent;text-align:left;padding:8px 10px;min-height:44px;font-size:14px;color:var(--ink)}
+.cl-row:hover{background:var(--surface2)}
+.cl-row.sel .cl-t{font-weight:600;color:var(--navy)}
+.cl-box{width:22px;height:22px;border-radius:6px;border:1.5px solid var(--line3);background:var(--panel);display:grid;place-items:center;flex:none}
+.cl-box.on{background:var(--navy);border-color:var(--navy)}
+.cl-n{min-width:26px;color:var(--muted);font-size:12.5px;font-variant-numeric:tabular-nums;flex:none}
+.cl-t{flex:1;min-width:0}
+.cl-e{font-size:10.5px;font-weight:700;color:var(--am);background:var(--am-bg);border-radius:99px;padding:1px 6px;flex:none}
+.cl-chrow{display:flex;align-items:stretch}
+.cl-tickbtn{border:0;border-radius:0;background:transparent;padding:0 4px 0 10px;min-height:44px;display:grid;place-items:center}
+.cl-open{padding-left:6px}
+.cl-count{font-size:12px;color:var(--muted);white-space:nowrap;flex:none}
+.cl-row.sel .cl-count{color:var(--navy);font-weight:600}
+.cl-sub{padding-left:42px;min-height:40px;font-size:13.5px;background:var(--surface2)}
+.cl-ch.open{background:var(--surface2)}
+.cl-detail{display:block;width:calc(100% - 20px);margin:0 10px 8px;min-height:34px;font-size:13.5px;padding:6px 9px}
+.cs-chips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
+.cs-chip{display:inline-flex;align-items:center;gap:4px;background:var(--bl-bg);color:var(--navy);border-radius:99px;padding:3px 4px 3px 11px;font-size:13px;font-weight:600}
+.cs-chip button{border:0;background:transparent;min-height:26px;width:26px;padding:0;color:var(--navy);border-radius:50%}
+.cs-add{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px}
+.cs-add button{min-height:38px}
+.cs-body .grid2{grid-template-columns:repeat(2,minmax(0,1fr))}
+.cs-grade{min-width:0;border:1px solid var(--line);border-radius:10px;padding:8px 12px 10px;margin:14px 0 12px;background:var(--surface2)}
+.cs-grade legend{font-size:12px;font-weight:600;color:var(--ink);padding:0 4px}
+.cs-grade .fld{margin-bottom:8px}
+.cs-preview{font-size:12.5px;color:var(--muted)}
+.cs-preview b{color:var(--navy)}
+#cardDoc{width:540px;box-shadow:0 4px 24px rgba(16,24,40,.12);background:#fff}
+.bk-banner{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;background:var(--am-bg);border:1px solid var(--line);color:var(--am);border-radius:12px;padding:10px 12px;font-size:13.5px}
+.bk-banner svg{flex:none;color:#b7791f}
+.bk-banner span{flex:1 1 180px}
+.known{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;background:var(--ok-bg);border:1px solid var(--line);border-radius:10px;padding:9px 12px;margin:-2px 0 12px;font-size:13.5px}
+.known span{flex:1 1 200px}
+.chk{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--ink);margin:12px 0 0;cursor:pointer}
+.chk input{width:20px;height:20px;min-height:0;margin:0;accent-color:var(--navy);flex:none}
+.flag{font-size:11px;font-weight:700;margin-left:6px;padding:1px 7px;border-radius:99px;background:var(--bl-bg);color:var(--navy);white-space:nowrap}
+.flag.ok{background:var(--ok-bg);color:#1f7a4d}
+.flag.grace{background:var(--am-bg);color:var(--am)}
+.flag.over{background:var(--rd-bg);color:#b42318}
+.inc-chips{display:flex;flex-wrap:wrap;gap:8px}
+.inc-chips button{display:inline-flex;align-items:center;gap:7px;border-radius:99px;padding:6px 13px 6px 9px;min-height:40px;font-size:14px;background:var(--field);color:var(--muted)}
+.inc-chips button .bx{width:20px;height:20px;border-radius:5px;border:1.5px solid var(--line3);background:var(--panel);display:grid;place-items:center;flex:none}
+.inc-chips button.on{background:var(--bl-bg);border-color:var(--line);color:var(--navy);font-weight:600}
+.inc-chips button.on .bx{background:var(--navy);border-color:var(--navy)}
+.intake{background:var(--ok-bg);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:12px;font-size:13px;color:var(--ink)}
+.intake b{display:block;color:var(--ok);font-size:12px;text-transform:uppercase;letter-spacing:.05em}
+.intake p{margin:4px 0;white-space:pre-wrap}
+.intake small{color:var(--muted)}
+.cs-sec{font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:700}
+.cs-files{margin-top:14px;border-top:1px solid var(--line);padding-top:12px}
+.cs-actions{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:12px}
+.cs-actions button{font-weight:600;color:var(--navy);padding:8px 4px;font-size:14px}
+.cs-trow{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line2)}
+.cs-trow:first-child{border-top:0}
+.cs-trow span{flex:1;min-width:0}.cs-trow small{display:block;color:var(--muted);font-size:12.5px}
+.cs-trow button{white-space:nowrap}
+.cs-howto{color:var(--ink);display:flex;flex-wrap:wrap;align-items:center;gap:4px 8px;font-size:14px;margin:8px 0 0;font-weight:400}
+.cs-howto input{width:18px;height:18px;min-height:0;margin:0}
+.cs-howto small{flex-basis:100%;color:var(--muted);font-size:12.5px;padding-left:26px}
+.chip-btn{border-radius:99px;padding:5px 12px;min-height:36px;font-size:13px}
+.chip-btn.on{background:var(--navy);border-color:var(--navy);color:var(--onnavy);font-weight:600}
+.cs-subjects{display:flex;flex-wrap:wrap;gap:6px;margin:-4px 0 14px}
+.cs-sum{display:flex;gap:14px;align-items:flex-start;border:1px solid var(--line);border-radius:12px;padding:12px}
+.cs-thumb{width:78px;height:112px;overflow:hidden;border:1px solid var(--line);border-radius:6px;flex:none;background:#fff}
+.cs-sum > div:last-child{display:flex;flex-direction:column;gap:2px;min-width:0}
+.cs-sum small{color:var(--muted);font-size:12.5px}
+.cs-sum small.warn{color:var(--am)}
+.cs-sum small:empty{display:none}
+@keyframes pkUp{from{transform:translateY(24px);opacity:.6}to{transform:none;opacity:1}}
+@media (prefers-reduced-motion:reduce){.picker{animation:none}.picker-btn svg{transition:none}}
+.sum{display:flex;justify-content:space-between;margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-variant-numeric:tabular-nums}
+.sum b{font-size:15px}
+
+/* ---------- saved ---------- */
+.saved{list-style:none;margin:0;padding:0;max-height:320px;overflow:auto}
+.saved li{display:flex;align-items:center;gap:8px;padding:9px 0;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.saved li:last-child{border-bottom:0}
+.saved .meta{flex:1;min-width:140px}
+.saved .meta b{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.saved .meta small{color:var(--muted)}
+.tag{font-size:11px;padding:2px 8px;border-radius:99px;background:var(--bl-bg);color:var(--navy);font-weight:700;white-space:nowrap}
+.tag.inv{background:var(--am-bg);color:var(--am)}
+.empty{color:var(--muted);font-size:13px}
+details summary{cursor:pointer;font-size:12px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;padding:2px 0}
+details[open] summary{margin-bottom:12px}
+details + details{margin-top:12px;padding-top:12px;border-top:1px solid var(--line)}
+code{font-size:12px;background:var(--bl-bg);padding:1px 4px;border-radius:4px}
+
+/* ---------- preview ---------- */
+.preview-wrap{position:sticky;top:78px;overflow:hidden;min-width:0}
+.preview-scale{transform-origin:top left}
+.sheet-shadow{box-shadow:0 4px 24px rgba(16,24,40,.12)}
+
+/* ---------- mobile bottom bar ---------- */
+.bottombar{display:none}
+
+/* ---------- send dialog ---------- */
+dialog{border:0;border-radius:16px;padding:0;background:var(--panel);width:min(560px,calc(100vw - 24px));max-height:calc(100dvh - 24px);color:var(--ink);box-shadow:0 20px 60px rgba(0,0,0,.25)}
+dialog::backdrop{background:rgba(7,25,45,.55)}
+.dlg{display:flex;flex-direction:column;max-height:calc(100dvh - 24px)}
+.dlg-head{display:flex;align-items:center;gap:10px;padding:14px 16px;border-bottom:1px solid var(--line)}
+.dlg-head h3{margin:0;font-size:16px;flex:1}
+.dlg-body{padding:16px;overflow:auto}
+.dlg-foot{display:flex;flex-wrap:wrap;gap:8px;padding:12px 16px calc(12px + env(safe-area-inset-bottom,0px));border-top:1px solid var(--line);background:var(--surface2)}
+.dlg-foot button{flex:1 1 180px}
+.dlg .status{font-size:12px;color:var(--muted);margin:8px 0 0}
+.svc{display:flex;align-items:center;gap:8px;font-size:13px;margin:0 0 12px}
+.svc .dot{width:9px;height:9px;border-radius:50%;background:var(--line3);flex:none}
+.svc.ok .dot{background:var(--ok)}
+.svc.warn .dot{background:#d08a00}
+.pay-pick{display:flex;flex-wrap:wrap;gap:6px;margin:0 0 12px}
+.pay-pick button{border:1px solid var(--line);background:var(--field);color:var(--ink);border-radius:99px;padding:7px 12px;font:inherit;font-size:13px;font-weight:700;cursor:pointer}
+.pay-pick button.on{background:var(--navy);border-color:var(--navy);color:#fff}
+[data-theme=dark] .pay-pick button.on{background:#f4b223;border-color:#f4b223;color:#0d1420}
+.pay-note{margin:-4px 0 12px;font-weight:600}.pay-note.warn{color:#9a5b00}.pay-note.ok{color:var(--ok)}
+.sent{font-size:11px;font-weight:600;color:var(--ok);margin-left:6px;white-space:nowrap}
+.pv-label{display:block;font-size:12px;color:var(--muted);margin-bottom:6px}
+.wapv{background:var(--ok-bg);border-radius:10px;padding:10px 12px;font-size:14px;line-height:1.45}
+.wapv-doc{display:flex;align-items:center;gap:8px;background:var(--panel);border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:13px;color:var(--ink);word-break:break-word}
+.wapv-doc svg{flex:none;color:#c0392b}
+.wapv-body{white-space:pre-wrap;word-break:break-word}
+.wapv-foot{font-size:12px;color:var(--muted);margin-top:6px}
+
+.toast{position:fixed;bottom:calc(84px + env(safe-area-inset-bottom,0px));left:50%;transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:9px 16px;border-radius:9px;opacity:0;transition:opacity .2s;pointer-events:none;z-index:50;max-width:90vw;text-align:center}
+.toast.show{opacity:1}
+#pdfStage{position:fixed;left:-10000px;top:0;width:612pt;pointer-events:none}
+
+/* ---------- THE DOCUMENT: Clean ledger (US Letter) ---------- */
+.doc .lg{position:absolute;inset:0;padding:44pt 50pt 34pt;display:flex;flex-direction:column;font-family:Manrope,Inter,"Segoe UI",sans-serif;font-size:10pt;line-height:1.45;color:#14213d}
+.doc .lg .cap{font-size:7pt;letter-spacing:.09em;text-transform:uppercase;color:#6b7585;font-weight:800}
+.doc .lg-hd{display:flex;justify-content:space-between;align-items:flex-start}.doc .lg-hd img{width:96pt;height:50pt;object-fit:contain;object-position:left top}
+.doc .lg-t{text-align:right;color:#6b7585;font-size:9.5pt}.doc .lg-t b{display:block;font-size:22pt;color:#073763;letter-spacing:.07em;line-height:1.1;margin-bottom:2pt}
+.doc .lg-valid{display:inline-block;background:#fdf3d9;color:#7a5400;font-weight:800;border-radius:4pt;padding:1pt 6pt;margin-top:3pt}
+.doc .lg-copy{align-self:flex-end;border:1pt solid #073763;border-radius:3pt;padding:1pt 7pt;font-size:7.5pt;font-weight:800;letter-spacing:1.2pt;color:#073763;margin-top:6pt}
+.doc .lg-gold{height:2pt;background:#f4b223;margin:14pt 0 14pt}
+.doc .lg-two{display:grid;grid-template-columns:1fr 210pt;gap:20pt;align-items:start}.doc .lg-two p{margin:3pt 0 0}.doc .lg-pd{color:#14213d}
+.doc .lg-due{background:#073763;color:#fff;border-radius:7pt;padding:11pt 13pt;text-align:right}.doc .lg-due .cap{color:#c9d6e8}
+.doc .lg-due b{display:block;font-size:20pt;margin:3pt 0;white-space:nowrap;letter-spacing:-.2pt}.doc .lg-due span:last-child{font-size:8.5pt;color:#f4b223;font-weight:800}
+.doc .lg-due.ok{background:#1f7a4d}.doc .lg-due.ok span:last-child{color:#fff}
+.doc .lg table{width:100%;border-collapse:collapse;font-variant-numeric:tabular-nums}
+.doc .lg-tb{margin-top:18pt}.doc .lg-tb th{text-align:left;font-size:7pt;letter-spacing:.07em;text-transform:uppercase;color:#6b7585;border-bottom:1.2pt solid #073763;padding:4pt 4pt}
+.doc .lg-tb td{padding:6pt 4pt;border-bottom:.6pt solid #e8ebf0}.doc .lg .r{text-align:right;white-space:nowrap}.doc .lg-tb small{color:#6b7585}
+.doc .lg-sub{margin:5pt 0 0;color:#6b7585;font-size:9pt}
+.doc .lg-tot{width:46%!important;margin:6pt 0 0 auto}.doc .lg-tot td{padding:2.5pt 4pt}.doc .lg-tot tr.b td{font-weight:800;color:#073763;font-size:11.5pt;border-top:1.2pt solid #073763;padding-top:5pt}
+.doc .lg-sec{margin-top:16pt}.doc .lg-li{display:flex;gap:5pt;margin-top:3pt}.doc .lg-li > span:first-child{flex:none}
+.doc .lg-plan{margin-top:3pt}.doc .lg-plan td{padding:4pt 4pt;border-bottom:.6pt solid #e8ebf0}.doc .lg-plan .ok{color:#1f7a4d;font-weight:800}.doc .lg-plan .due{color:#7a5400;font-weight:800}
+.doc .lg-ch{display:grid;grid-template-columns:1fr 1fr;gap:10pt;margin-top:5pt}.doc .lg-ch.one{grid-template-columns:1fr 1fr}
+.doc .lg-ch > div{border:1.2pt solid #e4e7ec;border-radius:8pt;padding:9pt 11pt}.doc .lg-ch > div.rec{border-color:#073763}
+.doc .lg-ch b{display:block;font-size:13pt;color:#073763;margin:3pt 0 2pt}
+.doc .lg-ch .tag{display:inline-block;background:#f4b223;color:#073763;font-size:6.5pt;font-weight:800;border-radius:3pt;padding:1pt 5pt;letter-spacing:.06em}.doc .lg-ch .tag.bl{background:#eaf0f7}
+.doc .lg-note{margin:9pt 0 0}
+.doc .lg-sig{margin-top:34pt;width:260pt}.doc .lg-sig .ln{border-bottom:.75pt solid #14213d;height:24pt;margin-bottom:4pt}
+.doc .lg-foot{margin-top:auto;display:grid;grid-template-columns:1.15fr 1fr;gap:18pt;border-top:.75pt solid #e4e7ec;padding-top:10pt;font-size:8.5pt;line-height:1.5}
+.doc .lg-foot .lg-inc{color:#073763;font-weight:700}.doc .lg-foot .mut{color:#6b7585}
+
+/* ---------- THE DOCUMENT (US Letter, measured in pt from the original PDF) ---------- */
+.doc{position:relative;width:612pt;height:792pt;background:#fff;overflow:hidden;
+  font-family:Calibri,Carlito,"Segoe UI",sans-serif;font-size:11pt;color:#000;line-height:1}
+.doc .a{position:absolute;white-space:pre}
+.doc b{font-weight:700}
+.doc .bar{position:absolute;background:#073763}
+.doc .w{color:#fff;font-weight:700}
+.doc .title{position:absolute;left:343.4pt;width:211pt;text-align:center;font-weight:700;font-size:27.9pt;color:#073763}
+.doc .cell{position:absolute;white-space:nowrap;overflow:hidden}
+.doc .c{text-align:center}
+.doc .r{text-align:right}
+.doc .vline{position:absolute;width:1.4pt;background:#fff}
+.doc .gline{position:absolute;background:#bfbfbf}
+.doc .flow{position:absolute;width:490pt;line-height:13.8pt;white-space:normal}
+.doc .flow .li{display:flex;gap:3.5pt}
+.doc .flow .li > span:first-child{flex:none}
+.doc .flow .inc-h{margin-top:13pt}
+.doc .flow .inc2{display:flex;align-items:center;font-size:10pt;margin-left:-2.7pt;height:13.8pt}
+.doc .flow .inc2 img{width:12.9pt;height:15pt;margin-right:3.3pt}
+.doc .flow .sig{display:flex;gap:36pt;margin-top:34pt}
+.doc .flow .sig > div{width:220pt}
+.doc .flow .sig .ln{border-bottom:0.75pt solid #000;height:22pt;margin-bottom:3pt;display:flex;align-items:flex-end;padding-left:2pt}
+.doc .copy-tag{position:absolute;text-align:center}
+.doc .copy-tag span{display:inline-block;border:1pt solid #073763;border-radius:3pt;padding:1.5pt 7pt;font-size:8.5pt;font-weight:700;letter-spacing:1.2pt;color:#073763}
+.doc .stamp{position:absolute;transform:translateX(-50%) rotate(-6deg);border:2.2pt solid #073763;border-radius:4pt;padding:3pt 10pt 4pt;color:#073763;
+  font-weight:700;display:flex;flex-direction:column;align-items:center;line-height:1}
+.doc .stamp span{font-size:18pt;letter-spacing:1.5pt}
+.doc .stamp small{font-size:8pt;letter-spacing:1pt;color:#7a5400;margin-top:2pt}
+.doc .flow .plan{margin-bottom:12pt}
+.doc .flow .plan-h{margin-bottom:3pt}
+.doc .flow .plan-t{display:grid;grid-template-columns:130pt 120pt 95pt;width:345pt;border:0.6pt solid #bfbfbf;border-top:0}
+.doc .flow .plan-t.st{grid-template-columns:120pt 110pt 90pt 70pt;width:390pt}
+.doc .flow .plan-t > div{padding:1.5pt 5pt;border-top:0.6pt solid #bfbfbf;white-space:nowrap}
+.doc .flow .plan-t > .ph{background:#073763;color:#fff;font-weight:700;border-top:0}
+.doc .flow .plan-t .r{text-align:right}
+.doc .flow .plan-t .ok{color:#1f7a4d;font-weight:700}
+.doc .flow .plan-t .due{color:#073763;font-weight:700}
+.doc .inc{position:absolute;left:56.6pt;display:flex;align-items:center;font-size:10pt}
+.doc .inc img{width:12.9pt;height:15pt;margin-right:3.3pt}
+
+/* ---------- tablet & phone ---------- */
+@media (max-width:980px){
+  .layout{grid-template-columns:minmax(0,1fr);padding:14px;padding-bottom:calc(90px + env(safe-area-inset-bottom,0px))}
+  .preview-wrap{position:static}
+  body[data-view="edit"] .preview-wrap{display:none}
+  body[data-view="preview"] .editor{display:none}
+  input,textarea,select{font-size:16px} /* stops iOS zooming into fields */
+  .bottombar{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;position:fixed;left:0;right:0;bottom:0;z-index:20;
+    background:var(--panel);border-top:1px solid var(--line);padding:8px 10px calc(8px + env(safe-area-inset-bottom,0px))}
+  .bottombar button{display:flex;flex-direction:column;align-items:center;gap:2px;font-size:12px;padding:6px 4px;min-height:52px;border-color:transparent;background:transparent}
+  .bottombar button svg{width:22px;height:22px}
+  .bottombar button.on{color:var(--navy);background:var(--bl-bg);font-weight:600}
+  .bottombar button.send{background:var(--navy);color:var(--onnavy)}
+}
+  .item-head{display:none}
+  .item{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;padding:12px;border:1px solid var(--line);border-radius:10px;background:var(--surface2);position:relative}
+  .item .subj{grid-column:1 / -1;padding-right:40px}
+  .item .f > small{display:block}
+  .item .amt{grid-column:1 / -1;padding-top:2px;font-size:14px;font-weight:600}
+  .item .rm{position:absolute;top:12px;right:12px
+}
+@media (max-width:420px){ .grid2{grid-template-columns:1fr} .topbar h1{font-size:15px} }
+@media (min-width:981px){ .mob{display:none} }
+
+/* ---------- the document's page (LHQ Hub) ---------- */
+.dp-wrap{padding:4px 20px 0;max-width:1400px}
+.dp-crumb{display:inline-flex;align-items:center;gap:4px;color:var(--muted);font-weight:700;font-size:13.5px;text-decoration:none;padding:2px 0}
+.dp-crumb:hover{color:var(--ink)}
+.dp-row{display:flex;align-items:flex-end;gap:12px;flex-wrap:wrap;margin:4px 0 2px}
+.dp-tt{flex:1;min-width:220px}
+.dp-tt h1{margin:0;font-size:24px;font-weight:800;letter-spacing:-.3px;color:var(--navy);display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+[data-theme=dark] .dp-tt h1{color:var(--ink)}
+.dp-tt p{margin:3px 0 0;color:var(--muted);font-size:13.5px}
+.dp-tt p a{color:inherit;font-weight:700;text-underline-offset:2px}
+.dp-acts{display:flex;gap:8px;flex-wrap:wrap}
+.dp-b{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--line);background:var(--panel);color:var(--navy);border-radius:11px;padding:9px 14px;font-weight:800;font-size:13.5px;min-height:40px;white-space:nowrap;text-decoration:none;cursor:pointer}
+.dp-b:hover{border-color:var(--line3)}
+.dp-b.n{background:var(--navy);border-color:var(--navy);color:var(--onnavy)}
+.dp-b.g{background:var(--wa);border-color:var(--wa);color:#fff}
+.dp-b.rd{color:var(--danger);border-color:var(--danger)}
+.dp-b.full{width:100%;margin-top:8px}
+.dp-b.full:first-of-type{margin-top:0}
+.dp-pv{display:none}
+.dp-tag{font-size:11px;font-weight:800;border-radius:6px;padding:3px 8px;white-space:nowrap;letter-spacing:0}
+.dp-tag.ok{background:var(--ok-bg);color:var(--ok)}.dp-tag.rd{background:var(--rd-bg);color:var(--danger)}.dp-tag.am{background:var(--am-bg);color:var(--am)}.dp-tag.bl{background:var(--bl-bg);color:var(--navy)}.dp-tag.gr{background:var(--line2);color:var(--muted)}
+[data-theme=dark] .dp-tag.bl{color:#a9c6ea}
+.dp-box{background:var(--panel);border:1px solid var(--line);border-radius:16px;padding:14px 16px;margin-bottom:16px}
+.dp-cap{font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:14px 0 6px;font-weight:800}
+.dp-box > .dp-cap:first-child{margin-top:0}
+.dp-pay{display:grid;gap:4px;font-variant-numeric:tabular-nums;font-size:13.5px}
+.dp-pay div{display:flex;justify-content:space-between;gap:10px}
+.dp-pay .big{font-weight:800;font-size:15px;border-top:1px solid var(--line);padding-top:6px;margin-top:2px}
+.dp-it{display:flex;gap:10px;align-items:center;padding:10px 0;border-top:1px solid var(--line2);text-decoration:none;color:var(--ink)}
+.dp-cap + .dp-it{border-top:0}
+.dp-it svg{color:var(--navy);flex:none}
+.dp-it .t{flex:1;min-width:0}.dp-it .t b{display:block}.dp-it .t small{display:block;color:var(--muted);font-size:12.5px}
+.dp-it.cur{background:var(--bl-bg);margin:0 -10px;padding:10px;border-radius:10px;border-top-color:transparent}
+.dp-it:not(.cur):hover b{text-decoration:underline;text-underline-offset:2px}
+.dp-note{font-size:12.5px;color:var(--muted);margin:8px 0 0}
+.dp-act{display:flex;gap:10px;padding:8px 0;border-top:1px solid var(--line2);font-size:13px}
+.dp-cap + .dp-act{border-top:0}
+.dp-act small{display:block;color:var(--muted);font-size:12px}
+.dp-av{width:26px;height:26px;border-radius:50%;background:var(--bl-bg);color:var(--navy);display:grid;place-items:center;font-weight:800;font-size:11px;flex:none}
+.dp-shbg{position:fixed;inset:0;background:rgba(7,20,40,.42);z-index:40}
+.dp-sheet{position:fixed;z-index:41;left:50%;top:50%;transform:translate(-50%,-50%);width:min(440px,calc(100vw - 24px));background:var(--panel);border-radius:18px;box-shadow:0 10px 30px rgba(0,0,0,.25);padding:16px 18px 18px}
+.dp-sh-h{display:flex;align-items:center;gap:10px}.dp-sh-h b{flex:1;font-size:17px}
+.dp-x{width:34px;height:34px;min-height:0;border-radius:50%;padding:0}
+.dp-menu button{display:flex;align-items:center;gap:12px;width:100%;border:0;border-radius:0;border-top:1px solid var(--line2);background:none;padding:12px 4px;text-align:left;font-weight:700;min-height:0}
+.dp-menu button:first-child{border-top:0}
+.dp-menu button small{display:block;font-weight:500;color:var(--muted);font-size:12.5px}
+.dp-menu button.rd{color:var(--danger)}
+@media (max-width:699px){.dp-sheet{left:0;right:0;bottom:0;top:auto;transform:none;width:auto;border-radius:20px 20px 0 0;padding-bottom:calc(18px + env(safe-area-inset-bottom,0px))}}
+/* view mode: the document with its links beside it; edit mode: the form beside a live preview */
+#dpEditActs,.dp-next,.dp-aside{display:none}
+body[data-mode=edit] #dpViewActs{display:none}
+body[data-mode=edit] #dpEditActs{display:flex}
+body[data-mode=missing] #dpViewActs,body[data-mode=missing] .layout{display:none}
+body[data-mode=view] .editor{display:none}
+body[data-mode=view] .preview-wrap{display:block!important}
+body[data-mode=view] .dp-next,body[data-mode=view] .dp-aside{display:block}
+body[data-mode=view] .layout{grid-template-columns:minmax(0,1fr) 320px;grid-template-rows:auto 1fr;grid-template-areas:"pv next" "pv aside";gap:0 20px}
+body[data-mode=view] .preview-wrap{grid-area:pv;top:78px}
+body[data-mode=view] .dp-next{grid-area:next}
+body[data-mode=view] .dp-aside{grid-area:aside}
+@media (max-width:980px){
+  .dp-wrap{padding:4px 14px 0}
+  .dp-pv{display:inline-flex}
+  body[data-mode=view] .layout{grid-template-columns:minmax(0,1fr);grid-template-areas:"next" "pv" "aside"}
+  body[data-mode=view] .preview-wrap{margin-bottom:16px}
+  .layout{padding-bottom:20px!important}
+}
+@media (max-width:560px){ .dp-acts{gap:6px} .dp-b{padding:8px 10px} }
+@page{size:letter;margin:0}
+@media print{
+  body{background:var(--panel)}
+  .topbar,.editor,.toast,.bottombar,dialog,.dp-wrap,.dp-next,.dp-aside,.hn-bar,.hn-side{display:none!important}
+  body{padding:0!important}
+  #cardDoc{box-shadow:none}
+  .layout{display:block;padding:0}
+  .preview-wrap{position:static;display:block!important}
+  .preview-scale{transform:none!important;width:auto!important;height:auto!important;margin-left:0!important}
+  .sheet-shadow{box-shadow:none}
+}
+</style>
+</head>
+<body data-view="edit">
+
+<script>LHQNav.mount('docs');</script>
+<div class="dp-wrap">
+  <div class="dp-head" id="dpHead">
+    <a class="dp-crumb" id="dpBack" href="index.html#docs"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 6l-6 6 6 6"/></svg><span id="dpBackT">Documents</span></a>
+    <div class="dp-row">
+      <div class="dp-tt"><h1 id="dpTitle"></h1><p id="dpSub"></p></div>
+      <div class="dp-acts" id="dpViewActs">
+        <button class="dp-b n" id="btnEdit"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg>Edit</button>
+        <button class="dp-b" id="btnSendTop"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M4 12l16-8-6 17-3-7-7-2z"/></svg><span>Send</span></button>
+        <button class="dp-b" id="btnPdfTop"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11m0 0l-4-4m4 4l4-4M5 20h14"/></svg>PDF</button>
+        <button class="dp-b" id="btnPrint" title="Print" aria-label="Print"><svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M7 9V3h10v6"/><rect x="3" y="9" width="18" height="8" rx="2"/><path d="M7 14h10v7H7z"/></svg></button>
+        <button class="dp-b" id="btnMore" title="More" aria-label="More"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg></button>
+      </div>
+      <div class="dp-acts" id="dpEditActs">
+        <button class="dp-b dp-pv" id="btnPvToggle">Preview</button>
+        <button class="dp-b" id="btnCancel">Cancel</button>
+        <button class="dp-b n" id="btnSave">Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<main class="layout">
+  <div class="dp-next" id="dpNext"></div>
+  <section class="editor">
+    <div class="bk-banner" id="bkBanner" hidden>
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M12 9v4m0 4h.01M10.3 3.9L2.4 18a2 2 0 001.7 3h15.8a2 2 0 001.7-3L13.7 3.9a2 2 0 00-3.4 0z"/></svg>
+      <span id="bkBannerText"></span>
+      <button type="button" class="small navy" id="btnBackupNow">Back up now</button>
+      <button type="button" class="small" id="btnBackupLater">Later</button>
+    </div>
+    <div class="panel">
+      <div class="seg seg4" id="typeSeg" hidden>
+        <button type="button" data-t="quote" class="on">Quote</button>
+        <button type="button" data-t="invoice">Invoice</button>
+        <button type="button" data-t="receipt">Receipt</button>
+        <button type="button" data-t="card">Card</button>
+      </div>
+      <div class="grid2">
+        <label><span id="numLabel">Quote number</span><input id="f_number" autocomplete="off"></label>
+        <div class="fld"><span class="lbl" id="dateLabel">Date</span><button type="button" class="date-btn" data-cal="date" id="btnDate" aria-haspopup="dialog" aria-expanded="false"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span></span></button></div>
+      </div>
+      <div class="fld" id="dueRow"><span class="lbl" id="dueLabel">Valid until</span>
+        <div class="due-wrap">
+          <div class="chips" id="dueChips" role="group" aria-label="Quick dates">
+            <button type="button" data-days="0">Today</button><button type="button" data-days="7">7 days</button><button type="button" data-days="14">14 days</button><button type="button" data-days="30">30 days</button>
+          </div>
+          <button type="button" class="date-btn" data-cal="due" id="btnDue" aria-haspopup="dialog" aria-expanded="false"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span></span></button>
+        </div>
+      </div>
+      <label id="refRow"><span id="refLabel">Quote reference</span><input id="f_ref" autocomplete="off" placeholder="e.g. Q-1038"></label>
+      <label id="nameRow"><span>Parent / guardian name</span><input id="f_name" placeholder="e.g. Mr Mathandalizwe" autocomplete="off"></label>
+      <div class="grid-student">
+        <label><span>Student name</span><input id="f_student" placeholder="e.g. Thando Mathandalizwe" autocomplete="off" list="studentNames"><datalist id="studentNames"></datalist></label>
+        <div class="fld"><span class="lbl">Year &amp; level</span><button type="button" class="picker-btn" data-pickfield="level" id="btnLevel" aria-haspopup="listbox" aria-expanded="false"><span class="pb-dot"></span><span class="pb-text"></span><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>
+      </div>
+      <div class="grid2" id="contactRow">
+        <label><span>Email</span><input id="f_email" type="email" inputmode="email" autocomplete="off" placeholder="parent@example.com"></label>
+        <label><span>WhatsApp number</span><input id="f_phone" type="tel" inputmode="tel" autocomplete="off" placeholder="0991 234 567"></label>
+      </div>
+      <div class="known" id="knownBar" hidden><span id="knownText"></span><button type="button" class="small navy" id="btnKnownFill">Fill in</button><button type="button" class="small" id="btnKnownNo">No</button></div>
+      <label id="addrRow"><span>Address</span><input id="f_address" autocomplete="off"></label>
+      <label id="forRow"><span>Being payment for</span><input id="f_for" placeholder="e.g. Thando's Tuition"></label>
+      <div class="fld"><span class="lbl">Tuition period</span><button type="button" class="date-btn" data-cal="period" id="btnPeriod" aria-haspopup="dialog" aria-expanded="false"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span></span></button></div>
+      <p class="hint" id="waHint">The WhatsApp number is only used for sending. It doesn't print on the document.</p>
+    </div>
+
+    <div class="panel" id="cardPanel" hidden>
+      <h2>Tuition card</h2>
+      <div class="intake" id="intakeBox" hidden><b>From the student's checklist</b><p id="intakeText"></p><small>Only you see this. It isn't printed on the card.</small></div>
+      <div class="grid2">
+        <div class="fld"><span class="lbl">School (optional)</span><button type="button" class="picker-btn" data-pickfield="school" id="btnSchool" aria-haspopup="listbox" aria-expanded="false"><span class="pb-dot"></span><span class="pb-text"></span><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>
+        <label><span>Exam series (optional)</span><input id="f_exam" autocomplete="off" placeholder="e.g. May/June 2027"></label>
+      </div>
+      <div class="fld"><span class="lbl">Where</span>
+        <div class="chips" id="whereChips" role="group" aria-label="Where" style="flex-wrap:wrap;margin-bottom:6px">
+          <button type="button" data-w="LHQ Centre">LHQ Centre</button><button type="button" data-w="Online">Online</button><button type="button" data-w="Student's home">Student's home</button>
+        </div>
+        <input id="f_where" autocomplete="off" placeholder="Or type the place" aria-label="Where">
+      </div>
+      <label><span>Notes for all tutors (optional)</span><textarea id="f_cardNote" rows="3" placeholder="e.g. Prefers worked examples first. Has a Physics mock on 9 Nov."></textarea></label>
+      <p class="hint">Only for tutors: the card shows no fees, payments or parent contact details.</p>
+    </div>
+
+    <div class="panel" id="cardSubjPanel" hidden>
+      <h2>Subjects on the card</h2>
+      <p class="hint" id="cardLevelNote" style="margin:-6px 0 10px"></p>
+      <div id="cardSubs"></div>
+      <button type="button" class="small" id="btnAddCardSubject">+ Add subject</button>
+    </div>
+
+    <div class="panel" id="itemsPanel">
+      <h2>Subjects</h2>
+      <div id="itemsBody" class="items"></div>
+      <button type="button" class="small" style="margin-top:10px" id="btnAddItem">+ Add subject</button>
+      <div class="disc">
+        <span class="lbl">Discount</span>
+        <div class="disc-row">
+          <div class="seg mini" id="discSeg" role="group" aria-label="Discount type">
+            <button type="button" data-d="pct" class="on">%</button><button type="button" data-d="amt">MKW</button>
+          </div>
+          <input id="f_discValue" inputmode="decimal" placeholder="0" aria-label="Discount amount">
+          <input id="f_discReason" placeholder="Reason, e.g. Sibling" aria-label="Discount reason (prints on the document)">
+        </div>
+      </div>
+      <div class="fld" id="planRow" style="margin-top:14px;margin-bottom:0"><span class="lbl">Payment</span>
+        <div class="seg seg2" id="planSeg" role="group" aria-label="Payment" style="max-width:380px;margin-bottom:10px">
+          <button type="button" data-p="" class="on">Pay in full</button><button type="button" data-p="half">50/50 plan</button>
+        </div>
+        <div class="grid2" id="planDates" hidden>
+          <div class="fld"><span class="lbl">1st 50% due by</span><button type="button" class="date-btn" data-cal="plan1" id="btnPlan1" aria-haspopup="dialog" aria-expanded="false"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span></span></button></div>
+          <div class="fld"><span class="lbl">2nd 50% due by</span><button type="button" class="date-btn" data-cal="plan2" id="btnPlan2" aria-haspopup="dialog" aria-expanded="false"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span></span></button></div>
+        </div>
+        <p class="hint" id="planHint" hidden style="margin:-4px 0 0"></p>
+      </div>
+      <label class="chk" id="instLineRow" hidden><input type="checkbox" id="f_instLine" checked> Offer two instalments (50 / 50) on this quote</label>
+      <label id="paidRow" style="margin-top:12px"><span>Amount already paid (MKW)</span><input id="f_paid" inputmode="decimal" placeholder="0"></label>
+      <div class="sums" id="sums"></div>
+    </div>
+
+    <div class="panel" id="incPanel">
+      <h2>Every LHQ Enrollment Includes</h2>
+      <div class="inc-chips" id="incChips" role="group" aria-label="Items to include"></div>
+      <p class="hint" id="incHint"></p>
+    </div>
+
+    <div class="panel" id="payPanel" hidden>
+      <h2>Payment received</h2>
+      <div class="pay-pick" id="payPick" role="group" aria-label="How much was paid"></div>
+      <div class="grid2">
+        <label><span>Amount received (MKW)</span><input id="f_received" inputmode="decimal" placeholder="0"></label>
+        <label><span>Paid before this (MKW)</span><input id="f_prevPaid" inputmode="decimal" placeholder="0"></label>
+      </div>
+      <div class="grid2">
+        <div class="fld"><span class="lbl">Payment method</span><button type="button" class="picker-btn" data-pickfield="method" id="btnMethod" aria-haspopup="listbox" aria-expanded="false"><span class="pb-dot"></span><span class="pb-text"></span><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>
+        <label><span>Payment reference</span><input id="f_payRef" autocomplete="off" placeholder="Bank or mobile money ref."></label>
+      </div>
+      <p class="hint pay-note" id="payNote"></p>
+      <label><span>Received by (prints above the signature line)</span><input id="f_receivedBy" autocomplete="off" placeholder="Staff member's name"></label>
+    </div>
+
+    <div class="panel" hidden>
+      <h2>Saved</h2>
+      <ul class="saved" id="savedList"></ul>
+    </div>
+
+    <div class="panel" hidden>
+      <details id="tplSetup">
+        <summary>Email &amp; WhatsApp messages</summary>
+        <label><span>Email subject</span><input id="t_emailSubject"></label>
+        <label><span>Email message (quotes &amp; invoices)</span><textarea id="t_emailBody" rows="12"></textarea></label>
+        <label><span>WhatsApp message (quotes &amp; invoices)</span><textarea id="t_waBody" rows="9"></textarea></label>
+        <label><span>Receipt email message</span><textarea id="t_receiptEmailBody" rows="10"></textarea></label>
+        <label><span>Receipt WhatsApp message</span><textarea id="t_receiptWaBody" rows="6"></textarea></label>
+        <p class="hint">These fill in automatically:
+          <code>{name}</code> <code>{student}</code> <code>{level}</code> <code>{type}</code> <code>{Type}</code> <code>{number}</code> <code>{ref}</code> <code>{date}</code> <code>{due}</code>
+          <code>{for}</code> <code>{period}</code> <code>{subjects}</code> <code>{summary}</code> <code>{subtotal}</code> <code>{discount}</code> <code>{total}</code> <code>{paid}</code> <code>{balance}</code>
+          <code>{received}</code> <code>{prevpaid}</code> <code>{method}</code>
+          <code>{bank}</code> <code>{accname}</code> <code>{branch}</code> <code>{accno}</code> <code>{mobile}</code>
+          <code>{includesline}</code> <code>{popphone}</code> <code>{email}</code> <code>{phone}</code></p>
+        <button class="small" id="btnResetTemplates" style="margin-top:8px">Restore default messages</button>
+      </details>
+      <details id="listSetup">
+        <summary>Lists</summary>
+        <label><span>Subjects, one per line</span><textarea id="s_subjects" rows="8"></textarea></label>
+        <label><span>Year &amp; level, one per line</span><textarea id="s_levels" rows="6"></textarea></label>
+        <label><span>Payment methods, one per line</span><textarea id="s_methods" rows="4"></textarea></label>
+        <label><span>Every LHQ Enrollment Includes, one per line</span><textarea id="s_includes" rows="6"></textarea></label>
+        <label><span>Tutors, one per line</span><textarea id="s_tutors" rows="6"></textarea></label>
+        <label><span>Grades, one per line</span><textarea id="s_grades" rows="5"></textarea></label>
+        <label><span>Grade based on, one per line</span><textarea id="s_gradeBasis" rows="6"></textarea></label>
+        <label><span>Session lengths, one per line</span><textarea id="s_sessionLengths" rows="5"></textarea></label>
+      </details>
+      <details id="clSetup">
+        <summary>Student topic checklist</summary>
+        <p class="hint" style="margin:0 0 10px">Send students this link. They choose their subjects and topics and send it to 0992 525 250 on WhatsApp or to learnhqes@gmail.com. Open the link in their message on this device and a new tuition card fills in with their choices.</p>
+        <input id="clLink" readonly aria-label="Checklist link">
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
+          <button class="small" id="btnClCopy">Copy link</button>
+          <button class="small wa" id="btnClWa">Send link on WhatsApp</button>
+          <button class="small" id="btnClOpen">Open checklist</button>
+        </div>
+      </details>
+      <details id="numSetup">
+        <summary>Numbering</summary>
+        <p class="hint" style="margin:0 0 10px">Numbers fill in automatically. Set where each series continues from, for example if LHQ has already issued invoices up to 57, set the next invoice to 58.</p>
+        <div class="num-grid">
+          <label><span>Next quote</span><input id="n_quote" inputmode="numeric" autocomplete="off"><small id="np_quote"></small></label>
+          <label><span>Next invoice</span><input id="n_invoice" inputmode="numeric" autocomplete="off"><small id="np_invoice"></small></label>
+          <label><span>Next receipt</span><input id="n_receipt" inputmode="numeric" autocomplete="off"><small id="np_receipt"></small></label>
+          <label><span>Next card</span><input id="n_card" inputmode="numeric" autocomplete="off"><small id="np_card"></small></label>
+        </div>
+      </details>
+      <details id="coSetup">
+        <summary>Company &amp; bank details</summary>
+        <div class="grid2">
+          <label><span>Email</span><input id="s_email"></label>
+          <label><span>Phone (header)</span><input id="s_phone"></label>
+        </div>
+        <label><span>Bank name</span><input id="s_bank"></label>
+        <label><span>Account name</span><input id="s_accname"></label>
+        <div class="grid2">
+          <label><span>Branch</span><input id="s_branch"></label>
+          <label><span>Account number</span><input id="s_accno" inputmode="numeric"></label>
+          <label><span>PoP phone number</span><input id="s_popphone"></label>
+          <label><span>Mobile banking number</span><input id="s_mobile"></label>
+        </div>
+        <label><span>Default cost per session (MKW)</span><input id="s_rate" inputmode="decimal"></label>
+        <div class="grid2">
+          <label><span>Quotes valid for (days)</span><input id="s_validDays" inputmode="numeric"></label>
+          <label><span>Invoices due after (days, 0 = same day)</span><input id="s_dueDays" inputmode="numeric"></label>
+          <label><span>Instalment grace period (days)</span><input id="s_graceDays" inputmode="numeric"></label>
+        </div>
+        <button class="small" id="btnResetSettings">Restore defaults</button>
+      </details>
+      <details id="backupSetup">
+        <summary>Backup &amp; restore</summary>
+        <p class="hint" style="margin:0 0 8px">Everything is stored online in LHQ Hub and shared between your devices. A backup is an extra copy: one file with all your quotes, invoices, receipts, tuition cards, numbering, lists and messages. Keep it in Google Drive or send it to yourself on WhatsApp.</p>
+        <p class="svc" id="bkStatus"><span class="dot"></span><span></span></p>
+        <p class="svc" id="bkPersist"><span class="dot"></span><span></span></p>
+        <div style="display:flex;flex-wrap:wrap;gap:8px">
+          <button type="button" class="small navy" id="btnBackup">Back up now</button>
+          <button type="button" class="small" id="btnRestore">Restore from a backup</button>
+          <input type="file" id="restoreFile" accept=".json,application/json,text/plain" hidden>
+        </div>
+      </details>
+      <details id="emailSetup">
+        <summary>Sending (email &amp; WhatsApp)</summary>
+        <p class="svc" id="svcEmail"><span class="dot"></span><span>Email: checking…</span></p>
+        <p class="svc" id="svcWa"><span class="dot"></span><span>WhatsApp: checking…</span></p>
+        <label><span>Access code</span><input id="s_code" type="password" autocomplete="off" placeholder="The code set in Netlify"></label>
+        <p class="hint">Enter the access code once on each phone, tablet or computer. It stays on this device and stops strangers from using the app to send messages from LHQ's accounts.</p>
+        <button class="small" id="btnCheckSvc" style="margin-top:8px">Check connection</button>
+      </details>
+    </div>
+  </section>
+
+  <section class="preview-wrap" id="previewWrap">
+    <div class="preview-scale" id="previewScale">
+      <div class="doc sheet-shadow" id="doc"></div>
+      <div id="cardDoc" hidden></div>
+    </div>
+  </section>
+  <aside class="dp-aside" id="dpAside"></aside>
+</main>
+
+<nav class="bottombar" aria-label="App sections" hidden>
+  <button id="tabEdit" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 20h4L19 9l-4-4L4 16v4z"/><path d="M13.5 6.5l4 4"/></svg>Edit</button>
+  <button id="tabPreview"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4M9 12h7M9 16h7"/></svg>Preview</button>
+  <button id="btnPdfMob"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 4v11m0 0l-4-4m4 4l4-4M5 20h14"/></svg>PDF</button>
+  <button id="btnSendMob" class="send"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 12l16-8-6 17-3-7-7-2z"/></svg>Send</button>
+</nav>
+
+<dialog id="sendDlg">
+  <div class="dlg">
+    <div class="dlg-head">
+      <h3 id="sendTitle">Send quote</h3>
+      <button class="small" id="btnCloseDlg" aria-label="Close">✕</button>
+    </div>
+    <div class="dlg-body">
+      <div class="seg" id="chanSeg">
+        <button data-c="email" class="on">Email</button>
+        <button data-c="wa">WhatsApp</button>
+      </div>
+      <div id="emailFields">
+        <label><span>To</span><input id="m_to" type="email" inputmode="email" placeholder="parent@example.com"></label>
+        <label><span>CC <em style="font-style:normal;opacity:.7">(optional, separate with commas)</em></span><input id="m_cc" type="email" inputmode="email" multiple placeholder="second.parent@example.com"></label>
+        <label><span>Subject</span><input id="m_subject"></label>
+      </div>
+      <div id="waFields" hidden>
+        <label><span>WhatsApp number</span><input id="m_wa" type="tel" inputmode="tel" placeholder="0991 234 567"></label>
+      </div>
+      <div id="msgBox">
+        <label><span>Message</span><textarea id="m_body" rows="11"></textarea></label>
+        <p class="hint">Changes here apply to this message only. To change the default wording, open “Email &amp; WhatsApp messages” in the editor.</p>
+      </div>
+      <div id="waPreview" hidden>
+        <span class="pv-label">What the parent receives</span>
+        <div class="wapv">
+          <div class="wapv-doc"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 3h9l4 4v14H6z"/><path d="M15 3v4h4"/></svg><span id="waPvFile"></span></div>
+          <div id="waPvBody" class="wapv-body"></div>
+          <div id="waPvFooter" class="wapv-foot"></div>
+        </div>
+        <p class="hint">WhatsApp only lets businesses start a chat with a message Meta has approved, so this wording is fixed. To change it, edit the template in WhatsApp Manager.</p>
+      </div>
+      <p class="status" id="sendStatus"></p>
+    </div>
+    <div class="dlg-foot">
+      <button class="primary" id="btnSendNow" hidden>Send email now</button>
+      <button class="navy" id="btnShare" hidden>Share with PDF attached</button>
+      <button id="btnOpenApp">Open Email</button>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="cardShareDlg">
+  <div class="dlg">
+    <div class="dlg-head">
+      <h3>Share tuition card</h3>
+      <button class="small" id="csClose" aria-label="Close">✕</button>
+    </div>
+    <div class="dlg-body">
+      <div class="cs-tutors">
+        <div class="cs-sec">Send to tutors</div>
+        <p class="hint" style="margin:2px 0 6px">Each tutor gets one link with all their students: the full card for each, plus where they log sessions for reports. Send it again when you add a student or change a card.</p>
+        <div id="csTutors"></div>
+        <label class="cs-howto"><input type="checkbox" id="csHowTo"> Include the how-to text <small>Added automatically the first time a tutor gets a link</small></label>
+      </div>
+      <div class="cs-files">
+        <div class="cs-sec">Card image or PDF</div>
+        <p class="hint" style="margin:2px 0 8px">For the staff group, parents or printing. “Share” opens your phone's share menu; on a computer the file downloads.</p>
+        <div class="seg seg2" id="csWhich" role="group" aria-label="What to share">
+          <button type="button" data-w="all" class="on">Whole card</button>
+          <button type="button" data-w="one">One subject</button>
+        </div>
+        <div class="cs-subjects" id="csSubjects" hidden></div>
+        <div class="cs-sum">
+          <div class="cs-thumb" id="csThumb" aria-hidden="true"></div>
+          <div><b id="csTitle"></b><small id="csSub"></small><small id="csCode"></small><small class="warn" id="csWarn"></small></div>
+        </div>
+        <div class="cs-actions">
+          <button type="button" id="csImage">Share image</button>
+          <button type="button" id="csPdf">Share PDF</button>
+          <button type="button" id="csSave">Save image</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<dialog id="restoreDlg">
+  <div class="dlg">
+    <div class="dlg-head"><h3>Restore from backup</h3><button class="small" id="rsClose" aria-label="Close">✕</button></div>
+    <div class="dlg-body">
+      <p id="rsSummary" style="margin:0 0 12px"></p>
+      <p class="hint" style="margin:0"><b>Add to this device</b> keeps everything already here and adds anything from the backup that's missing. Where the same document is in both, the more recently saved one is kept.<br><br><b>Replace everything</b> wipes this device's data and puts the backup in its place.</p>
+    </div>
+    <div class="dlg-foot">
+      <button class="navy" id="rsMerge">Add to this device</button>
+      <button class="danger" id="rsReplace">Replace everything</button>
+    </div>
+  </div>
+</dialog>
+
+<div class="pick-backdrop" id="pickBackdrop" hidden></div>
+<div class="picker" id="picker" hidden>
+  <div class="pk-grab"></div>
+  <div class="pk-head"><b id="pkTitle">Choose a subject</b><button class="small" id="pkClose" type="button" aria-label="Close">✕</button></div>
+  <div class="pk-search">
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+    <input id="pkSearch" type="text" placeholder="Search or type a subject" autocomplete="off" enterkeyhint="done" aria-label="Search subjects" aria-controls="pkList">
+  </div>
+  <ul class="pk-list" id="pkList" role="listbox" aria-label="Subjects"></ul>
+</div>
+<div class="pick-backdrop" id="calBackdrop" hidden></div>
+<div class="picker cal" id="cal" hidden role="dialog" aria-label="Choose a date">
+  <div class="pk-grab"></div>
+  <div class="pk-head"><b id="calTitle">Choose a date</b><button class="small" id="calClose" type="button" aria-label="Close">✕</button></div>
+  <div class="cal-range" id="calRange">
+    <button type="button" class="cal-end" id="calStartBtn"><small>Starts</small><span id="calStartTxt">Choose</span></button>
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+    <button type="button" class="cal-end" id="calEndBtn"><small>Ends</small><span id="calEndTxt">Choose</span></button>
+  </div>
+  <div class="cal-nav">
+    <button type="button" id="calPrev" aria-label="Previous month"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M15 6l-6 6 6 6"/></svg></button>
+    <b id="calMonth"></b>
+    <button type="button" id="calNext" aria-label="Next month"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg></button>
+  </div>
+  <div class="cal-grid" id="calGrid"></div>
+  <div class="cal-foot"><span id="calInfo"></span><button type="button" class="small" id="calClear">Clear</button><button type="button" class="small navy" id="calDone">Done</button></div>
+</div>
+<div id="pdfStage" aria-hidden="true"></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+/* ================= storage ================= */
+const store = {
+  get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} }
+};
+const F = id => document.getElementById(id);
+
+let settings = Object.assign({}, DEFAULT_SETTINGS, store.get('lhq_settings', {}));
+// one-off: invoices are now due on the day they're issued unless changed in settings
+if(!store.get('lhq_mig_due0', false)){ if(String(settings.dueDays)==='7'){ settings.dueDays = '0'; store.set('lhq_settings', settings); } store.set('lhq_mig_due0', true); }
+let templates = Object.assign({}, DEFAULT_TEMPLATES, store.get('lhq_templates', {}));
+let saved = store.get('lhq_saved', []);
+const lines = v => String(v||'').split('\n').map(s=>s.trim()).filter(Boolean);
+const subjectList = () => lines(settings.subjects);
+const levelList = () => lines(settings.levels);
+const methodList = () => lines(settings.methods);
+
+/* ---------- numbering: a separate series per document type ---------- */
+const PREFIX = {quote:'Q', invoice:'INV', receipt:'RCT', card:'TC'};
+const WORD = {quote:'Quote', invoice:'Invoice', receipt:'Receipt', card:'Tuition card'};
+const TYPES = ['quote','invoice','receipt','card'];
+function parseNum(type, n){
+  const m = String(n||'').trim().match(/^(Q|INV|RCT|TC)-?(\d+)$/i);
+  if(m) return {type:{Q:'quote',INV:'invoice',RCT:'receipt',TC:'card'}[m[1].toUpperCase()], n:+m[2]};
+  const p = parseInt(n,10); return isNaN(p) ? null : {type:type||'quote', n:p};
+}
+function counters(){
+  const c = Object.assign({quote: store.get('lhq_lastnum',1037), invoice:0, receipt:0, card:0}, store.get('lhq_counters',{}));
+  saved.forEach(s=>{ const p = parseNum(s.type||'quote', s.number); if(p && p.n > (c[p.type]||0)) c[p.type] = p.n; });
+  return c;
+}
+function usedMax(type){
+  let m = 0;
+  saved.forEach(s=>{ const p = parseNum(s.type||'quote', s.number); if(p && p.type===type && p.n > m) m = p.n; });
+  return m;
+}
+function nextNumber(type){ return PREFIX[type] + '-' + String((counters()[type]||0) + 1).padStart(4,'0'); }
+function bumpCounter(type, number){
+  const p = parseNum(type, number); if(!p) return;
+  const c = store.get('lhq_counters',{}); if(!c[p.type] || p.n > c[p.type]){ c[p.type] = p.n; store.set('lhq_counters', c); }
+}
+
+/* ---------- dates (ISO yyyy-mm-dd, local time) ---------- */
+const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTH = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const WDAY = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const isoOf = dt => dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+const parseISO = iso => { const [y,m,d] = iso.split('-').map(Number); return new Date(y, m-1, d); };
+function todayISO(){ return isoOf(new Date()); }
+const addDays = (iso, n) => { const d = parseISO(iso); d.setDate(d.getDate() + n); return isoOf(d); };
+const dayDiff = (a, b) => Math.round((parseISO(b) - parseISO(a)) / 86400000);
+const niceDate = iso => { if(!iso) return ''; const d = parseISO(iso); return `${d.getDate()} ${MON[d.getMonth()]} ${d.getFullYear()}`; };
+const wkDate = iso => iso ? WDAY[parseISO(iso).getDay()] + ' ' + niceDate(iso) : '';
+function rangeText(a, b){
+  if(!a) return '';
+  if(!b) return niceDate(a) + ' onwards';
+  const A = parseISO(a), B = parseISO(b);
+  if(A.getFullYear() !== B.getFullYear()) return `${niceDate(a)} – ${niceDate(b)}`;
+  if(A.getMonth() === B.getMonth()) return `${A.getDate()} – ${B.getDate()} ${MON[B.getMonth()]} ${B.getFullYear()}`;
+  return `${A.getDate()} ${MON[A.getMonth()]} – ${B.getDate()} ${MON[B.getMonth()]} ${B.getFullYear()}`;
+}
+function rangeLength(a, b){
+  if(!a || !b) return '';
+  const days = dayDiff(a, b) + 1;
+  if(days < 7) return days === 1 ? '1 day' : `${days} days`;
+  const w = Math.max(1, Math.round(days / 7)); return w === 1 ? '1 week' : `${w} weeks`;
+}
+function periodText(d = doc){
+  if(d.periodStart){ const len = rangeLength(d.periodStart, d.periodEnd); return rangeText(d.periodStart, d.periodEnd) + (len ? ` (${len})` : ''); }
+  return d.period || '';
+}
+
+/* ---------- documents ---------- */
+const DOC_FIELDS = { id:null, type:'quote', number:'', date:'', dueDate:'', ref:'', name:'', student:'', level:'', address:'', email:'', phone:'',
+  forWhat:'', periodStart:'', periodEnd:'', period:'', items:[], discType:'pct', discValue:'', discReason:'',
+  paid:'', received:'', prevPaid:'', method:'Bank transfer', payRef:'', receivedBy:'',
+  school:'', exam:'', where:'', cardNote:'', subjects:[], intake:'', checklistId:'', incOff:[], plan:'', plan1:'', plan2:'', noInstLine:false };
+const normalize = d => Object.assign(JSON.parse(JSON.stringify(DOC_FIELDS)), d || {});
+function defaultDue(type, from){
+  if(type==='quote') return addDays(from, num(settings.validDays) || 30);
+  if(type==='invoice') return addDays(from, String(settings.dueDays ?? '').trim()==='' ? 0 : Math.max(0, Math.round(num(settings.dueDays))));   // default: due the day it's issued
+  return '';   // receipts and tuition cards have no due date
+}
+function blankDoc(type = 'quote'){
+  const date = todayISO();
+  return normalize({ type, number:nextNumber(type), date, dueDate:defaultDue(type, date),
+    items:[{desc:'Mathematics',days:'2',sessions:'8',cost:settings.rate}] });
+}
+/* A new document made from an existing one: quote → invoice → receipt */
+function convertDoc(src, type){
+  const d = normalize(JSON.parse(JSON.stringify(src)));
+  ['sentAt','sentTo','waSentAt','waSentTo','savedAt','total'].forEach(k=>delete d[k]);
+  d.id = null; d.type = type; d.number = nextNumber(type); d.date = todayISO(); d.dueDate = defaultDue(type, d.date);
+  const t = totals(src);
+  if(type==='invoice'){ d.ref = src.type==='quote' ? src.number : (src.ref || ''); d.paid = ''; }
+  if(type==='receipt'){
+    d.ref = src.type==='invoice' ? src.number : '';
+    d.prevPaid = src.type==='invoice' && t.paid ? String(t.paid) : '';
+    d.received = String(Math.max(0, src.type==='invoice' ? t.balance : t.total));
+    const P = planInfo(src); if(P && P.next) d.received = String(P.next.left);   // on a payment plan, the next instalment
+    d.payRef = '';
+  }
+  if(type==='quote') d.ref = '';
+  if(type==='card'){
+    d.ref = src.type==='card' ? src.ref : src.number;
+    if(src.type!=='card' || !(d.subjects||[]).length) d.subjects = cardSubjectsFromItems(src.items, src.level);
+    d.dueDate = '';
+  }
+  return d;
+}
+
+/* ================= formatting ================= */
+const num = v => { const n = parseFloat(String(v??'').replace(/,/g,'')); return isNaN(n)?0:n; };
+const money = n => n.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+const money0 = n => Math.abs(n % 1) > 0.004 ? money(n) : Math.round(n).toLocaleString('en-US');
+const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function fmtDate(iso){ if(!iso) return ''; const [y,m,d]=iso.split('-'); return `${d}/${m}/${y}`; }
+function totals(d = doc){
+  const subtotal = (d.items||[]).reduce((s,it)=>s+num(it.sessions)*num(it.cost),0);
+  let discount = d.discType==='amt' ? num(d.discValue) : subtotal * num(d.discValue) / 100;
+  discount = Math.round(Math.min(Math.max(discount, 0), subtotal) * 100) / 100;
+  const total = subtotal - discount;
+  const paid = d.type==='invoice' ? num(d.paid) : 0;
+  const prevPaid = d.type==='receipt' ? num(d.prevPaid) : 0;
+  const received = d.type==='receipt' ? num(d.received) : 0;
+  const balance = d.type==='receipt' ? total - prevPaid - received : total - paid;
+  return {subtotal, discount, total, paid, prevPaid, received, balance};
+}
+function discountInner(d = doc){
+  const reason = (d.discReason||'').trim(), pct = d.discType!=='amt' ? `${num(d.discValue)}%` : '';
+  return [reason, pct].filter(Boolean).join(' ');
+}
+function discountLabel(d = doc){ const inner = discountInner(d); return inner ? `Discount (${inner})` : 'Discount'; }
+
+let doc = normalize(store.get('lhq_draft', null) || blankDoc());
+if(!doc.date) doc.date = todayISO();
+
+/* ================= document renderer =================
+   Coordinates in points, taken from the original PDF (612 x 792 pt). */
+/* ---------- payment plan: 50% at the start, 50% half-way through the tuition period ---------- */
+function planInfo(d = doc){
+  if(d.plan!=='half' || d.type==='card' || d.type==='quote') return null;   // quotes are always in full
+  const t = totals(d), a1 = Math.round(t.total*50)/100, a2 = Math.round((t.total - a1)*100)/100;
+  const start = d.periodStart || d.date || todayISO();
+  const date1 = d.plan1 || start;
+  // the 2nd instalment is due on the first day of the second half, counted in whole weeks (4 weeks -> start of week 3)
+  let mid = addDays(date1, 14);
+  if(d.periodStart && d.periodEnd){
+    const days = dayDiff(d.periodStart, d.periodEnd) + 1, weeks = Math.round(days / 7);
+    mid = weeks >= 2 ? addDays(d.periodStart, Math.floor(weeks / 2) * 7) : addDays(d.periodStart, Math.floor(days / 2));
+  }
+  const date2 = d.plan2 || mid;
+  const paid = d.type==='invoice' ? t.paid : d.type==='receipt' ? t.prevPaid + t.received : 0;
+  const rows = [{n:1, label:'1st instalment (50%)', short:'1st instalment', amt:a1, due:date1, paid: paid >= a1 - 0.005},
+                {n:2, label:'2nd instalment (50%)', short:'2nd instalment', amt:a2, due:date2, paid: paid >= t.total - 0.005}];
+  const next = rows.find(r=>!r.paid) || null;
+  // what is still owed on the next instalment (part payments count towards it)
+  if(next) next.left = Math.round((next.n===1 ? a1 - paid : t.total - Math.max(paid, a1))*100)/100;
+  return {rows, next, paid, total:t.total};
+}
+/* Receipts: quick amounts (the instalment due, the whole balance, or another amount) and what the amount means */
+function drawPayPick(t){
+  const before = Math.max(0, Math.round((t.total - t.prevPaid) * 100) / 100);
+  const Pb = planInfo(Object.assign({}, doc, {received:'0'})), next = Pb && Pb.next;
+  const opts = [];
+  if(next && next.left > 0.005 && Math.abs(next.left - before) > 0.005) opts.push([next.left, `${next.short} · MKW ${money(next.left)}`]);
+  if(before > 0.005) opts.push([before, next && Math.abs(next.left - before) < 0.005 ? `${next.short} (the rest) · MKW ${money(before)}` : `Full balance · MKW ${money(before)}`]);
+  const r = num(doc.received), on = opts.find(o => Math.abs(o[0] - r) < 0.005);
+  F('payPick').innerHTML = opts.map(([v, l]) => `<button type="button" data-amt="${v}" class="${on && on[0] === v ? 'on' : ''}">${esc(l)}</button>`).join('') + `<button type="button" data-amt="" class="${on ? '' : 'on'}">Other amount</button>`;
+  let note = '', cls = '';
+  if(r > 0.005){
+    if(r > before + 0.005){ note = `MKW ${money(r - before)} more than is owed. It is kept as credit and counted on ${doc.student || 'the student'}'s next invoice.`; cls = 'warn'; }
+    else if(Math.abs(r - before) < 0.005){ note = 'Pays the invoice in full.'; cls = 'ok'; }
+    else if(next && r < next.left - 0.005) { note = `MKW ${money(next.left - r)} is still owed on the ${next.short.toLowerCase()} (due ${niceDate(next.due)}).`; cls = 'warn'; }
+    else if(next && next.n === 1 && r > next.left + 0.005) { note = `Covers the 1st instalment and MKW ${money(r - next.left)} of the 2nd. MKW ${money(before - r)} is still owed.`; }
+    else { note = `MKW ${money(before - r)} is still owed after this payment.`; cls = before - r > 0.005 ? 'warn' : ''; }
+  }
+  F('payNote').textContent = note; F('payNote').className = 'hint pay-note ' + cls;
+}
+document.addEventListener('click', e=>{
+  const b = e.target.closest('#payPick [data-amt]'); if(!b) return;
+  if(b.dataset.amt === ''){ F('f_received').focus(); F('f_received').select(); return; }
+  doc.received = b.dataset.amt; F('f_received').value = b.dataset.amt; update();
+});
+/* credit: a parent who paid more than an invoice has the extra counted as already paid on their next invoice */
+function creditFor(key, exceptId){
+  let credit = 0, from = [];
+  saved.forEach(r => { if(r.type !== 'receipt' || studentKey(r.student || r.name) !== key) return;
+    const tot = num(r.total) || totals(r).total, over = num(r.prevPaid) + num(r.received) - tot;
+    if(over > 0.005){ credit += over; from.push(r.number); } });
+  saved.forEach(i => { if(i.type === 'invoice' && i.id !== exceptId && studentKey(i.student || i.name) === key) credit -= num(i.creditUsed); });
+  return {amt: Math.max(0, Math.round(credit * 100) / 100), from};
+}
+function applyCredit(d){
+  if(d.type !== 'invoice' || d.id) return '';
+  const c = creditFor(studentKey(d.student || d.name)); if(c.amt <= 0.005) return '';
+  d.creditUsed = String(c.amt); d.paid = String(num(d.paid) + c.amt);
+  return ` MKW ${money(c.amt)} credit from ${c.from.join(', ')} is counted as already paid.`;
+}
+/* "Every LHQ Enrollment Includes": all items by default; doc.incOff holds the ones removed from this document */
+const graceDays = () => Math.max(0, Math.round(num(settings.graceDays)));
+/* one line for the next payment; if it is the 2nd instalment the grace-period rule is joined on */
+function nextLine(P, html){
+  if(!P || !P.next) return '';
+  const g = graceDays(), r = P.next, b = x => html ? `<b>${x}</b>` : x;
+  let line = b(`Next payment: MKW ${money0(r.left)} (${r.short}) is due by ${niceDate(r.due)}.`);
+  if(r.n===2) line += g ? ` If it is not received by ${niceDate(addDays(r.due, g))} (${g}-day grace period), sessions are paused until payment is confirmed. Paused sessions are made up once payment is received.`
+    : ' If it is not received by then, sessions are paused until payment is confirmed. Paused sessions are made up once payment is received.';
+  else if(graceLine(P)) line += (html ? '</span></div><div class="li"><span>•</span><span>' : '\n') + graceLine(P);
+  return line;
+}
+function graceLine(P){
+  const r = P && P.rows[1]; if(!r || r.paid) return '';
+  const g = graceDays();
+  return g ? `The second instalment is due by ${niceDate(r.due)}. If it is not received by ${niceDate(addDays(r.due, g))} (${g}-day grace period), sessions are paused until payment is confirmed. Paused sessions are made up once payment is received.`
+    : `The second instalment is due by ${niceDate(r.due)}. If it is not received by then, sessions are paused until payment is confirmed. Paused sessions are made up once payment is received.`;
+}
+/* where an invoice stands, for the Saved list */
+function invoiceFlag(d){
+  if((d.type||'quote')!=='invoice') return '';
+  const t = totals(d), today = todayISO();
+  if(t.total > 0 && t.balance <= 0.005) return '<span class="flag ok">Paid</span>';
+  const P = planInfo(d);
+  if(P && P.next){
+    const end = addDays(P.next.due, graceDays());
+    if(today > end) return `<span class="flag over">${P.next.short} overdue</span>`;
+    if(today > P.next.due) return `<span class="flag grace">${P.next.short} in grace until ${niceDate(end)}</span>`;
+    return `<span class="flag">${P.next.short} due ${niceDate(P.next.due)}</span>`;
+  }
+  if(d.dueDate && today > d.dueDate) return '<span class="flag over">Overdue</span>';
+  return '';
+}
+function includedList(d = doc){ const off = d.incOff || []; return lines(settings.includes).filter(x=>!off.includes(x)); }
+function renderIncludes(){
+  const all = lines(settings.includes), off = doc.incOff || [];
+  const tick = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#fff" stroke-width="3"><path d="M5 12l5 5 9-10"/></svg>';
+  F('incChips').innerHTML = all.map(x=>{ const on = !off.includes(x);
+    return `<button type="button" data-inc="${esc(x)}" class="${on?'on':''}" aria-pressed="${on}"><span class="bx">${on?tick:''}</span>${esc(x)}</button>`; }).join('');
+  const n = all.filter(x=>!off.includes(x)).length, w = WORD[doc.type] ? WORD[doc.type].toLowerCase() : 'document';
+  F('incHint').textContent = n===all.length ? `All included. Tap an item to leave it off this ${w}.`
+    : n ? `${n} of ${all.length} included on this ${w}. Tap to add or remove.` : `Nothing ticked, so this section is left off the ${w}.`;
+}
+let docCopy = 'customer';   // receipts: which copy is being drawn
+function renderDoc(){
+  if(doc.type==='card'){ renderCardPreview(); return; }
+  /* the Clean ledger layout: who and how much first, the subjects, how to pay at the foot */
+  const S = settings, T = doc.type, t = totals(), m0 = n => Math.abs(n % 1) > 0.004 ? money(n) : Math.round(n).toLocaleString('en-US');
+  const P = planInfo(), hasDisc = t.discount > 0;
+  const who = [doc.student ? `For ${esc(doc.student)}${doc.level ? ' · ' + esc(doc.level) : ''}` : esc(doc.level || ''),
+    T!=='receipt' ? [doc.address, doc.email].filter(Boolean).map(esc).join(' · ') : '',
+    periodText() ? `Tuition period ${esc(periodText())}` : '', doc.forWhat && T!=='quote' ? `For: ${esc(doc.forWhat)}` : ''].filter(Boolean).join('<br>');
+  const meta = T==='quote' ? [`${esc(doc.number)} · ${esc(niceDate(doc.date))}`, doc.dueDate ? `<span class="lg-valid">Valid until ${esc(niceDate(doc.dueDate))}</span>` : '']
+    : T==='invoice' ? [`${esc(doc.number)} · ${esc(niceDate(doc.date))}`, doc.ref ? `Quote ${esc(doc.ref)}` : '']
+    : [`${esc(doc.number)} · ${esc(niceDate(doc.date))}`, doc.ref ? `For invoice ${esc(doc.ref)}` : ''];
+  let h = `<div class="lg"><div class="lg-hd"><img src="logo.png" alt="LHQ"><div class="lg-t"><b>${WORD[T].toUpperCase()}</b>${meta.filter(Boolean).join('<br>')}</div></div>
+    ${T==='receipt' ? `<div class="lg-copy">${docCopy==='office' ? 'OFFICE COPY' : 'CUSTOMER COPY'}</div>` : ''}<div class="lg-gold"></div>`;
+
+  /* who it's for, and the one number that matters */
+  let box = '';
+  if(T==='quote'){
+    const inst = !doc.noInstLine && t.total > 0;
+    box = `<div class="lg-due"><span class="cap">Total for the period</span><b>MKW ${m0(t.total)}</b><span>${inst ? `or 2 instalments of ${m0(Math.round(t.total*50)/100)}` : doc.items.length ? `${doc.items.reduce((a, x) => a + num(x.sessions), 0)} sessions · ${doc.items.length} subject${doc.items.length === 1 ? '' : 's'}` : ''}</span></div>`;
+  } else if(T==='invoice'){
+    if(t.total > 0 && t.balance <= 0.005) box = `<div class="lg-due ok"><span class="cap">Paid in full</span><b>MKW ${m0(t.total)}</b><span>Thank you</span></div>`;
+    else box = `<div class="lg-due"><span class="cap">Balance due</span><b>MKW ${m0(Math.max(0, t.balance))}</b><span>${P && P.next ? `by ${esc(wkDate(P.next.due))} · ${P.next.short}` : doc.dueDate ? `by ${esc(wkDate(doc.dueDate))}` : ''}</span></div>`;
+  } else {
+    const full = t.total > 0 && t.balance <= 0.005;
+    box = `<div class="lg-due ok"><span class="cap">Received</span><b>MKW ${m0(t.received)}</b><span>${full ? 'Paid in full · nothing owed' : t.total > 0 ? `MKW ${m0(Math.max(0, t.balance))} still owed` : ''}</span></div>`;
+  }
+  h += `<div class="lg-two"><div><span class="cap">${{quote:'Prepared for', invoice:'Billed to', receipt:'Received from'}[T]}</span><p><b>${esc(doc.name || '')}</b>${who ? '<br>' + who : ''}</p>
+    ${T==='receipt' ? `<p class="lg-pd">${[doc.method ? `<b>${esc(doc.method)}</b>` : '', doc.payRef ? `Ref ${esc(doc.payRef)}` : '', `Received ${esc(niceDate(doc.date))}`].filter(Boolean).join(' · ')}</p>` : ''}</div>${box}</div>`;
+
+  /* subjects (quote, invoice) or where the invoice stands (receipt) */
+  if(T==='receipt'){
+    h += `<table class="lg-tb"><tr><th>Invoice</th><th class="r">Invoice total</th>${t.prevPaid ? '<th class="r">Paid before</th>' : ''}<th class="r">Paid now</th><th class="r">Balance</th></tr>
+      <tr><td>${esc(doc.ref || '–')}${hasDisc ? ` <small>after ${esc([discountInner(), 'discount'].filter(Boolean).join(' '))}</small>` : ''}</td><td class="r">${m0(t.total)}</td>${t.prevPaid ? `<td class="r">${m0(t.prevPaid)}</td>` : ''}<td class="r"><b>${m0(t.received)}</b></td><td class="r">${m0(Math.max(0, t.balance))}</td></tr></table>`;
+    if(doc.items.length) h += `<p class="lg-sub">${doc.items.map(it => esc(it.desc)).filter(Boolean).join(' · ')}</p>`;
+  } else {
+    const days = doc.items.some(it => String(it.days || '').trim());
+    h += `<table class="lg-tb"><tr><th>Subject</th>${days ? '<th class="r">Days</th>' : ''}<th class="r">Sessions</th><th class="r">Per session</th><th class="r">Amount</th></tr>
+      ${doc.items.map(it => `<tr><td>${esc(it.desc)}</td>${days ? `<td class="r">${esc(it.days)}</td>` : ''}<td class="r">${esc(it.sessions)}</td><td class="r">${m0(num(it.cost))}</td><td class="r">${m0(num(it.sessions)*num(it.cost))}</td></tr>`).join('')}</table>`;
+    const rows = [];
+    if(hasDisc){ rows.push(['Subtotal', m0(t.subtotal)]); rows.push([esc(discountLabel()), '−' + m0(t.discount)]); }
+    if(T==='quote') rows.push(['Total (MKW)', m0(t.total), 1]);
+    else { rows.push(['Total', m0(t.total)]); rows.push(['Paid', m0(t.paid)]); rows.push(['Balance due (MKW)', m0(Math.max(0, t.balance)), 1]); }
+    h += `<table class="lg-tot">${rows.map(([l, v, b]) => `<tr${b ? ' class="b"' : ''}><td>${l}</td><td class="r">${v}</td></tr>`).join('')}</table>`;
+  }
+
+  /* how to pay, the plan, and the notes */
+  if(T==='quote'){
+    const start = doc.periodStart || doc.dueDate;
+    const Q = !doc.noInstLine && t.total > 0 ? planInfo(Object.assign({}, doc, {type:'invoice', plan:'half', paid:'0', plan1:'', plan2:''})) : null;
+    h += `<div class="lg-sec"><span class="cap">${Q ? 'Choose how to pay' : 'How to accept'}</span><div class="lg-ch${Q ? '' : ' one'}">
+      <div class="rec"><span class="tag">ONE PAYMENT</span><b>Pay in full</b>MKW ${m0(t.total)}${start ? ` before ${esc(niceDate(start))}` : ''}</div>
+      ${Q ? `<div><span class="tag bl">50 / 50</span><b>Two instalments</b>MKW ${m0(Q.rows[0].amt)} before ${esc(niceDate(Q.rows[0].due))}<br>MKW ${m0(Q.rows[1].amt)} by ${esc(niceDate(Q.rows[1].due))}</div>` : ''}</div>
+      <p class="lg-note">${doc.dueDate ? `This quote is valid until ${esc(niceDate(doc.dueDate))}. ` : ''}To accept, make the payment and send proof of payment to ${esc(S.popphone)} or ${esc(S.email)}. A receipt and the tuition card follow.</p></div>`;
+  } else if(T==='invoice'){
+    if(P) h += `<div class="lg-sec"><span class="cap">Payment plan · 50% at the start, 50% half-way through the tuition period</span><table class="lg-plan">${P.rows.map(r => `<tr><td>${r.short} · ${esc(wkDate(r.due))}</td><td class="r">${m0(r.amt)}</td><td class="r ${r.paid ? 'ok' : P.next === r ? 'due' : ''}">${r.paid ? 'Paid' : P.next === r ? 'Next due' : 'Due'}</td></tr>`).join('')}</table></div>`;
+    const notes = [];
+    if(P && P.next) notes.push(nextLine(P, true));
+    else if(doc.dueDate && t.balance > 0.005) notes.push(`<b>Payment of the balance is due by ${esc(niceDate(doc.dueDate))}.</b>`);
+    if(t.balance > 0.005) notes.push('A receipt is issued once the payment has been confirmed.');
+    if(notes.length) h += `<div class="lg-sec"><span class="cap">Please note</span>${notes.map(x => `<div class="lg-li"><span>•</span><span>${x}</span></div>`).join('')}</div>`;
+  } else {
+    const notes = ['Thank you for your payment. Please keep this receipt for your records.'];
+    if(P && P.next && t.balance > 0.005) notes.push(nextLine(P, true));
+    h += `<div class="lg-sec">${notes.map(x => `<div class="lg-li"><span>•</span><span>${x}</span></div>`).join('')}</div>
+      <div class="lg-sig"><div class="ln"></div><b>Signature</b> · for LHQ Learning Solutions${doc.receivedBy ? ` · received by ${esc(doc.receivedBy)}` : ''}</div>`;
+  }
+
+  /* the foot */
+  const inc = T==='receipt' ? [] : includedList();
+  const pay = T==='receipt' ? `<span class="cap">Questions</span><br>Call ${esc(S.popphone)} or email ${esc(S.email)}.`
+    : `<span class="cap">How to pay</span><br>${esc(S.bank)} · ${esc(S.accname)} · ${esc(S.branch)} · <b>${esc(S.accno)}</b><br>Mobile money ${esc(S.mobile)} (add the withdrawal fee). Proof of payment: ${esc(S.popphone)} or ${esc(S.email)}.`;
+  h += `<div class="lg-foot"><div>${pay}</div><div>${inc.length ? `<span class="cap">Every LHQ enrolment includes</span><br><span class="lg-inc">${inc.map(esc).join(' · ')}</span><br>` : ''}<span class="mut">${esc(S.email)} · ${esc(S.phone)}</span></div></div></div>`;
+  F('doc').innerHTML = h;
+}
+
+/* ================= editor ================= */
+const fieldMap = {f_number:'number', f_ref:'ref', f_name:'name', f_student:'student', f_address:'address', f_email:'email', f_phone:'phone',
+  f_for:'forWhat', f_paid:'paid', f_discValue:'discValue', f_discReason:'discReason', f_received:'received', f_prevPaid:'prevPaid',
+  f_payRef:'payRef', f_receivedBy:'receivedBy', f_exam:'exam', f_where:'where', f_cardNote:'cardNote'};
+
+function setBtnText(btn, text, placeholder){
+  btn.classList.toggle('empty', !text);
+  btn.querySelector('span:not(.pb-dot)').textContent = text || placeholder;
+}
+function fillPlan(){
+  document.querySelectorAll('#planSeg button').forEach(b=>b.classList.toggle('on', b.dataset.p===(doc.plan||'')));
+  const P = planInfo();
+  F('planDates').hidden = !P; F('planHint').hidden = !P;
+  F('planRow').hidden = doc.type!=='invoice';
+  F('instLineRow').hidden = doc.type!=='quote'; F('f_instLine').checked = !doc.noInstLine;
+  if(!P) return;
+  setBtnText(F('btnPlan1'), wkDate(P.rows[0].due), 'Choose');
+  setBtnText(F('btnPlan2'), wkDate(P.rows[1].due), 'Choose');
+  F('planHint').textContent = `MKW ${money(P.rows[0].amt)} + MKW ${money(P.rows[1].amt)}. ${doc.plan2 ? '' : 'The 2nd date is half-way through the tuition period. '}Tap a date to change it.`;
+}
+function fillDates(){
+  setBtnText(F('btnDate'), wkDate(doc.date), 'Choose a date');
+  setBtnText(F('btnDue'), wkDate(doc.dueDate), 'No date');
+  const len = rangeLength(doc.periodStart, doc.periodEnd);
+  setBtnText(F('btnPeriod'), doc.periodStart ? rangeText(doc.periodStart, doc.periodEnd) + (len ? ' · ' + len : '') : doc.period, 'Choose start and end dates');
+  const diff = doc.date && doc.dueDate ? dayDiff(doc.date, doc.dueDate) : null;
+  F('dueChips').querySelectorAll('button').forEach(b=>b.classList.toggle('on', +b.dataset.days === diff));
+}
+function fillPickButtons(){
+  setBtnText(F('btnLevel'), doc.level, 'Choose');
+  setBtnText(F('btnMethod'), doc.method, 'Choose');
+  setBtnText(F('btnSchool'), doc.school, 'Choose');
+}
+function fillForm(){
+  const T = doc.type;
+  for(const [id,key] of Object.entries(fieldMap)) F(id).value = doc[key] ?? '';
+  document.querySelectorAll('#typeSeg button').forEach(b=>b.classList.toggle('on', b.dataset.t===T));
+  document.querySelectorAll('#discSeg button').forEach(b=>b.classList.toggle('on', b.dataset.d===(doc.discType||'pct')));
+  F('numLabel').textContent = WORD[T] + ' number';
+  const C = T==='card';
+  F('dateLabel').textContent = T==='receipt' ? 'Date received' : C ? 'Date issued' : 'Date';
+  F('dueRow').hidden = T==='receipt' || C;
+  F('dueLabel').textContent = T==='quote' ? 'Valid until' : 'Due date';
+  F('dueChips').querySelector('[data-days="0"]').hidden = T==='quote';
+  F('refRow').hidden = T==='quote';
+  F('refLabel').textContent = T==='invoice' ? 'Quote reference' : C ? 'Made from (invoice or receipt)' : 'Invoice reference';
+  F('f_ref').placeholder = T==='invoice' ? 'e.g. Q-1038' : 'e.g. INV-0042';
+  F('addrRow').hidden = T==='receipt' || C;
+  ['nameRow','contactRow','forRow','waHint','itemsPanel'].forEach(id=>F(id).hidden = C);
+  F('cardPanel').hidden = !C; F('cardSubjPanel').hidden = !C;
+  F('paidRow').hidden = T!=='invoice';
+  F('payPanel').hidden = T!=='receipt';
+  F('incPanel').hidden = T==='receipt' || T==='card';
+  renderIncludes();
+  F('doc').hidden = C; F('cardDoc').hidden = !C;
+  F('btnSendTop').querySelector('span').textContent = C ? 'Share' : 'Send';
+  F('btnPrint').hidden = C;
+  fillDates(); fillPickButtons(); fillPlan();
+  // existing documents: a session count that doesn't match days x weeks was typed by hand, so keep it
+  (doc.items||[]).forEach(it=>{ if(it.sessManual===undefined){ const v = autoSessions(it); it.sessManual = v!==null && String(it.sessions)!==v; } });
+  knownDismissed = ''; checkKnown();
+  if(C){ fillCardFields(); renderCardEditor(); }
+  renderItems();
+  fitPreview();
+}
+
+const CHEVRON = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>';
+const isCustom = it => !!(it.custom || (it.desc && !subjectList().includes(it.desc)));
+function subjectSelect(it, i){
+  const other = isCustom(it);
+  const label = other ? 'Other subject' : it.desc;
+  return `<button type="button" class="picker-btn${label?'':' empty'}" data-pick="${i}" aria-haspopup="listbox" aria-expanded="false" aria-label="Subject: ${esc(label||'not chosen')}">
+      <span class="pb-dot"></span><span class="pb-text">${esc(label || 'Choose a subject')}</span>${other?'<span class="pb-tag">TYPED</span>':''}${CHEVRON}</button>` +
+    (other ? `<input data-i="${i}" data-k="desc" value="${esc(it.desc)}" placeholder="Type the subject name" aria-label="Subject name">` : '');
+}
+
+function renderItems(){
+  F('itemsBody').innerHTML = doc.items.map((it,i)=>`
+    <div class="item">
+      <div class="f subj">${subjectSelect(it,i)}</div>
+      <div class="f"><small>Days</small><input data-i="${i}" data-k="days" value="${esc(it.days)}" inputmode="numeric" aria-label="Days"></div>
+      <div class="f"><small>Sessions</small><input data-i="${i}" data-k="sessions" value="${esc(it.sessions)}" inputmode="numeric" aria-label="Sessions"></div>
+      <div class="f"><small>Cost/session</small><input data-i="${i}" data-k="cost" value="${esc(it.cost)}" inputmode="decimal" aria-label="Cost per session"></div>
+      <div class="amt" id="amt${i}"></div>
+      <button class="small danger rm" data-rm="${i}" title="Remove subject" aria-label="Remove subject">✕</button>
+    </div>`).join('');
+  update();
+}
+
+function update(){
+  const t = totals(), T = doc.type;
+  doc.items.forEach((it,i)=>{ const c=F('amt'+i); if(c) c.textContent = 'MKW ' + money(num(it.sessions)*num(it.cost)); });
+  const rows = [];
+  if(T==='receipt'){
+    rows.push(['Invoice total', 'MKW ' + money(t.total)]);
+    if(t.discount) rows.push([discountLabel() + ' included', '', 'dr']);
+    rows.push(['Paid before this', 'MKW ' + money(t.prevPaid)]);
+    rows.push(['Paid', 'MKW ' + money(t.received)]);
+    rows.push(['Balance remaining', 'MKW ' + money(Math.max(0, t.balance)), 'big']);
+  } else {
+    if(t.discount){ rows.push(['Subtotal', 'MKW ' + money(t.subtotal)]); rows.push([discountLabel(), '-MKW ' + money(t.discount), 'dr']); }
+    if(T==='quote') rows.push(['Total', 'MKW ' + money(t.total), 'big']);
+    else { rows.push(['Total', 'MKW ' + money(t.total)]); rows.push(['Paid', 'MKW ' + money(t.paid)]); rows.push(['Balance due', 'MKW ' + money(t.balance), 'big']); }
+  }
+  if(T==='receipt') drawPayPick(t);
+  const PP = planInfo();
+  if(PP) PP.rows.forEach(r=>rows.push([`${r.short} · due ${niceDate(r.due)}${r.paid?' · paid':''}`, 'MKW ' + money(r.amt), 'dr']));
+  if(mode === 'edit') drawHead();
+  F('sums').innerHTML = rows.map(([a,b,c])=>`<div class="row ${c||''}"><span>${esc(a)}</span><span>${esc(b)}</span></div>`).join('');
+  renderDoc();
+  if(doc.plan) fillPlan();
+  if(doc.type==='card') fitPreview();
+  store.set('lhq_draft', doc);
+  pdfCache = null;
+}
+
+/* Sessions = days a week x weeks in the tuition period, until sessions are typed by hand */
+function periodWeeks(d = doc){
+  if(!d.periodStart || !d.periodEnd) return 0;
+  const days = dayDiff(d.periodStart, d.periodEnd) + 1;
+  return days >= 7 ? Math.max(1, Math.round(days / 7)) : 0;
+}
+function autoSessions(it){
+  const w = periodWeeks(), dd = num(it.days);
+  return w && dd ? String(Math.round(dd * w)) : null;
+}
+function refreshSessions(){
+  let changed = false;
+  doc.items.forEach((it,i)=>{ if(it.sessManual) return; const v = autoSessions(it); if(v!==null && v!==String(it.sessions)){ it.sessions = v; changed = true; const inp = document.querySelector(`input[data-i="${i}"][data-k="sessions"]`); if(inp) inp.value = v; } });
+  return changed;
+}
+F('itemsBody').addEventListener('input', e=>{
+  const i = e.target.dataset.i, k = e.target.dataset.k;
+  if(i===undefined || k==='subjectSel') return;
+  doc.items[i][k] = e.target.value;
+  if(k==='sessions') doc.items[i].sessManual = e.target.value.trim()!=='' && e.target.value!==autoSessions(doc.items[i]);
+  if(k==='days') refreshSessions();
+  update();
+});
+F('itemsBody').addEventListener('click', e=>{
+  const b = e.target.closest('[data-rm]'); if(!b) return;
+  doc.items.splice(+b.dataset.rm,1); renderItems();
+});
+/* ---------- subject picker ---------- */
+const pk = {i:null, field:null, btn:null, opts:[], active:0};
+const isSheet = () => window.matchMedia('(max-width:640px)').matches;
+const CHECK = '<svg class="ck" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12l5 5 9-10"/></svg>';
+const PENCIL = '<span class="ic"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg></span>';
+const PLUS = '<span class="ic"><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg></span>';
+
+function pickCtx(){
+  if(pk.field && pk.field.startsWith('cs:')){
+    const c = cardFieldCfg(pk.field);
+    return { list:c.list(), cur:c.get()||'', other:false, title:c.title, noun:c.noun, allowOther:false, clear:c.clear, noUse:pk.field.endsWith(':list') };
+  }
+  if(pk.field==='school'){
+    const q = F('pkSearch').value.trim();
+    const list = SCHOOLS.filter(x=>schoolMatch(x, q)).map(x=>x.n);
+    return { list, cur:doc.school||'', other:false, title:'School', noun:'school', allowOther:false, clear:'No school', filtered:true,
+      sub: v => (SCHOOLS.find(x=>x.n===v)||{}).a || '' };
+  }
+  if(pk.field){
+    const list = pk.field==='level' ? levelList() : methodList(), cur = doc[pk.field] || '';
+    return { list, cur, other:false, title: pk.field==='level' ? 'Year & level' : 'Payment method',
+      noun: pk.field==='level' ? 'level' : 'method', allowOther:false };
+  }
+  const it = doc.items[pk.i], list = subjectList(), other = isCustom(it);
+  return { list, cur: other ? '' : it.desc, other, title:'Choose a subject', noun:'subject', allowOther:true };
+}
+function buildPickList(){
+  const q = F('pkSearch').value.trim(), ql = q.toLowerCase();
+  const c = pickCtx();
+  const matches = c.filtered ? c.list : c.list.filter(s=>s.toLowerCase().includes(ql));
+  pk.opts = matches.map(s=>({kind:'subj', value:s, selected: c.cur===s}));
+  const exact = c.list.some(s=>s.toLowerCase()===ql);
+  if(q && !exact && !c.noUse) pk.opts.push({kind:'use', value:q});
+  if(!q && c.clear) pk.opts.push({kind:'clear', value:'', selected:!c.cur});
+  if(!q && c.allowOther) pk.opts.push({kind:'other', selected:c.other});
+  pk.active = q ? 0 : Math.max(0, pk.opts.findIndex(o=>o.selected));
+  let html = '', sepDone = false;
+  if(q && !matches.length) html += `<li class="pk-empty" role="presentation">“${esc(q)}” isn't on your ${c.noun} list.</li>`;
+  pk.opts.forEach((o,n)=>{
+    if(o.kind!=='subj' && !sepDone && matches.length){ html += '<li class="pk-sep" role="presentation"></li>'; sepDone = true; }
+    const attrs = `class="pk-opt${o.kind!=='subj'?' pk-special':''}${n===pk.active?' active':''}" role="option" id="pko${n}" data-n="${n}" aria-selected="${!!o.selected}"`;
+    if(o.kind==='subj') html += `<li ${attrs}><span>${esc(o.value)}${c.sub && c.sub(o.value) ? `<small class="pk-area">${esc(c.sub(o.value))}</small>` : ''}</span>${CHECK}</li>`;
+    else if(o.kind==='use') html += `<li ${attrs}>${PLUS}<span>Use “${esc(o.value)}”<small>${c.clear!==undefined ? 'Typed in, not added to your list' : `For this ${WORD[doc.type].toLowerCase()} only`}</small></span></li>`;
+    else if(o.kind==='clear') html += `<li ${attrs}><span class="ic">–</span><span>${esc(c.clear)}</span>${CHECK}</li>`;
+    else html += `<li ${attrs}>${PENCIL}<span>Other subject<small>Type in a subject that isn't listed</small></span>${CHECK}</li>`;
+  });
+  F('pkList').innerHTML = html;
+  F('pkSearch').setAttribute('aria-activedescendant', pk.opts.length ? 'pko'+pk.active : '');
+}
+function setActive(n){
+  if(!pk.opts.length) return;
+  pk.active = (n + pk.opts.length) % pk.opts.length;
+  F('pkList').querySelectorAll('.pk-opt').forEach(el=>el.classList.toggle('active', +el.dataset.n===pk.active));
+  const el = F('pko'+pk.active); if(el) el.scrollIntoView({block:'nearest'});
+  F('pkSearch').setAttribute('aria-activedescendant','pko'+pk.active);
+}
+function placePop(p, btn, minW){
+  if(isSheet()){ p.removeAttribute('style'); return; }
+  const r = btn.getBoundingClientRect();
+  const w = Math.max(r.width, minW), gap = 6, margin = 12;
+  const below = innerHeight - r.bottom - margin, above = r.top - margin - 70; // 70 ≈ sticky top bar
+  const openUp = below < 260 && above > below;
+  const maxH = Math.min(minW > 300 ? 520 : 360, openUp ? above : below);
+  p.style.width = w + 'px';
+  p.style.left = Math.max(margin, Math.min(r.left, innerWidth - w - margin)) + 'px';
+  p.style.maxHeight = Math.max(180, maxH) + 'px';
+  if(openUp){ p.style.top = 'auto'; p.style.bottom = (innerHeight - r.top + gap) + 'px'; }
+  else { p.style.bottom = 'auto'; p.style.top = (r.bottom + gap) + 'px'; }
+}
+function placePicker(){ if(pk.btn) placePop(F('picker'), pk.btn, 260); }
+function openPicker(btn){
+  if(pk.btn===btn && !F('picker').hidden){ closePicker(true); return; }
+  closePicker(false); closeCal(false);
+  pk.field = btn.dataset.pickfield || null;
+  pk.i = pk.field ? null : +btn.dataset.pick; pk.btn = btn;
+  btn.setAttribute('aria-expanded','true');
+  F('pkSearch').value = '';
+  const c = pickCtx();
+  F('pkTitle').textContent = c.title;
+  F('pkSearch').placeholder = pk.field==='school' ? 'Search or type a school' : pk.field ? 'Search or type your own' : 'Search or type a subject';
+  buildPickList();
+  F('picker').hidden = false;
+  F('pickBackdrop').hidden = !isSheet();
+  placePicker();
+  if(!isSheet()) F('pkSearch').focus();
+  const sel = F('pkList').querySelector('.pk-opt:not(.pk-special)[aria-selected="true"]'); if(sel) sel.scrollIntoView({block:'center'}); else F('pkList').scrollTop = 0;
+}
+function closePicker(refocus){
+  if(F('picker').hidden) return;
+  F('picker').hidden = true; F('pickBackdrop').hidden = true;
+  if(pk.btn){ pk.btn.setAttribute('aria-expanded','false'); if(refocus) pk.btn.focus(); }
+  pk.btn = null; pk.i = null; pk.field = null;
+}
+function choosePick(n){
+  const o = pk.opts[n]; if(!o) return;
+  if(pk.field && pk.field.startsWith('cs:')){
+    const c = cardFieldCfg(pk.field);
+    c.set(o.value || ''); closePicker(false); c.after();
+    return;
+  }
+  if(pk.field){
+    const key = pk.field, btn = pk.btn;
+    doc[key] = o.value;
+    if(key==='level' && doc.type==='card') (doc.subjects||[]).forEach(s=>{ if(!cardPicked(s) && s.mode!=='full') s.list = cardGuessList(doc.level, s.name); });
+    closePicker(false); fillPickButtons(); update();
+    if(doc.type==='card') renderCardEditor();
+    if(!isSheet()) btn.focus();
+    return;
+  }
+  const i = pk.i, it = doc.items[i];
+  if(o.kind==='subj'){ it.custom = false; it.desc = o.value; }
+  else if(o.kind==='use'){ it.custom = true; it.desc = o.value; }
+  else { it.custom = true; if(subjectList().includes(it.desc)) it.desc = ''; }
+  closePicker(false);
+  renderItems();
+  if(o.kind==='other'){ const inp = document.querySelector(`input[data-i="${i}"][data-k="desc"]`); if(inp) inp.focus(); }
+  else { const b = document.querySelector(`[data-pick="${i}"]`); if(b && !isSheet()) b.focus(); }
+}
+F('itemsBody').addEventListener('click', e=>{ const b = e.target.closest('[data-pick]'); if(b) openPicker(b); });
+F('itemsBody').addEventListener('keydown', e=>{
+  const b = e.target.closest('[data-pick]');
+  if(b && (e.key==='ArrowDown' || e.key==='ArrowUp')){ e.preventDefault(); openPicker(b); }
+});
+F('pkSearch').addEventListener('input', buildPickList);
+F('pkSearch').addEventListener('keydown', e=>{
+  if(e.key==='ArrowDown'){ e.preventDefault(); setActive(pk.active+1); }
+  else if(e.key==='ArrowUp'){ e.preventDefault(); setActive(pk.active-1); }
+  else if(e.key==='Enter'){ e.preventDefault(); choosePick(pk.active); }
+  else if(e.key==='Escape'){ e.preventDefault(); closePicker(true); }
+  else if(e.key==='Tab'){ closePicker(false); }
+});
+F('pkList').addEventListener('mousedown', e=>e.preventDefault());
+F('pkList').addEventListener('click', e=>{ const li = e.target.closest('.pk-opt'); if(li) choosePick(+li.dataset.n); });
+F('pkList').addEventListener('mousemove', e=>{ const li = e.target.closest('.pk-opt'); if(li && +li.dataset.n!==pk.active) setActive(+li.dataset.n); });
+F('pkClose').onclick = ()=>closePicker(false);
+F('pickBackdrop').onclick = ()=>closePicker(false);
+document.addEventListener('pointerdown', e=>{
+  if(F('picker').hidden) return;
+  if(e.target.closest('#picker') || e.target.closest('[data-pick]') || e.target.closest('[data-pickfield]')) return;
+  closePicker(false);
+});
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !F('picker').hidden) closePicker(true); });
+window.addEventListener('resize', ()=>{ if(!F('picker').hidden) placePicker(); });
+window.addEventListener('scroll', e=>{ if(!F('picker').hidden && !isSheet() && !(e.target.closest && e.target.closest('#picker'))) placePicker(); }, true);
+
+F('f_instLine').addEventListener('change', e=>{ doc.noInstLine = !e.target.checked; update(); });
+document.querySelectorAll('#planSeg button').forEach(b=>b.addEventListener('click', ()=>{ doc.plan = b.dataset.p; fillPlan(); update(); }));
+F('incChips').addEventListener('click', e=>{
+  const b = e.target.closest('[data-inc]'); if(!b) return;
+  const x = b.dataset.inc, off = (doc.incOff || []).slice();
+  doc.incOff = off.includes(x) ? off.filter(y=>y!==x) : off.concat(x);
+  renderIncludes(); update();
+});
+F('btnAddItem').onclick = ()=>{ const it = {desc:'',days:'1',sessions:'4',cost:settings.rate}; const v = autoSessions(it); if(v) it.sessions = v; doc.items.push(it); renderItems(); };
+
+/* "Being payment for" fills itself from the student's first name ("Annalise's Tuition") until it's typed over */
+const autoFor = name => { const f = String(name||'').trim().split(/\s+/)[0]; return f ? `${f[0].toUpperCase()+f.slice(1)}'s Tuition` : ''; };
+/* Returning families: a student already in Saved -> offer their parent's details */
+const normName = s => String(s||'').trim().toLowerCase().replace(/\s+/g,' ');
+let knownDismissed = '';
+function knownFamily(name){
+  const n = normName(name); if(n.length < 3) return null;
+  return saved.filter(s=>s.type!=='card' && s.id!==doc.id && normName(s.student)===n).sort((a,b)=>(b.savedAt||0)-(a.savedAt||0))[0] || null;
+}
+const KNOWN_FIELDS = [['name','f_name'],['email','f_email'],['phone','f_phone'],['address','f_address']];
+function checkKnown(){
+  const k = doc.type==='card' ? null : knownFamily(doc.student);
+  const missing = k ? KNOWN_FIELDS.filter(([f])=>k[f] && !doc[f]).length + (k.level && !doc.level ? 1 : 0) : 0;
+  const show = !!k && missing > 0 && normName(doc.student)!==knownDismissed;
+  F('knownBar').hidden = !show;
+  if(show) F('knownText').textContent = `${k.student} is in Saved (${k.number}). Fill in ${[k.name, k.level].filter(Boolean).join(', ') || 'their details'}${k.email||k.phone ? ' and contact details' : ''}?`;
+}
+function fillStudentList(){
+  const names = [...new Set(saved.filter(s=>s.student).map(s=>s.student.trim()))].sort();
+  F('studentNames').innerHTML = names.map(n=>`<option value="${esc(n)}">`).join('');
+}
+F('btnKnownFill').onclick = ()=>{
+  const k = knownFamily(doc.student); if(!k) return;
+  const wasAuto = !doc.forWhat || doc.forWhat===autoFor(doc.student);
+  doc.student = k.student; F('f_student').value = k.student;   // use the spelling already on file
+  if(wasAuto){ doc.forWhat = autoFor(doc.student); F('f_for').value = doc.forWhat; }
+  KNOWN_FIELDS.forEach(([f,id])=>{ if(k[f] && !doc[f]){ doc[f] = k[f]; F(id).value = k[f]; } });
+  if(k.level && !doc.level) doc.level = k.level;
+  fillPickButtons(); F('knownBar').hidden = true; update();
+  toast(`Filled in from ${k.number}. Check the details are still current.`);
+};
+F('btnKnownNo').onclick = ()=>{ knownDismissed = normName(doc.student); F('knownBar').hidden = true; };
+F('f_student').addEventListener('input', ()=>setTimeout(checkKnown, 0));
+for(const [id,key] of Object.entries(fieldMap)) F(id).addEventListener('input', e=>{
+  const before = autoFor(doc.student);
+  doc[key] = e.target.value;
+  if(key==='student' && (!doc.forWhat || doc.forWhat===before)){ doc.forWhat = autoFor(doc.student); F('f_for').value = doc.forWhat; }
+  update();
+});
+document.querySelectorAll('[data-pickfield]').forEach(b=>b.addEventListener('click', ()=>openPicker(b)));
+
+/* Switching type: a saved document stays as it is and a new linked one is made;
+   an unsaved draft simply changes type and takes the next number in that series. */
+function switchType(type){
+  if(type===doc.type) return;
+  const from = doc;
+  if(from.id){
+    doc = convertDoc(from, type);
+    toast(`${WORD[type]} ${doc.number} started from ${WORD[from.type].toLowerCase()} ${from.number}. Save to keep it.`);
+  } else {
+    const t = totals(from);
+    doc.type = type; doc.number = nextNumber(type); doc.dueDate = defaultDue(type, doc.date || todayISO());
+    if(type==='receipt' && !num(doc.received)) doc.received = String(Math.max(0, t.balance));
+    if(type==='card' && !(doc.subjects||[]).length) doc.subjects = cardSubjectsFromItems(doc.items, doc.level);
+  }
+  fillForm();
+}
+document.querySelectorAll('#typeSeg button').forEach(b=>b.addEventListener('click',()=>switchType(b.dataset.t)));
+document.querySelectorAll('#discSeg button').forEach(b=>b.addEventListener('click',()=>{
+  doc.discType = b.dataset.d;
+  document.querySelectorAll('#discSeg button').forEach(x=>x.classList.toggle('on', x===b));
+  update();
+}));
+F('dueChips').addEventListener('click', e=>{
+  const b = e.target.closest('[data-days]'); if(!b) return;
+  doc.dueDate = addDays(doc.date || todayISO(), +b.dataset.days); fillDates(); update();
+});
+
+/* ---------- calendar (single date or start–finish range) ---------- */
+const cal = {field:null, btn:null, view:null, picking:'start', start:'', end:''};
+function openCal(btn){
+  if(cal.btn===btn && !F('cal').hidden){ closeCal(true); return; }
+  closePicker(false); closeCal(false);
+  cal.field = btn.dataset.cal; cal.btn = btn;
+  if(cal.field==='period'){ cal.start = doc.periodStart; cal.end = doc.periodEnd; cal.picking = cal.start && !cal.end ? 'end' : 'start'; }
+  else if(cal.field==='plan1' || cal.field==='plan2'){ const P = planInfo(); cal.start = P ? P.rows[cal.field==='plan1'?0:1].due : ''; cal.end = ''; }
+  else { cal.start = cal.field==='date' ? doc.date : doc.dueDate; cal.end = ''; }
+  const p = parseISO(cal.start || (cal.field==='due' && doc.date) || todayISO());
+  cal.view = new Date(p.getFullYear(), p.getMonth(), 1);
+  F('calTitle').textContent = cal.field==='plan1' ? '1st instalment due by' : cal.field==='plan2' ? '2nd instalment due by' : cal.field==='period' ? 'Tuition period' : cal.field==='date' ? (doc.type==='receipt' ? 'Date received' : 'Date') : (doc.type==='quote' ? 'Valid until' : 'Due date');
+  F('cal').setAttribute('aria-label', F('calTitle').textContent);
+  F('calRange').hidden = cal.field!=='period';
+  F('calClear').hidden = cal.field==='date';
+  F('calDone').hidden = cal.field!=='period';
+  renderCal();
+  btn.setAttribute('aria-expanded','true');
+  F('cal').hidden = false; F('calBackdrop').hidden = !isSheet();
+  placePop(F('cal'), btn, 320);
+}
+function closeCal(refocus){
+  if(F('cal').hidden) return;
+  F('cal').hidden = true; F('calBackdrop').hidden = true;
+  if(cal.btn){ cal.btn.setAttribute('aria-expanded','false'); if(refocus) cal.btn.focus(); }
+  cal.btn = null; cal.field = null;
+}
+function renderCal(){
+  const v = cal.view, y = v.getFullYear(), m = v.getMonth();
+  F('calMonth').textContent = `${MONTH[m]} ${y}`;
+  const lead = (v.getDay() + 6) % 7, days = new Date(y, m+1, 0).getDate(), today = todayISO();
+  const range = cal.field==='period', a = cal.start, b = cal.end;
+  let g = ['Mo','Tu','We','Th','Fr','Sa','Su'].map(d=>`<div class="wd" aria-hidden="true">${d}</div>`).join('');
+  for(let i=0;i<lead;i++) g += '<div class="cw"></div>';
+  for(let d=1; d<=days; d++){
+    const iso = isoOf(new Date(y, m, d));
+    const isA = iso===a, isB = range && iso===b, inside = range && a && b && iso>a && iso<b;
+    let band = '';
+    if(range && a && b && a!==b){ if(isA) band = 'bs'; else if(isB) band = 'be'; else if(inside) band = 'band'; }
+    const cls = ['cd', iso===today?'today':'', (isA||isB)?'sel':'', inside?'inr':''].filter(Boolean).join(' ');
+    g += `<div class="cw ${band}"><button type="button" class="${cls}" data-iso="${iso}" aria-pressed="${isA||isB}" aria-label="${wkDate(iso)}">${d}</button></div>`;
+  }
+  F('calGrid').innerHTML = g;
+  if(range){
+    F('calStartTxt').textContent = a ? wkDate(a) : 'Choose';
+    F('calEndTxt').textContent = b ? wkDate(b) : 'Choose';
+    F('calStartBtn').classList.toggle('active', cal.picking==='start' && !(a && b));
+    F('calEndBtn').classList.toggle('active', cal.picking==='end');
+    F('calInfo').textContent = a && b ? `${rangeLength(a,b)} · ${rangeText(a,b)}` : a ? 'Now tap the last day' : 'Tap the first day';
+  } else F('calInfo').textContent = '';
+}
+F('calGrid').addEventListener('click', e=>{
+  const b = e.target.closest('[data-iso]'); if(!b) return;
+  const iso = b.dataset.iso;
+  if(cal.field==='period'){
+    if(cal.picking==='start' || !cal.start || iso < cal.start){ cal.start = iso; cal.end = ''; cal.picking = 'end'; }
+    else { cal.end = iso; cal.picking = 'start'; }
+    doc.periodStart = cal.start; doc.periodEnd = cal.end; if(cal.start) doc.period = '';
+    refreshSessions();
+    renderCal(); fillDates(); update();
+    return;
+  }
+  if(cal.field==='date'){
+    const shift = doc.date && doc.dueDate ? dayDiff(doc.date, doc.dueDate) : null;
+    doc.date = iso; if(shift!==null) doc.dueDate = addDays(iso, shift);   // keep "valid for 30 days" when the date moves
+  } else if(cal.field==='plan1' || cal.field==='plan2') doc[cal.field] = iso;
+  else doc.dueDate = iso;
+  fillDates(); fillPlan(); update(); closeCal(true);
+});
+F('calPrev').onclick = ()=>{ cal.view = new Date(cal.view.getFullYear(), cal.view.getMonth()-1, 1); renderCal(); };
+F('calNext').onclick = ()=>{ cal.view = new Date(cal.view.getFullYear(), cal.view.getMonth()+1, 1); renderCal(); };
+F('calStartBtn').onclick = ()=>{ cal.picking = 'start'; renderCal(); };
+F('calEndBtn').onclick = ()=>{ if(cal.start){ cal.picking = 'end'; renderCal(); } };
+F('calClear').onclick = ()=>{
+  if(cal.field==='period'){ cal.start = cal.end = ''; cal.picking = 'start'; doc.periodStart = doc.periodEnd = ''; doc.period = ''; renderCal(); }
+  else if(cal.field==='plan1' || cal.field==='plan2'){ doc[cal.field] = ''; fillPlan(); closeCal(true); }
+  else { doc.dueDate = ''; closeCal(true); }
+  fillDates(); update();
+};
+F('calDone').onclick = ()=>closeCal(true);
+F('calClose').onclick = ()=>closeCal(false);
+F('calBackdrop').onclick = ()=>closeCal(false);
+document.querySelectorAll('[data-cal]').forEach(b=>b.addEventListener('click', ()=>openCal(b)));
+document.addEventListener('pointerdown', e=>{
+  if(F('cal').hidden || e.target.closest('#cal') || e.target.closest('[data-cal]')) return;
+  closeCal(false);
+});
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && !F('cal').hidden) closeCal(true); });
+window.addEventListener('resize', ()=>{ if(!F('cal').hidden && cal.btn) placePop(F('cal'), cal.btn, 320); });
+window.addEventListener('scroll', e=>{ if(!F('cal').hidden && cal.btn && !isSheet() && !(e.target.closest && e.target.closest('#cal'))) placePop(F('cal'), cal.btn, 320); }, true);
+
+/* ================= numbering settings ================= */
+const fmtNum = (type, n) => PREFIX[type] + '-' + String(n).padStart(4,'0');
+function fillNumbering(){
+  TYPES.forEach(type=>{
+    const next = (counters()[type]||0) + 1;
+    F('n_'+type).value = next;
+    const note = F('np_'+type); note.className = ''; note.textContent = fmtNum(type, next);
+  });
+}
+function setNextNumber(type, raw){
+  const want = parseInt(String(raw).replace(/\D/g,''), 10);
+  const note = F('np_'+type);
+  if(!want || want < 1){ fillNumbering(); return; }
+  const used = usedMax(type);
+  const before = nextNumber(type);
+  const c = store.get('lhq_counters', {});
+  c[type] = Math.max(want - 1, used);
+  store.set('lhq_counters', c);
+  // an unsaved draft that still has the old automatic number takes the new one
+  if(!doc.id && doc.type===type && doc.number===before){ doc.number = nextNumber(type); F('f_number').value = doc.number; update(); }
+  fillNumbering();
+  if(want - 1 < used){
+    note.className = 'warn';
+    note.textContent = `${fmtNum(type, used)} is already saved, so the next is ${fmtNum(type, used + 1)}`;
+  } else toast(`Next ${WORD[type].toLowerCase()} will be ${fmtNum(type, want)}`);
+}
+TYPES.forEach(type=>{
+  F('n_'+type).addEventListener('change', e=>setNextNumber(type, e.target.value));
+  F('n_'+type).addEventListener('keydown', e=>{ if(e.key==='Enter') e.target.blur(); });
+});
+F('numSetup').addEventListener('toggle', ()=>{ if(F('numSetup').open) fillNumbering(); });
+
+/* ================= settings & templates ================= */
+const settingKeys = ['email','phone','bank','accname','branch','accno','popphone','mobile','rate','validDays','dueDays','graceDays','subjects','levels','methods','includes','tutors','grades','gradeBasis','sessionLengths'];
+function fillSettings(){ settingKeys.forEach(k=>F('s_'+k).value = settings[k]); }
+settingKeys.forEach(k=>F('s_'+k).addEventListener('input',e=>{
+  settings[k]=e.target.value; store.set('lhq_settings',settings);
+  if(k==='subjects') renderItems(); else { fillPickButtons(); update(); }
+  if(k==='includes') renderIncludes();
+  if(doc.type==='card') renderCardEditor();
+}));
+F('btnResetSettings').onclick = ()=>{ settings = Object.assign({},DEFAULT_SETTINGS); store.set('lhq_settings',settings); fillSettings(); renderItems(); toast('Company details restored'); };
+
+const tplKeys = ['emailSubject','emailBody','waBody','receiptEmailBody','receiptWaBody'];
+function fillTemplates(){ tplKeys.forEach(k=>F('t_'+k).value = templates[k]); }
+tplKeys.forEach(k=>F('t_'+k).addEventListener('input',e=>{ templates[k]=e.target.value; store.set('lhq_templates',templates); }));
+F('btnResetTemplates').onclick = ()=>{ templates = Object.assign({},DEFAULT_TEMPLATES); store.set('lhq_templates',templates); fillTemplates(); toast('Default messages restored'); };
+
+function summaryText(){
+  const t = totals(), T = doc.type, out = [];
+  if(t.discount){ out.push(`Subtotal: MKW ${money(t.subtotal)}`); out.push(`${discountLabel()}: -MKW ${money(t.discount)}`); }
+  if(T==='quote'){ out.push(`Total: MKW ${money(t.total)}`); if(doc.dueDate) out.push(`This quote is valid until ${niceDate(doc.dueDate)}.`); }
+  else if(T==='invoice'){ out.push(`Total: MKW ${money(t.total)}`); if(t.paid) out.push(`Paid: MKW ${money(t.paid)}`); out.push(`Balance due: MKW ${money(t.balance)}${doc.dueDate && !planInfo()?` (due by ${niceDate(doc.dueDate)})`:''}`); }
+  else { out.push(`Invoice total: MKW ${money(t.total)}`); out.push(`This payment: MKW ${money(t.received)}`); out.push(`Balance remaining: MKW ${money(Math.max(0,t.balance))}`); }
+  const P = planInfo();
+  if(P){
+    if(T==='invoice'){ P.rows.forEach(r=>out.push(`${r.label}: MKW ${money(r.amt)}, due by ${niceDate(r.due)}${r.paid?' (paid)':''}`)); if(graceLine(P)) out.push(graceLine(P)); }
+    if(T==='receipt' && P.next && t.balance > 0.005) out.push(nextLine(P, false));
+  }
+  return out.join('\n');
+}
+function fillTemplate(tpl){
+  const t = totals(), S = settings, T = doc.type;
+  const subjects = doc.items.filter(it=>it.desc).map(it=>`• ${it.desc}: ${it.sessions} sessions × MKW ${money(num(it.cost))} = MKW ${money(num(it.sessions)*num(it.cost))}`).join('\n');
+  const vals = { name: doc.name || 'Parent/Guardian', student: doc.student, level: doc.level,
+    type: WORD[T].toLowerCase(), Type: WORD[T], number: doc.number, ref: doc.ref,
+    refline: doc.ref ? ` for invoice ${doc.ref}` : '',
+    date: niceDate(doc.date), due: niceDate(doc.dueDate), for: doc.forWhat, period: periodText() || 'the agreed tuition period',
+    includesline: includedList().length ? `Every LHQ enrolment includes ${includedList().map(x=>x.replace('Assesments','Assessments')).join(', ').replace(/, ([^,]*)$/, ' and $1')}.` : '',
+    subjects, summary: summaryText(), subtotal: money(t.subtotal), discount: money(t.discount),
+    total: money(t.total), paid: money(t.paid), balance: money(Math.max(0, t.balance)),
+    received: money(t.received), prevpaid: money(t.prevPaid), method: doc.method,
+    bank:S.bank, accname:S.accname, branch:S.branch, accno:S.accno, mobile:S.mobile, popphone:S.popphone, email:S.email, phone:S.phone };
+  return tpl.replace(/\{(\w+)\}/g, (m,k)=> k in vals ? (vals[k] ?? '') : m);
+}
+
+/* ================= saved documents ================= */
+function saveDoc(silent){
+  if(!doc.id) doc.id = Date.now().toString(36);
+  const t = totals();
+  const rec = JSON.parse(JSON.stringify(doc)); rec.total = t.total; rec.receivedAmt = t.received; rec.savedAt = Date.now();
+  const i = saved.findIndex(s=>s.id===doc.id);
+  if(i>=0) saved[i]=rec; else saved.unshift(rec);
+  const invNote = doc.type==='receipt' ? syncInvoicePaid(doc.ref) : '';
+  store.set('lhq_saved', saved);
+  bumpCounter(doc.type, doc.number);
+  fillNumbering();
+  store.set('lhq_draft', doc);
+  renderSaved(); fillBackup(); fillStudentList(); if(!silent) toast(`${WORD[doc.type]} ${doc.number} saved${invNote}`);
+  if(mode === 'view'){ HD.load(); drawHead(); drawAside(); }
+}
+/* A saved receipt brings its invoice's "Amount already paid" up to date */
+function syncInvoicePaid(ref){
+  if(!ref) return '';
+  const inv = saved.find(s=>(s.type||'quote')==='invoice' && String(s.number).toUpperCase()===String(ref).trim().toUpperCase());
+  if(!inv) return '';
+  const paid = saved.filter(s=>s.type==='receipt' && String(s.ref||'').trim().toUpperCase()===String(inv.number).toUpperCase())
+    .reduce((m,s)=>Math.max(m, num(s.prevPaid) + num(s.received)), 0);
+  if(paid <= num(inv.paid)) return '';
+  inv.paid = String(Math.round(paid*100)/100);
+  return `. Invoice ${inv.number} now shows MKW ${money(paid)} paid`;
+}
+const shortDate = t => new Date(t).toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
+const TAG = {quote:['QUO',''], invoice:['INV','inv'], receipt:['RCT','rct'], card:['TC','tc']};
+function renderSaved(){
+  const L = F('savedList');
+  if(!saved.length){ L.innerHTML = '<li class="empty">Nothing saved yet. Saved quotes, invoices, receipts and tuition cards stay on this device.</li>'; return; }
+  L.innerHTML = saved.map(s=>{
+    const type = s.type || 'quote', [tag, cls] = TAG[type];
+    const amount = type==='card' ? esc((s.subjects||[]).map(x=>x.name).filter(Boolean).join(', ') || 'Tuition card')
+      : type==='receipt' ? `Received MKW ${money(s.receivedAmt||0)}` : `MKW ${money(s.total||0)}`;
+    const next = type==='quote' ? 'invoice' : type==='invoice' ? 'receipt' : null;
+    const toCard = type==='invoice' || type==='receipt';
+    return `
+    <li>
+      <span class="tag ${cls}">${esc(s.number || tag)}</span>
+      <div class="meta"><b>${esc(s.student || s.name || '(no name)')}</b><small>${esc(fmtDate(s.date))} · ${amount}${invoiceFlag(s)}${s.sentAt?`<span class="sent" title="Emailed to ${esc(s.sentTo||'')}">✓ Emailed ${shortDate(s.sentAt)}</span>`:''}${s.waSentAt?`<span class="sent" title="Sent on WhatsApp to ${esc(s.waSentTo||'')}">✓ WhatsApp ${shortDate(s.waSentAt)}</span>`:''}</small></div>
+      <button class="small" data-open="${s.id}">Open</button>
+      ${next?`<button class="small" data-conv="${next}" data-src="${s.id}" title="Make a ${next} from this ${type}">→ ${WORD[next]}</button>`:''}
+      ${toCard?`<button class="small" data-conv="card" data-src="${s.id}" title="Make a tuition card from this ${type}">→ Card</button>`:''}
+      <button class="small danger" data-del="${s.id}" title="Delete" aria-label="Delete ${esc(s.number||'')}">✕</button>
+    </li>`;
+  }).join('');
+}
+F('savedList').addEventListener('click', e=>{
+  const b = e.target.closest('button'); if(!b) return;
+  if(b.dataset.open){
+    const s = saved.find(x=>x.id===b.dataset.open); doc = normalize(JSON.parse(JSON.stringify(s)));
+    fillForm(); setView('edit'); window.scrollTo({top:0,behavior:'smooth'}); toast(`Opened ${WORD[doc.type].toLowerCase()} ${s.number}`);
+  }
+  if(b.dataset.conv){
+    const s = saved.find(x=>x.id===b.dataset.src); doc = convertDoc(s, b.dataset.conv);
+    fillForm(); setView('edit'); window.scrollTo({top:0,behavior:'smooth'});
+    toast(`${WORD[doc.type]} ${doc.number} started from ${s.number}. Check it, then Save.`);
+  }
+  if(b.dataset.del){ if(!confirm('Delete this saved document?')) return; saved=saved.filter(x=>x.id!==b.dataset.del); store.set('lhq_saved',saved); renderSaved(); }
+});
+F('btnSave').onclick = ()=>saveAndView();
+
+/* ================= PDF ================= */
+let pdfCache = null; // {key, blob}
+function fileName(copy){
+  const word = WORD[doc.type] + (doc.type==='receipt' ? (copy==='office' ? ' (Office Copy)' : ' (Customer Copy)') : '');
+  const nm = (doc.name||'Client').replace(/^(mr|mrs|ms|miss|dr)\.?\s+/i,'').trim();
+  const [y,m,d] = (doc.date||todayISO()).split('-');
+  return `LHQ LS_Tutoring ${word}_ ${nm}_${doc.number}_${d}${m}${y.slice(2)}.pdf`.replace(/[\\/:*?"<>|]/g,'');
+}
+async function makePdfBlob(copy = 'customer'){
+  const key = JSON.stringify([doc,settings,copy]);
+  if(pdfCache && pdfCache.key===key) return pdfCache.blob;
+  const stage = F('pdfStage');
+  docCopy = copy; renderDoc(); const html = F('doc').innerHTML; docCopy = 'customer'; renderDoc();
+  stage.innerHTML = `<div class="doc">${html}</div>`;
+  const el = stage.firstChild;
+  if(document.fonts && document.fonts.ready) await document.fonts.ready;
+  await Promise.all([...el.querySelectorAll('img')].map(img=>img.complete?0:new Promise(r=>{img.onload=img.onerror=r;})));
+  const blob = await (await lhqPdf())().set({
+    margin:0, image:{type:'jpeg',quality:0.98},
+    html2canvas:{scale:3,useCORS:true,backgroundColor:'#ffffff',scrollX:0,scrollY:0,x:0,y:0,width:816,height:1056,windowWidth:816,windowHeight:1056},
+    jsPDF:{unit:'pt',format:'letter',orientation:'portrait'}
+  }).from(el).outputPdf('blob');
+  stage.innerHTML = '';
+  pdfCache = {key, blob};
+  return blob;
+}
+function triggerDownload(blob, name){
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download=name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 30000);
+}
+async function downloadPDF(btn){
+  if(doc.type==='card'){ saveDoc(true); if(btn) btn.disabled = true; toast('Preparing PDF…');
+    try{ triggerDownload(await cardPdf(null), cardFileName(null,'pdf')); toast('PDF downloaded'); }
+    catch(err){ console.error(err); toast('Couldn\'t make the PDF. Check your connection and try again.'); }
+    finally{ if(btn) btn.disabled = false; }
+    return; }
+  saveDoc(true);
+  if(btn) btn.disabled = true; toast('Preparing PDF…');
+  try{
+    if(doc.type==='receipt'){
+      const cust = await makePdfBlob('customer'), office = await makePdfBlob('office');
+      triggerDownload(cust, fileName('customer'));
+      setTimeout(()=>triggerDownload(office, fileName('office')), 900);
+      toast('Two PDFs downloaded: customer copy and office copy. If Chrome asks, allow multiple downloads.');
+    } else { triggerDownload(await makePdfBlob(), fileName()); toast('PDF downloaded'); }
+  }
+  catch(err){ toast('Couldn\'t make the PDF. Check your connection and try again.'); console.error(err); }
+  finally{ if(btn) btn.disabled = false; }
+}
+F('btnPdfTop').onclick = e=>downloadPDF(e.currentTarget);
+F('btnPrint').onclick = ()=>window.print();
+window.addEventListener('beforeprint',()=>{ document.title = fileName().replace(/\.pdf$/,''); });
+window.addEventListener('afterprint',()=>{ document.title = 'LHQ Hub · Documents'; });
+
+/* ================= send (email / WhatsApp) ================= */
+let channel = 'email';
+function waNumber(raw){
+  let d = String(raw||'').replace(/\D/g,'');
+  if(d.startsWith('00')) d = d.slice(2);
+  if(d.startsWith('0')) d = '265' + d.slice(1);          // local Malawi number → international
+  else if(d.length===9) d = '265' + d;                    // 991234567 → 265991234567
+  return d;
+}
+function setChannel(c){
+  channel = c;
+  document.querySelectorAll('#chanSeg button').forEach(b=>b.classList.toggle('on', b.dataset.c===c));
+  F('emailFields').hidden = c!=='email';
+  F('waFields').hidden = c!=='wa';
+  const R = doc.type==='receipt';
+  F('m_body').value = fillTemplate(c==='email' ? (R ? templates.receiptEmailBody : templates.emailBody) : (R ? templates.receiptWaBody : templates.waBody));
+  F('btnOpenApp').textContent = c==='email' ? 'Open Email' : 'Open WhatsApp';
+  F('btnOpenApp').className = c==='wa' ? 'wa' : '';
+  F('btnShare').textContent = c==='email' ? 'Share by email, PDF attached' : 'Share to WhatsApp, PDF attached';
+  updateSendStatus();
+}
+function updateSendStatus(){
+  const svc = channel==='email' ? services.email : services.wa;
+  const direct = !!(svc.configured && svc.ready !== false);
+  const canShare = !!F('btnShare').dataset.ok && !direct;
+  const sendBtn = F('btnSendNow');
+  sendBtn.hidden = !direct;
+  sendBtn.textContent = channel==='email' ? 'Send email now' : 'Send on WhatsApp now';
+  sendBtn.className = channel==='email' ? 'primary' : 'wa';
+  F('btnShare').hidden = !canShare;
+  F('btnOpenApp').textContent = channel==='email' ? (direct ? 'Use my email app instead' : 'Open Email') : (direct ? 'Open WhatsApp instead' : 'Open WhatsApp');
+  F('btnOpenApp').className = (channel==='wa' && !direct) ? 'wa' : '';
+  // WhatsApp direct sends the approved template, so show its preview instead of the free-text box
+  const waDirect = channel==='wa' && direct;
+  F('msgBox').hidden = waDirect;
+  F('waPreview').hidden = !waDirect;
+  if(waDirect) renderWaPreview();
+  if(direct){
+    F('sendStatus').textContent = channel==='email'
+      ? `“Send email now” sends from ${svc.from} with the PDF attached. A copy is kept in that account's Sent folder, and replies go there too.`
+      : `“Send on WhatsApp now” sends from LHQ's WhatsApp${svc.from?' ('+svc.from+')':''} with the PDF attached.`;
+    return;
+  }
+  F('sendStatus').textContent = canShare
+    ? `“Share” attaches the PDF and lets you pick ${channel==='email'?'your email app':'WhatsApp'}, then the contact. “Open ${channel==='email'?'Email':'WhatsApp'}” fills in the ${channel==='email'?'address':'number'} and message, and downloads the PDF for you to attach.`
+    : `“Open ${channel==='email'?'Email':'WhatsApp'}” fills in the ${channel==='email'?'address':'number'} and message, and downloads the PDF so you can attach it.`;
+}
+
+/* The wording LHQ submits to Meta for approval (see README). Used for the preview
+   until the app can read the live templates from Meta. */
+const WA_TEMPLATE_FALLBACK = {
+  body: 'Hello {{1}}, thank you for choosing LHQ Learning Solutions. Please find attached your tutoring {{2}} ({{3}}) for {{4}}.\n\nTotal: MKW {{5}}\nBalance due: MKW {{6}}\n\nKindly send proof of payment to 0992 525 250 or learnhqes@gmail.com. A receipt will be issued once payment is confirmed.',
+  footer: 'LHQ Learning Solutions · +265 992 525 250'
+};
+const WA_RECEIPT_FALLBACK = {
+  body: 'Hello {{1}}, thank you for your payment of MKW {{2}} for {{3}}. Please find attached your receipt ({{4}}).\n\nBalance remaining: MKW {{5}}\n\nPlease keep this receipt for your records.',
+  footer: 'LHQ Learning Solutions · +265 992 525 250'
+};
+/* Values for the approved template's numbered placeholders, in order */
+function waVars(){
+  const t = totals(), name = doc.name || 'Parent/Guardian', forWhat = doc.forWhat || '-';
+  if(doc.type==='receipt') return { kind:'receipt', list:[name, money(t.received), forWhat, doc.number, money(Math.max(0, t.balance))] };
+  return { kind:'document', list:[name, WORD[doc.type].toLowerCase(), doc.number, forWhat, money(t.total), money(t.balance)] };
+}
+function renderWaPreview(){
+  const v = waVars(), live = v.kind==='receipt' ? services.wa.receiptPreview : services.wa.preview;
+  const tpl = live && live.body ? live : (v.kind==='receipt' ? WA_RECEIPT_FALLBACK : WA_TEMPLATE_FALLBACK);
+  F('waPvFile').textContent = fileName();
+  F('waPvBody').textContent = tpl.body.replace(/\{\{(\d+)\}\}/g, (m,n)=> v.list[n-1] ?? m);
+  F('waPvFooter').textContent = tpl.footer || '';
+}
+
+async function openSend(){
+  saveDoc(true);
+  F('sendTitle').textContent = `Send ${WORD[doc.type].toLowerCase()} ${doc.number}`;
+  F('m_to').value = doc.email || '';
+  F('m_wa').value = doc.phone || '';
+  F('m_cc').value = '';
+  F('m_subject').value = fillTemplate(templates.emailSubject);
+  F('btnShare').dataset.ok = '';
+  setChannel(channel);
+  F('sendDlg').showModal();
+  // Build the PDF now so "Share" opens instantly when tapped
+  try{
+    const blob = await makePdfBlob();
+    const file = new File([blob], fileName(), {type:'application/pdf'});
+    if(navigator.canShare && navigator.canShare({files:[file]})) F('btnShare').dataset.ok = '1';
+  }catch(e){ console.error(e); }
+  updateSendStatus();
+}
+F('btnSendTop').onclick = ()=> doc.type==='card' ? openCardShare() : openSend();
+F('btnCloseDlg').onclick = ()=>F('sendDlg').close();
+document.querySelectorAll('#chanSeg button').forEach(b=>b.addEventListener('click',()=>setChannel(b.dataset.c)));
+F('m_to').addEventListener('input',e=>{ doc.email=e.target.value; F('f_email').value=doc.email; update(); });
+F('m_wa').addEventListener('input',e=>{ doc.phone=e.target.value; F('f_phone').value=doc.phone; store.set('lhq_draft',doc); });
+
+/* ---------- direct sending through the Netlify functions ---------- */
+const services = {
+  email: {configured:false, from:null},
+  wa: {configured:false, ready:false, from:null, preview:null}
+};
+function setSvc(id, state, text){
+  const el = F(id); el.className = 'svc ' + state; el.lastElementChild.textContent = text;
+}
+async function getJSON(url){
+  const r = await fetch(url, {cache:'no-store'}); if(!r.ok) throw new Error(r.status); return r.json();
+}
+async function checkServices(){
+  if(location.protocol==='file:'){
+    setSvc('svcEmail','warn','Email: direct sending works once the app is on Netlify.');
+    setSvc('svcWa','warn','WhatsApp: direct sending works once the app is on Netlify.');
+    return;
+  }
+  const hasCode = true;   // sending now uses the LHQ Hub sign-in; no access code
+  const [em, wa] = await Promise.allSettled([getJSON('/api/send-email'), getJSON('/api/send-whatsapp')]);
+
+  if(em.status==='fulfilled'){
+    services.email = {configured:!!em.value.configured, from:em.value.from};
+    if(!em.value.configured) setSvc('svcEmail','warn','Email: not set up yet. Add the Gmail settings in Netlify (see the setup guide).');
+    else setSvc('svcEmail', hasCode?'ok':'warn', hasCode ? `Email: ready. Sends from ${em.value.from}.` : `Email: connected to ${em.value.from}. Enter the access code below.`);
+  } else { services.email = {configured:false}; setSvc('svcEmail','warn','Email: the service isn\'t reachable. It runs only on the Netlify site.'); }
+
+  if(wa.status==='fulfilled'){
+    const w = wa.value;
+    services.wa = {configured:!!w.configured, ready:!!(w.configured && w.tokenOk), from:w.from, preview:w.preview, receiptPreview:w.receiptPreview};
+    if(!w.configured) setSvc('svcWa','warn','WhatsApp: not set up yet. Add the WhatsApp settings in Netlify (see the setup guide).');
+    else if(!w.tokenOk) setSvc('svcWa','warn','WhatsApp: Meta rejected the access token. Check WA_TOKEN and WA_PHONE_NUMBER_ID in Netlify.');
+    else if(w.preview && w.preview.status && w.preview.status!=='APPROVED') setSvc('svcWa','warn',`WhatsApp: connected to ${w.from}, but the template is ${w.preview.status.toLowerCase()}. It can send once Meta approves it.`);
+    else setSvc('svcWa', hasCode?'ok':'warn', hasCode ? `WhatsApp: ready. Sends from ${w.from||'LHQ\'s number'}.` : `WhatsApp: connected to ${w.from||'LHQ\'s number'}. Enter the access code below.`);
+  } else { services.wa = {configured:false, ready:false}; setSvc('svcWa','warn','WhatsApp: the service isn\'t reachable. It runs only on the Netlify site.'); }
+
+  if(F('sendDlg').open) updateSendStatus();
+}
+F('s_code').value = store.get('lhq_code','');
+F('s_code').addEventListener('input', e=>{ store.set('lhq_code', e.target.value.trim()); checkServices(); });
+F('btnCheckSvc').onclick = ()=>{ setSvc('svcEmail','','Email: checking…'); setSvc('svcWa','','WhatsApp: checking…'); checkServices(); };
+
+function blobToBase64(blob){
+  return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(String(r.result).split(',')[1]); r.onerror=rej; r.readAsDataURL(blob); });
+}
+F('btnSendNow').onclick = async ()=>{
+  const btn = F('btnSendNow'), isEmail = channel==='email';
+  const to = isEmail ? F('m_to').value.trim() : F('m_wa').value.trim();
+  if(!to){ toast(isEmail ? 'Add the parent\'s email address first' : 'Add the parent\'s WhatsApp number first'); F(isEmail?'m_to':'m_wa').focus(); return; }
+  if(!isEmail && waNumber(to).length < 10){ toast('Check the WhatsApp number, e.g. 0991 234 567'); F('m_wa').focus(); return; }
+  const sess = window.hub && hub.session();
+  if(!sess || !sess.token){ toast('Sign in to LHQ Hub again, then send.'); return; }
+  const label = btn.textContent;
+  btn.disabled = true; btn.textContent = 'Sending…';
+  try{
+    const pdfBase64 = await blobToBase64(await makePdfBlob());
+    const payload = isEmail
+      ? {to, cc:F('m_cc').value, subject:F('m_subject').value, text:F('m_body').value, filename:fileName(), pdfBase64}
+      : (()=>{ const v = waVars(); return {to, filename:fileName(), pdfBase64, kind:v.kind, params:v.list}; })();
+    const r = await fetch(isEmail ? '/api/send-email' : '/api/send-whatsapp', {method:'POST', headers:{'content-type':'application/json', authorization:'Bearer ' + sess.token}, body: JSON.stringify(payload)});
+    const j = await r.json().catch(()=>({}));
+    if(!r.ok) throw new Error(j.error || (isEmail ? 'The email couldn\'t be sent.' : 'The WhatsApp message couldn\'t be sent.') + ' Try again in a minute.');
+    if(isEmail){ doc.sentAt = Date.now(); doc.sentTo = to; }
+    else { doc.waSentAt = Date.now(); doc.waSentTo = to; }
+    saveDoc(true);
+    F('sendDlg').close();
+    toast(isEmail ? 'Email sent to ' + to : 'Sent on WhatsApp to ' + to);
+  }catch(err){
+    F('sendStatus').textContent = err.message;
+    toast(err.message);
+  }finally{
+    btn.disabled = false; btn.textContent = label;
+  }
+};
+
+F('btnShare').onclick = async ()=>{
+  /* WhatsApp keeps either the file or the text when both are shared together, so on WhatsApp the message is
+     copied first and only the PDF is shared: paste the message as the PDF's caption. Email apps take both. */
+  const wa = channel !== 'email', text = F('m_body').value;
+  let copied = false;
+  if(wa){ try{ await navigator.clipboard.writeText(text); copied = true; }catch(e){} }
+  try{
+    const blob = await makePdfBlob();
+    const file = new File([blob], fileName(), {type:'application/pdf'});
+    const data = wa ? {files:[file]} : {files:[file], text, title:F('m_subject').value};
+    if(copied) toast('Message copied. In WhatsApp, paste it as the caption, then send.');
+    await navigator.share(data);
+    if(!copied) toast('Shared');
+  }catch(err){ if(err && err.name!=='AbortError') toast('Sharing didn\'t work here. Use the Open button instead.'); }
+};
+F('btnOpenApp').onclick = async ()=>{
+  const body = F('m_body').value;
+  if(channel==='email'){
+    const to = F('m_to').value.trim();
+    if(!to){ toast('Add the parent\'s email address first'); F('m_to').focus(); return; }
+    try{ triggerDownload(await makePdfBlob(), fileName()); }catch(e){}
+    const url = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(F('m_subject').value)}&body=${encodeURIComponent(body)}`;
+    setTimeout(()=>{ window.location.href = url; }, 700);
+  } else {
+    const n = waNumber(F('m_wa').value);
+    if(n.length < 10){ toast('Add a WhatsApp number, e.g. 0991 234 567'); F('m_wa').focus(); return; }
+    try{ triggerDownload(await makePdfBlob(), fileName()); }catch(e){}
+    const url = `https://wa.me/${n}?text=${encodeURIComponent(body)}`;
+    const w = window.open(url, '_blank'); if(!w) window.location.href = url;
+  }
+};
+
+/* ================= views, preview scaling ================= */
+function setView(v){
+  document.body.dataset.view = v;
+  F('tabEdit').classList.toggle('on', v==='edit');
+  F('tabPreview').classList.toggle('on', v==='preview');
+  if(v==='preview'){ window.scrollTo(0,0); requestAnimationFrame(fitPreview); }
+}
+F('tabEdit').onclick = ()=>setView('edit');
+F('tabPreview').onclick = ()=>setView('preview');
+
+function fitPreview(){
+  const wrap = F('previewWrap'), sc = F('previewScale');
+  if(!wrap.clientWidth) return;
+  if(doc.type==='card'){
+    const s = Math.min(1.15, wrap.clientWidth / 540);
+    sc.style.transform = `scale(${s})`;
+    sc.style.width = '540px'; sc.style.height = (F('cardDoc').offsetHeight*s)+'px';
+    sc.style.marginLeft = Math.max(0, (wrap.clientWidth - 540*s) / 2) + 'px';   // centred when there is room to spare
+    return;
+  }
+  const s = Math.min(1.25, wrap.clientWidth / 816);
+  sc.style.transform = `scale(${s})`;
+  sc.style.width = '816px'; sc.style.height = (1056*s)+'px';
+  sc.style.marginLeft = Math.max(0, (wrap.clientWidth - 816*s) / 2) + 'px';
+}
+window.addEventListener('resize', fitPreview);
+
+function toast(msg){ const t=F('toast'); t.textContent=msg; t.classList.add('show'); clearTimeout(t._h); t._h=setTimeout(()=>t.classList.remove('show'),2600); }
+/* LHQ Hub sync (sync.js): reload from the shared copy, and take a number the server changed */
+window.hubToast = toast;
+window.hubApply = ()=>{
+  saved = store.get('lhq_saved', []);
+  settings = Object.assign({}, DEFAULT_SETTINGS, store.get('lhq_settings', {}));
+  templates = Object.assign({}, DEFAULT_TEMPLATES, store.get('lhq_templates', {}));
+  const open = doc.id && saved.find(s=>s.id===doc.id);
+  if(open && open.savedAt > (doc.savedAt||0) && open.updatedBy){ toast(`${open.number} was updated by ${open.updatedBy}. Open it again to see the changes.`); }
+  renderSaved(); fillStudentList(); fillBackup(); fillNumbering(); fillSettings(); fillTemplates();
+  if(!doc.id && doc.number === nextNumber(doc.type)) {} else if(!doc.id){ doc.number = nextNumber(doc.type); F('f_number').value = doc.number; update(); }
+};
+window.hubRemap = (id, number)=>{
+  saved = store.get('lhq_saved', []);
+  if(doc.id===id){ doc.number = number; F('f_number').value = number; update(); try{ localStorage.setItem('lhq_draft', JSON.stringify(doc)); }catch(e){} }
+  renderSaved(); fillNumbering();
+};
+
+initCard();
+
+/* ================= the document's own page =================
+   doc.html#d=<id>               the document (view)      …&edit=1  editing it
+   doc.html#new=quote[&student=<key>]   #conv=invoice:<id>[&from=<card id>]   #renew=<invoice id>   #dup=<id>   #draft
+   New documents open in edit mode; saving shows the document. */
+var mode = 'view';
+const studentKey = v => String(v||'').trim().toLowerCase().replace(/\s+/g,' ');
+const PERM = {quote:'quotes', invoice:'quotes', receipt:'receipts', card:'cards'};
+const mayEdit = t => HD.can(PERM[t || 'quote']);
+function latestFor(key){
+  return saved.filter(s=>studentKey(s.student||s.name)===key).sort((a,b)=>(b.date||'').localeCompare(a.date||'') || (b.savedAt||0)-(a.savedAt||0))[0];
+}
+function copyCardDetails(d, cardId){
+  const c = saved.find(x=>x.id===cardId); if(!c) return;
+  d.subjects = JSON.parse(JSON.stringify(c.subjects||[]));
+  // make-ups carried from the last period come with the subject (the tutor sees them on their page)
+  d.subjects.forEach(s=>{ const m = c.mu && c.mu.subs && c.mu.subs[s.name]; s.cf = m && m.d === 'carry' ? m.n : 0; });
+  ['school','exam','where','cardNote'].forEach(k=>{ if(c[k]) d[k] = c[k]; });
+}
+function nextStart(iso){ let d = addDays(iso, 1); while([0,6].includes(parseISO(d).getDay())) d = addDays(d, 1); return d; }
+/* a new document takes the student's saved details */
+function fillFromStudent(d, key){
+  const rec = HD.studentRecords()[key] || {}, base = latestFor(key) || {};
+  d.student = rec.name || base.student || d.student;
+  d.name = rec.parent || base.name || d.name;
+  d.level = rec.level || base.level || d.level;
+  d.phone = rec.phone || base.phone || d.phone;
+  d.email = rec.email || base.email || d.email;
+  d.address = rec.address || base.address || d.address;
+  if(base.forWhat) d.forWhat = base.forWhat;
+  if(d.type==='card'){ d.school = rec.school || base.school || d.school; ['exam','where'].forEach(k=>{ if(base[k]) d[k] = base[k]; }); }
+}
+function setMode(m){
+  mode = m;
+  document.body.dataset.mode = m;
+  closePicker(false); closeCal(false);
+  if(m === 'view') setView('preview'); else setView('edit');
+  drawHead(); drawAside();
+  requestAnimationFrame(fitPreview);
+}
+function route(){
+  closeDpSheet(); document.querySelectorAll('dialog[open]').forEach(d=>d.close());   // a menu or window left open must not cover the next document
+  HD.load(); saved = store.get('lhq_saved', []);
+  const h = location.hash.slice(1), q = new URLSearchParams(h), get = k => q.get(k);
+  let msg = '', m = 'edit';
+  if(get('d')){
+    const s = saved.find(x=>x.id===get('d'));
+    if(!s){ document.body.dataset.mode = 'missing'; F('dpTitle').textContent = 'Not found'; F('dpSub').textContent = 'This document isn\'t here. It may have been deleted, or it hasn\'t reached this device yet.'; return; }
+    if(!(doc.id === s.id && mode === 'edit' && get('edit'))) doc = normalize(JSON.parse(JSON.stringify(s)));
+    m = get('edit') && mayEdit(s.type) ? 'edit' : 'view';
+  } else if(get('new')){
+    const type = TYPES.includes(get('new')) ? get('new') : 'quote';
+    doc = blankDoc(type);
+    if(get('student')) fillFromStudent(doc, studentKey(get('student')));
+    msg = `New ${WORD[type].toLowerCase()} ${doc.number}` + (doc.student ? ` for ${doc.student}` : '');
+  } else if(get('conv') || get('dup')){
+    const [type, id] = get('dup') ? [null, get('dup')] : get('conv').split(':'), s = saved.find(x=>x.id===id);
+    if(!s){ toast('That document isn\'t on this device yet'); location.replace('index.html#docs'); return; }
+    doc = convertDoc(s, type || s.type || 'quote');
+    if(get('dup')){ doc.ref = s.ref || ''; msg = `Copy of ${s.number}: ${WORD[doc.type].toLowerCase()} ${doc.number}. Change what you need, then Save.`; }
+    else { doc.from = s.number; msg = `${WORD[doc.type]} ${doc.number} started from ${s.number}. Check it, then Save.`; }
+    if(doc.type==='card' && get('from')) copyCardDetails(doc, get('from'));
+  } else if(get('renew')){
+    const s = saved.find(x=>x.id===get('renew')); if(!s){ location.replace('index.html#docs'); return; }
+    doc = convertDoc(s, 'invoice');
+    doc.ref = ''; doc.plan1 = ''; doc.plan2 = ''; doc.paid = ''; doc.from = s.number;
+    if(s.periodStart && s.periodEnd){ const len = dayDiff(s.periodStart, s.periodEnd); doc.periodStart = nextStart(s.periodEnd); doc.periodEnd = addDays(doc.periodStart, len); refreshSessions(); }
+    msg = `Renewal: invoice ${doc.number} for the next period, same subjects. Check the dates and sessions, then Save.`;
+    // make-ups carried from the period that ended: listed at no charge, so the parent sees them
+    const lastCard = HD.chainOf(s).card;
+    if(lastCard && lastCard.mu) Object.entries(lastCard.mu.subs || {}).forEach(([sub, m])=>{ if(m.d === 'carry' && m.n) doc.items.push({desc:`${sub} · make-up session${m.n>1?'s':''} carried forward`, days:'', sessions:String(m.n), cost:'0'}); });
+  } else if(h === 'draft' || !h){
+    if(!h && doc.id){ location.replace('doc.html#d=' + doc.id); return; }
+    if(!h && !(doc.student || doc.name)){ location.replace('index.html#docs'); return; }
+  }
+  if(m === 'edit' && !doc.id && !mayEdit(doc.type)){ toast('You don\'t have permission to make this kind of document'); location.replace('index.html#docs'); return; }
+  if(get('new') || get('conv') || get('renew')){ const cm = applyCredit(doc); if(cm) msg = (msg || '') + cm; }
+  if(get('new') || get('conv') || get('dup') || get('renew')) history.replaceState(null, '', location.pathname + '#draft');
+  fillForm(); setMode(m); window.scrollTo(0,0);
+  drawBack(); if(doc.id && m === 'view') LHQNav.visit(doc.number);
+  if(msg) toast(msg);
+}
+window.addEventListener('hashchange', route);
+document.addEventListener('keydown', e=>{ if(e.key==='Escape' && F('dpSheet') && !F('dpSheet').hidden) closeDpSheet(); });
+function saveAndView(){
+  const isNew = !doc.id;
+  saveDoc();
+  // a first document for someone makes their student record, so their details are kept once
+  const key = studentKey(doc.student);
+  if(key && !HD.studentRecords()[key] && (HD.can('students') || HD.can('quotes')))
+    HD.saveStudent(key, {name:doc.student, level:doc.level, parent:doc.name, phone:doc.phone, email:doc.email, address:doc.address, school:doc.school||'', area:doc.area||'', district:doc.district||'', heard:doc.heard||''});
+  else if(key && HD.studentRecords()[key] && (doc.area || doc.district || doc.heard) && (HD.can('students') || HD.can('quotes'))){
+    // a checklist brings area, district and how they heard: fill in only what the record is missing
+    const r = HD.studentRecords()[key], add = {}; ['area','district','heard','school'].forEach(f=>{ if(doc[f] && !r[f]) add[f] = doc[f]; });
+    if(Object.keys(add).length) HD.saveStudent(key, add);
+  }
+  HD.load();
+  history.replaceState(null, '', location.pathname + '#d=' + doc.id);
+  setMode('view');
+  if(isNew) window.scrollTo(0,0);
+}
+F('btnEdit').onclick = ()=>{ history.pushState(null, '', location.pathname + '#d=' + doc.id + '&edit=1'); setMode('edit'); window.scrollTo(0,0); };
+F('btnCancel').onclick = ()=>{
+  if(!doc.id){ store.set('lhq_draft', null); if(history.length > 1) history.back(); else location.href = 'index.html#home'; return; }
+  const s = saved.find(x=>x.id===doc.id); if(s) doc = normalize(JSON.parse(JSON.stringify(s)));
+  fillForm(); history.replaceState(null, '', location.pathname + '#d=' + doc.id); setMode('view');
+};
+F('btnPvToggle').onclick = ()=>{ const pv = document.body.dataset.view !== 'preview'; setView(pv ? 'preview' : 'edit'); F('btnPvToggle').textContent = pv ? 'Back to editing' : 'Preview'; };
+F('btnMore').onclick = moreMenu;
+/* the back link names the page you came from (Home, a student, Business, another document …) */
+function drawBack(){
+  const b = LHQNav.back('index.html#docs', 'Documents', u => u.startsWith('doc.html#d=' + doc.id));
+  F('dpBack').href = b.href; F('dpBackT').textContent = b.label;
+}
+
+const H = HD;
+const svg = (p, s=18) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round">${p}</svg>`;
+const ICD = {quote:'<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/>', invoice:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>', receipt:'<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>', card:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10h6M7 14h10"/>'};
+function drawHead(){
+  const t = doc.type || 'quote', isNew = !doc.id;
+  F('dpTitle').innerHTML = mode === 'edit' ? esc(isNew ? `New ${WORD[t].toLowerCase()} ${doc.number}` : `Editing ${doc.number}`)
+    : `${esc(WORD[t])} ${esc(doc.number)} <span class="dp-tag ${H.docStatus(doc)[1]}">${esc(H.docStatus(doc)[0])}</span>`;
+  const key = studentKey(doc.student || doc.name);
+  F('dpSub').innerHTML = [doc.student ? `<a href="index.html#student/${encodeURIComponent(key)}">${esc(doc.student)}</a>` : '', esc(doc.name && doc.name !== doc.student ? doc.name : ''), esc(niceDate(doc.date))].filter(Boolean).join(' · ');
+  F('btnEdit').hidden = !mayEdit(t);
+  F('btnSendTop').hidden = !mayEdit(t);
+  F('btnPrint').hidden = t === 'card';
+  F('btnPvToggle').textContent = 'Preview';
+}
+function chainRow(x, cur){
+  const [s, c] = H.docStatus(x), t = x.type || 'quote';
+  return `<a class="dp-it ${cur ? 'cur' : ''}" href="doc.html#d=${x.id}">${svg(ICD[t])}<span class="t"><b>${esc(x.number)}</b><small>${esc(WORD[t])} · ${esc(niceDate(x.date))}</small></span><span class="dp-tag ${c}">${esc(s)}</span></a>`;
+}
+function drawAside(){
+  if(mode !== 'view' || !doc.id){ F('dpAside').innerHTML = ''; F('dpNext').innerHTML = ''; return; }
+  const d = saved.find(x=>x.id===doc.id) || doc, t = d.type || 'quote', ch = H.chainOf(d);
+  const links = [ch.quote, ch.inv, ...ch.receipts, ch.card].filter(Boolean);
+  const missing = []; if(t === 'quote' && !ch.inv) missing.push('invoice'); if(ch.inv && !ch.receipts.length) missing.push('receipt'); if(ch.inv && !ch.card) missing.push('tuition card');
+  // next step
+  const nx = [], key = studentKey(d.student || d.name);
+  const lastCard = saved.filter(x=>x.type==='card' && studentKey(x.student||x.name)===key).sort((a,b)=>(b.date||'').localeCompare(a.date||''))[0];
+  const cardHref = inv => `doc.html#conv=card:${inv.id}${lastCard ? '&from=' + lastCard.id : ''}`;
+  if(t === 'quote' && !ch.inv && H.can('quotes')) nx.push(`<a class="dp-b n full" href="doc.html#conv=invoice:${d.id}">Parent agreed → Make invoice</a>`);
+  if(ch.inv && (t === 'invoice' || t === 'receipt')){
+    const st = H.invState(ch.inv);
+    if(!st.paidUp && H.can('receipts')) nx.push(`<a class="dp-b g full" href="doc.html#conv=receipt:${ch.inv.id}">${st.plan && st.firstPaid ? 'Receive 2nd instalment' : 'Record a payment'} · ${H.mk(st.balance)}</a>`);
+    if(!ch.card && H.can('cards')) nx.push(`<a class="dp-b ${st.paidUp || st.firstPaid ? 'n' : ''} full" href="${cardHref(ch.inv)}">Make tuition card${lastCard ? ' (same tutors as last time)' : ''}</a>`);
+    const end = ch.inv.periodEnd;
+    if(t === 'invoice' && ch.card && H.can('quotes') && (!end || H.dayDiff(H.today(), end) <= 14)) nx.push(`<a class="dp-b n full" href="doc.html#renew=${ch.inv.id}">Renew for the next period</a><p class="dp-note">Makes the next invoice with the same subjects. The card after it copies days, times and tutors.</p>`);
+  }
+  if(t === 'card' && H.can('cards')) nx.push(`<button class="dp-b n full" onclick="openCardShare()">${svg('<path d="M4 12l16-8-6 17-3-7-7-2z"/>',16)} Send to tutors</button>`);
+  F('dpNext').innerHTML = nx.length ? `<div class="dp-box"><div class="dp-cap">Next step</div>${nx.join('')}</div>` : '';
+  // payment
+  let pay = '';
+  if(t === 'invoice'){ const st = H.invState(d); pay = `<div class="dp-cap">Payment</div><div class="dp-pay"><div><span>Total</span><b>${H.mk(st.total)}</b></div>${(st.rows||[]).map(r=>`<div><span>${r.short} · due ${esc(niceDate(r.due))}</span><span>${r.paid ? '✓ paid' : H.mk(r.amt)}</span></div>`).join('')}<div><span>Paid</span><span>${H.mk(st.paid)}</span></div><div class="big"><span>Balance</span><span>${H.mk(Math.max(0, st.balance))}</span></div></div>`; }
+  if(t === 'receipt'){ const T = totals(d); pay = `<div class="dp-cap">Payment</div><div class="dp-pay"><div><span>Received</span><b>${H.mk(T.received)}</b></div><div><span>Method</span><span>${esc(d.method||'')}</span></div><div><span>Paid before</span><span>${H.mk(T.prevPaid)}</span></div><div class="big"><span>Balance remaining</span><span>${H.mk(Math.max(0, T.balance))}</span></div></div>`; }
+  // activity
+  const log = (d.log && d.log.length ? d.log : [d.createdBy ? {a:'created', by:d.createdBy, at:0} : null, d.updatedBy && d.updatedBy !== d.createdBy ? {a:'edited', by:d.updatedBy, at:d.updatedAt||d.savedAt} : null].filter(Boolean)).slice().reverse();
+  const W = {created:'Created', edited:'Edited', emailed:'Emailed', whatsapp:'Sent on WhatsApp', paid:'Payment recorded', restored:'Restored from Recently deleted'};
+  const act = log.map(a=>`<div class="dp-act"><span class="dp-av">${esc((a.by||'?')[0])}</span><div>${esc(W[a.a]||a.a)}${a.from ? ' from ' + esc(a.from) : ''}${a.to ? ' to ' + esc(a.to) : ''}${a.a==='paid' && a.amount ? ' · ' + H.mk(H.num(a.amount)) + ' paid in total' : ''}<small>${esc(a.by||'')}${a.at ? ' · ' + esc(H.ago(a.at)) : ''}</small></div></div>`).join('');
+  F('dpAside').innerHTML = `<div class="dp-box">${pay}<div class="dp-cap">Linked documents</div>${links.map(x=>chainRow(x, x.id===d.id)).join('') || chainRow(d, true)}${missing.length ? `<p class="dp-note">Not made yet: ${missing.join(', ')}</p>` : ''}</div>
+    ${act ? `<div class="dp-box"><div class="dp-cap">Activity</div>${act}</div>` : ''}`;
+}
+/* ⋯ menu: duplicate, copy link, delete */
+function moreMenu(){
+  const t = doc.type || 'quote';
+  const items = [];
+  if(mayEdit(t)) items.push(`<button data-m="dup">${svg('<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V4h12"/>')}<span>Duplicate<small>A new ${WORD[t].toLowerCase()} with the same details</small></span></button>`);
+  items.push(`<button data-m="link">${svg('<path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/>')}<span>Copy link to this page<small>Anyone signed in to LHQ Hub can open it</small></span></button>`);
+  if(H.can('delete')) items.push(`<button data-m="del" class="rd">${svg('<path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/>')}<span>Delete<small>Moves to Recently deleted for 30 days</small></span></button>`);
+  dpSheet(`<div class="dp-sh-h"><b>${esc(doc.number)}</b><button class="dp-x" data-m="close">✕</button></div><div class="dp-menu">${items.join('')}</div>`);
+}
+function dpSheet(html){
+  let bg = F('dpShBg'), sh = F('dpSheet');
+  if(!sh){ document.body.insertAdjacentHTML('beforeend', '<div class="dp-shbg" id="dpShBg"></div><div class="dp-sheet" id="dpSheet"></div>'); bg = F('dpShBg'); sh = F('dpSheet'); bg.onclick = closeDpSheet; }
+  sh.innerHTML = html; sh.hidden = false; bg.hidden = false;
+  sh.querySelectorAll('[data-m]').forEach(b=>b.onclick = ()=>menuAct(b.dataset.m));
+}
+function closeDpSheet(){ if(F('dpSheet')){ F('dpSheet').hidden = true; F('dpShBg').hidden = true; } }
+async function menuAct(m){
+  if(m === 'close') return closeDpSheet();
+  if(m === 'dup'){ closeDpSheet(); location.hash = 'dup=' + doc.id; return; }
+  if(m === 'link'){ closeDpSheet(); try{ await navigator.clipboard.writeText(location.origin + location.pathname + '#d=' + doc.id); toast('Link copied'); }catch(e){ toast('Copy didn\'t work here'); } return; }
+  if(m === 'del'){
+    const ch = H.chainOf(doc), others = [ch.quote, ch.inv, ...ch.receipts, ch.card].filter(x=>x && x.id!==doc.id).map(x=>x.number);
+    const paidBy = (doc.type === 'invoice') ? ch.receipts.map(x=>x.number) : [];
+    const warn = paidBy.length ? `<p class="dp-note" style="margin:0 0 14px;color:var(--rd);font-weight:700">${esc(paidBy.join(' and '))} ${paidBy.length===1?'is a payment':'are payments'} on this invoice. They would be left without an invoice, and ${esc(doc.student || 'the student')}'s current period would disappear from their page. If something on the invoice is wrong, Edit it instead.</p>` : '';
+    dpSheet(`<div class="dp-sh-h"><b>Delete ${esc(doc.number)}?</b></div><p class="dp-note" style="margin:4px 0 14px">It moves to Settings › Recently deleted and can be restored for 30 days.${others.length ? ` ${others.join(', ')} stay${others.length===1?'s':''} as ${others.length===1?'it is':'they are'}.` : ''}</p>${warn}<div class="dp-acts"><button class="dp-b rd" data-m="delGo">Delete</button><button class="dp-b" data-m="close">Keep it</button></div>`);
+  }
+  if(m === 'delGo'){
+    const n = doc.number;
+    saved = saved.filter(x=>x.id!==doc.id); store.set('lhq_saved', saved); store.set('lhq_draft', null);
+    try{ sessionStorage.setItem('lhq_flash', `${n} deleted. It's in Settings › Recently deleted for 30 days.`); }catch(e){}
+    location.href = 'index.html#docs';
+  }
+}
+
+/* ================= backup & restore =================
+   Everything lives in this browser's storage. A backup is a JSON file of all lhq_ keys
+   (except the access code, which stays on each device). */
+const BK_SKIP = ['lhq_code', 'lhq_lastBackup', 'lhq_bkSnooze'];
+function backupData(){
+  const data = {};
+  for(let i=0; i<localStorage.length; i++){
+    const k = localStorage.key(i);
+    if(k && k.startsWith('lhq_') && !BK_SKIP.includes(k)){ try{ data[k] = JSON.parse(localStorage.getItem(k)); }catch(e){} }
+  }
+  return data;
+}
+function countDocs(list){
+  const c = {quote:0, invoice:0, receipt:0, card:0};
+  (list||[]).forEach(d=>{ const t = d.type || 'quote'; if(t in c) c[t]++; });
+  return c;
+}
+const countText = c => [['quote','quote'],['invoice','invoice'],['receipt','receipt'],['card','tuition card']]
+  .filter(([k])=>c[k]).map(([k,w])=>`${c[k]} ${w}${c[k]>1?'s':''}`).join(', ') || 'no saved documents';
+async function doBackup(btn){
+  const data = backupData(), c = countDocs(data.lhq_saved);
+  const file = {app:'LHQ Quotes & Invoices', version:1, exportedAt:new Date().toISOString(), counts:c, data};
+  const name = `LHQ-backup_${todayISO()}.json`, text = JSON.stringify(file);
+  if(btn) btn.disabled = true;
+  try{
+    let shared = false;
+    for(const type of ['application/json', 'text/plain']){
+      const f = new File([text], name, {type});
+      if(navigator.canShare && navigator.canShare({files:[f]})){
+        try{ await navigator.share({files:[f], title:name}); shared = true; }
+        catch(err){ if(err && err.name==='AbortError'){ toast('Backup not saved'); return; } }
+        break;
+      }
+    }
+    if(!shared) triggerDownload(new Blob([text], {type:'application/json'}), name);
+    store.set('lhq_lastBackup', Date.now());
+    toast(`Backed up ${countText(c)}${shared ? '' : '. The file is in Downloads'}`);
+  } finally { if(btn) btn.disabled = false; fillBackup(); }
+}
+function daysSince(t){ return t ? Math.floor((Date.now() - t) / 86400000) : null; }
+function fillBackup(){
+  const last = store.get('lhq_lastBackup', 0), d = daysSince(last), n = saved.length;
+  const when = !last ? 'Never backed up' : d===0 ? 'Last backup: today' : d===1 ? 'Last backup: yesterday' : `Last backup: ${d} days ago`;
+  setSvc('bkStatus', !last || d>=7 ? 'warn' : 'ok', `${when} · ${countText(countDocs(saved))} on this device`);
+  // reminder: something saved, and no backup in 7 days (or never), and not snoozed today
+  const snooze = store.get('lhq_bkSnooze', 0);
+  if(store.get('lhq_session', null)){ setSvc('bkStatus','ok',`Stored online in LHQ Hub · ${countText(countDocs(saved))}. ${last?when+'.':''}`); F('bkBanner').hidden = true; return; }
+  const due = n > 0 && (!last || d >= 7) && Date.now() > snooze;
+  F('bkBanner').hidden = !due;
+  if(due) F('bkBannerText').textContent = !last ? `Your ${n} saved document${n>1?'s are':' is'} only on this device and ha${n>1?'ve':'s'} never been backed up.` : `Last backup was ${d} days ago. Back up so nothing is lost if this browser's data is cleared.`;
+}
+async function askPersist(){
+  let on = false;
+  try{ if(navigator.storage && navigator.storage.persist){ on = await navigator.storage.persisted() || await navigator.storage.persist(); } }catch(e){}
+  setSvc('bkPersist', on ? 'ok' : 'warn', on ? 'Storage: protected from automatic clean-up by the browser' : 'Storage: not protected from automatic clean-up. Install the app to your home screen to help, and keep backing up.');
+}
+let pendingRestore = null;
+function readRestore(file){
+  const r = new FileReader();
+  r.onload = ()=>{
+    let j; try{ j = JSON.parse(r.result); }catch(e){ toast('That file isn\'t an LHQ backup'); return; }
+    if(!j || !j.data || !String(j.app||'').startsWith('LHQ')){ toast('That file isn\'t an LHQ backup'); return; }
+    pendingRestore = j;
+    const when = j.exportedAt ? new Date(j.exportedAt).toLocaleString('en-GB',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : 'unknown date';
+    F('rsSummary').innerHTML = `Backup from <b>${esc(when)}</b> with <b>${esc(countText(countDocs(j.data.lhq_saved)))}</b>.<br>This device has ${esc(countText(countDocs(saved)))}.`;
+    F('restoreDlg').showModal();
+  };
+  r.readAsText(file);
+}
+function applyRestore(mode){
+  const j = pendingRestore; if(!j) return;
+  if(mode==='replace'){
+    if(!confirm('Replace everything on this device with the backup? Anything saved here that is not in the backup will be lost.')) return;
+    Object.keys(localStorage).filter(k=>k.startsWith('lhq_') && !BK_SKIP.includes(k) && k!=='lhq_checklist2').forEach(k=>localStorage.removeItem(k));
+    Object.entries(j.data).forEach(([k,v])=>store.set(k, v));
+  } else {
+    const byId = new Map(saved.map(d=>[d.id, d]));
+    (j.data.lhq_saved||[]).forEach(d=>{ const cur = byId.get(d.id); if(!cur || (d.savedAt||0) > (cur.savedAt||0)) byId.set(d.id, d); });
+    const merged = [...byId.values()].sort((a,b)=>(b.savedAt||0)-(a.savedAt||0));
+    store.set('lhq_saved', merged);
+    const c = store.get('lhq_counters', {}), bc = j.data.lhq_counters || {};
+    Object.keys(bc).forEach(k=>{ if(!c[k] || bc[k] > c[k]) c[k] = bc[k]; });
+    store.set('lhq_counters', c);
+    ['lhq_settings','lhq_templates'].forEach(k=>{ if(!localStorage.getItem(k) && j.data[k]) store.set(k, j.data[k]); });
+  }
+  store.set('lhq_lastBackup', Date.now());
+  F('restoreDlg').close();
+  sessionStorage.setItem('lhq_restored', mode);
+  location.reload();
+}
+function initBackup(){
+  F('btnBackup').onclick = e=>doBackup(e.currentTarget);
+  F('btnBackupNow').onclick = e=>doBackup(e.currentTarget);
+  F('btnBackupLater').onclick = ()=>{ store.set('lhq_bkSnooze', Date.now() + 86400000); fillBackup(); };
+  F('btnRestore').onclick = ()=>F('restoreFile').click();
+  F('restoreFile').onchange = e=>{ const f = e.target.files[0]; e.target.value = ''; if(f) readRestore(f); };
+  F('rsMerge').onclick = ()=>applyRestore('merge');
+  F('rsReplace').onclick = ()=>applyRestore('replace');
+  F('rsClose').onclick = ()=>F('restoreDlg').close();
+  fillBackup(); askPersist();
+  try{ const m = sessionStorage.getItem('lhq_restored'); if(m){ sessionStorage.removeItem('lhq_restored'); toast(m==='replace' ? 'Backup restored. This device now matches the backup.' : `Backup added. ${countText(countDocs(saved))} on this device.`); } }catch(e){}
+}
+
+fillSettings(); fillTemplates(); fillForm(); renderSaved(); fillNumbering(); fitPreview(); checkServices();
+if(document.fonts) document.fonts.ready.then(renderDoc);
+initBackup(); fillStudentList();
+if(location.hash.startsWith('#import=')) cardImportFromHash().then(()=>{ history.replaceState(null, '', location.pathname + '#draft'); setMode('edit'); });
+else route();
+</script>
+</body>
+</html>

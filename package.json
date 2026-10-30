@@ -5,6 +5,11 @@
   "description": "LHQ Learning Solutions quote and invoice app",
   "dependencies": {
     "@netlify/blobs": "11.1.6",
-    "nodemailer": "10.0.10"
+    "@netlify/database": "2.0.1",
+    "nodemailer": "10.0.10",
+    "pg": "^8.23.1"
+  },
+  "scripts": {
+    "test": "node --test test/*.test.mjs"
   }
 }

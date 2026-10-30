@@ -11,6 +11,9 @@ let cardShareOnly = null;       // null = whole card, else subject index
 function cardLevelSet(level){
   const l = String(level||'').toLowerCase();
   const y = +((l.match(/year\s*(\d+)/)||[])[1] || 0);
+  if(/\bib\b|baccalaureate/.test(l)) return 'IB';
+  if(/ielts/.test(l)) return 'IELTS';
+  if(/\bsat\b/.test(l)) return 'SAT';
   if(/a\s*level|\bas\b/.test(l) || y >= 12) return 'A Level';
   if(/igcse/.test(l) || y === 10 || y === 11) return 'IGCSE';
   if(y >= 7 && y <= 9) return 'Lower Secondary (Years 7–9)';
@@ -23,12 +26,13 @@ const CARD_ALIAS = {
   'english':['english language','english'], 'english language':['english'], 'first language english':['english language','english'],
   'literature':['english literature'], 'literature in english':['english literature'],
   'business studies':['business'], 'business':['business studies'],
-  'science':['combined science'], 'combined science':['science'], 'art':['art and design'], 'art design':['art and design']
+  'science':['combined science'], 'add maths':['additional mathematics'], 'additional maths':['additional mathematics'],
+  'further maths':['further mathematics'], 'cs':['computer science'], 'comp sci':['computer science'], 'it':['ict'], 'combined science':['science'], 'art':['art and design'], 'art design':['art and design']
 };
 /* Word-level matching so typed names like "Pure 1 Math", "Stats 1" or "Eng Lit" still find their list */
 const CARD_WORD = {math:'mathematics',maths:'mathematics',mathematic:'mathematics',p:'pure',stats:'statistics',stat:'statistics',prob:'probability',
   lit:'literature',eng:'english',bio:'biology',chem:'chemistry',phy:'physics',phys:'physics',econ:'economics',econs:'economics',
-  bus:'business',geo:'geography',acc:'accounting',accounts:'accounting',sci:'science',psych:'psychology',soc:'sociology',hist:'history',lang:'language'};
+  bus:'business',geo:'geography',acc:'accounting',accounts:'accounting',sci:'science',psych:'psychology',soc:'sociology',hist:'history',lang:'language',add:'additional',comp:'computer',fm:'further'};
 const CARD_SKIP = new Set(['and','of','the','studies','igcse','a','as','level','alevel','paper','cambridge']);
 function cardWords(name){
   return cardNorm(name).replace(/([a-z])(\d)/g,'$1 $2').split(' ').filter(Boolean).map(w=>CARD_WORD[w]||w).filter(w=>!CARD_SKIP.has(w));
@@ -49,19 +53,32 @@ function cardGuessList(level, name){
   const all = []; Object.keys(TOPICS).forEach(L=>cardMatchIn(L, name).forEach(n=>all.push(L+'|'+n)));
   return all.length===1 ? all[0] : '';
 }
-const CARD_LV_SHORT = {'Primary (Year 6)':'Year 6','Lower Secondary (Years 7–9)':'Years 7–9','IGCSE':'IGCSE','A Level':'A Level'};
+const CARD_LV_SHORT = {'Primary (Year 6)':'Year 6','Lower Secondary (Years 7–9)':'Years 7–9','IGCSE':'IGCSE','A Level':'A Level','IB':'IB','IELTS':'IELTS','SAT':'SAT'};
 function cardListLabel(key, lv){
   const i = key.indexOf('|'), L = key.slice(0,i), n = key.slice(i+1);
   return L===lv ? n : `${CARD_LV_SHORT[L]||L} · ${n}`;
 }
 function cardAllListKeys(lv){   // the student's level first, then every other level
   const order = [lv, ...Object.keys(TOPICS).filter(L=>L!==lv)].filter(L=>L && TOPICS[L]);
-  return order.flatMap(L=>Object.keys(TOPICS[L]).map(n=>L+'|'+n));
+  return order.flatMap(L=>Object.keys(TOPICS[L]).filter(n=>(TOPICS[L][n].topics||[]).length).map(n=>L+'|'+n));
 }
 function cardTopicSet(key){
   if(!key || !window.TOPICS) return null;
   const i = key.indexOf('|'); const lv = key.slice(0,i), name = key.slice(i+1);
-  return (TOPICS[lv]||{})[name] || null;
+  const set = (TOPICS[lv]||{})[name];
+  return set && set.topics && set.topics.length ? set : null;   // IB, IELTS and SAT have no topic list yet
+}
+/* Older cards and links ticked a topic as "t<index>". Where that topic now has sub-topics it is a chapter ("c<index>"),
+   so a tick on the old topic becomes the whole chapter. */
+function cardFixPicks(s){
+  const set = s && cardTopicSet(s.list); if(!set || !s.picks) return s;
+  Object.keys(s.picks).forEach(k=>{
+    const m = /^t(\d+)$/.exec(k), t = m && set.topics[+m[1]]; if(!t || !t.sub) return;
+    if(s.picks[k] && !s.picks['c'+m[1]]) s.picks['c'+m[1]] = 'all';
+    delete s.picks[k];
+    if(s.details && s.details[k]){ s.details['c'+m[1]] = s.details['c'+m[1]] || s.details[k]; delete s.details[k]; }
+  });
+  return s;
 }
 function cardEntries(set){
   const out = []; let n = 0;
@@ -91,6 +108,15 @@ function cardPicked(s){
 }
 const cardMins = v => String(v||'').replace(/\s*minutes?/i,' min');
 const cardDayText = s => (s.days||[]).length ? s.days.map(d=>CARD_DAYNAME[d]).join(' & ') : '';
+/* a day can have its own time (s.times = {Mo:{s:'14:00', e:'15:00'}}); otherwise the subject's usual time */
+const cardTimeOf = (s, d) => { const o = (s.times||{})[d]; return o && o.s ? {start:o.s, end:o.e||''} : {start:s.start||'', end:s.end||''}; };
+const cardHasDayTimes = s => (s.days||[]).some(d => { const o = (s.times||{})[d]; return o && o.s; });
+/* days grouped by time: "Mon & Wed · 14:00–15:00; Fri · 16:00–17:00" */
+function cardWhenText(s, tbc = 'time to be confirmed'){
+  const g = new Map();
+  (s.days||[]).forEach(d => { const t = cardTimeOf(s, d), k = t.start ? `${t.start}–${t.end}` : ''; if(!g.has(k)) g.set(k, []); g.get(k).push(d); });
+  return [...g].map(([k, ds]) => ds.map(d => CARD_DAYNAME[d]).join(' & ') + ' · ' + (k || tbc)).join('; ');
+}
 function cardGradeText(s){
   if(!s.grade) return '';
   const extra = [s.basis, s.when].filter(Boolean).join(', ');
@@ -117,7 +143,7 @@ function cardFieldCfg(key){
         if(nk!==s.list){ s.list = nk; s.picks = {}; s.details = {}; s.openCh=''; } }},
     tf: {title:'Topical assessments', noun:'option', list:()=>['Weekly','Every 2 weeks'], get:()=>s.tf || 'Weekly', set:set('tf')},
     tier: {title:'Paper', noun:'option', clear:'Not set', list:()=>['Extended','Core'], get:()=>s.tier, set:set('tier')},
-    tutor: {title:'Tutor', noun:'tutor', clear:'To be confirmed', list:()=>lines(settings.tutors), get:()=>s.tutor, set:set('tutor')},
+    tutor: {title:'Tutor', noun:'tutor', clear:'To be confirmed', list:()=>{ /* the Tutors list in Settings, plus everyone who teaches and can sign in */ const L = lines(settings.tutors), P = (window.HD ? HD.people() : []).filter(p=>p.tutor && p.active !== false).map(p=>p.name); P.forEach(n=>{ if(!L.some(x=>x.toLowerCase()===n.toLowerCase())) L.push(n); }); return L; }, get:()=>s.tutor, set:set('tutor')},
     mins: {title:'Session length', noun:'length', clear:'Not set', list:()=>lines(settings.sessionLengths), get:()=>s.mins, set:set('mins')},
     grade: {title:'Current grade', noun:'grade', clear:'No grade', list:()=>lines(settings.grades), get:()=>s.grade, set:set('grade')},
     basis: {title:'Grade based on', noun:'option', clear:'Not given', list:()=>lines(settings.gradeBasis), get:()=>s.basis, set:set('basis')},
@@ -137,6 +163,7 @@ function cardPickBtn(key, value, placeholder){
   return `<button type="button" class="picker-btn${value?'':' empty'}" data-pickfield="${key}" aria-haspopup="listbox" aria-expanded="false"><span class="pb-dot"></span><span class="pb-text">${esc(value||placeholder)}</span>${cardChev(false)}</button>`;
 }
 function cardChecklist(s, i){
+  cardFixPicks(s);
   const set = cardTopicSet(s.list);
   if(!set) return `<p class="hint" style="margin:0">No topic list chosen. Choose one from <b>Topic list</b> above, or add your own topics below.</p>`;
   const rows = cardEntries(set).map(e=>{
@@ -175,7 +202,7 @@ function renderCardEditor(){
     const [col] = CARD_COLORS[i % CARD_COLORS.length], open = i===cardOpen;
     const n = cardPicked(s), set = cardTopicSet(s.list);
     const cover = s.mode==='full' && set ? `Full course · ${cardEntries(set).filter(e=>e.kind!=='group').length} topics` : (n ? `${n} topic${n>1?'s':''}` : 'no topics yet');
-    const sum = [cardTier(s), s.tutor || 'Tutor TBC', cardDayText(s) || 'days not set', s.start ? `${s.start}–${s.end}` : (s.days.length?'time TBC':''), cover].filter(Boolean).join(' · ');
+    const sum = [cardTier(s), s.tutor || 'Tutor TBC', cardDayText(s) || 'days not set', cardHasDayTimes(s) ? 'times vary by day' : s.start ? `${s.start}–${s.end}` : (s.days.length?'time TBC':''), cover].filter(Boolean).join(' · ');
     let h = `<div class="cs${open?' open':''}" style="--c:${col}">
       <button type="button" class="cs-head" data-act="toggle" data-cs="${i}" aria-expanded="${open}"><span class="cs-dot"></span><span class="cs-title"><b>${esc(s.name||'New subject')}</b><small>${esc(sum)}</small></span>${cardChev(open)}</button>`;
     if(open){
@@ -201,6 +228,10 @@ function renderCardEditor(){
           <span class="cs-dash">–</span>
           <label><span>End time (optional)</span><input type="time" data-k="end" value="${esc(s.end)}"></label>
         </div>
+        ${s.days.length > 1 ? (s.perDay || cardHasDayTimes(s) ? `<div class="cs-perday"><div class="lbl">Times on each day <small>(blank = the usual time above)</small></div>${s.days.map(d => { const o = (s.times||{})[d] || {};
+          return `<div class="cs-pdrow"><b>${CARD_DAYNAME[d]}</b><input type="time" data-dk="${d}" data-de="s" value="${esc(o.s||'')}" aria-label="${CARD_DAYNAME[d]} start"><span>–</span><input type="time" data-dk="${d}" data-de="e" value="${esc(o.e||'')}" aria-label="${CARD_DAYNAME[d]} end"></div>`; }).join('')}
+          <button type="button" class="small" data-act="samedays">Same time every day</button></div>`
+          : `<button type="button" class="small" data-act="perday" style="margin:0 0 10px">Different times on some days</button>`) : ''}
         <p class="hint" style="margin:-4px 0 12px">Leave the times blank if the timetable isn't ready. The card shows "time to be confirmed", and you can reshare it later.</p>
         ${set ? `<div class="fld"><span class="lbl">What to cover</span><div class="seg seg2" role="group" aria-label="What to cover">
           <button type="button" data-act="mode" data-m="selected" class="${s.mode!=='full'?'on':''}">Selected topics</button>
@@ -236,6 +267,8 @@ function cardEditorEvents(){
     if(!s) return;
     if(act==='day'){ const d = b.dataset.d; s.days = s.days.includes(d) ? s.days.filter(x=>x!==d) : CARD_DAYS.filter(x=>x===d || s.days.includes(x)); }
     else if(act==='mode'){ s.mode = b.dataset.m; }
+    else if(act==='perday'){ s.perDay = true; }
+    else if(act==='samedays'){ s.perDay = false; delete s.times; }
     else if(act==='topic'){ const k = b.dataset.key; if(s.picks[k]) delete s.picks[k]; else s.picks[k] = true; }
     else if(act==='chopen'){ s.openCh = s.openCh===b.dataset.key ? '' : b.dataset.key; }
     else if(act==='chap'){ const k = b.dataset.key; if(s.picks[k]==='all') delete s.picks[k]; else { s.picks[k] = 'all'; } }
@@ -255,6 +288,7 @@ function cardEditorEvents(){
     const t = e.target, body = t.closest('[data-cs]'); if(!body) return;
     const s = doc.subjects[+body.dataset.cs]; if(!s) return;
     if(t.dataset.k){ s[t.dataset.k] = t.value; }
+    else if(t.dataset.dk){ s.times = s.times || {}; const o = s.times[t.dataset.dk] = s.times[t.dataset.dk] || {}; o[t.dataset.de] = t.value; if(!o.s && !o.e) delete s.times[t.dataset.dk]; }
     else if(t.dataset.act==='detail'){ s.details[t.dataset.key] = t.value; }
     else return;
     update();
@@ -283,24 +317,24 @@ function cardShort(name){
 /* ---------- the card itself (preview, image, PDF) ---------- */
 function cardHTML(d, only){
   const S = settings, idx = (d.subjects||[]).map((s,i)=>i).filter(i=>only==null || i===only);
-  const subj = idx.map(i=>[i, d.subjects[i]]);
+  const subj = idx.map(i=>[i, cardFixPicks(d.subjects[i])]);
   const lab = (t, c='#5f6b7d') => `<div style="font-size:11px;color:${c};text-transform:uppercase;letter-spacing:.7px;font-weight:700">${t}</div>`;
   // weekly timetable
   const cols = CARD_DAYS.map(dd=>{
-    const here = subj.filter(([,s])=>(s.days||[]).includes(dd));
+    const here = subj.filter(([,s])=>(s.days||[]).includes(dd)).sort((a,b)=>(cardTimeOf(a[1],dd).start||'99').localeCompare(cardTimeOf(b[1],dd).start||'99'));   // earliest first
     const blocks = here.map(([i,s])=>{ const [c] = CARD_COLORS[i % CARD_COLORS.length];
       const short = cardShort(s.name);
-      const tm = s.start ? `${s.start}–<br>${s.end||''}` : 'Time<br>TBC';
+      const T = cardTimeOf(s, dd), tm = T.start ? `${T.start}–<br>${T.end||''}` : 'Time<br>TBC';
       return `<div style="background:${c};color:#fff;border-radius:7px;padding:5px 3px;display:flex;flex-direction:column;gap:1px"><b style="font-size:12px;line-height:1.15;word-break:break-word">${esc(short)}</b><span style="font-size:10.5px;line-height:1.2">${tm}</span></div>`; }).join('');
     return `<div style="display:flex;flex-direction:column;gap:5px;min-width:0"><div style="font-weight:700;font-size:12.5px;color:${here.length?'#1d2433':'#8a94a3'}">${CARD_DAYNAME[dd]}</div><div style="background:#f3f5f8;border-radius:9px;min-height:74px;padding:4px;display:flex;flex-direction:column;gap:4px">${blocks || '<div style="color:#b3bcc8;font-size:12px;padding-top:6px">–</div>'}</div></div>`;
   }).join('');
-  const anyDays = subj.some(([,s])=>(s.days||[]).length), anyTbc = subj.some(([,s])=>(s.days||[]).length && !s.start);
+  const anyDays = subj.some(([,s])=>(s.days||[]).length), anyTbc = subj.some(([,s])=>(s.days||[]).some(dd=>!cardTimeOf(s,dd).start));
   // subject sections
   const sections = subj.map(([i,s])=>{
     const [c, tint] = CARD_COLORS[i % CARD_COLORS.length], set = cardTopicSet(s.list);
     const tutor = s.tutor ? `<b>${esc(s.tutor)}</b>` : '<b style="color:#9a5b00">To be confirmed</b>';
-    const when = [cardDayText(s) || '<span style="color:#9a5b00">days to be confirmed</span>',
-      s.start ? `${esc(s.start)}–${esc(s.end)}` : '<span style="color:#9a5b00">time to be confirmed</span>',
+    const when = [cardHasDayTimes(s) ? esc(cardWhenText(s)) : cardDayText(s) || '<span style="color:#9a5b00">days to be confirmed</span>',
+      cardHasDayTimes(s) ? '' : s.start ? `${esc(s.start)}–${esc(s.end)}` : '<span style="color:#9a5b00">time to be confirmed</span>',
       s.sessions ? `${esc(s.sessions)} sessions${s.mins ? ` of ${esc(cardMins(s.mins))}` : ''}` : (s.mins ? esc(cardMins(s.mins)) + ' sessions' : '')].filter(Boolean).join(' · ');
     const grade = cardGradeText(s) ? `<div style="font-size:13px"><span style="color:#5f6b7d">Current grade:</span> <b>${esc(s.grade)}</b>${[s.basis,s.when].filter(Boolean).length?` <span style="color:#5f6b7d">(${esc([s.basis,s.when].filter(Boolean).join(', '))})</span>`:''}</div>` : '';
     let topics = '';
@@ -333,27 +367,29 @@ function cardHTML(d, only){
       </div>
       <div style="font-size:13.5px">${when}</div>${grade}${topics}${note}</div>`;
   }).join('');
+  const totalSess = subj.reduce((a, [, x]) => a + (parseFloat(x.sessions) || 0), 0);
   const levelLine = [d.level, d.exam ? `Exams ${d.exam}` : ''].filter(Boolean).map(esc).join(' · ');
   const len = rangeLength(d.periodStart, d.periodEnd);
   const period = d.periodStart ? rangeText(d.periodStart, d.periodEnd) + (len ? ` (${len})` : '') : (d.period || 'To be confirmed');
   return `<div class="tcard" style="width:540px;background:#fff;color:#1d2433;font-family:Calibri,Carlito,'Segoe UI',sans-serif;font-size:14px;line-height:1.4">
-  <div style="background:#073763;color:#fff;padding:18px 24px;display:flex;align-items:center;gap:14px">
-    <div style="background:#fff;border-radius:8px;padding:5px 7px;display:flex"><img src="logo.png" alt="LHQ" style="width:80px;height:42px;object-fit:contain;display:block"></div>
-    <div style="flex:1;display:flex;flex-direction:column;align-items:flex-end;text-align:right">
-      <div style="font-size:24px;font-weight:700;letter-spacing:1px;line-height:1.1">TUITION CARD</div>
-      <div style="color:#f4b223;font-weight:700;font-size:13px">${esc(d.number)} · Issued ${esc(niceDate(d.date))}${only!=null?' · '+esc(d.subjects[only].name):''}</div>
+  <div style="border-top:6px solid #073763;padding:18px 24px 0">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:14px">
+      <img src="logo.png" alt="LHQ" style="width:78px;height:40px;object-fit:contain;object-position:left center;display:block">
+      <div style="text-align:right;line-height:1.3">
+        <div style="font-size:14px;font-weight:700;letter-spacing:2px;color:#073763">TUITION CARD</div>
+        <div style="font-size:12px;font-weight:700;color:#5f6b7d">${esc(d.number)} · Issued ${esc(niceDate(d.date))}</div>
+      </div>
+    </div>
+    <div style="font-size:28px;font-weight:700;color:#073763;line-height:1.1;margin-top:16px;letter-spacing:-.2px">${esc(d.student || 'Student name')}</div>
+    ${levelLine || d.school ? `<div style="font-size:14.5px;margin-top:3px">${levelLine}${d.school ? `${levelLine ? ' · ' : ''}<span style="color:#5f6b7d">${esc(d.school)}</span>` : ''}</div>` : ''}
+    <div style="width:56px;height:3px;background:#f4b223;border-radius:2px;margin:12px 0 14px"></div>
+    <div style="display:grid;grid-template-columns:1.45fr 1fr 1fr;gap:8px">
+      <div style="background:#f5f7fa;border-radius:9px;padding:8px 10px">${lab('Tuition period')}<b style="font-size:13.5px">${esc(period)}</b></div>
+      <div style="background:#f5f7fa;border-radius:9px;padding:8px 10px">${lab('Where')}<b style="font-size:13.5px">${esc(d.where || 'To be confirmed')}</b></div>
+      <div style="background:#f5f7fa;border-radius:9px;padding:8px 10px">${lab(only!=null ? 'Subject' : 'Subjects')}<b style="font-size:13.5px">${only!=null ? esc((d.subjects[only]||{}).name || '') : `${subj.length}${totalSess ? ` · ${totalSess} sessions` : ''}`}</b></div>
     </div>
   </div>
   <div style="padding:18px 24px 6px;display:flex;flex-direction:column;gap:16px">
-    <div style="display:flex;flex-direction:column;gap:2px">
-      <div style="font-size:23px;font-weight:700;color:#073763;line-height:1.15">${esc(d.student || 'Student name')}</div>
-      ${levelLine?`<div style="font-size:14.5px">${levelLine}</div>`:''}
-      ${d.school?`<div style="color:#5f6b7d">School: ${esc(d.school)}</div>`:''}
-    </div>
-    <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px 18px;border-top:1px solid #dde2ea;border-bottom:1px solid #dde2ea;padding:10px 0">
-      <div>${lab('Tuition period')}<b>${esc(period)}</b></div>
-      <div>${lab('Where')}<b>${esc(d.where || 'To be confirmed')}</b></div>
-    </div>
     ${anyDays ? `<div style="display:flex;flex-direction:column;gap:8px">${lab('Weekly timetable')}<div style="display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px;text-align:center">${cols}</div>${anyTbc?'<div style="font-size:12.5px;color:#5f6b7d">Session days are agreed. Times marked TBC will follow once the timetable is set.</div>':''}</div>` : ''}
     <div style="display:flex;flex-direction:column;gap:10px">${lab(subj.length>1?'Subjects':'Subject')}${sections || '<div style="color:#5f6b7d">No subjects added yet.</div>'}</div>
     ${d.cardNote ? `<div style="background:#fff7e0;border-radius:10px;padding:10px 14px;display:flex;flex-direction:column;gap:4px">${lab('Notes from LHQ', '#7a5400')}<div style="white-space:pre-wrap">${esc(d.cardNote)}</div></div>` : ''}
@@ -378,13 +414,13 @@ async function cardRender(only){
 async function cardPng(only){
   const r = await cardRender(only);
   try{
-    const canvas = await html2pdf().set(r.opts).from(r.el).toCanvas().get('canvas');
+    const canvas = await (await lhqPdf())().set(r.opts).from(r.el).toCanvas().get('canvas');
     return await new Promise(res=>canvas.toBlob(res, 'image/png'));
   } finally { r.done(); }
 }
 async function cardPdf(only){
   const r = await cardRender(only);
-  try{ return await html2pdf().set(r.opts).from(r.el).outputPdf('blob'); } finally { r.done(); }
+  try{ return await (await lhqPdf())().set(r.opts).from(r.el).outputPdf('blob'); } finally { r.done(); }
 }
 function cardFileName(only, ext){
   const who = (doc.student || 'Student').trim();
@@ -417,8 +453,12 @@ function renderCardShare(){
   F('csTutors').innerHTML = tutors.length ? tutors.map(t=>{
       const subs = doc.subjects.filter(x=>x.tutor===t).map(x=>x.name).join(', ');
       const n = new Set(cardRosterSubjects(others.concat([doc])).filter(x=>x.tutor===t).map(x=>cardNormName(x.student))).size;
-      return `<div class="cs-trow"><span><b>${esc(t)}</b><small>${esc(subs)} · ${n} student${n===1?'':'s'} in total</small><small>${esc(cardTutorSentText(t))}</small></span><button type="button" class="small wa" data-tutor="${esc(t)}">Send link</button></div>`; }).join('')
+      const ct = cardTutorContact(t);
+      return `<div class="cs-trow"><span><b>${esc(t)}</b><small>${esc(subs)} · ${n} student${n===1?'':'s'} in total</small><small>${esc(cardTutorSentText(t))}</small>${!ct.phone && !ct.email ? '<small class="warn">No WhatsApp number or email yet · <a href="index.html#set/tutorinfo">add</a></small>' : ''}</span>
+        <span class="cs-tb"><button type="button" class="small wa" data-tutor="${esc(t)}">${ct.phone ? 'WhatsApp' : 'Send link'}</button>${ct.email ? `<button type="button" class="small" data-temail="${esc(t)}">Email</button>` : ''}</span></div>`; }).join('')
     : '<p class="hint" style="margin:0">Choose a tutor for each subject on the card to send them their link.</p>';
+  const em = tutors.filter(t => cardTutorContact(t).email);
+  if(em.length > 1) F('csTutors').innerHTML += `<button type="button" class="small" data-temail="*" style="margin-top:8px">Email all ${em.length} tutors their link and card</button>`;
 }
 async function cardShareFile(kind, save){
   const btns = document.querySelectorAll('#cardShareDlg .cs-actions button'); btns.forEach(b=>b.disabled = true);
@@ -443,7 +483,14 @@ function initCard(){
   F('csImage').onclick = ()=>cardShareFile('png', false);
   F('csPdf').onclick = ()=>cardShareFile('pdf', false);
   F('csSave').onclick = ()=>cardShareFile('png', true);
-  F('csTutors').onclick = async e=>{ const b = e.target.closest('[data-tutor]'); if(!b) return; saveDoc(true); await cardSendTutorLink(saved, b.dataset.tutor); renderCardShare(); };
+  F('csTutors').onclick = async e=>{
+    const m = e.target.closest('[data-temail]');
+    if(m){ saveDoc(true); const all = m.dataset.temail === '*', list = all ? [...new Set((doc.subjects||[]).map(x=>x.tutor).filter(t=>t && cardTutorContact(t).email))] : [m.dataset.temail];
+      m.disabled = true; const done = [], failed = [];
+      for(const t of list){ toast(`Emailing ${t}…`); try{ await cardEmailTutor(saved, t); done.push(t); }catch(err){ failed.push(t + ': ' + err.message); } }
+      m.disabled = false; renderCardShare();
+      toast(failed.length ? failed[0] : done.length === 1 ? `Emailed ${done[0]}` : `Emailed ${done.length} tutors`); return; }
+    const b = e.target.closest('[data-tutor]'); if(!b) return; saveDoc(true); await cardSendTutorLink(saved, b.dataset.tutor); renderCardShare(); };
   F('clLink').value = cardChecklistLink();
   const invite = ()=>`Hello! Please fill in this short LHQ Learning Solutions topic checklist so we know which subjects and topics you'd like help with. It takes about 3 minutes:\n${cardChecklistLink()}`;
   F('btnClCopy').onclick = async ()=>{ try{ await navigator.clipboard.writeText(cardChecklistLink()); toast('Link copied'); }catch(e){ F('clLink').select(); toast('Select the link and copy it'); } };
@@ -466,11 +513,13 @@ function cardFromChecklist(p){
   const d = blankDoc('card');
   d.items = []; d.student = p.n || ''; d.level = p.l || ''; d.school = p.sc || ''; d.exam = p.ex || '';
   d.where = CARD_WHERE[p.wh] || ''; d.checklistId = p.id || '';
+  d.area = p.ar || ''; d.district = p.ds || ''; d.heard = p.hd || '';   // kept on the student's record (not printed)
   d.subjects = (p.s || []).map(x=>{
     const s = cardBlankSubject(x.n, d.level);
     if(x.k && cardTopicSet(x.k)) s.list = x.k;
     s.mode = x.m==='f' ? 'full' : 'selected';
     s.picks = (x.p && typeof x.p==='object') ? x.p : {};
+    cardFixPicks(s);
     s.custom = Array.isArray(x.c) ? x.c.map(String) : [];
     s.grade = x.g || ''; s.basis = x.b || ''; s.when = x.w || ''; s.tier = x.r || '';
     s.note = [x.m==='u' ? 'Student isn\'t sure which topics yet: check in the first session.' : '', x.o || ''].filter(Boolean).join(' ');
@@ -501,6 +550,7 @@ function cardChecklistLink(){ try{ return new URL('checklist.html', location.hre
 /* ---------- tutors' session-log links (shared by the app and the Reports page) ---------- */
 const cardNormName = x => String(x||'').trim().toLowerCase().replace(/\s+/g,' ');
 function cardTopicNames(s){
+  cardFixPicks(s);
   const set = cardTopicSet(s.list), out = [];
   if(set){
     const tier = cardTier(s);
@@ -547,9 +597,10 @@ function cardTutorPayload(savedList, tutor){
     put(it,'ls',s.list); put(it,'r',cardTier(s)); if(s.mode==='full') it.md = 'f';
     if(s.mode!=='full'){ put(it,'pk',s.picks); }
     const dt = {}; Object.entries(s.details||{}).forEach(([k,v])=>{ if(String(v).trim() && (s.mode==='full' || (s.picks||{})[k])) dt[k] = String(v).trim(); }); put(it,'dt',dt);
-    put(it,'cu',s.custom); put(it,'y',s.days); if(s.start) it.m = `${s.start}–${s.end||''}`; put(it,'mi',s.mins);
+    put(it,'cu',s.custom); put(it,'y',s.days); if(cardHasDayTimes(s)) it.m = cardWhenText(s, 'time TBC'); else if(s.start) it.m = `${s.start}–${s.end||''}`; put(it,'mi',s.mins);
     if(s.tf==='Every 2 weeks') it.f = 2;
     put(it,'g',s.grade); put(it,'gb',s.basis); put(it,'gw',s.when); put(it,'nt',(s.note||'').trim());
+    if(+s.cf) it.cf = +s.cf;   // make-up sessions carried in from the last period
     cards.get(c.number).i.push(it);
   });
   return {v:2, t:tutor, d:iso, c:[...cards.values()]};
@@ -571,10 +622,29 @@ function cardTutorMessage(tutor, link, howTo){
     ? `Hello ${first}, here is your LHQ link. It has the tuition card for each of your students. Open it on your phone and keep it. After each session, log attendance, topics and any assessment score, then send your log to LHQ at the end of the week.\n\n${link}`
     : `${first}, your updated LHQ link:\n${link}`;
 }
+/* a tutor's WhatsApp number and email, from Settings › Tutors' contacts */
+function cardTutorContact(t){ const I = (settings && settings.tutorInfo) || {}; const o = I[t] || I[Object.keys(I).find(k => k.toLowerCase() === String(t).toLowerCase())] || {}; return {phone: o.phone || '', email: o.email || ''}; }
+const cardWaNum = raw => { let n = String(raw || '').replace(/\D/g, ''); if(n.startsWith('0')) n = '265' + n.slice(1); else if(n.length === 9) n = '265' + n; return n; };
+/* email a tutor their link, with this card (their subjects) as a PDF */
+async function cardEmailTutor(savedList, tutor){
+  const ct = cardTutorContact(tutor), sess = window.hub && hub.session();
+  if(!ct.email) throw new Error(`Add ${tutor}'s email under Settings › Tutors' contacts.`);
+  if(!sess || !sess.token) throw new Error('Sign in to LHQ Hub again, then send.');
+  const link = await cardTutorLink(savedList, tutor), howTo = F('csHowTo') && F('csHowTo').checked ? true : null;
+  const idx = (doc.subjects || []).map((x, i) => x.tutor === tutor ? i : -1).filter(i => i >= 0), only = idx.length === 1 ? idx[0] : null;
+  const pdfBase64 = await blobToBase64(await cardPdf(only));
+  const subs = idx.map(i => doc.subjects[i].name).filter(Boolean).join(', ');
+  const r = await fetch('/api/send-email', {method:'POST', headers:{'content-type':'application/json', authorization:'Bearer ' + sess.token},
+    body: JSON.stringify({to: ct.email, subject: `LHQ tuition card · ${doc.student || 'Student'}${subs ? ' · ' + subs : ''}`, filename: cardFileName(only, 'pdf'), pdfBase64,
+      text: cardTutorMessage(tutor, link, howTo) + `\n\nAttached: ${doc.student || 'the student'}'s tuition card (${doc.number}).\n\nLHQ Learning Solutions`})});
+  const j = await r.json().catch(() => ({}));
+  if(!r.ok) throw new Error(j.error || 'The email couldn\'t be sent. Try again in a minute.');
+  cardMarkTutorSent(tutor);
+}
 async function cardSendTutorLink(savedList, tutor){
   const link = await cardTutorLink(savedList, tutor);
-  const howTo = F('csHowTo') && F('csHowTo').checked ? true : null;
-  const url = 'https://wa.me/?text=' + encodeURIComponent(cardTutorMessage(tutor, link, howTo));
+  const howTo = F('csHowTo') && F('csHowTo').checked ? true : null, ph = cardWaNum(cardTutorContact(tutor).phone);
+  const url = 'https://wa.me/' + (ph.length >= 11 ? ph : '') + '?text=' + encodeURIComponent(cardTutorMessage(tutor, link, howTo));
   cardMarkTutorSent(tutor);
   const w = window.open(url, '_blank'); if(!w) location.href = url;
 }

@@ -6,8 +6,10 @@
 <meta name="theme-color" content="#073763">
 <title>LHQ Topic Checklist</title>
 <meta name="description" content="Tell LHQ Learning Solutions which subjects and topics you want help with.">
-<link rel="icon" href="arrow.png">
-<link rel="apple-touch-icon" href="logo.png">
+<link rel="icon" href="icon-32.png" sizes="32x32">
+<link rel="icon" href="icon-192.png" sizes="192x192">
+<link rel="apple-touch-icon" href="icon-180.png">
+<script>if('serviceWorker' in navigator) addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));</script>
 <script src="topics.js"></script>
 <script src="card.js"></script>
 <script src="schools.js"></script>
@@ -147,7 +149,12 @@ footer{text-align:center;font-size:12.5px;color:var(--muted);padding:6px 16px 0}
       <div class="fld"><span class="lbl">Year <span class="req">*</span></span><button type="button" class="dd" id="ddYear"></button></div>
       <div class="fld"><span class="lbl">Exams</span><button type="button" class="dd" id="ddExam"></button></div>
     </div>
-    <div class="fld" style="margin-bottom:0"><span class="lbl">School</span><button type="button" class="dd" id="ddSchool"></button></div>
+    <div class="fld"><span class="lbl">School</span><button type="button" class="dd" id="ddSchool"></button></div>
+    <div class="grid2">
+      <label><span>Area you live in</span><input id="area" autocomplete="address-level3" placeholder="e.g. Area 47"></label>
+      <div class="fld"><span class="lbl">District</span><button type="button" class="dd" id="ddDistrict"></button></div>
+    </div>
+    <div class="fld" style="margin-bottom:0"><span class="lbl">How did you hear about LHQ?</span><button type="button" class="dd" id="ddHeard"></button></div>
   </section>
 
   <section class="panel">
@@ -211,7 +218,8 @@ const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>'
 const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 const LHQ_WA = '265992525250', LHQ_EMAIL = 'learnhqes@gmail.com';
 const LEVELS = ['Year 5','Year 6 · Primary Checkpoint','Year 7','Year 8','Year 9 · Checkpoint','Year 10 · IGCSE','Year 11 · IGCSE','Year 12 · AS Level','Year 13 · A Level'];
-const LEVEL_SHORT = {'Year 6 · Primary Checkpoint':'Year 6 (Checkpoint)','Year 9 · Checkpoint':'Year 9 (Checkpoint)','Year 10 · IGCSE':'Year 10 (IGCSE)','Year 11 · IGCSE':'Year 11 (IGCSE)','Year 12 · AS Level':'Year 12 (AS Level)','Year 13 · A Level':'Year 13 (A Level)'};
+const PROGRAMMES = ['IB','IELTS','SAT'];
+const LEVEL_SHORT = {'IB':'IB Diploma','Year 6 · Primary Checkpoint':'Year 6 (Checkpoint)','Year 9 · Checkpoint':'Year 9 (Checkpoint)','Year 10 · IGCSE':'Year 10 (IGCSE)','Year 11 · IGCSE':'Year 11 (IGCSE)','Year 12 · AS Level':'Year 12 (AS Level)','Year 13 · A Level':'Year 13 (A Level)'};
 const GRADES = ['A*','A','B','C','D','E','F','G','U'];
 const BASIS = ['End of term results','Mid-term results','Mock exam','Class test','School report','Checkpoint results','My own estimate'];
 const WHERE = ['At LHQ','Online','Either'];
@@ -232,9 +240,14 @@ function months(){ const out = [], d = new Date(); d.setDate(1); for(let i=0;i<1
 
 /* ---------- state (kept in this browser so a half-filled checklist isn't lost) ---------- */
 const KEY = 'lhq_checklist2';
-const blank = () => ({id: Date.now().toString(36), name:'', level:'', school:'', exam:'', subjects:[], days:[], where:'', notes:''});
+const blank = () => ({id: Date.now().toString(36), name:'', level:'', school:'', exam:'', area:'', district:'', heard:'', subjects:[], days:[], where:'', notes:''});
+const DISTRICTS = ['Lilongwe','Blantyre','Mzuzu','Zomba'];
+const HEARD = ['A friend or family member','A brother or sister at LHQ','Instagram','Facebook','TikTok','WhatsApp','Google','My school','A Study Smart Session','Flyers or posters','Radio or TV','An event','Other'];
+/* the parent-facing wording above maps to LHQ's list (Settings › Lists) */
+const HEARD_KEY = {'A brother or sister at LHQ':'Sibling at LHQ','My school':'Their school','A Study Smart Session':'Study Smart Session'};
 let st; try{ st = Object.assign(blank(), JSON.parse(localStorage.getItem(KEY)||'null')||{}); }catch(e){ st = blank(); }
 let openSub = -1;
+st.subjects.forEach(s=>{ s.details = s.details || {}; cardFixPicks(s); });
 function persist(){ try{ localStorage.setItem(KEY, JSON.stringify(st)); }catch(e){} }
 const lvSet = () => cardLevelSet(st.level);
 const subjectsAtLevel = () => { const lv = lvSet(); return lv && TOPICS[lv] ? Object.keys(TOPICS[lv]) : []; };
@@ -276,7 +289,7 @@ const ddHTML = (act, text, placeholder) => `<button type="button" class="dd${tex
 
 /* ---------- section 1 ---------- */
 F('ddYear').onclick = e=>openSheet({title:'Your year', btn:e.currentTarget, selected:st.level,
-  options:LEVELS.map(l=>({v:l, l:LEVEL_SHORT[l]||l})), onDone:v=>{
+  options:[...LEVELS.map(l=>({v:l, l:LEVEL_SHORT[l]||l})), {sep:'Other programmes'}, ...PROGRAMMES.map(l=>({v:l, l:LEVEL_SHORT[l]||l}))], onDone:v=>{
     st.level = v; const lv = lvSet();   // keep subjects, re-match their topic lists
     st.subjects.forEach(s=>{ const k = lv && TOPICS[lv] && TOPICS[lv][s.name] ? lv+'|'+s.name : ''; if(k!==s.list){ s.list = k; s.picks = {}; s.openCh=''; } if(!cardTiered(s.list)) s.tier=''; });
     renderAll(); }});
@@ -418,6 +431,12 @@ function schoolOptions(q){
   else if(!q) out.push({sep:'Not listed'}, {v:'__other', l:'My school isn’t listed', s:'Type its name in the search box above'});
   return out;
 }
+F('ddDistrict').onclick = e=>openSheet({title:'District', btn:e.currentTarget, selected:st.district,
+  options:[...DISTRICTS.map(x=>({v:x, l:x})), {sep:'Somewhere else'}, {v:'__other', l:'Another district…', s:'Type it in'}],
+  onDone:v=>{ if(v==='__other'){ const n = (prompt('Which district?')||'').trim(); if(!n) return; v = n; } st.district = v; setDD(F('ddDistrict'), st.district, 'Choose'); renderPreview(); persist(); }});
+F('ddHeard').onclick = e=>openSheet({title:'How did you hear about LHQ?', btn:e.currentTarget, selected:st.heard,
+  options:HEARD.map(x=>({v:x, l:x})), onDone:v=>{ st.heard = v; setDD(F('ddHeard'), st.heard, 'Choose'); renderPreview(); persist(); }});
+F('area').addEventListener('input', e=>{ st.area = e.target.value; renderPreview(); persist(); });
 F('ddSchool').onclick = e=>openSheet({title:'Your school', btn:e.currentTarget, selected:st.school,
   search:{placeholder:'Search or type your school', build:schoolOptions},
   onDone:v=>{ if(v==='__other'){ setTimeout(()=>{ F('ddSchool').click(); F('shSearch').focus(); }, 50); return; } st.school = v; setDD(F('ddSchool'), st.school, 'Choose'); renderPreview(); persist(); }});
@@ -458,6 +477,9 @@ function payload(){
   });
   const p = {v:1, id:st.id, n:st.name.trim(), l:st.level, s:subj};
   if(st.school.trim()) p.sc = st.school.trim();
+  if((st.area||'').trim()) p.ar = st.area.trim();
+  if(st.district) p.ds = st.district;
+  if(st.heard) p.hd = HEARD_KEY[st.heard] || st.heard;
   if(st.exam && st.exam!=='Not sure') p.ex = st.exam;
   if(st.days.length) p.d = st.days;
   if(st.where) p.wh = st.where;
@@ -477,6 +499,8 @@ function messageText(link){
   L.push(`Student: ${st.name.trim() || '-'}`);
   L.push([LEVEL_SHORT[st.level]||st.level, st.school.trim()].filter(Boolean).join(' · ') || '-');
   if(st.exam && st.exam!=='Not sure') L.push(`Exams: ${st.exam}`);
+  if((st.area||'').trim() || st.district) L.push(`Lives in: ${[(st.area||'').trim(), st.district].filter(Boolean).join(', ')}`);
+  if(st.heard) L.push(`Heard about LHQ: ${st.heard}`);
   st.subjects.forEach(s=>{
     const set = cardTopicSet(s.list);
     L.push('', `*${s.name.toUpperCase()}*${set?` (${set.code}${tierOf(s)?', '+tierOf(s):''})`:''}`);
@@ -527,6 +551,7 @@ F('btnCopy').onclick = async ()=>{
 function toast(m){ const t = F('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(()=>t.classList.remove('show'), 2800); }
 function renderAll(){
   setDD(F('ddYear'), LEVEL_SHORT[st.level]||st.level, 'Choose'); setDD(F('ddSchool'), st.school, 'Choose'); setDD(F('ddExam'), st.exam, 'Choose');
+  setDD(F('ddDistrict'), st.district, 'Choose'); setDD(F('ddHeard'), st.heard, 'Choose'); F('area').value = st.area || '';
   renderSubjects(); renderWhen(); renderPreview(); persist();
 }
 renderAll();
