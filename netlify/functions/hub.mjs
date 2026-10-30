@@ -570,6 +570,14 @@ async function tutorPost(req, me) {
   return fail("Unknown action.");
 }
 
+/* for the shared records (api/v2): whoever is signed in, any role. Until sign-in moves to the database (step 2),
+   the people list in Blobs stays the source of who can sign in. */
+export async function personFrom(req, context) {
+  site = (context && context.deploy && context.deploy.context) || "production";
+  if (!secret()) return null;
+  return await whoIs(req);
+}
+
 /* for the email and WhatsApp functions: only someone signed in to LHQ Hub as Director or admin may send */
 export async function staffFrom(req, context) {
   site = (context && context.deploy && context.deploy.context) || "production";

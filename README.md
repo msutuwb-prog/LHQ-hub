@@ -254,3 +254,28 @@ Working grade = average of topical assessments in the tuition period (LHQ scale 
 - **Pages:** `index.html` (Home with metric cards each person chooses, Students, Documents, Settings sections, People) and `doc.html` (one document: opens on the document with its links, payment and activity; Edit shows the form beside a live preview). Navigation is a bottom bar or a sidebar, chosen per device in Settings › My account.
 - **Students** are kept once in `kv/lhq_students`; new documents fill in from there.
 - **Recently deleted:** `GET /api/hub/trash`, `POST /api/hub/restore` (kept 30 days). Each document keeps a short activity log (`log`: created, edited, emailed, sent on WhatsApp, payment recorded, restored).
+
+## Shared records (foundations for the student, parent and tutor accounts)
+
+Every account now works from one set of records in a database (Postgres) instead of each device holding a copy of everything.
+It runs **alongside** the current Hub: quotes, invoices, sign-in and the current tutor area don't change until each step moves over.
+
+- **One record per real thing:** a session, each student's attendance, an SRA review, a make-up, an assessment mark, a requisition, a payslip.
+- **Each account receives only what it may see**, filtered on the server (`netlify/lib/access.mjs`): a parent only their children, a student only themselves (never classmates), a tutor only their own groups and no money, Admin pay only with Tutor pay switched on. Password and PIN hashes never leave the server.
+- **Every change is a named command** (`netlify/lib/commands.mjs`) that checks who may do it and leaves a line in the activity log.
+- **Nothing is silently overwritten:** a save made from an older version is refused and the app reloads it. A command a phone sends twice (retrying after losing signal) happens once.
+- **Devices sync by asking what changed since the last time** (`/api/v2/changes?since=N`).
+- **Numbers are worked out in one place** (`site/shared/calc.mjs`): session counts, make-ups owed and tutor pay, used by the server and the app alike.
+- **Sessions:** the tutor logs the session; each student confirms it or says what was wrong. The tutor fixes the log or keeps it, and a kept one goes to Admin to settle. Any missed session is owed as a make-up; the tutor books it and Admin confirms it.
+- **Tutor pay:** a pay profile per tutor (full-time or part-time, from a date), LHQ's pay rules in Settings, and one-off allowances, bonuses, deductions and advances. A payslip is worked out from the logs, confirmed by the Director (or Admin with Tutor pay), then signed by the tutor. Amounts LHQ hasn't set show as "not set" instead of a guess, and a payslip can't be confirmed until they're set.
+
+### Switching it on (once)
+
+1. In Netlify: **Extensions › Database** (Netlify Database, Postgres). Enable it for this site. It sets `NETLIFY_DB_URL` itself. (Any other Postgres works too: set `DATABASE_URL` instead.)
+2. Deploy. The tables are created on the first request (`netlify/lib/schema.mjs`, migrations run once, under a lock).
+3. On the preview (the build branch's own address), sign in as Director and send `POST /api/v2/demo` to fill it with the mockup's made-up people. This is refused on the live site.
+4. When ready: `POST /api/v2/import` copies people, students, tuition cards, classes and the session and SRA logs from the current Hub into the records. It doesn't change the current Hub and can be run again safely.
+
+### Tests
+
+`DATABASE_URL=postgres://user:pass@localhost/test_db npm test` (empties that database first: never point it at LHQ's).
