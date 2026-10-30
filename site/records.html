@@ -19,12 +19,19 @@ h1{font-size:26px;margin:8px 0 2px;color:var(--brand)}.sub{color:var(--muted);ma
 .note{color:var(--muted);font-size:13px;margin:8px 0 0}
 .out{white-space:pre-wrap;font-size:13px;background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:10px;display:none}
 .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px 16px;font-size:14px}.grid span{color:var(--muted)}
+.who{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}.who button{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:8px 12px;font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+.who button.on{background:var(--accent);color:var(--onaccent);border-color:var(--accent)}.who b{display:block;width:100%;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:6px}
+.chk{display:flex;gap:8px;padding:5px 0;font-size:14px}.chk .c{flex:none;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:900;margin-top:1px}
+.chk.y .c{background:var(--ok);color:#fff}.chk.n .c{border:2px solid var(--muted);color:var(--muted)}
 </style></head>
 <body><main>
 <a class="crumb" href="index.html#home">‹ Home</a>
 <h1>Shared records</h1><p class="sub">The one set of records every account will work from. Director only.</p>
 <div class="card"><div class="cap">Status</div><div id="status">Checking…</div></div>
 <div class="card" id="countsCard" style="display:none"><div class="cap">What's in the records</div><div class="grid" id="counts"></div></div>
+<div class="card" id="asCard" style="display:none"><div class="cap">See what each person gets</div>
+  <p class="note" style="margin:0 0 10px">Tap a person to see exactly what their phone would receive from the records. Nothing is changed.</p>
+  <div id="asList"></div><div id="asOut"></div></div>
 <div class="card" id="actions" style="display:none">
   <div class="cap">Fill the records</div>
   <div id="demoBox"><b>Demo people (test copy only)</b><p class="note">Adds the mockup's made-up people: Linga, Tadala, Chisomo's students, Grace (Linga's parent), five tutors, three weeks of sessions, a make-up waiting, two requisitions and pay profiles. Refused on the live Hub.</p>
@@ -50,10 +57,15 @@ async function load(){
   html += `<div class="row"><span>You</span><b>${me.j.me.name} · ${me.j.me.role}</b></div>`;
   $('status').innerHTML = html;
   if(me.j.me.role !== 'director'){ $('status').innerHTML += '<p class="note">Only the Director can fill the records.</p>'; return; }
-  const c = await api('changes?since=0'); const rows = (c.j && c.j.rows) || {};
+  const rows = {}; let c = {j:{more:true, cursor:0}};
+  while(c.j && c.j.more){ c = await api('changes?since=' + c.j.cursor); if(!c.ok) break; Object.entries(c.j.rows || {}).forEach(([t, r]) => rows[t] = (rows[t] || []).concat(r)); }
   $('counts').innerHTML = Object.entries(LABELS).map(([k, l]) => `<div><span>${l}</span> <b>${(rows[k] || []).filter(r => !r.del).length}</b></div>`).join('');
   $('countsCard').style.display = ''; $('actions').style.display = '';
   $('demoBox').style.display = h.j.preview ? '' : 'none';
+  const ppl = (rows.people || []).filter(p => !p.del), order = ['director','admin','tutor','parent','student','bdo'], RN = {director:'Director', admin:'Admin', tutor:'Tutors', parent:'Parents', student:'Students', bdo:'BDO'};
+  $('asList').innerHTML = '<div class="who">' + order.filter(r => ppl.some(p => p.role === r)).map(r => `<b>${RN[r]}</b>` + ppl.filter(p => p.role === r).sort((a, b) => a.name.localeCompare(b.name)).map(p => `<button type="button" data-p="${p.id}">${p.name}</button>`).join('')).join('') + '</div>';
+  $('asCard').style.display = '';
+  document.querySelectorAll('[data-p]').forEach(b => b.onclick = () => asOf(b));
 }
 /* both run in parts (each request has a time limit): keep asking for the next part until there is no more */
 async function act(btn, path, busy, key){
@@ -68,6 +80,28 @@ async function act(btn, path, busy, key){
     : r.j.already ? 'Already done: the demo people are in.'
     : 'Done.\n' + Object.entries(total).map(([k, v]) => `${k}: ${v}`).join('\n') + (skipped.length ? `\nLeft out (${skipped.length}):\n  ` + skipped.slice(0, 20).join('\n  ') : '');
   btn.textContent = t; btn.disabled = false; load();
+}
+async function asOf(btn){
+  document.querySelectorAll('[data-p]').forEach(x => x.classList.toggle('on', x === btn)); $('asOut').innerHTML = '<p class="note">Loading…</p>';
+  const r = await api('as?person=' + btn.dataset.p); if(!r.ok){ $('asOut').innerHTML = '<p class="note">' + (r.j.error || r.status) + '</p>'; return; }
+  const R = r.j.rows, live = t => (R[t] || []).filter(x => !x.del), P = r.j.person;
+  const list = (t, f) => { const L = [...new Set(live(t).map(f).filter(Boolean))]; return L.length > 12 ? L.slice(0, 12).concat(`and ${L.length - 12} more`) : L; };
+  const yes = (ok, t) => `<div class="chk ${ok ? 'y' : 'n'}"><span class="c">${ok ? '✓' : '×'}</span><span>${t}</span></div>`;
+  const stu = list('students', s => s.name), grp = list('groups', g => g.name || g.subject), nStu = live('students').length, nGrp = live('groups').length, fees = live('periods').some(p => 'fee' in p), contacts = live('students').some(s => s.info && Object.keys(s.info).length);
+  const others0 = live('people').filter(p => p.role === 'student' && p.id !== P.id).map(p => p.name), others = others0.length > 12 ? others0.slice(0, 12).concat(`and ${others0.length - 12} more`) : others0;
+  $('asOut').innerHTML = `<div class="card" style="margin:6px 0 0;background:var(--surface2)"><div class="cap">${P.name} · ${P.role}${P.also_tutor ? ' + tutor' : ''}</div>
+    ${yes(stu.length, `Students (${nStu}): ${stu.length ? stu.join(', ') : 'none'}`)}
+    ${yes(grp.length, `Groups and classes (${nGrp}): ${grp.length ? grp.join(', ') : 'none'}`)}
+    ${yes(live('sessions').length, `Sessions: ${live('sessions').length} · attendance rows: ${live('attendance').length} · SRA reviews: ${live('sras').length} · make-ups: ${live('makeups').length}`)}
+    ${yes(fees, fees ? 'Sees tuition fees' : 'No tuition fees')}
+    ${yes(contacts, contacts ? 'Sees home contacts' : 'No home contacts')}
+    ${yes(others.length, others.length ? 'Other students\' accounts: ' + others.join(', ') : 'No other student\'s account')}
+    ${yes(live('requisitions').length, `Requisitions: ${live('requisitions').length ? list('requisitions', q => q.item).join(', ') : 'none'}`)}
+    ${yes(live('pay_profiles').length, `Pay profiles: ${live('pay_profiles').length} · payslips: ${live('payslips').length}`)}
+    ${yes(live('feedback').length, `Students' feedback (single answers): ${live('feedback').length}`)}
+    ${yes((R.settings || []).some(s => s.key === 'pay_rules'), 'LHQ pay rules')}
+    ${yes(live('activity').length, `Activity lines: ${live('activity').length}`)}
+    <p class="note">✓ = their phone receives this · × = it never leaves the server for them.</p></div>`;
 }
 $('demo').onclick = () => act($('demo'), 'demo', 'Filling…', 'step');
 $('imp').onclick = () => { if(confirm('Copy the current Hub into the shared records? The current Hub stays as it is.')) act($('imp'), 'import', 'Copying…', 'part'); };

@@ -5,6 +5,7 @@
 //   GET  /api/v2/me                    who I am, as the records know me
 //   GET  /api/v2/changes?since=N       everything I may see that changed after rev N (0 = all): how every device syncs
 //   POST /api/v2/cmd {name, args, op}  change something (see netlify/lib/commands.mjs for every command and who may run it)
+//   GET  /api/v2/as?person=ID        what that person's phone would receive (Director, read-only)
 //   GET  /api/v2/feedback              students' feedback as averages per tutor (Director only; single answers never leave)
 //   GET  /api/v2/pay?tutor=&month=     a tutor's pay for a month, worked out now (Director or Admin with Tutor pay)
 //   POST /api/v2/import                copy people, students, cards, classes and logs from the current Hub (Director)
@@ -52,6 +53,15 @@ export default async (req, context) => {
     if (req.method === "POST" && path === "cmd") {
       const b = await req.json().catch(() => ({}));
       return json(await run(me, String(b.name || ""), b.args || {}, b.op || null));
+    }
+    /* the Director checks what another person's phone would receive (read-only: nothing is changed) */
+    if (req.method === "GET" && path === "as") {
+      if (!isDir(me)) return fail("Only Wanangwa can do that.", 403);
+      const p = await one("SELECT * FROM people WHERE id = $1", [url.searchParams.get("person") || ""]);
+      if (!p) return fail("That person isn't in the records.", 404);
+      const rows = {}; let c = { more: true, cursor: 0 };
+      while (c.more) { c = await changes(p, c.cursor); for (const [t, r] of Object.entries(c.rows)) rows[t] = (rows[t] || []).concat(r); }
+      return json({ person: { id: p.id, name: p.name, role: p.role, perms: p.perms, also_tutor: p.also_tutor }, rows });
     }
     if (req.method === "GET" && path === "feedback") {
       if (!isDir(me)) return fail("Students' feedback is for Wanangwa, as averages.", 403);
