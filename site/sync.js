@@ -135,7 +135,7 @@
     try{
       const r = await api('rev');
       const mine = session();
-      if(mine && r.me && JSON.stringify(r.me) !== JSON.stringify(mine.me)){ mine.me = r.me; put(SESSION, mine); if(window.hubMe) window.hubMe(); }
+      if(mine && r.me && JSON.stringify(r.me) !== JSON.stringify(mine.me)){ mine.me = r.me; put(SESSION, mine); if(window.hubMe) window.hubMe(); needPassword(); }
       if(!(mine && mine.me || {}).admin) return;   // tutors don't hold LHQ's documents
       if(get(DIRTY, false)){ schedulePush(100); return; }
       if(r.epoch !== undefined && get(EPOCH, null) != null && r.epoch !== get(EPOCH, null)) rawDel(REV);   // the store was replaced: reload everything
@@ -160,6 +160,21 @@
   .hub-go{width:100%;font:inherit;font-weight:800;padding:14px;border-radius:14px;border:0;background:#073763;color:#fff;cursor:pointer}
   .hub-go:disabled{opacity:.5}
   .hub-acct{display:inline-flex;align-items:center;gap:7px}
+  .hub-box .lhq-logo{margin:6px auto 22px}
+  .hub-l{display:block;font-weight:700;font-size:13px}.hub-l small{font-weight:500;color:#6b7585}
+  .hub-pw{position:relative;display:block}.hub-pw .hub-in{padding-right:52px}.hub-eye{position:absolute;right:6px;top:calc(50% - 4px);transform:translateY(-50%);width:40px;height:40px;border:0;background:none;color:#6b7585;cursor:pointer;border-radius:10px;display:grid;place-items:center}
+  .hub-tick{display:flex;gap:10px;align-items:flex-start;width:100%;border:0;background:none;padding:2px 0;margin:0 0 16px;text-align:left;cursor:pointer;font:inherit;color:inherit}
+  .hub-tick .bx{flex:none;width:22px;height:22px;border:2px solid #c9d0da;border-radius:6px;display:grid;place-items:center;font-weight:900;font-size:13px;margin-top:1px}.hub-tick.on .bx{background:#073763;border-color:#073763;color:#fff}
+  .hub-tick b{display:block;font-size:14px}.hub-tick small{display:block;color:#6b7585;font-size:12.5px}
+  .hub-errb{background:#fdecea;color:#b42318;border-radius:12px;padding:10px 12px;font-weight:600;font-size:14px;margin:0 0 14px}.hub-wa{display:block;margin-top:8px;color:#1f9d55;font-weight:800}
+  .hub-back{border:0;background:none;color:#6b7585;font:inherit;font-weight:700;cursor:pointer;padding:0;margin:0 0 4px}
+  .hub-foot{color:#6b7585;font-size:12.5px;text-align:center;margin:16px 0 0}
+  .hub-code{letter-spacing:.18em;text-transform:uppercase;font-weight:700;text-align:center}
+  .hub-person{display:flex;gap:12px;align-items:center;background:#fff;border:1px solid #e4e7ec;border-radius:14px;padding:12px 14px;margin:0 0 16px}.hub-person .av{flex:none;width:40px;height:40px;border-radius:50%;background:#073763;color:#fff;display:grid;place-items:center;font-weight:800}.hub-person b{display:block}.hub-person small{color:#6b7585}.hub-person small b{display:inline}
+  .hub-rules{list-style:none;margin:-6px 0 16px;padding:0;font-size:13px}.hub-rules li{display:flex;gap:8px;align-items:center;color:#6b7585;padding:2px 0}.hub-rules .c{width:16px;height:16px;border-radius:50%;border:2px solid #c9d0da;display:grid;place-items:center;font-size:10px;font-weight:900}
+  .hub-rules li.ok{color:#1f7a4d}.hub-rules li.ok .c{background:#1f7a4d;border-color:#1f7a4d;color:#fff}
+  a.hub-go{display:block;text-align:center;text-decoration:none}.hub-wa2{background:#1f9d55!important;color:#fff!important}
+  .hub-btn2{display:block;text-align:center;text-decoration:none;margin-top:8px;font-weight:800;padding:13px;border-radius:14px;border:1px solid #e4e7ec;background:#fff;color:#14213d}
   .hub-dot{width:8px;height:8px;border-radius:50%;background:#9aa3b0;display:inline-block}
   .hub-dot.ok{background:#2fa36b}.hub-dot.saving{background:#f4b223}.hub-dot.offline{background:#d94a3d}
   .hub-banner{position:fixed;left:50%;bottom:18px;transform:translateX(-50%);z-index:999;background:#073763;color:#fff;border-radius:14px;padding:12px 14px;display:flex;gap:12px;align-items:center;max-width:94vw;box-shadow:0 10px 30px rgba(0,0,0,.2);font:14px/1.4 system-ui,sans-serif}
@@ -180,6 +195,10 @@
   [data-theme=dark] .hub-box h2,[data-theme=dark] .hub-link{color:#f4b223}
   [data-theme=dark] .hub-who button,[data-theme=dark] .hub-btn,[data-theme=dark] .hub-pin span,[data-theme=dark] .hub-kp button,[data-theme=dark] .hub-in,[data-theme=dark] .hub-row button,[data-theme=dark] .hub-sm{background:#151e2c;border-color:#253246;color:#e8edf4}
   [data-theme=dark] .hub-pin span{color:#f4b223}
+  [data-theme=dark] .hub-person,[data-theme=dark] .hub-btn2{background:#151e2c;border-color:#253246;color:#e8edf4}
+  [data-theme=dark] .hub-tick.on .bx{background:#f4b223;border-color:#f4b223;color:#0d1420}
+  [data-theme=dark] .hub-errb{background:rgba(240,82,70,.16);color:#ff8a80}
+  [data-theme=dark] .hub-tick small,[data-theme=dark] .hub-foot,[data-theme=dark] .hub-l small,[data-theme=dark] .hub-person small{color:#93a0b3}
   [data-theme=dark] .hub-go{background:#f4b223;color:#0d1420}
   [data-theme=dark] .hub-dlg{background:#151e2c;color:#e8edf4}
   [data-theme=dark] .hub-dlg .hd,[data-theme=dark] .hub-row{border-color:#253246}
@@ -213,6 +232,7 @@
     try{
       const r = await fetch(API + 'people', {cache:'no-store'}).then(r => r.json());
       if(r.error){ box.innerHTML = `<img class="lhq-logo" src="${LOGO()}" alt="LHQ"><h2>LHQ Hub isn't ready</h2><p class="s">${esc(r.error)}</p>`; return; }
+      if(r.mode === 'password') return r.setup ? pwFirst() : pwSignIn(msg);
       if(r.setup) return showSetup();
       people = r.people || [];
       box.innerHTML = `<img class="lhq-logo" src="${LOGO()}" alt="LHQ Learning Solutions"><h2>Who's signing in?</h2><p class="s">${esc(msg || 'Each person has their own PIN.')}</p>
@@ -279,7 +299,8 @@
     };
   }
   async function signedIn(j){
-    put(SESSION, {token:j.token, me:j.me});
+    put(SESSION, {token:j.token, me:j.me, keep:!!j.keep, expires:j.expires || null});
+    if(['student','parent','bdo'].includes(j.me.role)){ location.href = 'account.html'; return; }   // their own accounts; not LHQ's documents
     const box = overlay(); box.innerHTML = `<img class="lhq-logo" src="${LOGO()}" alt="LHQ"><h2>Welcome, ${esc(j.me.name.split(' ')[0])}</h2><p class="s">Getting LHQ's documents…</p>`;
     if(!j.me.admin){
       if(j.me.tutor || j.me.role === 'tutor'){ document.getElementById('hubOv')?.remove(); mountAccount(); if(!/^#(teach|settings|set)/.test(location.hash)) location.hash = '#teach'; if(window.hubReady) window.hubReady(); return; }
@@ -290,6 +311,128 @@
     if(window.hubReady) window.hubReady();
   }
   function signedOut(msg){ rawDel(SESSION); showSignIn(msg); }
+
+  /* ---------- signing in with a password (the shared records' database is on) ---------- */
+  const EYE = '<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>';
+  const LHQ_WA = '265992525250';
+  const head = (t, sub) => `<img class="lhq-logo" src="${LOGO()}" alt="LHQ Learning Solutions"><h2>${t}</h2>${sub ? `<p class="s">${sub}</p>` : ''}`;
+  const backL = (l = 'Back') => `<button type="button" class="hub-back" data-k="back">‹ ${l}</button>`;
+  const pwIn = (id, label, ac) => `<label class="hub-l">${label}<span class="hub-pw"><input class="hub-in" id="${id}" type="password" autocomplete="${ac}"><button type="button" class="hub-eye" data-eye="${id}" aria-label="Show password">${EYE}</button></span></label>`;
+  const tick = (id, on, b, sm) => `<button type="button" class="hub-tick${on ? ' on' : ''}" id="${id}" role="checkbox" aria-checked="${!!on}"><span class="bx">${on ? '✓' : ''}</span><span><b>${b}</b><small>${sm}</small></span></button>`;
+  const errBox = (e, locked) => e ? `<div class="hub-errb" role="alert">${esc(e)}${locked ? `<a class="hub-wa" target="_blank" rel="noopener" href="https://wa.me/${LHQ_WA}?text=${encodeURIComponent("Hello LHQ, my LHQ Hub account is locked. Please send me a setup code.")}">Message LHQ on WhatsApp</a>` : ''}</div>` : '';
+  let keepMe = false;
+  function wire(box, handlers){
+    box.querySelectorAll('[data-eye]').forEach(b => b.onclick = () => { const i = box.querySelector('#' + b.dataset.eye); i.type = i.type === 'password' ? 'text' : 'password'; b.setAttribute('aria-label', i.type === 'password' ? 'Show password' : 'Hide password'); });
+    const k = box.querySelector('#hubKeep'); if(k) k.onclick = () => { keepMe = !keepMe; k.classList.toggle('on', keepMe); k.setAttribute('aria-checked', keepMe); k.querySelector('.bx').textContent = keepMe ? '✓' : ''; };
+    box.querySelectorAll('[data-k]').forEach(b => b.onclick = () => handlers[b.dataset.k] && handlers[b.dataset.k]());
+    box.querySelectorAll('input').forEach(i => i.addEventListener('keydown', e => { if(e.key === 'Enter'){ const g = box.querySelector('.hub-go'); if(g) g.click(); } }));
+    const f = box.querySelector('input'); if(f && !f.value) setTimeout(() => f.focus(), 50);
+  }
+  async function post(path, body){
+    const r = await fetch(API + path, {method:'POST', headers:{'content-type':'application/json'}, body:JSON.stringify(body)});
+    let j = {}; try{ j = await r.json(); }catch(e){}
+    return {ok:r.ok, j};
+  }
+  const busy = (box, on) => { const g = box.querySelector('.hub-go'); if(g){ g.disabled = on; if(on) g.dataset.t = g.textContent, g.textContent = 'One moment…'; else if(g.dataset.t) g.textContent = g.dataset.t; } };
+  function pwSignIn(msg, err, locked, id){
+    const box = overlay();
+    box.innerHTML = head('Sign in to LHQ Hub', esc(msg || 'Students, parents and staff all sign in here.')) + errBox(err, locked) +
+      `<label class="hub-l">Username or email<input class="hub-in" id="hubId" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="e.g. linga.phiri" value="${esc(id || '')}"></label>
+      ${pwIn('hubPw', 'Password', 'current-password')}
+      ${tick('hubKeep', keepMe, 'Keep me signed in on this device', 'For 30 days. Leave it off on a shared or family phone: you are signed out after 12 hours.')}
+      <button class="hub-go" data-k="go">Sign in</button>
+      <button type="button" class="hub-link" data-k="forgot">Forgot password?</button><button type="button" class="hub-link" data-k="code">First time here? I have a setup code</button>
+      <p class="hub-foot">Staff: the first time, sign in with your username and your old PIN.</p>`;
+    wire(box, {forgot:() => pwForgot(), code:() => pwCode(), go:async () => {
+      const i = box.querySelector('#hubId').value.trim(), pw = box.querySelector('#hubPw').value;
+      if(!i || !pw) return pwSignIn(msg, 'Type your username or email and your password.', false, i);
+      busy(box, true);
+      try{ const r = await post('signin', {id:i, password:pw, keep:keepMe});
+        if(!r.ok) return pwSignIn(msg, r.j.error || 'Something went wrong. Try again.', r.j.locked, i);
+        if(r.j.needPassword) return pwChoose(r.j.ticket, r.j.person, 'pin');
+        signedIn(r.j);
+      }catch(e){ pwSignIn(msg, 'No connection. Try again.', false, i); }
+    }});
+  }
+  function pwCode(err){
+    const box = overlay();
+    box.innerHTML = backL('Sign in') + head('Set up your account', 'Type the setup code LHQ gave you. It works once and lasts 7 days.') + errBox(err) +
+      `<label class="hub-l">Setup code<input class="hub-in hub-code" id="hubCode" maxlength="9" autocomplete="one-time-code" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX"></label>
+      <button class="hub-go" data-k="go">Continue</button><p class="hub-foot">No code? Ask LHQ Admin. Codes come by WhatsApp or on paper.</p>`;
+    wire(box, {back:() => pwSignIn(), go:async () => {
+      busy(box, true);
+      try{ const r = await post('code', {code:box.querySelector('#hubCode').value}); if(!r.ok) return pwCode(r.j.error); pwChoose(r.j.ticket, r.j.person, r.j.first ? 'first' : 'reset'); }
+      catch(e){ pwCode('No connection. Try again.'); }
+    }});
+  }
+  const RULES = (pw, pw2, p) => { const first = String(p.name || '').split(' ')[0].toLowerCase(), u = String(p.username || '').split('.')[0];
+    return [[pw.length >= 8, 'At least 8 characters'], [/[0-9\W_]/.test(pw), 'A number or a symbol'], [!!pw && ![first, u].some(n => n.length > 2 && pw.toLowerCase().includes(n)), 'Not your name'], [!!pw && pw === pw2, 'Both match']]; };
+  function pwChoose(ticket, person, why, err){
+    const box = overlay(), ini = String(person.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2);
+    const title = why === 'pin' ? 'Choose a password' : why === 'first' ? 'Choose your password' : 'Choose a new password';
+    const sub = why === 'pin' ? 'PINs are being replaced. After this your PIN stops working.' : why === 'first' ? 'This is the last step.' : 'Your old password stops working, and other devices are signed out.';
+    box.innerHTML = backL() + head(title, sub) + `<div class="hub-person"><span class="av">${esc(ini)}</span><span><b>${esc(person.name)}</b><small>username <b>${esc(person.username || '')}</b></small></span></div>` + errBox(err) +
+      `${pwIn('hubP1', 'Password', 'new-password')}${pwIn('hubP2', 'Type it again', 'new-password')}<ul class="hub-rules" id="hubRules"></ul>
+      ${why !== 'reset' ? `<label class="hub-l">Email <small>(optional · you can sign in with it too)</small><input class="hub-in" id="hubEm" type="email" autocomplete="email" value="${esc(person.email || '')}"></label>` : ''}
+      ${tick('hubKeep', keepMe, 'Keep me signed in on this device', 'For 30 days')}
+      <button class="hub-go" data-k="go">Save and sign in</button>`;
+    const upd = () => { const a = box.querySelector('#hubP1').value, b = box.querySelector('#hubP2').value; box.querySelector('#hubRules').innerHTML = RULES(a, b, person).map(([ok, t]) => `<li class="${ok ? 'ok' : ''}"><span class="c">${ok ? '✓' : ''}</span>${t}</li>`).join(''); };
+    box.querySelectorAll('#hubP1,#hubP2').forEach(i => i.oninput = upd); upd();
+    wire(box, {back:() => pwSignIn(), go:async () => {
+      const a = box.querySelector('#hubP1').value, b = box.querySelector('#hubP2').value, em = box.querySelector('#hubEm');
+      if(!RULES(a, b, person).every(x => x[0])) return pwChoose(ticket, person, why, a !== b ? 'The two passwords don\'t match.' : 'The password needs every line ticked.');
+      busy(box, true);
+      try{ const r = await post('password', Object.assign({ticket, password:a, keep:keepMe}, em ? {email:em.value.trim()} : {}));
+        if(!r.ok) return r.status === 401 || /too long/.test(r.j.error || '') ? pwSignIn('', r.j.error) : pwChoose(ticket, person, why, r.j.error);
+        signedIn(r.j);
+      }catch(e){ pwChoose(ticket, person, why, 'No connection. Try again.'); }
+    }});
+  }
+  function pwForgot(){
+    const box = overlay(), msg = 'Hello LHQ, I\'ve forgotten my LHQ Hub password. Please send me a setup code.';
+    box.innerHTML = backL('Sign in') + head('Forgot your password?', 'For your safety only LHQ Admin can reset a password. They give you a setup code, and you choose a new password with it.') +
+      `<a class="hub-go hub-wa2" target="_blank" rel="noopener" href="https://wa.me/${LHQ_WA}?text=${encodeURIComponent(msg)}">Ask LHQ on WhatsApp</a>
+      <a class="hub-btn2" href="tel:+${LHQ_WA}">Call +265 992 525 250</a>
+      <button type="button" class="hub-link" data-k="code">I have a setup code</button><button type="button" class="hub-link" data-k="dir">I'm the Director</button>`;
+    wire(box, {back:() => pwSignIn(), code:() => pwCode(), dir:() => pwDir()});
+  }
+  function pwDir(err){
+    const box = overlay();
+    box.innerHTML = backL() + head('Director password', 'Nobody else can reset the Director\'s password. Use the setup code: the first 8 characters of LHQ_SECRET in Netlify.') + errBox(err) +
+      `<label class="hub-l">Setup code<input class="hub-in" id="hubDc" maxlength="8" autocapitalize="off" autocomplete="off" spellcheck="false"></label><button class="hub-go" data-k="go">Continue</button>`;
+    wire(box, {back:() => pwForgot(), go:async () => {
+      busy(box, true);
+      try{ const r = await post('dircode', {code:box.querySelector('#hubDc').value}); if(!r.ok) return pwDir(r.j.error); pwChoose(r.j.ticket, r.j.person, 'reset'); }
+      catch(e){ pwDir('No connection. Try again.'); }
+    }});
+  }
+  function pwFirst(err){
+    const box = overlay();
+    box.innerHTML = head('Set up LHQ Hub', 'You\'re the first person here, so you\'ll be the Director. Enter the setup code (the first 8 characters of LHQ_SECRET), your name and a password.') + errBox(err) +
+      `<label class="hub-l">Setup code<input class="hub-in" id="hubSc" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+      <label class="hub-l">Your full name<input class="hub-in" id="hubNm" autocomplete="name"></label>${pwIn('hubP1', 'Password', 'new-password')}
+      <button class="hub-go" data-k="go">Create my Director account</button>`;
+    wire(box, {go:async () => {
+      busy(box, true);
+      try{ const r = await post('setup', {code:box.querySelector('#hubSc').value, name:box.querySelector('#hubNm').value, password:box.querySelector('#hubP1').value, keep:true}); if(!r.ok) return pwFirst(r.j.error); signedIn(r.j); }
+      catch(e){ pwFirst('No connection. Try again.'); }
+    }});
+  }
+  /* signed in from before passwords (a PIN-era session): choose a password now, once */
+  function needPassword(){
+    const s = session(), m = s && s.me; if(!m || m.auth !== 'password' || m.hasPw !== false || document.getElementById('hubOv')) return;
+    const box = overlay(), person = {name:m.name, username:m.username, email:m.email};
+    box.innerHTML = head('Choose a password', 'LHQ Hub now uses passwords instead of PINs. Choose yours once; after this your PIN stops working.') + `<div class="hub-person"><span class="av">${esc(m.name.split(' ').map(w => w[0]).join('').slice(0, 2))}</span><span><b>${esc(m.name)}</b><small>username <b>${esc(m.username || '')}</b> · you sign in with it from now on</small></span></div>
+      ${pwIn('hubP1', 'Password', 'new-password')}${pwIn('hubP2', 'Type it again', 'new-password')}<ul class="hub-rules" id="hubRules"></ul><div id="hubErr"></div><button class="hub-go" data-k="go">Save</button>`;
+    const upd = () => { const a = box.querySelector('#hubP1').value, b = box.querySelector('#hubP2').value; box.querySelector('#hubRules').innerHTML = RULES(a, b, person).map(([ok, t]) => `<li class="${ok ? 'ok' : ''}"><span class="c">${ok ? '✓' : ''}</span>${t}</li>`).join(''); };
+    box.querySelectorAll('#hubP1,#hubP2').forEach(i => i.oninput = upd); upd();
+    wire(box, {go:async () => {
+      const a = box.querySelector('#hubP1').value, b = box.querySelector('#hubP2').value;
+      if(!RULES(a, b, person).every(x => x[0])){ box.querySelector('#hubErr').innerHTML = errBox('The password needs every line ticked.'); return; }
+      try{ const r = await api('account', {method:'POST', body:JSON.stringify({action:'firstpassword', password:a, keep:true})}); put(SESSION, Object.assign(session(), {token:r.token, me:Object.assign({}, m, r.me), keep:true, expires:r.expires})); document.getElementById('hubOv')?.remove(); note('Password saved. Sign in with ' + (m.username || 'your username') + ' from now on.'); }
+      catch(e){ box.querySelector('#hubErr').innerHTML = errBox(e.message); }
+    }});
+  }
 
   /* account menu, PIN change, people */
   function dialog(title, html){
@@ -312,6 +455,7 @@
   }
   function signOut(){
     if(get(DIRTY, false) && !confirm('Some changes haven\'t uploaded yet. Sign out anyway? They will be lost.')) return;
+    try{ const s = session(); if(s && s.token && (s.me || {}).auth === 'password') fetch(API + 'account', {method:'POST', keepalive:true, headers:{'content-type':'application/json', authorization:'Bearer ' + s.token}, body:JSON.stringify({action:'signout'})}).catch(() => {}); }catch(e){}   // this device leaves "Signed in on"
     [SESSION, BASE, KVHASH, REV, DIRTY, EPOCH, DOCS, 'lhq_draft', ...KV].forEach(k => rawDel(k));
     location.reload();
   }
@@ -375,7 +519,9 @@
     window.addEventListener('online', () => { if(!session()) return; status('saving'); schedulePush(1000); setTimeout(() => { if(get(DIRTY, false)) push(); }, 5000); });
     window.addEventListener('offline', () => { if(session()) status('offline'); });
     if(!session()){ showSignIn(); return; }
+    if(['student','parent','bdo'].includes((session().me || {}).role)){ location.replace('account.html'); return; }
     mountAccount();
+    setTimeout(needPassword, 300);
     if(window.hubReady) window.hubReady();
     if(!(session().me || {}).admin) return;   // tutors: their part fetches only their own students
     // this device already has LHQ's documents: only fetch them again if something changed

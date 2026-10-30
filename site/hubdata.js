@@ -30,7 +30,7 @@
   function me(){ const s = store.get('lhq_session', null); return s && s.me || {}; }
   const isDir = () => me().role === 'director';
   const can = k => isDir() || (me().role === 'admin' && (me().perms || []).includes(k));
-  const ROLE = {director:'Director', admin:'Admin', tutor:'Tutor'};
+  const ROLE = {director:'Director', admin:'Admin', tutor:'Tutor', student:'Student', parent:'Parent', bdo:'BDO'};
   const roleText = p => (ROLE[p.role] || (p.admin ? 'Admin' : 'Tutor')) + (p.role !== 'tutor' && p.tutor ? ' + Tutor' : '');
 
   let saved = [], settings = {};

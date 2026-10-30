@@ -2,8 +2,8 @@
    Keeps the Hub's own files on the device, so pages open straight away and still open with no internet.
    Each file is shown from the device first, then quietly checked online; if LHQ Hub has been updated,
    the page shows "A newer version is ready" and one tap loads it. Saving and syncing (/api/…) always go online. */
-const CACHE = 'lhq-hub-v5', FONTS = 'lhq-fonts-v1';
-const CORE = ['index.html', 'doc.html', 'reports.html', 'checklist.html', 'tutor.html', 'hub.css', 'theme.js', 'pako.min.js', 'store.js', 'sync.js',
+const CACHE = 'lhq-hub-v6', FONTS = 'lhq-fonts-v1';
+const CORE = ['index.html', 'doc.html', 'reports.html', 'checklist.html', 'tutor.html', 'account.html', 'hub.css', 'theme.js', 'pako.min.js', 'store.js', 'sync.js',
   'defaults.js', 'hubdata.js', 'nav.js', 'schools.js', 'business.js', 'insights.js', 'perf.js', 'cards.js', 'sra.js', 'teach.js', 'card.js', 'topics.js', 'codec.js', 'report-render.js',
   'logo.png', 'logo-white.png', 'arrow.png', 'icon-32.png', 'icon-180.png', 'icon-192.png', 'icon-app-192.png', 'icon-app-512.png',
   'manifest.webmanifest', 'lib/html2pdf.bundle.min.js'];

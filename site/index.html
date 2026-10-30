@@ -284,6 +284,15 @@ a.ins-row:hover b{text-decoration:underline;text-underline-offset:2px}
 .tgrid a svg{color:var(--brand)}.tgrid a b{font-size:15px}.tgrid a small{color:var(--muted);font-size:12px}
 .toast{position:fixed;left:50%;bottom:calc(90px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);padding:11px 16px;border-radius:11px;font-size:13.5px;font-weight:600;opacity:0;transition:opacity .2s;pointer-events:none;z-index:60;max-width:92vw;text-align:center}
 .toast.show{opacity:1}
+/* sign-in status marks: ticks and circles, no pills */
+.pst{background:none!important;flex:none;display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--muted);white-space:nowrap}
+.pst i{width:16px;height:16px;border-radius:50%;border:2px solid currentColor;display:grid;place-items:center;font-size:10px;font-weight:900;font-style:normal}
+.pst.ok{color:var(--ok)}.pst.ok i{background:var(--ok);border-color:var(--ok);color:#fff}.pst.am{color:var(--am)}.pst.rd{color:var(--rd)}.pst.rd i{background:var(--rd);border-color:var(--rd);color:#fff}
+.codebox{text-align:center;background:var(--surface2);border:1px dashed var(--line);border-radius:14px;padding:16px;margin:12px 0}
+.codebox b{display:block;font-size:28px;letter-spacing:.2em;color:var(--brand)}.codebox small{color:var(--muted)}
+.wa-msg{white-space:pre-wrap;font-size:13.5px;background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:12px;margin:0 0 12px}
+.kidtick{display:flex;gap:10px;align-items:center;width:100%;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:10px 12px;margin-bottom:6px;font:inherit;text-align:left;cursor:pointer}
+.kidtick .bx{flex:none;width:20px;height:20px;border:2px solid var(--line);border-radius:6px;display:grid;place-items:center;font-size:12px;font-weight:900}.kidtick.on .bx{background:var(--accent);border-color:var(--accent);color:var(--onaccent)}
 </style>
 </head>
 <body>
@@ -782,11 +791,31 @@ S.account = () => { const m = me(), L = LHQNav.layout();
   <div class="card pad"><div class="cap">LHQ Hub on this device</div>
     ${window.lhqInstalled && lhqInstalled() ? '<p class="note" style="margin:0">Installed. It opens from your home screen, and also opens with no internet: what you save then uploads when the connection is back.</p>'
     : `<p class="note" style="margin:0 0 10px">Install it to open LHQ Hub from your home screen like an app, faster, and also with no internet.</p>${window.lhqInstall ? `<button class="btn n" id="instGo">Install LHQ Hub</button>` : '<p class="note" style="margin:0"><b>iPhone or iPad:</b> Safari › Share › Add to Home Screen. <b>Android:</b> Chrome menu ⋮ › Install app (or Add to Home screen).</p>'}`}</div>
-  <div class="card pad"><div class="cap">Change my PIN</div><div class="r3"><label class="f"><span>Current PIN</span><input class="in" id="pin0" type="password" inputmode="numeric" maxlength="6"></label><label class="f"><span>New PIN</span><input class="in" id="pin1" type="password" inputmode="numeric" maxlength="6"></label><label class="f"><span>New PIN again</span><input class="in" id="pin2" type="password" inputmode="numeric" maxlength="6"></label></div><button class="btn n" id="pinGo">Change PIN</button></div>
-  ${isDir() ? `<div class="card pad"><div class="cap">If you forget your PIN</div><p class="note" style="margin:0">As Director, nobody else can reset your PIN. Tap "Forgot your PIN?" when signing in and use the setup code (the first 8 characters of LHQ_SECRET in Netlify). Keep it somewhere safe.</p></div>` : ''}
+  ${PWD() ? `<div class="card pad"><div class="cap">How you sign in</div><dl class="kv"><dt>Username</dt><dd>${esc(m.username || '')}</dd><dt>Email</dt><dd>${esc(m.email || 'not added')}</dd></dl>
+      <p class="note" style="margin:6px 0 10px">You sign in with your username or your email, and your password. Your username is set by LHQ.</p>
+      <div class="acts"><button class="btn sm" id="pwChange">Change password</button><button class="btn sm" id="emChange">${m.email ? 'Change email' : 'Add email'}</button></div></div>
+    <div class="card pad"><div class="cap">Signed in on</div><div id="acDev"><p class="note" style="margin:0">Loading…</p></div></div>
+    ${isDir() ? `<div class="card pad"><div class="cap">If you forget your password</div><p class="note" style="margin:0">Nobody else can reset the Director's password. On the sign-in screen tap Forgot password › I'm the Director, and use the setup code (the first 8 characters of LHQ_SECRET in Netlify). Keep it somewhere safe.</p></div>` : ''}` : `<div class="card pad"><div class="cap">Change my PIN</div><div class="r3"><label class="f"><span>Current PIN</span><input class="in" id="pin0" type="password" inputmode="numeric" maxlength="6"></label><label class="f"><span>New PIN</span><input class="in" id="pin1" type="password" inputmode="numeric" maxlength="6"></label><label class="f"><span>New PIN again</span><input class="in" id="pin2" type="password" inputmode="numeric" maxlength="6"></label></div><button class="btn n" id="pinGo">Change PIN</button></div>
+  ${isDir() ? `<div class="card pad"><div class="cap">If you forget your PIN</div><p class="note" style="margin:0">As Director, nobody else can reset your PIN. Tap "Forgot your PIN?" when signing in and use the setup code (the first 8 characters of LHQ_SECRET in Netlify). Keep it somewhere safe.</p></div>` : ''}`}
   <div class="card pad"><div class="cap">Sign out</div><p class="note" style="margin:0 0 10px">Removes LHQ's documents from this device. They stay online.</p><button class="btn rd" id="outGo">${ic('out',16)} Sign out of this device</button></div>`; };
 
-S.people = () => { const list = HD.people(), D0 = isDir();
+const PWD = () => (me() || {}).auth === 'password';
+const pStatus = p => p.active === false || p.status === 'off' ? '<span class="pst"><i></i>Off</span>' : p.locked ? '<span class="pst rd"><i>!</i>Locked</span>'
+  : p.status === 'setup' ? `<span class="pst am"><i></i>${p.codeUntil ? 'Code sent' : 'Waiting for setup'}</span>` : p.status === 'pin' ? '<span class="pst am"><i></i>Still on PIN</span>' : '<span class="pst ok"><i>✓</i>Active</span>';
+const mayManage = p => p.id !== me().id && p.role !== 'director' && (isDir() || (can('tutors') && ['tutor','student','parent'].includes(p.role)));
+let peopleShow = 'all';
+S.people = () => PWD() ? peoplePw() : peoplePin();
+function peoplePw(){
+  const all = HD.people(), D0 = isDir(), need = p => p.locked || ['setup','pin'].includes(p.status);
+  const F = [['all','Everyone'],['need','Needs something'],['staff','Staff'],['student','Students'],['parent','Parents']];
+  const list = all.filter(p => peopleShow === 'all' || (peopleShow === 'need' ? need(p) : peopleShow === 'staff' ? ['director','admin','tutor','bdo'].includes(p.role) : p.role === peopleShow));
+  return `<h2 class="sec-h">People & access</h2><p class="sec-p">${all.length} accounts · ${all.filter(need).length} need something. ${D0 ? 'Admin manages students, parents and tutors; only you add or reset Admin and BDO accounts.' : 'You manage students, parents and tutors. Admin and BDO accounts are managed by Wanangwa.'}</p>
+  <div class="seg" style="margin-bottom:12px;flex-wrap:wrap">${F.map(([k, l]) => `<button class="${peopleShow === k ? 'on' : ''}" data-pshow="${k}">${l}</button>`).join('')}</div>
+  <div class="card">${list.map(p => { const self = p.id === me().id, mine = mayManage(p);
+    return `<a class="it" ${mine ? `href="#person/${p.id}"` : self ? 'href="#set/account"' : 'style="cursor:default"'}><span class="av">${inits(p.name)}</span><span class="t"><b>${esc(p.name)}${self ? ' (you)' : ''}</b><small>${roleText(p)} · ${esc(p.username || '')}${p.children && p.children.length ? ' · ' + esc(p.children.join(', ')) : ''}${p.seen && p.status === 'active' ? ' · last in ' + ago(p.seen) : ''}</small></span>${pStatus(p)}${mine ? '<span class="chev">›</span>' : ''}</a>`; }).join('') || '<p class="empty">Nobody here.</p>'}</div>
+  ${D0 || can('tutors') ? `<button class="btn n" id="addPerson">${ic('plus',16,2.2)} Add a person</button>` : ''}`;
+}
+function peoplePin(){ const list = HD.people(), D0 = isDir();
   return `<h2 class="sec-h">People & access</h2><p class="sec-p">${D0 ? 'Everyone who can sign in. You decide what each person can see and do.' : 'You can add tutors, reset their PINs and switch them off. Only the Director changes admins.'}</p>
   <div class="card">${list.map(p => { const self = p.id === me().id, mine = !self && p.role !== 'director' && (D0 || p.role === 'tutor');
     return `<a class="it" ${mine ? `href="#person/${p.id}"` : self ? 'href="#set/account"' : 'style="cursor:default"'}><span class="av">${inits(p.name)}</span><span class="t"><b>${esc(p.name)}${self ? ' (you)' : ''}</b><small>${roleText(p)}${p.seen ? ' · last seen ' + ago(p.seen) : ''}</small></span>${p.role === 'director' ? '<span class="rolechip">Director</span>' : ''}${p.active ? '' : '<span class="tag rd">Off</span>'}${mine || self ? `<span class="chev">${ic('chev',16,2)}</span>` : p.role === 'director' ? '' : '<span class="tag gr">Director only</span>'}</a>`; }).join('') || '<p class="empty">Loading…</p>'}</div>
@@ -796,7 +825,7 @@ const PERMS = [
   ['Students', [['students','Add and edit student details']]],
   ['Money', [['money','See money totals and reports','Money cards on Home, money in Overview, totals and trends. Amounts on single documents stay visible to anyone who makes them.'],['tpay','See tutor pay','What each tutor earns (arrives with step 2)']]],
   ['Business', [['spend','Record spending','Add spending and see the spending list. They can change only what they recorded.'],['pl','See profit and loss and budgets','Money in against spending, profit, budgets, and the Profit card on Home']]],
-  ['People', [['tutors','Add tutors, reset their PINs, switch them off']]],
+  ['People', [['tutors','Add tutors, students and parents, give them setup codes, switch them off']]],
   ['Settings', [['msgs','Messages and lists'],['numbering','Numbering'],['backup','Backup and restore']]],
   ['Tutors · arrives with step 2', [['classes','See every tutor’s classes'],['moveclass','Move classes between tutors']]],
 ];
@@ -806,18 +835,56 @@ function personPage(id){
   if(!p) return '<p class="empty">Loading…</p>';
   const acts = saved.flatMap(d => (d.log || []).filter(a => a.by === p.name).map(a => ({...a, d}))).sort((a, b) => b.at - a.at).slice(0, 8);
   return `<h2 class="sec-h">${esc(p.name)}</h2><p class="sec-p">${roleText(p)}${p.seen ? ' · last seen ' + ago(p.seen) : ''}</p>
-  ${D0 ? `<div class="card pad"><div class="cap">Role</div><div class="seg">${['tutor','admin'].map(r => `<button class="${p.role === r ? 'on' : ''}" data-role="${r}">${HD.ROLE[r]}</button>`).join('')}</div>
+  ${D0 && ['tutor','admin'].includes(p.role) ? `<div class="card pad"><div class="cap">Role</div><div class="seg">${['tutor','admin'].map(r => `<button class="${p.role === r ? 'on' : ''}" data-role="${r}">${HD.ROLE[r]}</button>`).join('')}</div>
       ${p.role === 'admin' ? `<div class="toggle"><div class="t"><b>Also teaches</b><small>Has their own students, calendar and SRAs</small></div><button class="sw-t ${p.tutor ? 'on' : ''}" data-teach role="switch" aria-checked="${!!p.tutor}" aria-label="Also teaches"></button></div>` : '<p class="note" style="margin:0">Tutors see only their own students. They have no access to money.</p>'}</div>
     ${p.role === 'admin' ? `<div class="card pad"><div class="cap">What ${esc(first(p.name))} can do</div>
       ${PERMS.map(([g, list]) => `<div class="cap" style="font-size:10.5px;margin-top:16px">${g}</div>${list.map(([k, l, sub]) => `<div class="toggle"><div class="t"><b>${l}</b>${sub ? `<small>${sub}</small>` : ''}</div><button class="sw-t ${(p.perms || []).includes(k) ? 'on' : ''}" data-perm="${k}" role="switch" aria-checked="${(p.perms || []).includes(k)}" aria-label="${l}"></button></div>`).join('')}`).join('')}
       <div class="acts" style="margin-top:12px"><button class="btn sm" id="permDefault">Use admin defaults</button></div>
       <div class="cap" style="margin-top:18px">Only you, as Director</div>${DIRECTOR_ONLY.map(x => `<div class="lock">${ic('key',16)}${x}</div>`).join('')}</div>` : ''}` : ''}
-  <div class="card pad"><div class="cap">PIN</div><div class="r2"><label class="f"><span>New PIN for ${esc(first(p.name))}</span><input class="in" id="ppin" inputmode="numeric" maxlength="6" placeholder="4 to 6 digits"></label></div><button class="btn" id="ppinGo">Reset PIN</button><p class="note">Tell ${esc(first(p.name))} the new PIN yourself. They are signed out until they use it.</p></div>
+  ${PWD() ? `<div class="card pad"><div class="cap">Sign-in</div><dl class="kv"><dt>Username</dt><dd>${esc(p.username || '')}</dd><dt>Email</dt><dd>${esc(p.email || 'not added')}</dd><dt>Status</dt><dd>${pStatus(p)}</dd>${p.children && p.children.length ? `<dt>Children</dt><dd>${esc(p.children.join(', '))}</dd>` : ''}</dl>
+      <p class="note" style="margin:6px 0 10px">${p.status === 'setup' ? `${esc(first(p.name))} hasn't set up yet. Give them a setup code: they choose their own password with it.` : p.status === 'pin' ? `${esc(first(p.name))} still signs in with their PIN. They choose a password the next time they sign in.` : `Forgotten password? Make a new setup code: their old password works until they use it.`}</p>
+      <div class="acts">${p.locked ? '<button class="btn n sm" id="pUnlock">Unlock</button>' : ''}<button class="btn sm" id="pCode">${p.status === 'setup' ? 'Make a setup code' : 'Reset password · new setup code'}</button><button class="btn sm" id="pEmail">${p.email ? 'Change email' : 'Add email'}</button><button class="btn sm" id="pOutAll">Sign out of every device</button></div></div>` : `<div class="card pad"><div class="cap">PIN</div><div class="r2"><label class="f"><span>New PIN for ${esc(first(p.name))}</span><input class="in" id="ppin" inputmode="numeric" maxlength="6" placeholder="4 to 6 digits"></label></div><button class="btn" id="ppinGo">Reset PIN</button><p class="note">Tell ${esc(first(p.name))} the new PIN yourself. They are signed out until they use it.</p></div>`}
   <div class="card pad"><div class="cap">Recent activity</div>${acts.length ? acts.map(a => `<a class="it" href="${openLink(a.d)}"><span class="t"><b>${esc(actText(a))}</b><small>${esc(a.d.number)} · ${esc(a.d.student || a.d.name || '')} · ${ago(a.at)}</small></span></a>`).join('') : '<p class="empty" style="margin:0">Nothing recorded yet.</p>'}</div>
   <div class="card pad"><div class="cap">Access</div><p class="note" style="margin:0 0 10px">${p.active ? 'Switching off signs them out on every device straight away. Their documents and logs stay.' : 'Switched off. They cannot sign in.'}</p>
     <div class="acts"><button class="btn ${p.active ? 'rd' : ''}" id="pOnOff">${p.active ? 'Switch off' : 'Switch on'}</button>${D0 ? `<button class="btn rd" id="pRemove">${ic('bin',16)} Remove account</button>` : ''}</div></div>`;
 }
 const actText = a => ({created:'Created', edited:'Edited', emailed:'Emailed', whatsapp:'Sent on WhatsApp', paid:'Payment recorded', restored:'Restored'}[a.a] || a.a);
+/* adding a person (passwords): LHQ adds them and gets a one-time setup code to give them */
+let addDraft = null;
+async function addPersonPw(){
+  const D0 = isDir(), roles = [['student','Student'],['parent','Parent'],['tutor','Tutor']].concat(D0 ? [['admin','Admin'],['bdo','BDO']] : []);
+  addDraft = addDraft || {name:'', role:'student', email:'', kids:[], students:null};
+  if(!addDraft.students) hub.api('people', {method:'POST', body:JSON.stringify({action:'students'})}).then(r => { addDraft.students = r.students; if(!$('sheet').hidden) draw(); }).catch(() => {});
+  const draw = () => { const F = addDraft;
+    openSheet(`<div class="hx"><h3>Add a person</h3><button class="ib" data-close>✕</button></div><p class="sp">They get a username and a one-time setup code. With the code they choose their own password.</p>
+      <label class="f"><span>Full name</span><input class="in" id="ap_name" autocomplete="off" value="${esc(F.name)}" placeholder="e.g. Kondwani Kalua"></label>
+      <label class="f"><span>Role</span></label><div class="seg" style="flex-wrap:wrap;margin-bottom:12px">${roles.map(([k, l]) => `<button class="${F.role === k ? 'on' : ''}" data-aprole="${k}">${l}</button>`).join('')}</div>
+      ${F.role === 'parent' ? `<label class="f"><span>Their children</span></label>${F.students ? F.students.map(st => `<button type="button" class="kidtick${F.kids.includes(st.id) ? ' on' : ''}" data-apkid="${st.id}"><span class="bx">${F.kids.includes(st.id) ? '✓' : ''}</span><span><b>${esc(st.name)}</b>${st.level ? `<small style="display:block;color:var(--muted)">${esc(st.level)}</small>` : ''}</span></button>`).join('') || '<p class="note">No students in the records yet.</p>' : '<p class="note">Loading students…</p>'}` : ''}
+      ${F.role === 'student' ? '<p class="note" style="margin:-4px 0 12px">Linked to the student with the same name in the records, or a new one.</p>' : ''}
+      <label class="f" style="margin-top:8px"><span>Email <small>(optional)</small></span><input class="in" id="ap_email" type="email" value="${esc(F.email)}" placeholder="If they have one"></label>
+      <button class="btn n full" id="apGo">Add · get a setup code</button>`);
+    bind();
+    $('ap_name').oninput = e => F.name = e.target.value; $('ap_email').oninput = e => F.email = e.target.value;
+    document.querySelectorAll('[data-aprole]').forEach(b => b.onclick = () => { F.role = b.dataset.aprole; draw(); });
+    document.querySelectorAll('[data-apkid]').forEach(b => b.onclick = () => { const k = b.dataset.apkid; F.kids = F.kids.includes(k) ? F.kids.filter(x => x !== k) : F.kids.concat(k); draw(); });
+    $('apGo').onclick = async () => {
+      try{ const r = await hub.api('people', {method:'POST', body:JSON.stringify({action:'add', name:F.name, role:F.role, email:F.email, children:F.kids})});
+        store.set('lhq_people', r.people); addDraft = null; render(); codeSheet(Object.assign({name:r.name, role:r.role}, r), true);
+      }catch(e){ toast(e.message); } };
+  };
+  draw();
+}
+function codeSheet(r, added){
+  const fr = first(r.name), until = new Date(r.expires).toLocaleDateString('en-GB', {weekday:'short', day:'numeric', month:'short'});
+  const msg = `Hello ${fr}, welcome to LHQ Hub.\n\n1. Open ${location.origin}\n2. Tap "First time here? I have a setup code"\n3. Code: ${r.code} (works once, until ${until})\n\nYour username is ${r.username}.`;
+  openSheet(`<div class="hx"><h3>${added ? `${esc(r.name)} is added` : `New code for ${esc(fr)}`}</h3><button class="ib" data-close>✕</button></div>
+    <p class="sp">${HD.ROLE[r.role] || ''} · username <b>${esc(r.username)}</b>. Give them this code: they choose their own password with it. It's shown only now.</p>
+    <div class="codebox"><small>Setup code</small><b>${esc(r.code)}</b><small>Works once · until ${until}</small></div>
+    <div class="wa-msg">${esc(msg)}</div>
+    <a class="btn n full" style="background:#1f9d55;border-color:#1f9d55;text-decoration:none" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msg)}">Send on WhatsApp</a>
+    <button class="btn full" id="cdCopy" style="margin-top:8px">Copy the message</button>`);
+  bind(); $('cdCopy').onclick = async () => { try{ await navigator.clipboard.writeText(msg); toast('Message copied'); }catch(e){ toast('Copy didn\'t work: select the message and copy it'); } };
+}
 async function peopleCall(body, msg){
   try{ const r = await hub.api('people', {method:'POST', body:JSON.stringify(body)}); store.set('lhq_people', r.people); render(); if(msg) toast(msg); return true; }
   catch(e){ toast(e.message); return false; }
@@ -967,9 +1034,28 @@ function bind(){
     catch(e){ toast(e.message); }
   };
   if($('outGo')) $('outGo').onclick = () => hub.signOut();
+  /* my account: password, email, devices (passwords) */
+  if($('pwChange')) $('pwChange').onclick = () => { openSheet(`<div class="hx"><h3>Change password</h3><button class="ib" data-close>✕</button></div>
+      <label class="f"><span>Current password</span><input class="in" id="cp0" type="password" autocomplete="current-password"></label>
+      <label class="f"><span>New password</span><input class="in" id="cp1" type="password" autocomplete="new-password"></label>
+      <label class="f"><span>New password again</span><input class="in" id="cp2" type="password" autocomplete="new-password"></label>
+      <p class="note">At least 8 characters, with a number or a symbol, and not your name. Other devices stay signed in unless you sign them out below.</p><button class="btn n full" id="cpGo">Save</button>`); bind();
+    $('cpGo').onclick = async () => { if($('cp1').value !== $('cp2').value) return toast('The new passwords don\'t match');
+      try{ await hub.api('account', {method:'POST', body:JSON.stringify({action:'password', current:$('cp0').value, password:$('cp1').value})}); closeSheet(); toast('Password changed'); }catch(e){ toast(e.message); } }; };
+  if($('emChange')) $('emChange').onclick = () => { openSheet(`<div class="hx"><h3>${me().email ? 'Change email' : 'Add email'}</h3><button class="ib" data-close>✕</button></div>
+      <label class="f"><span>Email</span><input class="in" id="em0" type="email" value="${esc(me().email || '')}"></label><p class="note">You can sign in with it as well as your username. Leave it empty to remove it.</p><button class="btn n full" id="emGo">Save</button>`); bind();
+    $('emGo').onclick = async () => { try{ const r = await hub.api('account', {method:'POST', body:JSON.stringify({action:'email', email:$('em0').value})}); const ss = hub.session(); ss.me = Object.assign({}, ss.me, {email:r.me.email}); localStorage.setItem('lhq_session', JSON.stringify(ss)); closeSheet(); render(); toast('Saved'); }catch(e){ toast(e.message); } }; };
+  if($('acDev')) (async () => { try{ const r = await hub.api('account', {method:'POST', body:JSON.stringify({action:'devices'})}), D = r.devices;
+      $('acDev').innerHTML = D.map(d => `<div class="it"><span class="t"><b>${esc(d.label)}</b><small>${d.me ? 'This device · now' : 'Last used ' + ago(new Date(d.last_used).getTime())}${d.keep ? ' · kept signed in' : ''}</small></span>${d.me ? '<span class="pst ok"><i>✓</i>This one</span>' : `<button class="btn sm" data-devout="${d.id}">Sign out</button>`}</div>`).join('')
+        + (D.length > 1 ? '<div class="acts" style="margin-top:8px"><button class="btn sm" id="devAll">Sign out everywhere else</button></div>' : '');
+      document.querySelectorAll('[data-devout]').forEach(b => b.onclick = async () => { await hub.api('account', {method:'POST', body:JSON.stringify({action:'deviceout', id:b.dataset.devout})}); toast('Signed out of that device'); render(); });
+      if($('devAll')) $('devAll').onclick = async () => { await hub.api('account', {method:'POST', body:JSON.stringify({action:'others'})}); toast('Signed out everywhere else'); render(); };
+    }catch(e){ $('acDev').innerHTML = `<p class="note" style="margin:0">${esc(e.message)}</p>`; } })();
   if($('instGo')) $('instGo').onclick = async () => { const p = window.lhqInstall; if(!p) return; p.prompt(); const r = await p.userChoice.catch(() => ({})); window.lhqInstall = null; if(r.outcome === 'accepted') toast('Installing LHQ Hub'); render(); };
   // people
-  if($('addPerson')) $('addPerson').onclick = () => {
+  on('[data-pshow]', el => { peopleShow = el.dataset.pshow; render(); });
+  if($('addPerson') && PWD()) $('addPerson').onclick = () => addPersonPw();
+  else if($('addPerson')) $('addPerson').onclick = () => {
     openSheet(`<div class="hx"><h3>${isDir() ? 'Add a person' : 'Add a tutor'}</h3><button class="ib" data-close>✕</button></div><p class="sp">They sign in by choosing their name and entering this PIN. They can change it afterwards.</p>
       <label class="f"><span>Full name</span><input class="in" id="np_name" autocomplete="off"></label>
       ${isDir() ? `<label class="f"><span>Role</span></label><div class="seg" id="np_role"><button class="on" data-r="tutor">Tutor</button><button data-r="admin">Admin</button></div><p class="note" style="margin:-4px 0 12px">New admins start with the default permissions, with money off. Change anything on their page.</p>` : ''}
@@ -981,6 +1067,14 @@ function bind(){
       if(await peopleCall({action:'add', name, role, pin:$('np_pin').value, tutor:role === 'tutor'}, `${name} added`)) closeSheet(); };
   };
   const pid = route.page === 'person' ? route.args[0] : null, P0 = pid && HD.people().find(x => x.id === pid);
+  if(P0 && PWD()){
+    if($('pUnlock')) $('pUnlock').onclick = () => peopleCall({action:'unlock', id:pid}, `${first(P0.name)} is unlocked`);
+    if($('pCode')) $('pCode').onclick = async () => { if(P0.status === 'active' && !confirm(`Make a new setup code for ${P0.name}? Their password keeps working until they use it.`)) return;
+      try{ const r = await hub.api('people', {method:'POST', body:JSON.stringify({action:'code', id:pid})}); store.set('lhq_people', r.people); render(); codeSheet(Object.assign({name:P0.name, role:P0.role}, r)); }catch(e){ toast(e.message); } };
+    if($('pEmail')) $('pEmail').onclick = () => { openSheet(`<div class="hx"><h3>${esc(P0.name)} · email</h3><button class="ib" data-close>✕</button></div><label class="f"><span>Email</span><input class="in" id="pe0" type="email" value="${esc(P0.email || '')}"></label><p class="note">They can sign in with it as well as their username.</p><button class="btn n full" id="peGo">Save</button>`); bind();
+      $('peGo').onclick = async () => { if(await peopleCall({action:'email', id:pid, email:$('pe0').value}, 'Saved')) closeSheet(); }; };
+    if($('pOutAll')) $('pOutAll').onclick = () => { if(confirm(`Sign ${P0.name} out of every device? They sign in again with their password.`)) peopleCall({action:'outall', id:pid}, `${first(P0.name)} is signed out everywhere`); };
+  }
   if(P0){
     on('[data-role]', el => { if(el.dataset.role !== P0.role) peopleCall({action:'access', id:pid, role:el.dataset.role}, `${first(P0.name)} is now ${el.dataset.role === 'admin' ? 'an Admin' : 'a Tutor'}`); });
     on('[data-teach]', () => peopleCall({action:'access', id:pid, tutor:!P0.tutor}, 'Saved'));

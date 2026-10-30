@@ -20,6 +20,15 @@
 
 import { getStore } from "@netlify/blobs";
 import crypto from "node:crypto";
+import * as A from "../lib/auth.mjs";
+
+/* With the shared records' database switched on, people and sign-in live there (username or email + password, see
+   netlify/lib/auth.mjs); everything below keeps using getPeople/putPeople/whoIs and doesn't notice.
+   Without it, the original Blobs list and PINs are used, exactly as before. */
+let testDb = false;
+export const _setDbMode = v => { testDb = v; };
+const dbMode = () => testDb || !!(process.env.NETLIFY_DB_URL || process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL);
+let moved = false;
 
 let testStore = null;
 export const _setStore = s => { testStore = s; };
@@ -103,17 +112,23 @@ function unsign(token) {
 }
 const hashPin = (pin, salt) => crypto.scryptSync(String(pin), salt, 32).toString("hex");
 const pinOk = pin => /^\d{4,6}$/.test(String(pin || ""));
-const pub = p => ({ id: p.id, name: p.name, role: p.role, admin: staff(p), tutor: !!p.tutor, perms: isDirector(p) ? PERMS.slice() : (p.perms || []), active: p.active !== false, home: p.home || null, cards: p.cards || {}, seen: p.seen || 0 });
+const pub = p => Object.assign({ id: p.id, name: p.name, role: p.role, admin: staff(p), tutor: !!p.tutor, perms: isDirector(p) ? PERMS.slice() : (p.perms || []), active: p.active !== false, home: p.home || null, cards: p.cards || {}, seen: p.seen || 0 },
+  p.auth === "password" ? { auth: "password", username: p.username, email: p.email, status: p.status, hasPw: p.hasPw, locked: !!p.locked, codeUntil: p.codeUntil || null, children: p.children || undefined } : { auth: "pin" });
 
 async function getPeople() {
+  if (dbMode()) {
+    if (!moved) { await A.moveFromBlobs((await store().get("people", { type: "json" })) || []); moved = true; }
+    return A.listPeople();
+  }
   const list = (await store().get("people", { type: "json" })) || [];
   if (migrate(list)) await putPeople(list);
   return list;
 }
-async function putPeople(list) { list.forEach(p => { p.admin = p.role === "director" || p.role === "admin"; }); await store().setJSON("people", list); }
+async function putPeople(list) { list.forEach(p => { p.admin = p.role === "director" || p.role === "admin"; }); if (dbMode()) return A.savePeople(list); await store().setJSON("people", list); }
 function newToken(p) { return sign({ p: p.id, v: p.pv || 1, exp: Date.now() + TOKEN_DAYS * 864e5 }); }
 
 async function whoIs(req) {
+  if (dbMode()) { if (!moved) await getPeople(); return A.personFromToken((req.headers.get("authorization") || "").replace(/^Bearer\s+/i, "")); }
   const t = unsign((req.headers.get("authorization") || "").replace(/^Bearer\s+/i, ""));
   if (!t || t.exp < Date.now()) return null;
   const list = await getPeople(), p = list.find(x => x.id === t.p);
@@ -145,11 +160,13 @@ async function readAll(prefix) {
 
 /* ---------------- handlers ---------------- */
 async function people(req) {
+  if (dbMode()) { const list = await getPeople(); return json({ setup: list.length === 0, preview: isPreview(), mode: "password" }); }   // no names: nobody's name is shown before they sign in
   const list = await getPeople();
   return json({ setup: list.length === 0, preview: isPreview(), people: list.filter(p => p.active !== false).map(p => ({ id: p.id, name: p.name, role: p.role, admin: staff(p), tutor: !!p.tutor })) });
 }
 
 async function setup(req) {
+  if (dbMode()) { const b = await req.json().catch(() => ({})); return json(await A.firstDirector(Object.assign(b, { ua: req.headers.get("user-agent") || "" }))); }
   const { name, pin, code } = await req.json().catch(() => ({}));
   if ((await getPeople()).length) return fail("LHQ Hub is already set up. Sign in instead.", 409);
   if (String(code || "").trim() !== secret().slice(0, 8)) return fail("That setup code is wrong. It's the first 8 characters of LHQ_SECRET in Netlify.", 403);
@@ -183,6 +200,7 @@ async function recover(req) {
 }
 
 async function login(req) {
+  if (dbMode()) return fail("Sign in with your username or email and your password.", 410);
   const { id, pin } = await req.json().catch(() => ({}));
   const s = store(), p = (await getPeople()).find(x => x.id === id && x.active !== false);
   if (!p) return fail("That person can't sign in. Ask LHQ admin.", 403);
@@ -426,6 +444,15 @@ async function restore(req, me) {
 
 async function managePeople(req, me) {
   const b = await req.json().catch(() => ({}));
+  if (dbMode()) {
+    if (b.action === "mypin" || b.action === "pin") return fail("PINs are replaced by passwords. Use a setup code instead.", 410);
+    if (["add", "code", "unlock", "outall", "email", "username", "off", "on", "students"].includes(b.action)) {
+      if (!staff(me)) return fail("Only LHQ admin can manage people.", 403);
+      const r = await A.manage(me, b);
+      return json(Object.assign({ ok: true }, r, b.action === "students" ? {} : { people: (await A.peopleForStaff(me)).map(pub) }));
+    }
+    if (b.action === "list") { if (!staff(me)) return fail("Only LHQ admin can manage people.", 403); return json({ people: (await A.peopleForStaff(me)).map(pub) }); }
+  }
   const list = await getPeople();
   const find = id => list.find(p => p.id === id);
   if (b.action === "mypin") {
@@ -595,6 +622,16 @@ export default async (req, context) => {
     if (req.method === "POST" && path === "setup") return await setup(req);
     if (req.method === "POST" && path === "login") return await login(req);
     if (req.method === "POST" && path === "recover") return await recover(req);
+    /* sign-in with a password (database on) */
+    const ua = req.headers.get("user-agent") || "", ip = req.headers.get("x-nf-client-connection-ip") || req.headers.get("x-forwarded-for") || "";
+    if (req.method === "POST" && ["signin", "code", "dircode", "password"].includes(path)) {
+      if (!dbMode()) return fail("Passwords arrive with the shared records' database.", 410);
+      const b = await req.json().catch(() => ({}));
+      if (path === "signin") return json(await A.signIn(Object.assign({}, b, { ua })));
+      if (path === "code") return json(await A.useCode({ code: b.code, ip }));
+      if (path === "dircode") return json(await A.directorCode({ code: b.code, ip }));
+      return json(await A.choosePassword(Object.assign({}, b, { ua })));
+    }
     const me = await whoIs(req);
     if (!me) return fail("Please sign in again.", 401);
     if (req.method === "GET" && path === "state") return await state(req, me);
@@ -603,12 +640,14 @@ export default async (req, context) => {
     if (req.method === "POST" && path === "tutor") return await tutorPost(req, me);
     if (req.method === "POST" && path === "sync") return await sync(req, me);
     if (req.method === "POST" && path === "people") return await managePeople(req, me);
+    if (req.method === "POST" && path === "account") { if (!dbMode()) return fail("Not available yet.", 410); return json(await A.account(me, await req.json().catch(() => ({})), ua)); }
     if (req.method === "GET" && path === "trash") return await trash(req, me);
     if (req.method === "POST" && path === "restore") return await restore(req, me);
     if (req.method === "POST" && path === "demo") return await demo(req, me);
     if (req.method === "POST" && path === "reset") return await reset(req, me);
     return fail("Not found.", 404);
   } catch (e) {
+    if (e instanceof A.AuthError) return json(Object.assign({ error: e.message }, e.extra), e.status);
     console.error(e);
     return fail("Something went wrong on the server. Try again.", 500);
   }

@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#073763">
+<title>My LHQ account</title>
+<link rel="icon" href="icon-32.png"><link rel="apple-touch-icon" href="icon-180.png"><link rel="manifest" href="manifest.webmanifest">
+<link rel="stylesheet" href="hub.css">
+<script src="theme.js"></script>
+<style>
+body{background:var(--bg);color:var(--ink);font:15px/1.45 Inter,system-ui,sans-serif;margin:0}
+.top{display:flex;align-items:center;gap:10px;padding:12px 16px;max-width:760px;margin:0 auto}.top img{height:34px}.top .acts{margin-left:auto;display:flex;gap:8px}
+main{max-width:760px;margin:0 auto;padding:4px 16px 60px}
+h1{font-size:26px;margin:4px 0 2px;color:var(--brand)}.sub{color:var(--muted);margin:0 0 16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;margin-bottom:14px;padding:16px}
+.cap{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.kv{display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:14px;margin:0}.kv dt{color:var(--muted)}.kv dd{margin:0;font-weight:700;overflow-wrap:anywhere}
+.row{display:flex;align-items:center;gap:12px;padding:10px 0;border-top:1px solid var(--line2)}.row:first-of-type{border-top:0}.row .t{flex:1;min-width:0}.row b{display:block}.row small{color:var(--muted);font-size:13px}
+.btn{display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:9px 14px;font:inherit;font-weight:800;cursor:pointer}
+.btn.n{background:var(--accent);color:var(--onaccent);border-color:var(--accent)}.btn.full{width:100%;padding:12px}.btn.sm{padding:7px 12px;font-size:13px}
+.acts2{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+.note{color:var(--muted);font-size:13px}
+.chip{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:var(--surface);border-radius:99px;padding:8px 13px;font-weight:700;font-size:13px}.chip i{width:8px;height:8px;border-radius:50%;background:var(--ok)}
+.pst{display:inline-flex;align-items:center;gap:6px;font-size:13px;font-weight:700;color:var(--ok)}.pst i{width:16px;height:16px;border-radius:50%;background:var(--ok);color:#fff;display:grid;place-items:center;font-size:10px;font-style:normal}
+.bg{position:fixed;inset:0;background:rgba(10,18,30,.45);z-index:50}.sh{position:fixed;left:0;right:0;bottom:0;z-index:51;background:var(--surface);border-radius:20px 20px 0 0;padding:20px 18px 26px;max-height:88vh;overflow:auto}
+@media (min-width:700px){.sh{left:50%;right:auto;bottom:auto;top:50%;transform:translate(-50%,-50%);width:440px;border-radius:20px}}
+.sh h3{margin:0 0 12px;color:var(--brand)}.f{display:block;margin-bottom:12px;font-weight:700;font-size:13px}.in{width:100%;margin-top:6px;border:1px solid var(--line);background:var(--field);color:var(--ink);border-radius:12px;padding:12px;font:inherit;font-size:16px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#14213d;color:#fff;padding:11px 16px;border-radius:12px;font-weight:600;z-index:60}
+</style></head>
+<body>
+<div class="top"><img id="logo" alt="LHQ Learning Solutions"><div class="acts"><span class="chip" id="chip"><i></i></span></div></div>
+<main id="app"><p class="note">Loading…</p></main>
+<div id="layer"></div>
+<script>
+const $ = id => document.getElementById(id);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const sess = () => { try{ return JSON.parse(localStorage.getItem('lhq_session') || 'null'); }catch(e){ return null; } };
+const toast = m => { document.querySelectorAll('.toast').forEach(t => t.remove()); const t = document.createElement('div'); t.className = 'toast'; t.textContent = m; document.body.appendChild(t); setTimeout(() => t.remove(), 2800); };
+const out = () => { try{ localStorage.removeItem('lhq_session'); }catch(e){} location.replace('index.html'); };
+async function api(base, path, body){
+  const s = sess(); const r = await fetch(base + path, {method: body ? 'POST' : 'GET', headers:{'content-type':'application/json', authorization:'Bearer ' + ((s || {}).token || '')}, body: body ? JSON.stringify(body) : undefined, cache:'no-store'});
+  const j = await r.json().catch(() => ({})); if(r.status === 401){ out(); throw new Error('signed out'); } if(!r.ok) throw new Error(j.error || 'Something went wrong'); return j;
+}
+const acc = b => api('/api/hub/', 'account', b);
+const ago = t => { const m = Math.round((Date.now() - t) / 60000); return m < 2 ? 'just now' : m < 60 ? m + ' min ago' : m < 1440 ? Math.round(m / 60) + ' h ago' : Math.round(m / 1440) + ' days ago'; };
+function sheet(t, html){ $('layer').innerHTML = `<div class="bg" data-x></div><div class="sh" role="dialog" aria-label="${esc(t)}"><h3>${t}</h3>${html}</div>`; $('layer').querySelectorAll('[data-x]').forEach(x => x.onclick = () => $('layer').innerHTML = ''); }
+const ROLE = {student:'Student', parent:'Parent', bdo:'BDO', tutor:'Tutor', admin:'Admin', director:'Director'};
+
+async function load(){
+  const s = sess(); if(!s || !s.token) return out();
+  if(!['student','parent','bdo'].includes((s.me || {}).role)) return location.replace('index.html');
+  $('logo').src = window.lhqTheme ? lhqTheme.logo() : 'logo.png';
+  const m = s.me, fn = m.name.split(' ')[0];
+  $('chip').innerHTML = '<i></i>' + esc(fn);
+  let kids = [];
+  try{ const c = await api('/api/v2/', 'changes?since=0'); kids = ((c.rows || {}).students || []).filter(x => !x.del); }catch(e){}
+  const d = await acc({action:'devices'}).catch(() => ({devices:[]}));
+  $('app').innerHTML = `<h1>Hi ${esc(fn)}</h1><p class="sub">${ROLE[m.role] || ''} account${m.role === 'parent' && kids.length ? ' · ' + esc(kids.map(k => k.name.split(' ')[0]).join(' and ')) : ''}</p>
+    <div class="card"><div class="cap">Your LHQ account</div><p style="margin:0">${m.role === 'parent' ? `You're signed in. Soon you'll see ${kids.length ? esc(kids.map(k => k.name.split(' ')[0]).join(' and ')) + '\'s' : 'your children\'s'} sessions, progress and reports here.` : m.role === 'student' ? 'You\'re signed in. Your sessions, SRAs, calendar and progress arrive here soon.' : 'You\'re signed in. Your part of LHQ Hub arrives here soon.'}</p>
+      ${m.role === 'parent' && kids.length ? `<div style="margin-top:12px">${kids.map(k => `<div class="row"><span class="t"><b>${esc(k.name)}</b><small>${esc(k.level || '')}</small></span></div>`).join('')}</div>` : ''}</div>
+    <div class="card"><div class="cap">How you sign in</div><dl class="kv"><dt>Username</dt><dd>${esc(m.username || '')}</dd><dt>Email</dt><dd>${esc(m.email || 'not added')}</dd></dl>
+      <div class="acts2"><button class="btn sm" id="pw">Change password</button><button class="btn sm" id="em">${m.email ? 'Change email' : 'Add email'}</button></div></div>
+    <div class="card"><div class="cap">Signed in on</div>${(d.devices || []).map(x => `<div class="row"><span class="t"><b>${esc(x.label)}</b><small>${x.me ? 'This device · now' : 'Last used ' + ago(new Date(x.last_used).getTime())}</small></span>${x.me ? '<span class="pst"><i>✓</i>This one</span>' : `<button class="btn sm" data-dev="${x.id}">Sign out</button>`}</div>`).join('')}
+      ${(d.devices || []).length > 1 ? '<div class="acts2"><button class="btn sm" id="others">Sign out everywhere else</button></div>' : ''}</div>
+    <div class="card"><button class="btn full" id="so">Sign out of this device</button></div>
+    <p class="note">Forgot your password next time? On the sign-in screen tap "Forgot password?" and ask LHQ for a setup code.</p>`;
+  $('pw').onclick = () => { sheet('Change password', `<label class="f">Current password<input class="in" id="c0" type="password" autocomplete="current-password"></label><label class="f">New password<input class="in" id="c1" type="password" autocomplete="new-password"></label><label class="f">New password again<input class="in" id="c2" type="password" autocomplete="new-password"></label><p class="note">At least 8 characters, with a number or a symbol, and not your name.</p><button class="btn n full" id="cgo">Save</button>`);
+    $('cgo').onclick = async () => { if($('c1').value !== $('c2').value) return toast('The new passwords don\'t match'); try{ await acc({action:'password', current:$('c0').value, password:$('c1').value}); $('layer').innerHTML = ''; toast('Password changed'); }catch(e){ toast(e.message); } }; };
+  $('em').onclick = () => { sheet(m.email ? 'Change email' : 'Add email', `<label class="f">Email<input class="in" id="e0" type="email" value="${esc(m.email || '')}"></label><p class="note">You can sign in with it as well as your username.</p><button class="btn n full" id="ego">Save</button>`);
+    $('ego').onclick = async () => { try{ const r = await acc({action:'email', email:$('e0').value}); const ss = sess(); ss.me.email = r.me.email; localStorage.setItem('lhq_session', JSON.stringify(ss)); $('layer').innerHTML = ''; toast('Saved'); load(); }catch(e){ toast(e.message); } }; };
+  document.querySelectorAll('[data-dev]').forEach(b => b.onclick = async () => { await acc({action:'deviceout', id:b.dataset.dev}); toast('Signed out of that device'); load(); });
+  if($('others')) $('others').onclick = async () => { await acc({action:'others'}); toast('Signed out everywhere else'); load(); };
+  $('so').onclick = async () => { try{ await acc({action:'signout'}); }catch(e){} out(); };
+}
+load();
+</script>
+</body></html>
