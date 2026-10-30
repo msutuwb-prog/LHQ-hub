@@ -6,7 +6,7 @@ import crypto from "node:crypto";
 import pg from "pg";
 
 let pool = null, ready = null;
-export function _setPool(p) { plainDates(pg.types); pool = p; ready = null; }
+export function _setPool(p) { plainDates(pg.types); pool = p; ready = null; pool_isTest = true; }
 
 /* dates and times come back as the text Postgres stores ('2026-10-30', '16:00:00'), never as JavaScript dates
    that shift with the server's time zone */
@@ -42,8 +42,13 @@ export async function migrate() {
   } catch (e) { await c.query("ROLLBACK").catch(() => {}); throw e; }
   finally { c.release(); }
 }
+/* On Netlify, Netlify applies the migrations itself on every deploy (netlify/database/migrations, generated from
+   schema.mjs: see test/schema.test.mjs), so the functions never change tables. Anywhere else (another Postgres, tests)
+   the functions run them on first use. */
+export const netlifyApplies = () => !!process.env.NETLIFY_DB_URL && !pool_isTest;
+let pool_isTest = false;
 export async function db() {
-  if (!ready) ready = migrate().catch(e => { ready = null; throw e; });
+  if (!ready) ready = (netlifyApplies() ? Promise.resolve() : migrate()).catch(e => { ready = null; throw e; });
   await ready;
   return getPool();
 }

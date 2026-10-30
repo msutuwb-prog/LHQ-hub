@@ -1,6 +1,7 @@
 // LHQ Hub shared records (api/v2): the one set of records every account works from (Postgres, see netlify/lib).
 // Runs alongside api/hub, which keeps doing documents, sign-in and the current tutor area until each step moves over.
 //
+//   GET  /api/v2/health                public: is the database on? (yes/no, no records)
 //   GET  /api/v2/me                    who I am, as the records know me
 //   GET  /api/v2/changes?since=N       everything I may see that changed after rev N (0 = all): how every device syncs
 //   POST /api/v2/cmd {name, args, op}  change something (see netlify/lib/commands.mjs for every command and who may run it)
@@ -39,6 +40,11 @@ export default async (req, context) => {
   const url = new URL(req.url), path = url.pathname.replace(/^\/api\/v2\/?/, "").replace(/\/$/, "");
   const preview = ((context && context.deploy && context.deploy.context) || "production") !== "production";
   try {
+    /* public: is the database switched on? (no records, just yes or no) */
+    if (req.method === "GET" && path === "health") {
+      try { const r = await one("SELECT count(*)::int AS n FROM people"); return json({ database: "on", tables: "ready", people: r.n, preview }); }
+      catch (e) { return json({ database: e && e.name === "MissingDatabaseConnectionError" ? "off" : "error", detail: e && e.name === "MissingDatabaseConnectionError" ? "Netlify Database isn't set up for this site yet." : String(e.message || e).slice(0, 200), preview }, 503); }
+    }
     const me = await whoAmI(req, context);
     if (!me) return fail("Please sign in again.", 401);
     if (req.method === "GET" && path === "me") return json({ me: redact("people", me, me) });
