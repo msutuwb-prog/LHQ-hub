@@ -33,6 +33,8 @@ export async function migrate() {
     await c.query("SELECT pg_advisory_xact_lock(4711001)");
     await c.query("CREATE TABLE IF NOT EXISTS lhq_migrations (id int PRIMARY KEY, name text NOT NULL, at timestamptz NOT NULL DEFAULT now())");
     const done = new Set((await c.query("SELECT id FROM lhq_migrations")).rows.map(r => r.id));
+    /* tables Netlify already made from netlify/database/migrations: record migration 1 as done instead of making them again */
+    if (!done.has(1) && (await c.query("SELECT to_regclass('public.lhq_rev') AS t")).rows[0].t) { await c.query("INSERT INTO lhq_migrations (id, name) VALUES (1, $1)", [MIGRATIONS[0].name]); done.add(1); }
     for (const m of MIGRATIONS) {
       if (done.has(m.id)) continue;
       await c.query(m.sql);

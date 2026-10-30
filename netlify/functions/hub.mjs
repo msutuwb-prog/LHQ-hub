@@ -27,7 +27,8 @@ import * as A from "../lib/auth.mjs";
    Without it, the original Blobs list and PINs are used, exactly as before. */
 let testDb = false;
 export const _setDbMode = v => { testDb = v; };
-const dbMode = () => testDb || !!(process.env.NETLIFY_DB_URL || process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL);
+const envGet = k => { try { return (globalThis.Netlify && globalThis.Netlify.env && globalThis.Netlify.env.get(k)) || process.env[k]; } catch { return process.env[k]; } };
+const dbMode = () => testDb || !!(envGet("NETLIFY_DB_URL") || envGet("DATABASE_URL") || envGet("NETLIFY_DATABASE_URL"));
 let moved = false;
 
 let testStore = null;
@@ -160,7 +161,11 @@ async function readAll(prefix) {
 
 /* ---------------- handlers ---------------- */
 async function people(req) {
-  if (dbMode()) { const list = await getPeople(); return json({ setup: list.length === 0, preview: isPreview(), mode: "password" }); }   // no names: nobody's name is shown before they sign in
+  if (dbMode()) {
+    /* a device still showing the old PIN screen (kept from before the update) gets told to refresh, instead of an empty list */
+    if (!new URL(req.url).searchParams.get("v")) return json({ error: "LHQ Hub has been updated to passwords. Refresh this page (or close it and open it again) to sign in." });
+    const list = await getPeople(); return json({ setup: list.length === 0, preview: isPreview(), mode: "password" });   // no names: nobody's name is shown before they sign in
+  }
   const list = await getPeople();
   return json({ setup: list.length === 0, preview: isPreview(), people: list.filter(p => p.active !== false).map(p => ({ id: p.id, name: p.name, role: p.role, admin: staff(p), tutor: !!p.tutor })) });
 }

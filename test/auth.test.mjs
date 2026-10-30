@@ -33,8 +33,10 @@ const firstPw = async (id, pin, pw) => { const a = await signIn(id, pin); assert
 let DIR, CHI;
 
 test("before signing in, nobody's name is shown", async () => {
-  const r = await call("people", null, null, "GET");
+  const r = await call("people?v=2", null, null, "GET");
   assert.equal(r.j.mode, "password"); assert.equal(r.j.people, undefined);
+  const old = await call("people", null, null, "GET");
+  assert.match(old.j.error, /Refresh/, "an old screen kept on a device is told to refresh");
 });
 
 test("staff move from their PIN: once with the PIN, then a password; the PIN stops working", async () => {

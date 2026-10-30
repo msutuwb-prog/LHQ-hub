@@ -230,7 +230,7 @@
     const box = overlay();
     box.innerHTML = `<img class="lhq-logo" src="${LOGO()}" alt="LHQ Learning Solutions"><p class="s">Loading…</p>`;
     try{
-      const r = await fetch(API + 'people', {cache:'no-store'}).then(r => r.json());
+      const r = await fetch(API + 'people?v=2', {cache:'no-store'}).then(r => r.json());
       if(r.error){ box.innerHTML = `<img class="lhq-logo" src="${LOGO()}" alt="LHQ"><h2>LHQ Hub isn't ready</h2><p class="s">${esc(r.error)}</p>`; return; }
       if(r.mode === 'password') return r.setup ? pwFirst() : pwSignIn(msg);
       if(r.setup) return showSetup();
