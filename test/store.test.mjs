@@ -77,8 +77,9 @@ test("after switching, saves go to the database and Blobs stay untouched", async
   const r1 = await one("SELECT type, number, student_key, received, saved_by FROM documents WHERE id = 'r1'");
   assert.deepEqual(r1, { type: "receipt", number: "RCT-0001", student_key: "thoko banda", received: 240000, saved_by: "Wanangwa Msutu" }, "the receipt is in the documents table, with its columns");
   assert.ok(!blobs.has("doc/r1"), "and not in Blobs"); assert.equal(JSON.stringify(blobs.get("index").v), blobDoc);
-  const spend = (await one("SELECT value FROM hub_kv WHERE key = 'kv/lhq_spend'")).value;
-  assert.deepEqual(Object.keys(spend).sort(), ["s1", "s2"], "spending merged entry by entry");
+  const rows = (await pool.query("SELECT id, kind, cat, amount::float, entry_date::text FROM money ORDER BY id")).rows;
+  assert.deepEqual(rows, [{ id: "s1", kind: "spend", cat: "Rentals", amount: 300000, entry_date: "2026-10-02" }, { id: "s2", kind: "spend", cat: "Utilities", amount: 45000, entry_date: "2026-11-03" }], "spending: one row per entry, merged");
+  assert.ok(!(await one("SELECT 1 FROM hub_kv WHERE key = 'kv/lhq_spend'")));
   const st = await call("state", null, DIR, "GET");
   assert.equal(st.j.docs.length, 3); assert.equal(st.j.kv.lhq_settings.levels.split("\n").length, 2);
   const d = await call("state?since=" + (st.j.rev - 1) + "&epoch=" + st.j.epoch, null, DIR, "GET");
@@ -140,6 +141,29 @@ test("migration 3 moves documents already copied into hub_kv (step 1) into their
   assert.deepEqual(await one("SELECT doc_id, at FROM doc_history WHERE id = 'old1/1700000000000'"), { doc_id: "old1", at: 1700000000000 });
   assert.deepEqual(await one("SELECT deleted_by FROM doc_trash WHERE id = 'old2'"), { deleted_by: "Catherine" });
   assert.equal((await one("SELECT count(*)::int n FROM hub_kv WHERE key ~ '^(doc|hist|trash)/'")).n, 0);
+});
+
+test("spending: an edit changes one row, a delete is kept as deleted, and the list reads back whole", async () => {
+  const before = (await one("SELECT rev FROM money WHERE id = 's1'")).rev;
+  await call("sync", { kv: { lhq_spend: { s2: { date: "2026-11-03", cat: "Utilities", amount: 50000, at: 20 }, s1: { date: "2026-10-02", cat: "Rentals", amount: 300000, by: "Wanangwa Msutu", at: 5 } } } }, DIR);
+  assert.equal((await one("SELECT amount::float a FROM money WHERE id = 's2'")).a, 50000);
+  assert.equal((await one("SELECT rev FROM money WHERE id = 's1'")).rev, before, "an unchanged entry isn't rewritten");
+  await call("sync", { kv: { lhq_spend: { s2: { date: "2026-11-03", cat: "Utilities", amount: 50000, at: 30, del: true } } } }, DIR);
+  assert.equal((await one("SELECT del FROM money WHERE id = 's2'")).del, true);
+  const st = await call("state", null, DIR, "GET");
+  assert.deepEqual(Object.keys(st.j.kv.lhq_spend).sort(), ["s1", "s2"]); assert.equal(st.j.kv.lhq_spend.s2.del, true);
+  const inc = await call("sync", { kv: { lhq_income: { i1: { date: "2026-11-01", cat: "Rent from tenant", amount: 200000, at: 40 } } } }, DIR);
+  assert.equal(inc.status, 200); assert.equal((await one("SELECT kind FROM money WHERE id = 'i1'")).kind, "income");
+});
+
+test("migration 4 moves spending and other money already in hub_kv into rows", async () => {
+  const { MIGRATIONS } = await import("../netlify/lib/schema.mjs");
+  const sql = MIGRATIONS[3].sql, moveSql = sql.slice(sql.indexOf("INSERT INTO money"));
+  await pool.query("INSERT INTO hub_kv (key, value, etag) VALUES ('kv/lhq_income', $1, 'e9')", [JSON.stringify({ x1: { date: "2026-09-28", cat: "Loan", amount: "1200000", by: "Wanangwa Msutu" }, x2: { date: "bad", amount: "n/a", del: true } })]);
+  await pool.query(moveSql);
+  assert.deepEqual(await one("SELECT kind, cat, amount::float a, entry_date::text d FROM money WHERE id = 'x1'"), { kind: "income", cat: "Loan", a: 1200000, d: "2026-09-28" });
+  assert.deepEqual(await one("SELECT entry_date, amount, del FROM money WHERE id = 'x2'"), { entry_date: null, amount: null, del: true });
+  assert.ok(!(await one("SELECT 1 FROM hub_kv WHERE key = 'kv/lhq_income'")));
 });
 
 test.after(async () => { await pool.end(); });

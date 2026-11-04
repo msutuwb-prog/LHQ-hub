@@ -49,6 +49,9 @@ async function usesDbStore() {
   try { const r = await one("SELECT value FROM settings WHERE key = 'hub_store' AND NOT del"); return !!r && r.value === "db"; } catch { return false; }
 }
 
+/* compare two values whatever order their keys come in (the database keeps keys in its own order) */
+const canon = v => JSON.stringify(v, (k, x) => x && typeof x === "object" && !Array.isArray(x) ? Object.keys(x).sort().reduce((o, key) => (o[key] = x[key], o), {}) : x);
+
 const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes", "lhq_treps"];
 
 /* ---------- roles and permissions ---------- */
@@ -65,7 +68,7 @@ const MERGED = ["lhq_spend", "lhq_income"];   // recorded on several devices at 
 function mergeSpend(old, v, me) {
   const out = Object.assign({}, old || {});
   Object.entries(v || {}).forEach(([id, e]) => {
-    if (!e || typeof e !== "object" || JSON.stringify(e) === JSON.stringify(out[id])) return;
+    if (!e || typeof e !== "object" || canon(e) === canon(out[id])) return;
     if (out[id] && (e.at || 0) < (out[id].at || 0)) return;
     const was = out[id];
     out[id] = Object.assign({}, e, { by: was ? was.by : me.name }, was ? { editedBy: me.name } : {});
@@ -78,7 +81,7 @@ function mergeLogs(old, v) {
   const o = old && typeof old === "object" ? old : {}, n = v && typeof v === "object" ? v : {};
   const e = Object.assign({}, o.e || {});
   Object.entries(n.e || {}).forEach(([id, x]) => { if (!x || typeof x !== "object") return; if (!e[id] || (x.at || 0) >= (e[id].at || 0)) e[id] = x; });
-  const seen = new Set(), imports = [...(o.imports || []), ...(n.imports || [])].filter(i => { const k = JSON.stringify(i); if (seen.has(k)) return false; seen.add(k); return true; }).slice(-200);
+  const seen = new Set(), imports = [...(o.imports || []), ...(n.imports || [])].filter(i => { const k = canon(i); if (seen.has(k)) return false; seen.add(k); return true; }).slice(-200);
   return Object.assign({}, o, n, { e, imports });
 }
 const TRASH_DAYS = 30;
@@ -267,7 +270,7 @@ function markGone(idx, id, r) { const g = idx.gone = idx.gone || {}; g[id] = r; 
 const SKIP_DIFF = ["savedAt", "updatedAt", "updatedBy", "createdBy", "total", "receivedAmt", "log"];
 function changedKeys(a, b) {
   const keys = new Set([...Object.keys(a || {}), ...Object.keys(b || {})]);
-  return [...keys].filter(k => !SKIP_DIFF.includes(k) && JSON.stringify((a || {})[k] ?? "") !== JSON.stringify((b || {})[k] ?? ""));
+  return [...keys].filter(k => !SKIP_DIFF.includes(k) && canon((a || {})[k] ?? "") !== canon((b || {})[k] ?? ""));
 }
 /* what this save is allowed to do; returns a message for the first thing that isn't */
 async function checkSync(me, upserts, deletes, kv) {
@@ -300,7 +303,7 @@ async function checkSync(me, upserts, deletes, kv) {
       const down = Object.keys(old).some(t => (v || {})[t] < old[t]);
       if (down && !can(me, "numbering")) return "You don't have permission to change numbering.";
     } else if (MERGED.includes(k)) {
-      const ch = Object.keys(v || {}).filter(id => JSON.stringify(v[id]) !== JSON.stringify(old[id]) && (!old[id] || (v[id].at || 0) >= (old[id].at || 0)));
+      const ch = Object.keys(v || {}).filter(id => canon(v[id]) !== canon(old[id]) && (!old[id] || (v[id].at || 0) >= (old[id].at || 0)));
       if (ch.length && !can(me, "spend")) return "You don't have permission to record spending.";
       if (ch.some(id => old[id] && old[id].by !== me.name)) return "You can only change spending you recorded. Ask the Director to change the others.";
     } else if (k === "lhq_budget") {
