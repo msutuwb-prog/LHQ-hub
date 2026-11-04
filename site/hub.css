@@ -56,3 +56,9 @@ body.hn-L-bottom{padding-bottom:calc(72px + env(safe-area-inset-bottom,0px))}
   body.hn-L-bottom .hn-top .hn-logo{display:none}
 }
 @media print{.hn-top,.hn-bar,.hn-side{display:none!important}body{padding:0!important}}
+
+/* Dropdowns: one look everywhere (same field, same chevron, light and dark) instead of each phone's own style */
+select,select.in{appearance:none;-webkit-appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%236b7585' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 12px center;background-size:12px 8px;padding-right:34px!important;cursor:pointer;text-overflow:ellipsis}
+[data-theme=dark] select,[data-theme=dark] select.in{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8'%3E%3Cpath d='M1 1.5l5 5 5-5' fill='none' stroke='%2393a0b3' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E")}
+select:disabled{opacity:.6;cursor:not-allowed}
+select::-ms-expand{display:none}
