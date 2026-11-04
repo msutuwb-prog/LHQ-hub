@@ -74,7 +74,8 @@ test("after switching, saves go to the database and Blobs stay untouched", async
   const blobDoc = JSON.stringify(blobs.get("index").v);
   const s = await call("sync", { upserts: [{ doc: { id: "r1", type: "receipt", number: "RCT-0001", student: "Thoko Banda", receivedAmt: 240000 } }], kv: { lhq_spend: { s2: { date: "2026-11-03", cat: "Utilities", amount: 45000, at: 9 } } } }, DIR);
   assert.equal(s.status, 200, JSON.stringify(s.j));
-  assert.ok(await one("SELECT 1 FROM hub_kv WHERE key = 'doc/r1'"), "the receipt is in the database");
+  const r1 = await one("SELECT type, number, student_key, received, saved_by FROM documents WHERE id = 'r1'");
+  assert.deepEqual(r1, { type: "receipt", number: "RCT-0001", student_key: "thoko banda", received: 240000, saved_by: "Wanangwa Msutu" }, "the receipt is in the documents table, with its columns");
   assert.ok(!blobs.has("doc/r1"), "and not in Blobs"); assert.equal(JSON.stringify(blobs.get("index").v), blobDoc);
   const spend = (await one("SELECT value FROM hub_kv WHERE key = 'kv/lhq_spend'")).value;
   assert.deepEqual(Object.keys(spend).sort(), ["s1", "s2"], "spending merged entry by entry");
@@ -82,6 +83,19 @@ test("after switching, saves go to the database and Blobs stay untouched", async
   assert.equal(st.j.docs.length, 3); assert.equal(st.j.kv.lhq_settings.levels.split("\n").length, 2);
   const d = await call("state?since=" + (st.j.rev - 1) + "&epoch=" + st.j.epoch, null, DIR, "GET");
   assert.equal(d.j.delta, true);
+});
+
+test("documents, their history and the deleted bin are in their own tables", async () => {
+  assert.equal((await one("SELECT count(*)::int n FROM documents")).n, 3);
+  assert.equal((await one("SELECT count(*)::int n FROM hub_kv WHERE key LIKE 'doc/%'")).n, 0);
+  const i1 = await one("SELECT type, total FROM documents WHERE id = 'i1'"); assert.deepEqual(i1, { type: "invoice", total: 240000 });
+  await call("sync", { upserts: [{ doc: { id: "i1", type: "invoice", number: "INV-0001", student: "Thoko Banda", total: 260000 } }] }, DIR);
+  assert.equal((await one("SELECT total FROM documents WHERE id = 'i1'")).total, 260000, "an edit updates the columns");
+  assert.ok((await one("SELECT count(*)::int n FROM doc_history WHERE doc_id = 'i1'")).n >= 1, "the old version is kept");
+  const del = await call("sync", { deletes: [{ id: "q1" }] }, DIR); assert.equal(del.status, 200);
+  assert.ok(await one("SELECT 1 FROM doc_trash WHERE id = 'q1'"), "deleted goes to the bin"); assert.ok(!(await one("SELECT 1 FROM documents WHERE id = 'q1'")));
+  const back = await call("restore", { id: "q1" }, DIR); assert.equal(back.status, 200, JSON.stringify(back.j));
+  assert.ok(await one("SELECT 1 FROM documents WHERE id = 'q1'"), "restored");
 });
 
 test("a number already taken gets the next one, on the database too", async () => {
@@ -111,7 +125,21 @@ test("a big Hub is copied in parts, and the parts add up to everything", async (
   let r = { more: true, next: 0 }, seen = 0;
   while (r.more) { r = await moveFromBlobs(mock, { from: r.next, size: 4 }); seen += r.copied + r.kept; }
   assert.equal(seen, blobs.size);
-  assert.equal((await one("SELECT count(*)::int n FROM hub_kv WHERE key LIKE 'hist/q1/%'")).n >= 9, true);
+  assert.equal((await one("SELECT count(*)::int n FROM doc_history WHERE doc_id = 'q1'")).n >= 9, true);
+});
+
+test("migration 3 moves documents already copied into hub_kv (step 1) into their tables", async () => {
+  const { MIGRATIONS } = await import("../netlify/lib/schema.mjs");
+  const sql = MIGRATIONS[2].sql, moveSql = sql.slice(sql.indexOf("INSERT INTO documents"));
+  await pool.query("INSERT INTO hub_kv (key, value, etag) VALUES ('doc/old1', $1, 'e1'), ('hist/old1/1700000000000', $2, 'e2'), ('trash/old2', $3, 'e3')",
+    [JSON.stringify({ id: "old1", type: "invoice", number: "INV-0900", student: "  Kondwani   GONDWE ", total: "350000", date: "2026-09-14", savedAt: 1700000000001 }),
+     JSON.stringify({ id: "old1", total: 300000 }), JSON.stringify({ id: "old2", type: "quote", deletedAt: 1700000000002, deletedBy: "Catherine" })]);
+  await pool.query(moveSql);
+  const d = await one("SELECT type, number, student_key, total, doc_date::text, saved_at FROM documents WHERE id = 'old1'");
+  assert.deepEqual(d, { type: "invoice", number: "INV-0900", student_key: "kondwani gondwe", total: 350000, doc_date: "2026-09-14", saved_at: 1700000000001 });
+  assert.deepEqual(await one("SELECT doc_id, at FROM doc_history WHERE id = 'old1/1700000000000'"), { doc_id: "old1", at: 1700000000000 });
+  assert.deepEqual(await one("SELECT deleted_by FROM doc_trash WHERE id = 'old2'"), { deleted_by: "Catherine" });
+  assert.equal((await one("SELECT count(*)::int n FROM hub_kv WHERE key ~ '^(doc|hist|trash)/'")).n, 0);
 });
 
 test.after(async () => { await pool.end(); });
