@@ -70,7 +70,7 @@ const ROWS = (table, cols) => ({
       ON CONFLICT (id) DO UPDATE SET ${ks.map(k => `${k} = EXCLUDED.${k}`).join(", ")}, body = EXCLUDED.body, rev = nextval('lhq_rev'), updated_at = now()`, [id, ...ks.map(k => c[k]), JSON.stringify(e)]); },
   drop: null, all: T => T.q(`DELETE FROM ${table}`)
 });
-const LOGS = ROWS("logs", e => ({ ty: e.ty || null, student_key: skOf(e), subject: e.sub || null, day: day(e.d), tutor: e.tutor || null, del: !!e.x, at: num(e.at) == null ? null : Math.round(num(e.at)) }));
+const LOGS = ROWS("logs", e => ({ ty: e.ty || null, student_key: skOf(e), subject: e.sub || null, day: day(e.d), tutor: e.tutor || null, del: !!e.x, at: num(e.at) == null ? null : Math.round(num(e.at)), confirm: (e.cf && e.cf.s) || null }));
 const TREPS = ROWS("tutor_reports", e => ({ tutor: e.tutor || null, day: day(e.d) }));
 const CLASSES = ROWS("classes", e => ({ tutor: e.tutor || null, name: e.name || null, del: !!e.del }));
 const MAPS = { "kv/lhq_spend": MONEY("spend"), "kv/lhq_income": MONEY("income"), "kv/lhq_students": STUDENTS, "kv/lhq_logs": LOGS, "kv/lhq_treps": TREPS, "kv/lhq_classes": CLASSES };

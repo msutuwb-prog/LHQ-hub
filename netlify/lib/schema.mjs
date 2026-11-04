@@ -435,4 +435,10 @@ INSERT INTO settings (id, key, scope, value)
 SELECT 'hub:' || substr(key, 4) || ':rest', 'hub:' || substr(key, 4) || ':rest', 'staff', value - 'e' FROM hub_kv WHERE key IN ('kv/lhq_logs', 'kv/lhq_treps')
 ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
 DELETE FROM hub_kv WHERE key IN ('kv/lhq_logs', 'kv/lhq_treps', 'kv/lhq_classes');
+` },
+  /* Confirming sessions: the state of each logged session's confirmation as a column (the details stay in body.cf) */
+  { id: 7, name: "session confirmation", sql: `
+ALTER TABLE logs ADD COLUMN confirm text;
+UPDATE logs SET confirm = body->'cf'->>'s' WHERE body ? 'cf';
+CREATE INDEX ON logs (confirm) WHERE confirm IS NOT NULL;
 ` }];

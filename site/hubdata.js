@@ -169,7 +169,19 @@
       return {sub: s.name, tutor: s.tutor || '', missS, missT, made, cf, owed: Math.max(0, missS + missT + cf - made)};
     });
   }
-  window.HD = {store, esc, num, mk, mkShort, nice, range, ago, first, sk, same, today, addDays, dayDiff, parseISO, isoOf, MON, WORD, typeOf,
+  /* a logged session's confirmation: 'confirmed' | 'disputed' | 'settled' | 'auto' (48 h with no reply) | 'waiting' | null (missed, or not a session) */
+  const CONFIRM_MS = 48 * 3600e3;
+  function cfState(e, now){
+    if(!e || e.x || e.ty !== 's' || e.a === 'absent' || e.a === 'cancelled') return null;
+    if(e.cf && e.cf.s) return e.cf.s;
+    return (now || Date.now()) - (e.c || e.at || 0) >= CONFIRM_MS ? 'auto' : 'waiting';
+  }
+  const cfLeft = e => Math.max(0, (e.c || e.at || 0) + CONFIRM_MS - Date.now());
+  function sessionsToConfirm(){
+    const L = store.get('lhq_logs', {e:{}}), E = Object.values((L && L.e) || {});
+    return E.filter(e => ['waiting', 'disputed'].includes(cfState(e))).sort((a, b) => (a.d || '').localeCompare(b.d || ''));
+  }
+  window.HD = {store, cfState, cfLeft, sessionsToConfirm, esc, num, mk, mkShort, nice, range, ago, first, sk, same, today, addDays, dayDiff, parseISO, isoOf, MON, WORD, typeOf,
     me, isDir, can, ROLE, roleText, load, get saved(){ return saved; }, get settings(){ return settings; }, total, invState, chainOf, docStatus, byDate,
     students, studentRecords, saveStudent, DETAIL, people, refreshPeople, makeups};
 })();

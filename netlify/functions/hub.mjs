@@ -80,7 +80,8 @@ function mergeSpend(old, v, me) {
 function mergeLogs(old, v) {
   const o = old && typeof old === "object" ? old : {}, n = v && typeof v === "object" ? v : {};
   const e = Object.assign({}, o.e || {});
-  Object.entries(n.e || {}).forEach(([id, x]) => { if (!x || typeof x !== "object") return; if (!e[id] || (x.at || 0) >= (e[id].at || 0)) e[id] = x; });
+  Object.entries(n.e || {}).forEach(([id, x]) => { if (!x || typeof x !== "object") return;
+    if (!e[id] || (x.at || 0) >= (e[id].at || 0)) e[id] = e[id] && e[id].cf && !x.cf ? Object.assign({}, x, { cf: e[id].cf }) : x; });   // a confirmation is only changed through /confirm
   const seen = new Set(), imports = [...(o.imports || []), ...(n.imports || [])].filter(i => { const k = canon(i); if (seen.has(k)) return false; seen.add(k); return true; }).slice(-200);
   return Object.assign({}, o, n, { e, imports });
 }
@@ -388,6 +389,36 @@ async function sync(req, me) {
     return json({ rev: idx.rev, epoch: idx.epoch, remap, conflicts, saved, kv: merged });
   }
   return fail("Too many saves at once. Try again.", 409);
+}
+
+/* Confirming a logged session. A session a tutor logged counts (for reports and pay) once it is confirmed: by the student
+   or a parent (stage 2), by LHQ on their behalf (saying how), or on its own 48 hours after it was logged with no reply.
+   A dispute holds it until LHQ settles it: the tutor's times stand, or the minutes lost are taken off. */
+const CONFIRM_HOURS = 48;
+async function confirmSession(req, me) {
+  if (!can(me, "tutors")) return fail("You don't have permission to confirm sessions.", 403);
+  const b = await req.json().catch(() => ({})), id = String(b.id || ""), now = Date.now();
+  const txt = (v, n) => String(v || "").trim().slice(0, n), hm = v => /^\d{1,2}:\d{2}$/.test(String(v || "")) ? v : "";
+  const cur = await store().get("kv/lhq_logs", { type: "json" }), e0 = cur && cur.e && cur.e[id];
+  if (!e0 || e0.x || e0.ty !== "s") return fail("That session isn't in the logs.", 404);
+  if (e0.a === "absent" || e0.a === "cancelled") return fail("A missed session has nothing to confirm.");
+  const was = e0.cf && e0.cf.s;
+  let cf;
+  if (b.action === "confirm") {
+    if (was === "disputed") return fail("This session is disputed: settle it instead.", 409);
+    if (!txt(b.how, 200)) return fail("Say how it was confirmed, e.g. by phone with the parent.");
+    cf = { s: "confirmed", by: me.name, at: now, how: txt(b.how, 200), onBehalf: true };
+  } else if (b.action === "dispute") {
+    if (was === "settled") return fail("This session was already settled.", 409);
+    if (!txt(b.note, 500)) return fail("Say what was different.");
+    cf = { s: "disputed", by: me.name, at: now, onBehalf: true, from: txt(b.from, 60) || "the student", note: txt(b.note, 500), t1: hm(b.t1), t2: hm(b.t2), lost: Math.max(0, Math.min(600, Math.round(+b.lost || 0))) };
+  } else if (b.action === "settle") {
+    if (was !== "disputed") return fail("Only a disputed session can be settled.", 409);
+    const lost = b.out === "keep" ? 0 : Math.max(0, Math.min(600, Math.round(+b.lost || 0)));
+    cf = Object.assign({}, e0.cf, { s: "settled", by: me.name, at: now, out: b.out === "keep" ? "keep" : "lost", lost, note2: txt(b.note, 500), disputedBy: e0.cf.by, disputedAt: e0.cf.at });
+  } else return fail("Unknown action.");
+  const next = await writeKv("lhq_logs", old => { const o = old || { e: {} }, e = Object.assign({}, o.e); e[id] = Object.assign({}, e[id], { cf, at: now }); return Object.assign({}, o, { e }); });
+  return json({ ok: true, entry: next.e[id] });
 }
 
 /* Moving the Hub into the database (Director only): see where things are, copy, check, then switch (and back, if ever needed) */
@@ -703,6 +734,7 @@ export default async (req, context) => {
     if (req.method === "POST" && path === "demo") return await demo(req, me);
     if (req.method === "POST" && path === "reset") return await reset(req, me);
     if (req.method === "POST" && path === "store") return await hubStore(req, me);
+    if (req.method === "POST" && path === "confirm") return await confirmSession(req, me);
     return fail("Not found.", 404);
   } catch (e) {
     if (e instanceof A.AuthError) return json(Object.assign({ error: e.message }, e.extra), e.status);

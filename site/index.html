@@ -63,6 +63,18 @@ a{color:inherit}
 .acts{display:flex;gap:8px;flex-wrap:wrap}
 .card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:4px 16px;margin-bottom:16px}
 .card.pad{padding:16px}
+.t-opts{display:grid;gap:8px}.t-opts.g2{grid-template-columns:1fr 1fr}.t-opts.g5{grid-template-columns:repeat(5,minmax(0,1fr))}
+.t-opt{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:11px 12px;min-height:46px;font:inherit;font-weight:600;font-size:14px;color:var(--ink);cursor:pointer}
+.t-opt small{display:block;color:var(--muted);font-size:12px;font-weight:600}.t-opt .tx{flex:1;min-width:0}
+.t-opt.on{border-color:var(--accent);background:var(--t-sel);font-weight:800}.t-opt.miss{border-color:var(--am)}
+.t-opts.g5 .t-opt{justify-content:center;font-size:16px;padding:10px 0}.t-opts.g5 .t-ind{display:none}.t-opts.g5 .tx{flex:none}
+.t-ind{flex:none;width:20px;height:20px;border:2px solid var(--line);display:grid;place-items:center;background:var(--surface)}
+.t-ind.c{border-radius:50%}.t-ind.s{border-radius:6px}
+.on>.t-ind.c{border-color:var(--accent);box-shadow:inset 0 0 0 4px var(--surface);background:var(--accent)}
+.on>.t-ind.s{border-color:var(--accent);background:var(--accent)}
+.on>.t-ind.s::after{content:"";width:9px;height:5px;border:2.5px solid var(--onaccent);border-top:0;border-right:0;transform:translateY(-1px) rotate(-45deg)}
+:root{--t-sel:#eef3fa}:root[data-theme=dark]{--t-sel:rgba(244,178,35,.09)}
+.cfm{flex:none;width:20px;height:20px;border-radius:50%;display:inline-grid;place-items:center;font-size:11px;font-weight:900;vertical-align:-4px}.cfm.ok{background:var(--ok);color:#fff}.cfm.dp{background:var(--rd);color:#fff}.cfm.wt{border:2px dashed var(--am)}
 .h2{font-size:13px;font-weight:800;margin:6px 2px 8px;display:flex;justify-content:space-between;align-items:center;gap:10px}
 .h2 em{font-style:normal;color:var(--muted);font-weight:700}
 .cap{font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);margin:12px 0 6px;font-weight:800}
@@ -410,6 +422,10 @@ function attention(list){
     const q = s.openQuote;
     if(q && q.date && dayDiff(q.date, t) >= 7) out.push({w:4, s, href:openLink(q), ico:'quote', col:'--muted', sub:`${q.number} sent ${dayDiff(q.date, t)} days ago · no invoice yet`, btn: can('quotes') ? ['Invoice', D('conv=invoice:' + q.id)] : null});
   });
+  if(can('tutors')){
+    const disp = HD.sessionsToConfirm().filter(e => HD.cfState(e) === 'disputed');
+    disp.forEach(e => out.push({w:-2, s:{name:e.st}, href:'#confirm/' + encodeURIComponent(e.id), ico:'alert', col:'--rd', sub:`${e.sub} with ${e.tutor || 'tutor'} · ${nice(e.d)} · disputed: ${e.cf.note}`, tag:['Disputed','rd']}));
+  }
   return out.sort((a, b) => a.w - b.w);
 }
 function cardLink(s){ const c = s.cur; return D('conv=card:' + c.inv.id + (s.lastCard && s.lastCard !== c.card ? '&from=' + s.lastCard.id : '')); }
@@ -730,6 +746,66 @@ function docRows(type, f){
 }
 
 /* ================= tutors teaching now (from current tuition cards) ================= */
+/* ---------- confirming tutors' logged sessions (LHQ on the student's behalf until students and parents have accounts) ---------- */
+let cfQuery = '';
+const CFL = {waiting:'Waiting', auto:'Auto-confirmed', confirmed:'Confirmed', disputed:'Disputed', settled:'Settled'};
+const cfMark = st => st === 'disputed' ? '<span class="cfm dp">!</span>' : st === 'waiting' ? '<span class="cfm wt"></span>' : st ? '<span class="cfm ok">✓</span>' : '';
+const cfLine = e => { const st = HD.cfState(e), cf = e.cf || {};
+  return st === 'waiting' ? `Confirms itself in ${Math.max(1, Math.round(HD.cfLeft(e) / 36e5))} h` : st === 'auto' ? 'No reply in 48 h' : st === 'confirmed' ? `By ${cf.by}${cf.how ? ' · ' + cf.how : ''}`
+    : st === 'disputed' ? `${cf.from || 'The student'}: ${cf.note}` : st === 'settled' ? (cf.out === 'keep' ? 'The tutor\'s times stand' : `${cf.lost} min taken off`) + ` · by ${cf.by}` : ''; };
+P.confirm = (id = '') => {
+  if(!can('tutors')) return `${crumb('#home', 'Home')}<p class="empty">You don't have permission to confirm sessions.</p>`;
+  if(id){ setTimeout(() => confirmSheet(decodeURIComponent(id)), 0); }
+  const L = store.get('lhq_logs', {e:{}}), E = Object.values((L && L.e) || {}).filter(e => HD.cfState(e)), t = today();
+  const C = HD.sessionsToConfirm(), recent = E.filter(e => ['confirmed','settled'].includes(HD.cfState(e)) && dayDiff(e.d, t) <= 14).sort((a, b) => (b.cf.at || 0) - (a.cf.at || 0)).slice(0, 15);
+  const qq = (cfQuery || '').trim().toLowerCase(), hit = e => !qq || [e.st, e.sub, e.tutor].some(x => String(x || '').toLowerCase().includes(qq));
+  const disp = C.filter(e => HD.cfState(e) === 'disputed').filter(hit), wait = C.filter(e => HD.cfState(e) === 'waiting').filter(hit);
+  const days = {}; wait.forEach(e => (days[e.d] = days[e.d] || []).push(e));
+  const row = e => { const st = HD.cfState(e); return `<button class="it" data-cf="${esc(e.id)}">${cfMark(st)}<span class="t"><b>${esc(e.st)} · ${esc(e.sub)}</b><small>${nice(e.d)}${e.t1 ? ' ' + esc(e.t1) + '–' + esc(e.t2 || '') : ''} · ${esc(e.tutor || '')} · ${CFL[st]} · ${esc(cfLine(e))}</small></span><span class="chev">›</span></button>`; };
+  return `${crumb('#home', 'Home', 'confirm')}
+  <div class="ph"><div class="tt"><h1>Sessions to confirm</h1><p>A session counts once it's confirmed. With no reply it confirms itself 48 hours after the tutor logged it, so you only need to act when a family says something was different.</p></div></div>
+  <label class="f" style="max-width:420px"><input class="in" id="cfQ" type="search" placeholder="Find a student, subject or tutor" value="${esc(cfQuery)}" autocomplete="off"></label>
+  ${disp.length ? `<div class="h2">Disputed <em>${disp.length}</em></div><div class="card">${disp.map(row).join('')}</div>` : ''}
+  <div class="h2">Waiting <em>${wait.length}</em></div>
+  ${Object.keys(days).sort().reverse().map(d => `<div class="card"><div class="wk" style="padding:10px 16px 6px;font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">${nice(d)} · ${days[d].length}</div>${days[d].map(row).join('')}</div>`).join('') || `<div class="card"><p class="empty">${qq ? 'Nothing matches.' : 'Nothing waiting. ✓'}</p></div>`}
+  ${recent.length ? `<div class="h2">Confirmed in the last two weeks <em>${recent.length}</em></div><div class="card">${recent.map(row).join('')}</div>` : ''}`;
+};
+function confirmSheet(id, mode){
+  const L = store.get('lhq_logs', {e:{}}), e = ((L && L.e) || {})[id]; if(!e) return toast('That session is no longer in the logs');
+  const st = HD.cfState(e), cf = e.cf || {};
+  const head = `<div class="hx"><h3>${esc(e.st)} · ${esc(e.sub)}</h3><button class="ib" data-close>✕</button></div>
+    <p class="sp">${nice(e.d)}${e.t1 ? ' · ' + esc(e.t1) + '–' + esc(e.t2 || '') : ''} · with ${esc(e.tutor || 'the tutor')} · ${esc({present:'Present', late:'Late'}[e.a] || e.a || '')}</p>
+    <div class="card pad" style="margin:0 0 12px">${cfMark(st)} <b>${CFL[st]}</b><p class="note" style="margin:4px 0 0">${esc(cfLine(e))}</p>${st === 'settled' && cf.note2 ? `<p class="note" style="margin:4px 0 0">${esc(cf.note2)}</p>` : ''}${st === 'settled' || st === 'disputed' ? `<p class="note" style="margin:4px 0 0">Disputed by ${esc(cf.from || 'the student')}${cf.t1 ? ` · says ${esc(cf.t1)}–${esc(cf.t2 || '')}` : ''}${cf.disputedBy || cf.by ? ' · recorded by ' + esc(cf.disputedBy || cf.by) : ''}</p>` : ''}</div>`;
+  let body = '';
+  if(st === 'waiting' && mode !== 'dispute') body = `<label class="f"><span>How was it confirmed?</span><input class="in" id="cfHow" placeholder="e.g. By phone with Mrs Banda"></label>
+    <button class="btn n full" data-cfdo="confirm">Confirm for ${esc(first(e.st))}</button>
+    <button class="btn full" style="margin-top:8px" data-cfmode="dispute">${esc(first(e.st))} or a parent says something was different</button>`;
+  else if(mode === 'dispute' || (st === 'waiting' && mode === 'dispute')) body = `<div class="r2"><label class="f"><span>Who says so</span><input class="in" id="cfFrom" value="${esc(first(e.st))}"></label><label class="f"><span>Minutes lost</span><input class="in" id="cfLost" inputmode="numeric" placeholder="e.g. 20"></label></div>
+    <div class="r2"><label class="f"><span>Started (their account)</span><input class="in" id="cfT1" placeholder="e.g. 14:20"></label><label class="f"><span>Finished</span><input class="in" id="cfT2" placeholder="e.g. 15:30"></label></div>
+    <label class="f"><span>What was different</span><input class="in" id="cfNote" placeholder="e.g. Started 20 minutes late"></label>
+    <button class="btn n full" data-cfdo="dispute">Record the dispute</button><p class="note">The session is held until it's settled. ${esc(first(e.tutor || 'The tutor'))} sees it's disputed.</p>`;
+  else if(st === 'disputed') body = `<div class="h2" style="margin-top:4px">Settle it</div>
+    <div class="t-opts"><button type="button" role="radio" aria-checked="true" class="t-opt on" data-cfout="keep"><span class="t-ind c"></span><span class="tx">The tutor's times stand<small>The whole session counts</small></span></button>
+    <button type="button" role="radio" aria-checked="false" class="t-opt" data-cfout="lost"><span class="t-ind c"></span><span class="tx">Take minutes off<small>Only the minutes taught count</small></span></button></div>
+    <label class="f" id="cfLostF" style="margin-top:10px"><span>Minutes to take off</span><input class="in" id="cfLost" inputmode="numeric" value="${cf.lost || ''}"></label>
+    <label class="f"><span>Note to both</span><input class="in" id="cfNote" placeholder="e.g. Spoke to both and agreed"></label>
+    <button class="btn n full" data-cfdo="settle">Settle</button>`;
+  openSheet(head + body);
+  const sh = $('sheet'), O = sel => sh.querySelector(sel);
+  sh.querySelectorAll('[data-cfmode]').forEach(b => b.onclick = () => confirmSheet(id, b.dataset.cfmode));
+  const lostF = () => { const f = O('#cfLostF'), on = sh.querySelector('[data-cfout].on'); if(f && on) f.hidden = on.dataset.cfout !== 'lost'; };
+  sh.querySelectorAll('[data-cfout]').forEach(b => b.onclick = () => { sh.querySelectorAll('[data-cfout]').forEach(x => { const on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-checked', on); }); lostF(); }); lostF();
+  sh.querySelectorAll('[data-cfdo]').forEach(b => b.onclick = async () => {
+    const action = b.dataset.cfdo, v = x => (O(x) || {}).value || '';
+    const body = action === 'confirm' ? {how: v('#cfHow')} : action === 'dispute' ? {from: v('#cfFrom'), lost: v('#cfLost'), t1: v('#cfT1'), t2: v('#cfT2'), note: v('#cfNote')}
+      : {out: (sh.querySelector('[data-cfout].on') || {}).dataset.cfout, lost: v('#cfLost'), note: v('#cfNote')};
+    b.disabled = true;
+    try{ await hub.api('confirm', {method:'POST', body: JSON.stringify(Object.assign({action, id}, body))}); await hub.pull(); closeSheet();
+      toast(action === 'confirm' ? 'Confirmed: it counts for reports and pay' : action === 'dispute' ? 'Dispute recorded: the session is held' : 'Settled'); render(); }
+    catch(err){ b.disabled = false; toast(err.message); }
+  });
+}
+
 P.tutors = (show = '') => {
   const t = today(), by = new Map(), none = [];
   HD.students().forEach(s => {
@@ -745,7 +821,7 @@ P.tutors = (show = '') => {
   const ppl = HD.people(), pid = n => (ppl.find(p => p.name.toLowerCase() === n.toLowerCase()) || {}).id;
   const row = ({s, card, x}) => `<a class="it" href="${openLink(card)}"><span class="t"><b>${esc(s.name)}</b><small>${esc([x.name, (x.days || []).join(' '), x.start ? x.start + '–' + (x.end || '') : ''].filter(Boolean).join(' · '))}</small></span><span class="chev">${ic('chev',16,2)}</span></a>`;
   return `${crumb('#home', 'Home', 'tutors')}
-  <div class="ph"><div class="tt"><h1>Tutors teaching now</h1><p>${list.length} tutor${list.length === 1 ? '' : 's'} on current tuition cards${none.length ? ` · ${none.length} subject${none.length === 1 ? '' : 's'} without a tutor` : ''}</p></div></div>
+  <div class="ph"><div class="tt"><h1>Tutors teaching now</h1><p>${list.length} tutor${list.length === 1 ? '' : 's'} on current tuition cards${none.length ? ` · ${none.length} subject${none.length === 1 ? '' : 's'} without a tutor` : ''}</p></div>${can('tutors') ? `<div class="acts"><a class="btn" href="#confirm">${ic('clock',15)} Sessions to confirm${(n => n ? ' · ' + n : '')(HD.sessionsToConfirm().filter(e => HD.cfState(e) === 'disputed').length)}</a></div>` : ''}</div>
   ${window.PC ? PC.block('tutors', {}, 'At a glance') : ''}
   ${none.length ? `<div class="h2" id="none">No tutor yet <em>${none.length}</em></div><div class="card" style="border-color:var(--gold)">${none.map(row).join('')}</div>` : ''}
   ${list.map(([n, items]) => { const st = new Set(items.map(i => i.s.key)).size, open = show === encodeURIComponent(n) || show === n;
@@ -1009,6 +1085,8 @@ function bind(){
   if(route.page === 'teach') TUT.bind();
   on('[data-go]', (el, e) => { if(!e.target.closest('a')) location.href = el.dataset.go; });
   document.querySelectorAll('[data-go][tabindex]').forEach(el => el.onkeydown = e => { if(e.key === 'Enter' && e.target === el) location.href = el.dataset.go; });
+  on('[data-cf]', el => confirmSheet(el.dataset.cf));
+  if($('cfQ')) $('cfQ').oninput = () => { cfQuery = $('cfQ').value; const pos = $('cfQ').selectionStart; render(); const q = $('cfQ'); if(q){ q.focus(); q.setSelectionRange(pos, pos); } };
   if($('attTog')) $('attTog').onclick = () => { attOpen = !attOpen; try{ localStorage.setItem('lhq_attOpen', attOpen ? '1' : '0'); }catch(e){} render(); };
   on('[data-mv]', el => { const [i, d] = el.dataset.mv.split(':').map(Number), a = myCards(); [a[i], a[i + d]] = [a[i + d], a[i]]; saveHome(a); });
   on('[data-rm]', el => { const a = myCards(); a.splice(+el.dataset.rm, 1); saveHome(a); });

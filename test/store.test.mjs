@@ -234,4 +234,28 @@ test("migration 6 moves tutors' logs, classes and daily reports already in hub_k
   assert.equal((await one("SELECT value->'imports'->0->>'t' AS t FROM settings WHERE key = 'hub:lhq_logs:rest'")).t, "Peter Mvula");
 });
 
+test("confirming a logged session: on the student's behalf, a dispute, settling it; tutors' re-saves keep it", async () => {
+  const tok = (await call("signin", { id: "emmanuel.mkwamba", password: "Maths!2026x" })).j.token;
+  const c0 = await call("confirm", { action: "confirm", id: "e1aaaa" }, DIR);
+  assert.equal(c0.status, 400, "LHQ has to say how it was confirmed");
+  assert.equal((await call("confirm", { action: "confirm", id: "e1aaaa", how: "x" }, tok)).status, 403, "a tutor can't confirm their own session");
+  const c1 = await call("confirm", { action: "confirm", id: "e1aaaa", how: "By phone with Mrs Banda" }, DIR);
+  assert.equal(c1.status, 200, JSON.stringify(c1.j)); assert.equal(c1.j.entry.cf.s, "confirmed");
+  assert.equal((await one("SELECT confirm FROM logs WHERE id = 'e1aaaa'")).confirm, "confirmed");
+  // the tutor edits the session later from an older copy: the confirmation stays
+  const ed = await call("tutor", { action: "entries", entries: [{ id: "e1aaaa", ty: "s", k: "thoko banda|mathematics", st: "Thoko Banda", sub: "Mathematics", d: "2026-11-04", a: "late" }] }, tok);
+  assert.equal(ed.status, 200); const row = await one("SELECT confirm, body->>'a' AS a FROM logs WHERE id = 'e1aaaa'");
+  assert.deepEqual(row, { confirm: "confirmed", a: "late" });
+  // a dispute on another session, then settling it
+  assert.equal((await call("confirm", { action: "settle", id: "e3cccc", out: "keep" }, DIR)).status, 409, "only a disputed session can be settled");
+  const d = await call("confirm", { action: "dispute", id: "e3cccc", from: "Mrs Banda", note: "Started 20 minutes late", t1: "14:20", t2: "15:30", lost: 20 }, DIR);
+  assert.equal(d.status, 200); assert.equal(d.j.entry.cf.lost, 20);
+  assert.equal((await call("confirm", { action: "confirm", id: "e3cccc", how: "x" }, DIR)).status, 409, "a disputed session is settled, not confirmed");
+  const s2 = await call("confirm", { action: "settle", id: "e3cccc", out: "lost", lost: 20, note: "Agreed with both" }, DIR);
+  assert.equal(s2.j.entry.cf.s, "settled"); assert.equal(s2.j.entry.cf.lost, 20); assert.equal(s2.j.entry.cf.note, "Started 20 minutes late");
+  const st = await call("state", null, DIR, "GET");
+  assert.equal(st.j.kv.lhq_logs.e.e3cccc.cf.s, "settled", "staff devices get it through the usual sync");
+  assert.equal((await call("confirm", { action: "confirm", id: "nope", how: "x" }, DIR)).status, 404);
+});
+
 test.after(async () => { await pool.end(); });
