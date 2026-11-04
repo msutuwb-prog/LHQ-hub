@@ -257,4 +257,16 @@ CREATE INDEX ON periods (student_id);
 CREATE INDEX ON activity (actor_id);
 CREATE INDEX ON guardians (student_id);
 ${TABLES.map(x => `CREATE INDEX ON ${x} (rev);`).join("\n")}
+` },
+  /* Step 1 of "one system": everything the Hub keeps today (documents, history, the deleted bin, settings lists, money,
+     tutors' logs) moves from Netlify Blobs into this database, in the same shape, so every screen keeps working unchanged.
+     Later migrations move each kind into its own table, one at a time. */
+  { id: 2, name: "hub store", sql: `
+CREATE TABLE hub_kv (
+  key text PRIMARY KEY,
+  value jsonb NOT NULL,
+  etag text NOT NULL,
+  updated_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX hub_kv_prefix ON hub_kv (key text_pattern_ops);
 ` }];

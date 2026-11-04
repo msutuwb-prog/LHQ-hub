@@ -33,10 +33,11 @@ const names = rows => (rows || []).map(r => r.name).sort();
 const refused = async (p, name, args, status = 403) => { await assert.rejects(run(p, name, args), e => e.status === status || assert.fail(`${name}: got ${e.status} ${e.message}`)); };
 
 test("migrations ran once and can run again", async () => {
+  const { MIGRATIONS } = await import("../netlify/lib/schema.mjs");
   const m = await q("SELECT id FROM lhq_migrations");
-  assert.equal(m.length, 1);
+  assert.equal(m.length, MIGRATIONS.length);
   const { migrate } = await import("../netlify/lib/db.mjs"); await migrate();
-  assert.equal((await q("SELECT id FROM lhq_migrations")).length, 1);
+  assert.equal((await q("SELECT id FROM lhq_migrations")).length, MIGRATIONS.length);
 });
 
 test("the demo went in through the commands", async () => {

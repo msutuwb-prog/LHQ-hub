@@ -21,6 +21,8 @@
 import { getStore } from "@netlify/blobs";
 import crypto from "node:crypto";
 import * as A from "../lib/auth.mjs";
+import { pgStore, moveFromBlobs as copyBlobs } from "../lib/pgstore.mjs";
+import { one, q } from "../lib/db.mjs";
 
 /* With the shared records' database switched on, people and sign-in live there (username or email + password, see
    netlify/lib/auth.mjs); everything below keeps using getPeople/putPeople/whoIs and doesn't notice.
@@ -36,7 +38,16 @@ export const _setStore = s => { testStore = s; };
 // Deploy previews (and branch deploys) get their own storage, so trying things there never touches LHQ's real documents
 let site = "production";
 const isPreview = () => site !== "production";
-const store = () => testStore || getStore({ name: isPreview() ? "lhq-hub-preview" : "lhq-hub", consistency: "strong" });
+const blobs = () => testStore || getStore({ name: isPreview() ? "lhq-hub-preview" : "lhq-hub", consistency: "strong" });
+/* One system: once the Director has copied the Hub into the database and switched to it (Settings › Shared records), every
+   document, list, money entry and tutor log is read and written there. Until then, and if it is ever switched back,
+   Netlify Blobs are used as before. The switch is a setting, so it can be undone without a new deploy. */
+let storeOnDb = false;
+const store = () => storeOnDb ? pgStore : blobs();
+async function usesDbStore() {
+  if (!dbMode()) return false;
+  try { const r = await one("SELECT value FROM settings WHERE key = 'hub_store' AND NOT del"); return !!r && r.value === "db"; } catch { return false; }
+}
 
 const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes", "lhq_treps"];
 
@@ -150,7 +161,9 @@ const parseNum = (type, n) => {
 const fmtNum = (type, n) => PREFIX[type] + "-" + String(n).padStart(4, "0");
 
 async function readAll(prefix) {
-  const s = store(), { blobs } = await s.list({ prefix });
+  const s = store();
+  if (s.getAll) return s.getAll(prefix);
+  const { blobs } = await s.list({ prefix });
   const out = [];
   for (let i = 0; i < blobs.length; i += 25) {
     const part = await Promise.all(blobs.slice(i, i + 25).map(b => s.get(b.key, { type: "json" })));
@@ -372,6 +385,41 @@ async function sync(req, me) {
     return json({ rev: idx.rev, epoch: idx.epoch, remap, conflicts, saved, kv: merged });
   }
   return fail("Too many saves at once. Try again.", 409);
+}
+
+/* Moving the Hub into the database (Director only): see where things are, copy, check, then switch (and back, if ever needed) */
+async function countKeys(s) {
+  const L = (await s.list()).blobs.map(b => b.key), c = p => L.filter(k => k.startsWith(p)).length;
+  return { all: L.length, docs: c("doc/"), history: c("hist/"), deleted: c("trash/"), lists: c("kv/"), index: L.includes("index") };
+}
+async function docTotals(s) {
+  const docs = s.getAll ? await s.getAll("doc/") : await Promise.all((await s.list({ prefix: "doc/" })).blobs.map(b => s.get(b.key, { type: "json" })));
+  const t = {}; docs.filter(Boolean).forEach(d => { const k = d.type || "quote"; t[k] = t[k] || { n: 0, amount: 0 }; t[k].n++; t[k].amount += Number(d.total || d.receivedAmt || 0) || 0; });
+  return t;
+}
+async function hubStore(req, me) {
+  if (!isDirector(me)) return fail("Only the Director can move the Hub's storage.", 403);
+  if (!dbMode()) return fail("The database isn't switched on for this site.", 410);
+  const b = await req.json().catch(() => ({}));
+  const status = async () => {
+    const [onBlobs, onDb] = await Promise.all([countKeys(blobs()), countKeys(pgStore)]);
+    const [tb, td] = await Promise.all([docTotals(blobs()), docTotals(pgStore)]);
+    const same = JSON.stringify(Object.keys(tb).sort().map(k => [k, tb[k].n, Math.round(tb[k].amount)])) === JSON.stringify(Object.keys(td).sort().map(k => [k, (td[k] || {}).n, Math.round((td[k] || {}).amount || 0)]));
+    return { using: storeOnDb ? "db" : "blobs", blobs: onBlobs, db: onDb, totals: { blobs: tb, db: td }, match: same && onBlobs.all === onDb.all };
+  };
+  if (b.action === "move") {
+    if (storeOnDb && !b.replace) return fail("The Hub already uses the database. Moving again would overwrite newer work.", 409);
+    const r = await copyBlobs(blobs(), { replace: !!b.replace, from: Math.max(0, +b.from || 0) });
+    return json(r.more ? { moved: r, more: true, next: r.next } : Object.assign({ moved: r }, await status()));
+  }
+  if (b.action === "use") {
+    const to = b.to === "db" ? "db" : "blobs";
+    if (to === "db" && !(await pgStore.get("index"))) return fail("Copy the Hub into the database first.", 409);
+    await q("INSERT INTO settings (id, key, scope, value) VALUES ('set_hub_store', 'hub_store', 'staff', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, del = false", [JSON.stringify(to)]);
+    storeOnDb = to === "db";
+    return json(await status());
+  }
+  return json(await status());
 }
 
 /* Preview only: replace everything with demo data, or empty it. Never on the live site. */
@@ -621,6 +669,7 @@ export async function staffFrom(req, context) {
 export default async (req, context) => {
   site = (context && context.deploy && context.deploy.context) || "production";
   if (!secret()) return fail("LHQ Hub isn't set up yet: add LHQ_SECRET in Netlify's environment variables.", 500);
+  storeOnDb = await usesDbStore();
   const path = new URL(req.url).pathname.replace(/^\/api\/hub\/?/, "").replace(/\/$/, "");
   try {
     if (req.method === "GET" && path === "people") return await people(req);
@@ -650,6 +699,7 @@ export default async (req, context) => {
     if (req.method === "POST" && path === "restore") return await restore(req, me);
     if (req.method === "POST" && path === "demo") return await demo(req, me);
     if (req.method === "POST" && path === "reset") return await reset(req, me);
+    if (req.method === "POST" && path === "store") return await hubStore(req, me);
     return fail("Not found.", 404);
   } catch (e) {
     if (e instanceof A.AuthError) return json(Object.assign({ error: e.message }, e.extra), e.status);
