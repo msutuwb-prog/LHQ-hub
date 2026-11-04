@@ -189,4 +189,49 @@ test("migration 5 moves students and lists already in hub_kv", async () => {
   assert.equal((await one("SELECT value->>'emailSubject' AS s FROM settings WHERE key = 'hub:lhq_templates'")).s, "Hello {name}");
 });
 
+test("tutors' logs: a tutor's lines become rows; two tutors saving at once both land; staff read them back", async () => {
+  const mkTutor = async (name, pw) => {
+    const add = await call("people", { action: "add", name, role: "tutor" }, DIR); assert.equal(add.status, 200, JSON.stringify(add.j));
+    const c = await call("code", { code: add.j.code }); const p = await call("password", { ticket: c.j.ticket, password: pw }); return p.j.token;
+  };
+  const EM = await mkTutor("Emmanuel Mkwamba", "Maths!2026x"), CH = await mkTutor("Chisomo Banda", "Physics!2026x");
+  // tuition cards that name them, so the students are theirs
+  await call("sync", { upserts: [{ doc: { id: "tc1", type: "card", number: "TC-0001", student: "Thoko Banda", subjects: [{ name: "Mathematics", tutor: "Emmanuel Mkwamba" }] } },
+    { doc: { id: "tc2", type: "card", number: "TC-0002", student: "Natasha Chirwa", subjects: [{ name: "Physics", tutor: "Chisomo Banda" }] } }] }, DIR);
+  const e1 = { id: "e1aaaa", ty: "s", k: "thoko banda|mathematics", st: "Thoko Banda", sub: "Mathematics", d: "2026-11-04", a: "present" };
+  const e2 = { id: "e2bbbb", ty: "s", k: "natasha chirwa|physics", st: "Natasha Chirwa", sub: "Physics", d: "2026-11-04", a: "late" };
+  const [r1, r2] = await Promise.all([call("tutor", { action: "entries", entries: [e1] }, EM), call("tutor", { action: "entries", entries: [e2] }, CH)]);
+  assert.equal(r1.status, 200, JSON.stringify(r1.j)); assert.equal(r2.status, 200, JSON.stringify(r2.j));
+  const rows = (await pool.query("SELECT id, ty, student_key, subject, day::text, tutor FROM logs WHERE id IN ('e1aaaa', 'e2bbbb') ORDER BY id")).rows;
+  assert.deepEqual(rows, [{ id: "e1aaaa", ty: "s", student_key: "thoko banda", subject: "Mathematics", day: "2026-11-04", tutor: "Emmanuel Mkwamba" },
+    { id: "e2bbbb", ty: "s", student_key: "natasha chirwa", subject: "Physics", day: "2026-11-04", tutor: "Chisomo Banda" }]);
+  const mine = await call("tutor", null, EM, "GET");
+  assert.deepEqual(mine.j.entries.map(e => e.id).sort(), ["e1aaaa", "l1"], "a tutor sees only their own students' lines (including the copied one)");
+  const st = await call("state", null, DIR, "GET");
+  assert.ok(st.j.kv.lhq_logs.e.e1aaaa && st.j.kv.lhq_logs.e.e2bbbb, "staff see both");
+  const rep = await call("tutor", { action: "report", report: { d: "2026-11-04", comment: "Good day", rate: 4 } }, EM);
+  assert.equal(rep.status, 200); assert.ok(await one("SELECT 1 FROM tutor_reports WHERE tutor = 'Emmanuel Mkwamba' AND day = '2026-11-04'"));
+  const cl = await call("tutor", { action: "class", cls: { name: "Year 11 Maths", sub: "Mathematics", stu: ["thoko banda", "thoko banda"] } }, EM);
+  assert.equal(cl.status, 400, "a class needs two of the tutor's students");
+  // staff import keeps the record of imports beside the entries
+  await call("sync", { kv: { lhq_logs: { e: { e3cccc: { id: "e3cccc", ty: "s", k: "thoko banda|mathematics", st: "Thoko Banda", sub: "Mathematics", d: "2026-11-03", tutor: "Emmanuel Mkwamba", at: 9 } }, imports: [{ t: "Emmanuel Mkwamba", n: 1 }] } } }, DIR);
+  const st2 = await call("state", null, DIR, "GET");
+  assert.equal(Object.keys(st2.j.kv.lhq_logs.e).length, 4); assert.equal(st2.j.kv.lhq_logs.imports.length, 1);
+});
+
+test("migration 6 moves tutors' logs, classes and daily reports already in hub_kv", async () => {
+  const { MIGRATIONS } = await import("../netlify/lib/schema.mjs");
+  const sql = MIGRATIONS[5].sql, moveSql = sql.slice(sql.indexOf("INSERT INTO logs"));
+  await pool.query("INSERT INTO hub_kv (key, value, etag) VALUES ('kv/lhq_logs', $1, 'a'), ('kv/lhq_classes', $2, 'b'), ('kv/lhq_treps', $3, 'c')", [
+    JSON.stringify({ e: { m1: { id: "m1", ty: "r", k: "linga shaba|biology", sub: "Biology", d: "2026-10-30", tutor: "Peter Mvula", tk: "Cells", rv: 1, sc: 8, mx: 10 }, m2: { id: "m2", x: 1 } }, imports: [{ t: "Peter Mvula" }] }),
+    JSON.stringify({ c1: { id: "c1", name: "Year 10 Bio", tutor: "Peter Mvula", stu: ["a", "b"] } }),
+    JSON.stringify({ e: { t1: { id: "t1", d: "2026-10-30", tutor: "Peter Mvula", comment: "ok" } } })]);
+  await pool.query(moveSql);
+  assert.deepEqual(await one("SELECT ty, student_key, day::text, del FROM logs WHERE id = 'm1'"), { ty: "r", student_key: "linga shaba", day: "2026-10-30", del: false });
+  assert.equal((await one("SELECT del FROM logs WHERE id = 'm2'")).del, true);
+  assert.ok(await one("SELECT 1 FROM classes WHERE id = 'c1' AND name = 'Year 10 Bio'"));
+  assert.ok(await one("SELECT 1 FROM tutor_reports WHERE id = 't1'"));
+  assert.equal((await one("SELECT value->'imports'->0->>'t' AS t FROM settings WHERE key = 'hub:lhq_logs:rest'")).t, "Peter Mvula");
+});
+
 test.after(async () => { await pool.end(); });

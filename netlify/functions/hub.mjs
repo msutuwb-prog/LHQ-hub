@@ -641,7 +641,7 @@ async function tutorPost(req, me) {
   if (b.action === "class") {
     const c = b.cls || {}, id = /^[\w-]{4,40}$/.test(String(c.id || "")) ? c.id : "cl" + crypto.randomBytes(5).toString("hex");
     const stuKeys = new Set([...d.keys].map(k => k.split("|")[0]));
-    const stu = (Array.isArray(c.stu) ? c.stu : []).map(nk).filter(k => stuKeys.has(k));
+    const stu = [...new Set((Array.isArray(c.stu) ? c.stu : []).map(nk).filter(k => stuKeys.has(k)))];
     const cur = (await store().get("kv/lhq_classes", { type: "json" })) || {};
     if (cur[id] && nk(cur[id].tutor) !== nk(me.name)) return fail("That class belongs to another tutor.", 403);
     if (!c.del && !String(c.name || "").trim()) return fail("Give the class a name.");

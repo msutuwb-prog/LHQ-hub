@@ -6,6 +6,8 @@
      trash/<id>        -> doc_trash   (Recently deleted)
      kv/lhq_spend, kv/lhq_income -> money (one row per entry; the whole list is put together when read)
      kv/lhq_students   -> students    (the Hub's record in info.hub)
+     kv/lhq_logs       -> logs        (one row per logged line: session, SRA given or handed in, assessment marks)
+     kv/lhq_treps      -> tutor_reports, kv/lhq_classes -> classes
      kv/lhq_settings, _templates, _counters, _repEdits, _tlinks, _budget -> settings (key hub:lhq_…)
      everything else   -> hub_kv      (index, lists, logs: each moves to its own table in a later step)
    An etag changes on every write; a conditional write that loses the race returns { modified: false }, as Blobs does. */
@@ -57,29 +59,50 @@ const STUDENTS = {
   drop: (T, k) => T.q("UPDATE students SET info = info - 'hub' - 'hubKey' WHERE coalesce(info->>'hubKey', key) = $1", [k]),
   all: T => T.q("UPDATE students SET info = info - 'hub' - 'hubKey' WHERE info ? 'hub'")
 };
-const MAPS = { "kv/lhq_spend": MONEY("spend"), "kv/lhq_income": MONEY("income"), "kv/lhq_students": STUDENTS };
-const MAPLOCK = { "kv/lhq_spend": 4711100, "kv/lhq_income": 4711101, "kv/lhq_students": 4711102 };
+/* tutors' logs and daily reports: {e: {id: entry}, …}. The entries are rows; whatever else sits next to e (the record of
+   WhatsApp imports) is kept in settings as hub:lhq_logs:rest. Entries are never removed: a deleted one stays as {x: 1}. */
+const skOf = e => nk(String(e.k || "").split("|")[0] || e.st) || null;
+const ROWS = (table, cols) => ({
+  rows: T => T.q(`SELECT id AS k, body FROM ${table} ORDER BY id`),
+  etag: T => T.one(`SELECT coalesce(max(rev), 0)::text || '-' || count(*)::text AS etag, count(*)::int AS n FROM ${table}`),
+  put: (T, id, e) => { const c = cols(e), ks = Object.keys(c);
+    return T.q(`INSERT INTO ${table} (id, ${ks.join(", ")}, body) VALUES ($1, ${ks.map((_, i) => "$" + (i + 2)).join(", ")}, $${ks.length + 2})
+      ON CONFLICT (id) DO UPDATE SET ${ks.map(k => `${k} = EXCLUDED.${k}`).join(", ")}, body = EXCLUDED.body, rev = nextval('lhq_rev'), updated_at = now()`, [id, ...ks.map(k => c[k]), JSON.stringify(e)]); },
+  drop: null, all: T => T.q(`DELETE FROM ${table}`)
+});
+const LOGS = ROWS("logs", e => ({ ty: e.ty || null, student_key: skOf(e), subject: e.sub || null, day: day(e.d), tutor: e.tutor || null, del: !!e.x, at: num(e.at) == null ? null : Math.round(num(e.at)) }));
+const TREPS = ROWS("tutor_reports", e => ({ tutor: e.tutor || null, day: day(e.d) }));
+const CLASSES = ROWS("classes", e => ({ tutor: e.tutor || null, name: e.name || null, del: !!e.del }));
+const MAPS = { "kv/lhq_spend": MONEY("spend"), "kv/lhq_income": MONEY("income"), "kv/lhq_students": STUDENTS, "kv/lhq_logs": LOGS, "kv/lhq_treps": TREPS, "kv/lhq_classes": CLASSES };
+const WRAPPED = new Set(["kv/lhq_logs", "kv/lhq_treps"]);   // {e: {...}} with other fields beside e
+const MAPLOCK = { "kv/lhq_spend": 4711100, "kv/lhq_income": 4711101, "kv/lhq_students": 4711102, "kv/lhq_logs": 4711103, "kv/lhq_treps": 4711104, "kv/lhq_classes": 4711105 };
 const asTx = fn => tx(fn);
 async function mapGet(key) {
   return asTx(async T => {
-    const rows = await MAPS[key].rows(T);
-    if (!rows.length) return null;
+    const rows = await MAPS[key].rows(T), rest = WRAPPED.has(key) ? await T.one("SELECT value FROM settings WHERE key = $1 AND NOT del", ["hub:" + key.slice(3) + ":rest"]) : null;
+    if (!rows.length && !rest) return null;
     const v = {}; rows.forEach(r => { v[r.k] = r.body; });
-    return { v, etag: (await MAPS[key].etag(T)).etag };
+    const t = (await MAPS[key].etag(T)).etag;
+    return WRAPPED.has(key) ? { v: Object.assign({}, rest ? rest.value : {}, { e: v }), etag: t + "-" + canon(rest ? rest.value : {}).length } : { v, etag: t };
   });
 }
 async function mapPut(key, value, mode, match) {
   const M = MAPS[key];
   return tx(async T => {
     await T.q("SELECT pg_advisory_xact_lock($1)", [MAPLOCK[key]]);
+    const W = WRAPPED.has(key), rkey = "hub:" + key.slice(3) + ":rest";
+    const restOf = async () => { const r = W ? await T.one("SELECT value FROM settings WHERE key = $1 AND NOT del", [rkey]) : null; return r ? r.value : {}; };
+    const tagNow = async () => { const t = (await M.etag(T)).etag; return W ? t + "-" + canon(await restOf()).length : t; };
     const cur = await M.etag(T);
     if (mode === "new" && cur.n) return [];
-    if (mode === "match" && cur.etag !== match) return [];
+    if (mode === "match" && (await tagNow()) !== match) return [];
     const old = new Map((await M.rows(T)).map(r => [r.k, canon(r.body)]));
-    const next = value && typeof value === "object" ? value : {};
+    const whole = value && typeof value === "object" ? value : {}, next = W ? (whole.e && typeof whole.e === "object" ? whole.e : {}) : whole;
     for (const [k, e] of Object.entries(next)) if (e && typeof e === "object" && old.get(k) !== canon(e)) await M.put(T, k, e);
     if (M.drop) for (const k of old.keys()) if (!(k in next)) await M.drop(T, k);
-    return [{ etag: (await M.etag(T)).etag }];
+    if (W) { const rest = Object.assign({}, whole); delete rest.e;
+      await T.q("INSERT INTO settings (id, key, scope, value) VALUES ($1, $1, 'staff', $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, del = false", [rkey, JSON.stringify(rest)]); }
+    return [{ etag: await tagNow() }];
   });
 }
 
@@ -126,7 +149,7 @@ export const pgStore = {
     const e = tag(), r = await rowPut(key, value, e, o.onlyIfNew ? "new" : o.onlyIfMatch ? "match" : "", o.onlyIfMatch);
     return r.length ? { modified: true, etag: r[0].etag || e } : { modified: false };
   },
-  async delete(key) { if (MAPS[key]) { await tx(T => MAPS[key].all(T)); return; } if (SETTINGS.has(key)) { await q("UPDATE settings SET del = true WHERE key = $1", [skey(key)]); return; } const n = nsOf(key); if (!n) await q("DELETE FROM hub_kv WHERE key = $1", [key]); else await q(`DELETE FROM ${n.table} WHERE id = $1`, [key.slice(n.prefix.length)]); },
+  async delete(key) { if (MAPS[key]) { await tx(async T => { await MAPS[key].all(T); if (WRAPPED.has(key)) await T.q("UPDATE settings SET del = true WHERE key = $1", ["hub:" + key.slice(3) + ":rest"]); }); return; } if (SETTINGS.has(key)) { await q("UPDATE settings SET del = true WHERE key = $1", [skey(key)]); return; } const n = nsOf(key); if (!n) await q("DELETE FROM hub_kv WHERE key = $1", [key]); else await q(`DELETE FROM ${n.table} WHERE id = $1`, [key.slice(n.prefix.length)]); },
   async list({ prefix = "" } = {}) {
     const keys = [];
     for (const n of NS) {
