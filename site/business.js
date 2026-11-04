@@ -1,4 +1,4 @@
-/* LHQ Hub › Business: money in, spending, profit and loss, and budgets, for LHQ's financial year (July to June).
+/* LHQ Hub › Business: money in, spending, profit and loss, and budgets, for LHQ's financial year (1 September to 31 August, FY_START in defaults.js).
    Loaded by index.html before its main script; the page functions run later and use that script's helpers
    (esc, mk, ic, toast, openSheet, can, saved …).
 
@@ -17,9 +17,9 @@ window.BIZ = (function(){
   const monthName = m => { const [y, n] = m.split('-').map(Number); return `${MONL[n - 1]} ${y}`; };
   const monShort = m => MONL[+m.slice(5) - 1].slice(0, 3);
   const addMonth = (m, k) => { let [y, n] = m.split('-').map(Number); n += k; while(n > 12){ n -= 12; y++; } while(n < 1){ n += 12; y--; } return `${y}-${String(n).padStart(2, '0')}`; };
-  const fyOf = m => { const [y, n] = m.split('-').map(Number); return n >= 7 ? y : y - 1; };
-  const fyMonths = fy => Array.from({length:12}, (_, i) => addMonth(`${fy}-07`, i));
-  const fyLabel = fy => `July ${fy} – June ${fy + 1}`;
+  const fyOf = m => { const [y, n] = m.split('-').map(Number); return n >= FY_START ? y : y - 1; };
+  const fyMonths = fy => Array.from({length:12}, (_, i) => addMonth(`${fy}-${String(FY_START).padStart(2, '0')}`, i));
+  const fyLabel = fy => `${MONL[FY_START - 1]} ${fy} – ${MONL[(FY_START + 10) % 12]} ${fy + (FY_START === 1 ? 0 : 1)}`;
   const thisMonth = () => ym(today());
   const cats = () => { const L = lines(settingsKV().spendCats || DEFAULT_SPEND_CATS.join('\n')); return L.length ? L : DEFAULT_SPEND_CATS; };
   const methods = () => lines(settingsKV().methods);
@@ -39,7 +39,7 @@ window.BIZ = (function(){
   const budget = () => (store.get('lhq_budget', {}) || {}).m || {};
   const incomeAll = () => Object.values(store.get('lhq_income', {}) || {}).filter(e => e && !e.del);
   const incomeLive = () => incomeAll().filter(e => !e.skip);
-  /* periods: 'YYYY-MM' a month · 'qYYYY-N' quarter N of the financial year starting July YYYY · 'fyYYYY' the financial year */
+  /* periods: 'YYYY-MM' a month · 'qYYYY-N' quarter N of the financial year starting in September YYYY · 'fyYYYY' the financial year */
   const isQ = p => /^q\d{4}-[1-4]$/.test(p), isY = p => /^fy\d{4}$/.test(p), isM = p => /^\d{4}-\d{2}$/.test(p);
   const qOf = m => { const fy = fyOf(m), i = fyMonths(fy).indexOf(m); return `q${fy}-${Math.floor(i / 3) + 1}`; };
   const qMonths = q => { const [fy, n] = q.slice(1).split('-').map(Number); return fyMonths(fy).slice((n - 1) * 3, n * 3); };

@@ -12,6 +12,9 @@ const DEFAULT_HEARD = ['A friend or family member','Sibling at LHQ','Instagram',
 const FREE_CHANNELS = ['A friend or family member','Sibling at LHQ'];   // word of mouth: no spending behind it
 const DEFAULT_DISTRICTS = ['Lilongwe','Blantyre','Mzuzu','Zomba'];
 
+/* LHQ's financial year: 1 September to 31 August (the month it starts, 1–12) */
+const FY_START = 9;
+
 const DEFAULT_SETTINGS = {
   email:'learnhqes@gmail.com', phone:'265 992 525 250',
   bank:'National Bank of Malawi', accname:'LearnHQ Tutoring and Training',
