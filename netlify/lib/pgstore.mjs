@@ -5,6 +5,8 @@
      hist/<id>/<time>  -> doc_history (the previous version whenever a document is overwritten)
      trash/<id>        -> doc_trash   (Recently deleted)
      kv/lhq_spend, kv/lhq_income -> money (one row per entry; the whole list is put together when read)
+     kv/lhq_students   -> students    (the Hub's record in info.hub)
+     kv/lhq_settings, _templates, _counters, _repEdits, _tlinks, _budget -> settings (key hub:lhq_…)
      everything else   -> hub_kv      (index, lists, logs: each moves to its own table in a later step)
    An etag changes on every write; a conditional write that loses the race returns { modified: false }, as Blobs does. */
 import crypto from "node:crypto";
@@ -31,42 +33,77 @@ const NS = [
 const nsOf = key => NS.find(n => String(key).startsWith(n.prefix));
 const KV = { table: "hub_kv" };
 
-/* lists kept one row per entry: read as the whole {id: entry} list, written by saving only the entries that changed */
-const MAPS = { "kv/lhq_spend": "spend", "kv/lhq_income": "income" };
+/* lists kept one row per entry: read as the whole {id: entry} list, written by saving only the entries that changed.
+   money: entries are never removed (deleted ones stay marked), so the list only grows.
+   students: the Hub keeps its own record per student in info.hub (and its key in info.hubKey); a record left out of the
+   list (a student renamed to a new key) loses info.hub, while what the shared records keep about that student stays. */
+const MONEY = kind => ({
+  rows: T => T.q("SELECT id AS k, body FROM money WHERE kind = $1", [kind]),
+  etag: T => T.one("SELECT coalesce(max(rev), 0)::text || '-' || count(*)::text AS etag, count(*)::int AS n FROM money WHERE kind = $1", [kind]),
+  put: (T, id, e) => T.q(`INSERT INTO money (id, kind, entry_date, cat, amount, del, added_by, body) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+    ON CONFLICT (id) DO UPDATE SET kind = EXCLUDED.kind, entry_date = EXCLUDED.entry_date, cat = EXCLUDED.cat, amount = EXCLUDED.amount, del = EXCLUDED.del,
+      added_by = EXCLUDED.added_by, body = EXCLUDED.body, rev = nextval('lhq_rev'), updated_at = now()`,
+    [id, kind, day(e.date), e.cat || null, num(e.amount), !!e.del, e.by || null, JSON.stringify(e)]),
+  drop: null, all: T => T.q("DELETE FROM money WHERE kind = $1", [kind])
+});
+const sid = k => "st" + crypto.createHash("sha256").update(nk(k)).digest("hex").slice(0, 16);
+const STUDENTS = {
+  rows: T => T.q("SELECT coalesce(info->>'hubKey', key) AS k, info->'hub' AS body FROM students WHERE info ? 'hub' AND NOT del"),
+  etag: T => T.one("SELECT coalesce(max(rev), 0)::text || '-' || count(*)::text AS etag, count(*)::int AS n FROM students WHERE info ? 'hub' AND NOT del"),
+  put: (T, k, e) => T.q(`INSERT INTO students (id, key, name, level, school, info) VALUES ($1, $2, $3, $4, $5, $6)
+    ON CONFLICT (key) DO UPDATE SET name = EXCLUDED.name, level = EXCLUDED.level, school = EXCLUDED.school, del = false,
+      info = students.info || jsonb_build_object('hub', EXCLUDED.info->'hub', 'hubKey', EXCLUDED.info->'hubKey')`,
+    [sid(k), nk(k), String(e.name || k).trim() || k, e.level || null, e.school || null, JSON.stringify({ hub: e, hubKey: k })]),
+  drop: (T, k) => T.q("UPDATE students SET info = info - 'hub' - 'hubKey' WHERE coalesce(info->>'hubKey', key) = $1", [k]),
+  all: T => T.q("UPDATE students SET info = info - 'hub' - 'hubKey' WHERE info ? 'hub'")
+};
+const MAPS = { "kv/lhq_spend": MONEY("spend"), "kv/lhq_income": MONEY("income"), "kv/lhq_students": STUDENTS };
+const MAPLOCK = { "kv/lhq_spend": 4711100, "kv/lhq_income": 4711101, "kv/lhq_students": 4711102 };
+const asTx = fn => tx(fn);
 async function mapGet(key) {
-  const rows = await q("SELECT id, body FROM money WHERE kind = $1 ORDER BY id", [MAPS[key]]);
-  if (!rows.length) return null;
-  const v = {}; rows.forEach(r => { v[r.id] = r.body; });
-  const t = await one("SELECT coalesce(max(rev), 0)::text || '-' || count(*)::text AS etag FROM money WHERE kind = $1", [MAPS[key]]);
-  return { v, etag: t.etag };
+  return asTx(async T => {
+    const rows = await MAPS[key].rows(T);
+    if (!rows.length) return null;
+    const v = {}; rows.forEach(r => { v[r.k] = r.body; });
+    return { v, etag: (await MAPS[key].etag(T)).etag };
+  });
 }
 async function mapPut(key, value, mode, match) {
-  const kind = MAPS[key];
+  const M = MAPS[key];
   return tx(async T => {
-    await T.q("SELECT pg_advisory_xact_lock(4711100)");
-    const cur = await T.one("SELECT coalesce(max(rev), 0)::text || '-' || count(*)::text AS etag, count(*)::int AS n FROM money WHERE kind = $1", [kind]);
+    await T.q("SELECT pg_advisory_xact_lock($1)", [MAPLOCK[key]]);
+    const cur = await M.etag(T);
     if (mode === "new" && cur.n) return [];
     if (mode === "match" && cur.etag !== match) return [];
-    const old = new Map((await T.q("SELECT id, body FROM money WHERE kind = $1", [kind])).map(r => [r.id, canon(r.body)]));
-    for (const [id, e] of Object.entries(value || {})) {
-      if (!e || typeof e !== "object" || old.get(id) === canon(e)) continue;
-      await T.q(`INSERT INTO money (id, kind, entry_date, cat, amount, del, added_by, body) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-        ON CONFLICT (id) DO UPDATE SET kind = EXCLUDED.kind, entry_date = EXCLUDED.entry_date, cat = EXCLUDED.cat, amount = EXCLUDED.amount, del = EXCLUDED.del,
-          added_by = EXCLUDED.added_by, body = EXCLUDED.body, rev = nextval('lhq_rev'), updated_at = now()`,
-        [id, kind, day(e.date), e.cat || null, num(e.amount), !!e.del, e.by || null, JSON.stringify(e)]);
-    }
-    return [{ etag: (await T.one("SELECT coalesce(max(rev), 0)::text || '-' || count(*)::text AS etag FROM money WHERE kind = $1", [kind])).etag }];
+    const old = new Map((await M.rows(T)).map(r => [r.k, canon(r.body)]));
+    const next = value && typeof value === "object" ? value : {};
+    for (const [k, e] of Object.entries(next)) if (e && typeof e === "object" && old.get(k) !== canon(e)) await M.put(T, k, e);
+    if (M.drop) for (const k of old.keys()) if (!(k in next)) await M.drop(T, k);
+    return [{ etag: (await M.etag(T)).etag }];
   });
+}
+
+/* single values in the settings table: lists, messages, numbering, report edits, tutor links, budgets */
+const SETTINGS = new Set(["kv/lhq_settings", "kv/lhq_templates", "kv/lhq_counters", "kv/lhq_repEdits", "kv/lhq_tlinks", "kv/lhq_budget"]);
+const skey = key => "hub:" + key.slice(3);
+async function setGet(key) { return one("SELECT value AS v, ver::text AS etag FROM settings WHERE key = $1 AND NOT del", [skey(key)]); }
+async function setPut(key, value, mode, match) {
+  const k = skey(key), v = JSON.stringify(value);
+  if (mode === "new") return q("INSERT INTO settings (id, key, scope, value) VALUES ($1, $1, 'staff', $2) ON CONFLICT (key) DO NOTHING RETURNING ver::text AS etag", [k, v]);
+  if (mode === "match") return q("UPDATE settings SET value = $2, del = false WHERE key = $1 AND ver::text = $3 RETURNING ver::text AS etag", [k, v, match]);
+  return q("INSERT INTO settings (id, key, scope, value) VALUES ($1, $1, 'staff', $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, del = false RETURNING ver::text AS etag", [k, v]);
 }
 
 async function rowGet(key) {
   if (MAPS[key]) return mapGet(key);
+  if (SETTINGS.has(key)) return setGet(key);
   const n = nsOf(key);
   if (!n) return one("SELECT value AS v, etag FROM hub_kv WHERE key = $1", [key]);
   return one(`SELECT body AS v, etag FROM ${n.table} WHERE id = $1`, [key.slice(n.prefix.length)]);
 }
 async function rowPut(key, value, e, mode, match) {
   if (MAPS[key]) return mapPut(key, value, mode, match);
+  if (SETTINGS.has(key)) return setPut(key, value, mode, match);
   const n = nsOf(key), v = JSON.stringify(value);
   if (!n) {
     if (mode === "new") return q("INSERT INTO hub_kv (key, value, etag) VALUES ($1, $2, $3) ON CONFLICT (key) DO NOTHING RETURNING etag", [key, v, e]);
@@ -89,7 +126,7 @@ export const pgStore = {
     const e = tag(), r = await rowPut(key, value, e, o.onlyIfNew ? "new" : o.onlyIfMatch ? "match" : "", o.onlyIfMatch);
     return r.length ? { modified: true, etag: r[0].etag || e } : { modified: false };
   },
-  async delete(key) { if (MAPS[key]) { await q("DELETE FROM money WHERE kind = $1", [MAPS[key]]); return; } const n = nsOf(key); if (!n) await q("DELETE FROM hub_kv WHERE key = $1", [key]); else await q(`DELETE FROM ${n.table} WHERE id = $1`, [key.slice(n.prefix.length)]); },
+  async delete(key) { if (MAPS[key]) { await tx(T => MAPS[key].all(T)); return; } if (SETTINGS.has(key)) { await q("UPDATE settings SET del = true WHERE key = $1", [skey(key)]); return; } const n = nsOf(key); if (!n) await q("DELETE FROM hub_kv WHERE key = $1", [key]); else await q(`DELETE FROM ${n.table} WHERE id = $1`, [key.slice(n.prefix.length)]); },
   async list({ prefix = "" } = {}) {
     const keys = [];
     for (const n of NS) {
@@ -98,7 +135,8 @@ export const pgStore = {
       keys.push(...(await q(`SELECT id FROM ${n.table} WHERE id LIKE $1 ORDER BY id`, [like(rest)])).map(r => n.prefix + r.id));
     }
     keys.push(...(await q("SELECT key FROM hub_kv WHERE key LIKE $1 ORDER BY key", [like(prefix)])).map(r => r.key));
-    for (const [k, kind] of Object.entries(MAPS)) if (k.startsWith(prefix) && await one("SELECT 1 FROM money WHERE kind = $1 LIMIT 1", [kind])) keys.push(k);
+    for (const k of Object.keys(MAPS)) if (k.startsWith(prefix) && (await tx(T => MAPS[k].etag(T))).n) keys.push(k);
+    for (const k of SETTINGS) if (k.startsWith(prefix) && await setGet(k)) keys.push(k);
     return { blobs: keys.sort().map(key => ({ key })) };
   },
   /* not in Blobs: every value under a prefix in one query (all documents, newest first) */
@@ -108,6 +146,7 @@ export const pgStore = {
     if (n) return (await q(`SELECT body FROM ${n.table} WHERE id LIKE $1 ORDER BY id`, [like(prefix.slice(n.prefix.length))])).map(r => r.body);
     const out = (await q("SELECT key, value FROM hub_kv WHERE key LIKE $1 ORDER BY key", [like(prefix)])).map(r => [r.key, r.value]);
     for (const k of Object.keys(MAPS)) if (k.startsWith(prefix)) { const m = await mapGet(k); if (m) out.push([k, m.v]); }
+    for (const k of SETTINGS) if (k.startsWith(prefix)) { const m = await setGet(k); if (m) out.push([k, m.v]); }
     return out.sort((a, b) => a[0].localeCompare(b[0])).map(x => x[1]);
   }
 };

@@ -359,4 +359,21 @@ SELECT e.key, CASE WHEN k.key = 'kv/lhq_spend' THEN 'spend' ELSE 'income' END, l
 FROM hub_kv k, jsonb_each(k.value) e WHERE k.key IN ('kv/lhq_spend', 'kv/lhq_income') AND jsonb_typeof(e.value) = 'object'
 ON CONFLICT (id) DO NOTHING;
 DELETE FROM hub_kv WHERE key IN ('kv/lhq_spend', 'kv/lhq_income');
+` },
+  /* Step 4: students' details go to the students table (the Hub's record kept in info.hub, next to what the shared records
+     add), and the Hub's lists, messages, numbering, report edits, tutor links and budgets to the settings table. */
+  { id: 5, name: "students and settings", sql: `
+INSERT INTO students (id, key, name, level, school, info)
+SELECT 'st' || substr(encode(sha256(convert_to(lower(regexp_replace(trim(e.key), '\\s+', ' ', 'g')), 'UTF8')), 'hex'), 1, 16),
+  lower(regexp_replace(trim(e.key), '\\s+', ' ', 'g')), coalesce(nullif(e.value->>'name', ''), e.key), e.value->>'level', e.value->>'school',
+  jsonb_build_object('hub', e.value, 'hubKey', e.key)
+FROM hub_kv k, jsonb_each(k.value) e WHERE k.key = 'kv/lhq_students' AND jsonb_typeof(e.value) = 'object'
+ON CONFLICT (key) DO UPDATE SET info = students.info || jsonb_build_object('hub', EXCLUDED.info->'hub', 'hubKey', EXCLUDED.info->'hubKey');
+DELETE FROM hub_kv WHERE key = 'kv/lhq_students';
+
+INSERT INTO settings (id, key, scope, value)
+SELECT 'hub:' || substr(key, 4), 'hub:' || substr(key, 4), 'staff', value FROM hub_kv
+WHERE key IN ('kv/lhq_settings', 'kv/lhq_templates', 'kv/lhq_counters', 'kv/lhq_repEdits', 'kv/lhq_tlinks', 'kv/lhq_budget')
+ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;
+DELETE FROM hub_kv WHERE key IN ('kv/lhq_settings', 'kv/lhq_templates', 'kv/lhq_counters', 'kv/lhq_repEdits', 'kv/lhq_tlinks', 'kv/lhq_budget');
 ` }];

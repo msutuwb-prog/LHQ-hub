@@ -166,4 +166,27 @@ test("migration 4 moves spending and other money already in hub_kv into rows", a
   assert.ok(!(await one("SELECT 1 FROM hub_kv WHERE key = 'kv/lhq_income'")));
 });
 
+test("students: the Hub's record goes to the students table; a rename moves it; lists go to settings", async () => {
+  await call("sync", { kv: { lhq_students: { "thoko banda": { name: "Thoko Banda", level: "Year 11 · IGCSE", phone: "0991 000 111" }, "natasha chirwa": { name: "Natasha Chirwa" } } } }, DIR);
+  const t = await one("SELECT name, level, info->'hub'->>'phone' AS phone FROM students WHERE key = 'thoko banda'");
+  assert.deepEqual(t, { name: "Thoko Banda", level: "Year 11 · IGCSE", phone: "0991 000 111" });
+  await call("sync", { kv: { lhq_students: { "thoko phiri": { name: "Thoko Phiri", level: "Year 11 · IGCSE", phone: "0991 000 111" }, "natasha chirwa": { name: "Natasha Chirwa" } } } }, DIR);
+  const st = await call("state", null, DIR, "GET");
+  assert.deepEqual(Object.keys(st.j.kv.lhq_students).sort(), ["natasha chirwa", "thoko phiri"], "the old key is gone from the Hub's list");
+  assert.ok(await one("SELECT 1 FROM students WHERE key = 'thoko banda'"), "but the student row stays for the shared records");
+  assert.ok(await one("SELECT 1 FROM settings WHERE key = 'hub:lhq_settings'"), "lists are in settings");
+  await call("sync", { kv: { lhq_settings: { levels: "Year 10 · IGCSE" } } }, DIR);
+  assert.equal((await call("state", null, DIR, "GET")).j.kv.lhq_settings.levels, "Year 10 · IGCSE");
+  assert.equal((await one("SELECT count(*)::int n FROM hub_kv WHERE key IN ('kv/lhq_settings', 'kv/lhq_students')")).n, 0);
+});
+
+test("migration 5 moves students and lists already in hub_kv", async () => {
+  const { MIGRATIONS } = await import("../netlify/lib/schema.mjs");
+  await pool.query("INSERT INTO hub_kv (key, value, etag) VALUES ('kv/lhq_students', $1, 'e1'), ('kv/lhq_templates', $2, 'e2')",
+    [JSON.stringify({ "linga  shaba": { name: "Linga Shaba", school: "Bishop Mackenzie" } }), JSON.stringify({ emailSubject: "Hello {name}" })]);
+  await pool.query(MIGRATIONS[4].sql);
+  assert.deepEqual(await one("SELECT key, school, info->>'hubKey' AS hk FROM students WHERE key = 'linga shaba'"), { key: "linga shaba", school: "Bishop Mackenzie", hk: "linga  shaba" });
+  assert.equal((await one("SELECT value->>'emailSubject' AS s FROM settings WHERE key = 'hub:lhq_templates'")).s, "Hello {name}");
+});
+
 test.after(async () => { await pool.end(); });
