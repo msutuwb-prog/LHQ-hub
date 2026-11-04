@@ -31,6 +31,14 @@ const DEFAULT_SETTINGS = {
   sessionLengths: ['30 minutes','45 minutes','1 hour','1.5 hours','2 hours'].join('\n')
 };
 
+/* Saved settings over the built-in ones. A list left blank (or lost in a sync) falls back to the built-in list,
+   so a dropdown is never empty. */
+function withDefaults(saved){
+  const o = Object.assign({}, DEFAULT_SETTINGS, saved || {});
+  for(const k in DEFAULT_SETTINGS) if(String(DEFAULT_SETTINGS[k]).includes('\n') && !String(o[k] || '').trim()) o[k] = DEFAULT_SETTINGS[k];
+  return o;
+}
+
 const DEFAULT_TEMPLATES = {
   emailSubject: 'LHQ Learning Solutions – Tutoring {Type} {number}',
   emailBody:

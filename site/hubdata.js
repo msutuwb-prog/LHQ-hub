@@ -35,7 +35,7 @@
 
   let saved = [], settings = {};
   let rIdx = null;   // receipts by the invoice number they pay, built once per load (lists with thousands of documents stay quick)
-  function load(){ saved = store.get('lhq_saved', []); settings = Object.assign({}, window.DEFAULT_SETTINGS || {}, store.get('lhq_settings', {})); rIdx = null; return saved; }
+  function load(){ saved = store.get('lhq_saved', []); settings = window.withDefaults ? withDefaults(store.get('lhq_settings', {})) : Object.assign({}, window.DEFAULT_SETTINGS || {}, store.get('lhq_settings', {})); rIdx = null; return saved; }
   function receiptsFor(number){
     if(!rIdx){ rIdx = new Map(); saved.forEach(r => { if(r.type === 'receipt' && r.ref){ const k = String(r.ref).trim().toUpperCase(); if(!rIdx.has(k)) rIdx.set(k, []); rIdx.get(k).push(r); } }); }
     return rIdx.get(String(number || '').trim().toUpperCase()) || [];

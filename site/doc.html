@@ -15,6 +15,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Carlito:ital,wght@0,400;0,700;1,400;1,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="hub.css">
 <script src="theme.js"></script>
+<script src="picker.js" defer></script>
 <script>lhqPdfSoon();</script>
 <script src="pako.min.js"></script>
 <script src="store.js"></script>
@@ -913,7 +914,7 @@ const store = {
 };
 const F = id => document.getElementById(id);
 
-let settings = Object.assign({}, DEFAULT_SETTINGS, store.get('lhq_settings', {}));
+let settings = withDefaults(store.get('lhq_settings', {}));
 // one-off: invoices are now due on the day they're issued unless changed in settings
 if(!store.get('lhq_mig_due0', false)){ if(String(settings.dueDays)==='7'){ settings.dueDays = '0'; store.set('lhq_settings', settings); } store.set('lhq_mig_due0', true); }
 let templates = Object.assign({}, DEFAULT_TEMPLATES, store.get('lhq_templates', {}));
@@ -2109,7 +2110,7 @@ function toast(msg){ const t=F('toast'); t.textContent=msg; t.classList.add('sho
 window.hubToast = toast;
 window.hubApply = ()=>{
   saved = store.get('lhq_saved', []);
-  settings = Object.assign({}, DEFAULT_SETTINGS, store.get('lhq_settings', {}));
+  settings = withDefaults(store.get('lhq_settings', {}));
   templates = Object.assign({}, DEFAULT_TEMPLATES, store.get('lhq_templates', {}));
   const open = doc.id && saved.find(s=>s.id===doc.id);
   if(open && open.savedAt > (doc.savedAt||0) && open.updatedBy){ toast(`${open.number} was updated by ${open.updatedBy}. Open it again to see the changes.`); }

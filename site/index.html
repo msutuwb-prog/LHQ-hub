@@ -19,6 +19,7 @@ if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash)
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="hub.css">
 <script src="theme.js"></script>
+<script src="picker.js" defer></script>
 <script src="pako.min.js"></script>
 <script src="store.js"></script>
 <script src="sync.js"></script>
@@ -587,7 +588,7 @@ document.addEventListener('change', e => {
   if(!L.some(x => x.toLowerCase() === n.toLowerCase())){ L.push(n); st.districts = L.join('\n'); store.set('lhq_settings', st); }
   el.insertAdjacentHTML('beforeend', ''); const o = document.createElement('option'); o.textContent = n; el.insertBefore(o, el.querySelector('option[value="__add"]')); el.value = n;
 });
-function levelSelect(id, v){ const L = lines(HD.settings.levels); if(v && !L.includes(v)) L.unshift(v); return `<select class="in" id="${id}"><option value="">Choose</option>${L.map(x => `<option ${x === v ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>`; }
+function levelSelect(id, v){ const L = lines(settingsKV().levels); if(v && !L.includes(v)) L.unshift(v); return `<select class="in" id="${id}"><option value="">Choose</option>${L.map(x => `<option ${x === v ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select>`; }
 function schoolInput(id, v){ const L = (window.SCHOOLS || []).map(x => x.n || x.name || x); return `<input class="in" id="${id}" value="${esc(v)}" list="${id}_l" autocomplete="off"><datalist id="${id}_l">${L.map(x => `<option value="${esc(x)}">`).join('')}</datalist>`; }
 
 function newStudentSheet(thenQuote){
@@ -778,7 +779,7 @@ function setWrap(id, person){
   <div class="sw ${id ? 'page' : 'index'}"><nav class="snav">${navH}</nav><div class="spage">${id ? crumb(person ? '#set/people' : '#settings', person ? 'People & access' : 'Settings', person ? 'person/' : 'set/' + id) : ''}${page}</div></div>`;
 }
 const S = {};
-const settingsKV = () => Object.assign({}, DEFAULT_SETTINGS, store.get('lhq_settings', {}));
+const settingsKV = () => withDefaults(store.get('lhq_settings', {}));
 function saveSettings(fields){ const s = Object.assign({}, store.get('lhq_settings', {}), fields); store.set('lhq_settings', s); toast('Saved'); }
 const fieldRow = (id, l, v, attrs = '') => `<label class="f"><span>${l}</span><input class="in" id="${id}" value="${esc(v)}" ${attrs}></label>`;
 
@@ -976,7 +977,7 @@ S.backup = () => { const last = store.get('lhq_lastBackup', 0);
 
 /* previews have their own storage; the Director can fill it with demo data */
 let PREVIEW = false; try{ PREVIEW = sessionStorage.getItem('lhq_preview') === '1'; }catch(e){}
-fetch('/api/hub/people', {cache:'no-store'}).then(r => r.json()).then(j => { const was = PREVIEW; PREVIEW = !!j.preview; try{ sessionStorage.setItem('lhq_preview', PREVIEW ? '1' : '0'); }catch(e){} if(was !== PREVIEW) render(); }).catch(() => {});
+fetch('/api/hub/people?v=2', {cache:'no-store'}).then(r => r.json()).then(j => { const was = PREVIEW; PREVIEW = !!j.preview; try{ sessionStorage.setItem('lhq_preview', PREVIEW ? '1' : '0'); }catch(e){} if(was !== PREVIEW) render(); }).catch(() => {});
 S.demo = () => `<h2 class="sec-h">Demo data</h2><p class="sec-p">This preview has its own storage, separate from LHQ's real documents. Fill it with six months of made-up students to try every page.</p>
   <div class="card pad"><div class="cap">What you get</div>
   <p class="note" style="margin:0 0 6px">About 50 invented students from May to today (around 40 at a time): quotes, invoices, receipts and tuition cards; 50/50 plans; payments in grace and overdue; periods ending this week and renewed; ended students; quotes waiting; a card with no tutor; a sibling discount; a deleted receipt; tutors' session logs, SRAs and comments for Reports; and Business: spending from May to today with budgets, and repeating costs waiting to be confirmed.</p>
