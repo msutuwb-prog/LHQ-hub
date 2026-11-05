@@ -10,6 +10,7 @@
     "pg": "^8.23.1"
   },
   "scripts": {
-    "test": "node --test --test-concurrency=1 test/*.test.mjs"
+    "test": "node --test --test-concurrency=1 test/*.test.mjs",
+    "e2e": "node test/e2e/run.mjs"
   }
 }
