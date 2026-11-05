@@ -1031,14 +1031,14 @@ const SETS = [
   ['LHQ', [['people','users','People & access', () => isDir() || can('tutors')],['company','bank','Company & bank details', isDir],['payments','cash','Payments & due dates', isDir],['tutorinfo','users','Tutors\' contacts', () => isDir() || can('tutors') || can('msgs')]]],
   ['Documents', [['numbering','hash','Numbering', () => can('numbering')],['messages','msg','Messages', () => can('msgs')],['lists','list','Lists', () => can('msgs')]]],
   ['Enrolment & sending', [['enrol','link','Student checklist', () => me().role !== 'tutor'],['sending','wa','Email & WhatsApp', () => me().role !== 'tutor']]],
-  ['Data', [['backup','box','Backup & restore', () => can('backup')],['deleted','bin','Recently deleted', () => can('restore')],['demo','restore','Demo data (preview)', () => isDir() && PREVIEW]]],
+  ['Data', [['records.html','layout','Shared records', () => isDir()],['backup','box','Backup & restore', () => can('backup')],['deleted','bin','Recently deleted', () => can('restore')],['demo','restore','Demo data (preview)', () => isDir() && PREVIEW]]],
 ];
 const allowed = id => SETS.some(([, items]) => items.some(x => x[0] === id && (!x[3] || x[3]())));
 P.settings = () => setWrap(innerWidth >= 900 ? 'account' : null);   // wide screens: open the first section instead of an empty page
 P.set = id => setWrap(allowed(id) ? id : null);
 P.person = id => setWrap('people', id);
 function setWrap(id, person){
-  const navH = SETS.map(([g, items]) => { const vis = items.filter(x => !x[3] || x[3]()); return vis.length ? `<div class="g">${g}</div>${vis.map(([k, i, l]) => `<a class="${id === k ? 'on' : ''}" href="#set/${k}">${ic(i,18)}${l}</a>`).join('')}` : ''; }).join('');
+  const navH = SETS.map(([g, items]) => { const vis = items.filter(x => !x[3] || x[3]()); return vis.length ? `<div class="g">${g}</div>${vis.map(([k, i, l]) => `<a class="${id === k ? 'on' : ''}" href="${k.endsWith('.html') ? k : '#set/' + k}">${ic(i,18)}${l}</a>`).join('')}` : ''; }).join('');
   const page = id ? (person ? personPage(person) : S[id]()) : '<h2 class="sec-h">Settings</h2><p class="sec-p">Choose a section.</p>';
   return `${id ? '' : `<div class="ph"><div class="tt"><h1>Settings</h1><p>${esc(me().name || '')} · ${roleText(me())}</p></div></div>`}
   <div class="sw ${id ? 'page' : 'index'}"><nav class="snav">${navH}</nav><div class="spage">${id ? crumb(person ? '#set/people' : '#settings', person ? 'People & access' : 'Settings', person ? 'person/' : 'set/' + id) : ''}${page}</div></div>`;
