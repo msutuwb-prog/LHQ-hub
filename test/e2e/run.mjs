@@ -78,13 +78,16 @@ try {
   check(lg.ok, "the tutor logs two sessions", JSON.stringify(lg).slice(0, 200));
   await Tt.evaluate(async () => { try { await TUT.refresh(); } catch (e) {} }); await go(Tt, "#teach", 2000);
   check(/waiting for confirmation/.test(await text(Tt)), "the tutor sees the session waiting for confirmation");
-  await pull(A); await go(A, "#confirm", 1500);
-  check((await text(A)).includes(st), "Admin sees the session in Sessions to confirm");
+  await pull(A); await go(A, "#sessions", 1500);
+  check(/Linga Shaba · Mathematics[\s\S]{0,80}2 of 8 had/.test(await text(A)), "Admin's Sessions page counts 2 of 8 had for Linga", (await text(A)).slice(0, 400));
+  check((await api(A, "confirm", { action: "confirm", id: "e2es1x", how: "By phone" })).status === 403, "Admin doesn't confirm for the family: students do");
 
-  /* 5. Admin confirms one for the family, records a dispute on the other, the Director settles it */
-  await A.click('[data-cf="e2es1x"]'); await A.waitForTimeout(300); await A.fill("#cfHow", "By phone with Mrs Shaba"); await A.click('[data-cfdo="confirm"]'); await A.waitForTimeout(1500);
-  await A.click('[data-cf="e2es2x"]'); await A.waitForTimeout(300); await A.click('[data-cfmode="dispute"]'); await A.waitForTimeout(200);
-  await A.fill("#cfLost", "15"); await A.fill("#cfNote", "Started 15 minutes late"); await A.click('[data-cfdo="dispute"]'); await A.waitForTimeout(1500);
+  /* 5. Stand-ins for Stage 2: the student confirms one and disputes the other; the Director settles it; the tutor can't change a confirmed one */
+  const { pgStore } = await import("../../netlify/lib/pgstore.mjs");
+  const LG = await pgStore.get("kv/lhq_logs", { type: "json" });
+  LG.e.e2es1x.cf = { s: "confirmed", by: st, at: Date.now() };
+  LG.e.e2es2x.cf = { s: "disputed", by: st, from: st, at: Date.now(), note: "Started 15 minutes late", lost: 15 };
+  await pgStore.setJSON("kv/lhq_logs", LG);
   const rows = await sql("SELECT id, confirm FROM logs WHERE id IN ('e2es1x','e2es2x') ORDER BY id");
   check(JSON.stringify(rows) === JSON.stringify([{ id: "e2es1x", confirm: "confirmed" }, { id: "e2es2x", confirm: "disputed" }]), "the database has one confirmed and one disputed", JSON.stringify(rows));
   await pull(D); await go(D, "", 1500);
@@ -94,6 +97,25 @@ try {
   const tv = await text(Tt), old = await Tt.evaluate(d => TUT.dayLogs(d).map(x => x.s).join(" | "), addD(-2));
   check(/✓ confirmed/.test(tv) && /15 min taken off/.test(old), "the tutor sees today's session confirmed and the earlier one settled with 15 min off", tv.slice(0, 300) + " || " + old);
   check((await api(Tt, "confirm", { action: "confirm", id: "e2es1x", how: "me" })).status === 403, "a tutor can't confirm their own session");
+  const lock = await api(Tt, "tutor", { action: "entries", entries: [{ id: "e2es1x", ty: "s", k: "linga shaba|mathematics", st, sub: "Mathematics", d: today, a: "absent", t1: "14:00", t2: "15:00" }] });
+  check(lock.status === 409, "the tutor can't change a confirmed session", JSON.stringify(lock).slice(0, 200));
+
+  /* 5b. A clash: a second student in the same subject at the same time. The tutor teaches them together on Tuesdays and moves Thursday */
+  const c2 = await api(A, "sync", { upserts: [{ doc: Object.assign({}, base, { id: "e2ec2", type: "card", number: "TC-0002", date: today, student: "Tadala Phiri", where: "LHQ Centre",
+    subjects: [{ name: "Mathematics", tutor: "Emmanuel Mkwamba", days: ["Tu", "Th"], start: "14:00", end: "15:00", perWeek: "2", sessions: "8" }] }) }] });
+  check(!c2.error, "Admin makes a second card at the same time", JSON.stringify(c2).slice(0, 200));
+  await Tt.evaluate(async () => { try { await TUT.refresh(); } catch (e) {} }); await go(Tt, "#teach", 2000);
+  check(/Clashes to sort/.test(await text(Tt)) && /Linga Shaba and Tadala Phiri both have Mathematics with Emmanuel Mkwamba Tue 14:00/.test(await text(Tt)), "the tutor sees the clash on their Home");
+  await Tt.locator('[data-tclx^="together:group|emmanuel mkwamba|Tu|"]').click(); await Tt.waitForTimeout(2000);
+  check(!/Tue 14:00/.test((await text(Tt)).split("Clashes to sort")[1] || ""), "Teaching them together: Tuesday is no longer a clash");
+  await Tt.locator('[data-tclmove^="group|emmanuel mkwamba|Th|"]').click(); await Tt.waitForTimeout(800);
+  await Tt.locator('[data-mvpick]', { hasText: "Tadala" }).click(); await Tt.waitForTimeout(1500);
+  await Tt.locator('[data-mvto^="Th "]').first().click(); await Tt.waitForTimeout(2500);
+  const tad = (await sql("SELECT body FROM documents WHERE id = 'e2ec2'"))[0].body.subjects[0];
+  check(tad.times && tad.times.Th && tad.times.Th.s !== "14:00" && tad.days.join() === "Tu,Th", "the tutor moves Tadala's Thursday to a free time, keeping two days a week", JSON.stringify(tad));
+  check(!/Clashes to sort/.test(await text(Tt)), "no clashes left for the tutor");
+  await pull(A); await go(A, "", 1500);
+  check(/Tell the family: Tadala Phiri/.test(await text(A)), "Admin is asked to tell Tadala's family");
 
   /* 6. Admin records spending; the Director's Business shows it; the tutor can't open money */
   const spOk = await api(A, "sync", { kv: { lhq_spend: { e2esp1: { date: today, cat: "Stationery", amount: 45000, what: "Printer paper", method: "Cash", at: Date.now() } } } });
@@ -122,8 +144,8 @@ try {
 
   /* 7. Activity: the Director sees who did what */
   await go(D, "#activity", 2500); const av = await text(D);
-  const want = [["Catherine Mkwinda", /Made receipt RCT-0001 · Linga Shaba · MKW 120,000/], ["Emmanuel Mkwamba", /Logged 2 sessions/], ["Catherine Mkwinda", /Confirmed Linga Shaba · Mathematics/],
-    ["Catherine Mkwinda", /Recorded a dispute/], ["Wanangwa Msutu", /Settled Linga Shaba/], ["Catherine Mkwinda", /Recorded spending · Stationery · MKW 45,000/]];
+  const want = [["Catherine Mkwinda", /Made receipt RCT-0001 · Linga Shaba · MKW 120,000/], ["Emmanuel Mkwamba", /Logged 2 sessions/], ["Emmanuel Mkwamba", /Teaching them together: Linga Shaba and Tadala Phiri/],
+    ["Emmanuel Mkwamba", /Moved Tadala Phiri's Mathematics from Thu 14:00–15:00/], ["Wanangwa Msutu", /Settled Linga Shaba/], ["Catherine Mkwinda", /Recorded spending · Stationery · MKW 45,000/]];
   const actRows = await sql("SELECT a.summary, coalesce(p.name, a.data->>'who') who FROM activity a LEFT JOIN people p ON p.id = a.actor_id");
   for (const [who, re] of want) check(actRows.some(r => r.who === who && re.test(r.summary)) && re.test(av), `Activity: ${who} · ${re.source.replace(/\\/g, "")}`);
 

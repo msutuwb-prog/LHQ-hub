@@ -352,7 +352,7 @@ function parse(){
 function render(){
   load(); parse();
   if(me().role === 'tutor' && !['teach','settings','set'].includes(route.page)){ location.replace('#teach'); route = {page:'teach', args:[]}; }
-  const sec = route.page === 'teach' && me().role === 'tutor' ? ({sra:'tsra', report:'trep', cal:'tcal', avail:'tcal'}[route.args[0]] || 'teach') : {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', teach:'teach', tutors:'home', bookings:'home', reqs:'home'}[route.page] || route.page;
+  const sec = route.page === 'teach' && me().role === 'tutor' ? ({sra:'tsra', report:'trep', cal:'tcal', avail:'tcal'}[route.args[0]] || 'teach') : {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', teach:'teach', tutors:'home', bookings:'home', reqs:'home', sessions:'home', confirm:'home', clashes:'home', calendar:'calendar'}[route.page] || route.page;
   LHQNav.section(sec);
   const m = $('main');
   m.className = 'main' + (['home','edithome','new','students','student','tutors','teach'].includes(route.page) ? ' narrow' : '');
@@ -436,6 +436,13 @@ function attention(list){
           out.push({w:-1, s:{name:`${tn} hasn't seen ${c.student}'s card`}, href:openLink(c), ico:'clock', col:'--am', sub:`${c.number} · sent ${Math.floor((now - upd) / 36e5)} h ago`, btn:['Nudge', `https://wa.me/${ph ? waNum(ph) : ''}?text=${encodeURIComponent(msg)}`]}); }
       }));
     }
+    const CR = store.get('lhq_clashes', {}) || {}, OC = openClashes(), sentC = OC.filter(c => CR[c.key] && CR[c.key].s === 'admin');
+    if(sentC.length) out.push({w:-2, s:{name:`${sentC.length} clash${sentC.length === 1 ? '' : 'es'} sent to LHQ`}, href:'#clashes', ico:'alert', col:'--rd', sub:sentC.slice(0, 2).map(c => SCHED.clashText(c)).join(' · '), btn:['Sort', '#clashes']});
+    const TF = Object.values(store.get('lhq_moves', {}) || {}).filter(m => m && !m.told);
+    TF.forEach(m => { const sp = HD.students().find(x => SCHED.nk(x.name) === SCHED.nk(m.st)), msg = tellMsg(m);
+      out.push({w:-1, s:{name:`Tell the family: ${m.st}`}, href:'#clashes', ico:'msg', col:'--am', sub:`${m.sub} moves from ${SCHED.DAYN[m.from.day]} ${m.from.s} to ${SCHED.DAYN[m.to.day]} ${m.to.s} · moved by ${m.by}`, btn:['WhatsApp', `https://wa.me/${sp && sp.phone ? waNum(sp.phone) : ''}?text=${encodeURIComponent(msg)}`]}); });
+    const behind = sessionRows().filter(r => r.T.behind >= 2);
+    if(behind.length) out.push({w:0, s:{name:`${behind.length} student${behind.length === 1 ? '' : 's'} behind on sessions`}, href:'#sessions/behind', ico:'clock', col:'--am', sub:behind.slice(0, 3).map(r => `${r.it.st} · ${r.it.sub} ${r.T.behind} behind`).join(' · '), btn:['See', '#sessions/behind']});
     const MU = Object.values(store.get('lhq_makeups', {}) || {}).filter(m => m && m.status === 'asked');
     if(MU.length) out.push({w:-1, s:{name:`${MU.length} make-up${MU.length === 1 ? '' : 's'} to confirm`}, href:'#bookings', ico:'clock', col:'--am', sub:MU.slice(0, 3).map(m => `${m.st} · ${m.sub} · ${nice(m.d)} ${m.s}`).join(' · '), btn:['Review', '#bookings']});
     const RQ = reqList(), ap = RQ.filter(r => !r.dec.s), buy = RQ.filter(r => r.dec.s === 'approved');
@@ -558,9 +565,17 @@ let editDetails = false;
 P.student = (key, tab = 'overview') => {
   const s = HD.students().find(x => x.key === key);
   if(!s) return `${crumb('#students', 'Students')}<p class="empty">That student isn't here. They may have been renamed.</p>`;
-  const tabs = [['overview','Overview'],['documents',`Documents (${s.docs.length})`],['details','Details']];
+  const myRows = can('tutors') ? sessionRows().filter(r => SCHED.nk(r.it.st) === SCHED.nk(s.name)) : [];
+  const tabs = [['overview','Overview']].concat(myRows.length ? [['sessions','Sessions']] : [], [['documents',`Documents (${s.docs.length})`],['details','Details']]);
   let body = '';
   if(tab === 'overview') body = (window.PC ? PC.block('student', {s}, 'This period') : '') + stuOverview(s);
+  if(tab === 'sessions'){
+    body = myRows.map(({it, T}) => `<div class="h2">${esc(it.sub)} <em>${esc(it.tutor || 'No tutor')}</em></div><div class="card pad">
+      <div class="t-ses" style="grid-template-columns:repeat(4,1fr)"><div><b>${T.planned || '?'}</b><small>Planned</small></div><div><b>${T.had}</b><small>Had</small></div><div><b>${T.remaining}</b><small>Left</small></div><div><b>${T.owed}</b><small>Owed</small></div></div>${sBar(T)}
+      ${it.cap && T.planned < it.cap ? `<p class="note" style="margin:8px 0 0;color:var(--am);font-weight:700">The card's days only fit ${T.planned} of the ${it.cap} sessions paid for: add a day or a make-up.</p>` : ''}
+      <p class="note" style="margin:8px 0 0">${nice(it.pa)} – ${nice(it.b)}${it.cap ? ` · ${it.cap} sessions on the card` : ''} · ${T.confirmed} confirmed${T.waiting ? ` · ${T.waiting} waiting` : ''}${T.disputed ? ` · ${T.disputed} disputed` : ''}${T.lost ? ` · ${T.lost} min taken off` : ''} · ${T.behind ? `<b style="color:var(--am)">${T.behind} behind</b>` : 'on track'}</p></div>
+      <div class="card">${T.entries.slice().reverse().map(e => { const st = HD.cfState(e); return `<button class="it" ${st ? `data-cf="${esc(e.id)}"` : ''}>${st ? cfMark(st) : '<span class="cfm" style="border:2px solid var(--line)"></span>'}<span class="t"><b>${nice(e.d)}${e.t1 ? ' · ' + esc(e.t1) + '–' + esc(e.t2 || '') : ''}${e.mk ? ' · make-up' : ''}</b><small>${esc({attended:'On time', present:'Present', late:'Late', absent:'Absent: a make-up is owed', cancelled:'Cancelled: a make-up is owed'}[e.a] || e.a || '')}${st ? ' · ' + CFL[st] : ''}${(e.tp || []).length ? ' · ' + esc(e.tp.join(', ')) : ''} · ${esc(e.tutor || '')}</small></span></button>`; }).join('') || '<p class="empty">No sessions logged yet.</p>'}</div>`).join('');
+  }
   if(tab === 'documents'){
     body = `<div class="card">${s.docs.map(d => docRow(d, {noName:true})).join('') || '<p class="empty">No documents yet.</p>'}</div>
       ${can('quotes') ? `<a class="btn" href="${D('new=quote&student=' + encodeURIComponent(s.key))}">${ic('plus',16,2.2)} New quote for ${esc(first(s.name))}</a>` : ''}`;
@@ -770,38 +785,88 @@ const cfMark = st => st === 'disputed' ? '<span class="cfm dp">!</span>' : st ==
 const cfLine = e => { const st = HD.cfState(e), cf = e.cf || {};
   return st === 'waiting' ? `Confirms itself in ${Math.max(1, Math.round(HD.cfLeft(e) / 36e5))} h` : st === 'auto' ? 'No reply in 48 h' : st === 'confirmed' ? `By ${cf.by}${cf.how ? ' · ' + cf.how : ''}`
     : st === 'disputed' ? `${cf.from || 'The student'}: ${cf.note}` : st === 'settled' ? (cf.out === 'keep' ? 'The tutor\'s times stand' : `${cf.lost} min taken off`) + ` · by ${cf.by}` : ''; };
-P.confirm = (id = '') => {
-  if(!can('tutors')) return `${crumb('#home', 'Home')}<p class="empty">You don't have permission to confirm sessions.</p>`;
-  if(id){ setTimeout(() => confirmSheet(decodeURIComponent(id)), 0); }
-  const L = store.get('lhq_logs', {e:{}}), E = Object.values((L && L.e) || {}).filter(e => HD.cfState(e)), t = today();
-  const C = HD.sessionsToConfirm(), recent = E.filter(e => ['confirmed','settled'].includes(HD.cfState(e)) && dayDiff(e.d, t) <= 14).sort((a, b) => (b.cf.at || 0) - (a.cf.at || 0)).slice(0, 15);
-  const qq = (cfQuery || '').trim().toLowerCase(), hit = e => !qq || [e.st, e.sub, e.tutor].some(x => String(x || '').toLowerCase().includes(qq));
-  const disp = C.filter(e => HD.cfState(e) === 'disputed').filter(hit), wait = C.filter(e => HD.cfState(e) === 'waiting').filter(hit);
-  const days = {}; wait.forEach(e => (days[e.d] = days[e.d] || []).push(e));
+/* ---------- sessions: tutors log, students confirm (Stage 2), LHQ oversees and settles disputes ---------- */
+const SF = {tutor:'', q:''};
+function sessionRows(){
+  const t = today(), cards = saved.filter(x => typeOf(x) === 'card'), E = Object.values((store.get('lhq_logs', {e:{}}) || {}).e || {}).filter(Boolean);
+  return SCHED.items(cards, t).map(it => ({it, T: SCHED.tally(it, E, t, HD.cfState)})).sort((p, q) => q.T.behind - p.T.behind || p.it.st.localeCompare(q.it.st) || p.it.sub.localeCompare(q.it.sub));
+}
+const sBar = T => `<span class="t-pbar"><i style="width:${T.planned ? Math.min(100, Math.round(T.had / T.planned * 100)) : 0}%"></i>${T.planned ? `<b style="left:${Math.round(T.expected / T.planned * 100)}%" title="Where they should be by today"></b>` : ''}</span>`;
+const sLine = T => `${T.had} of ${T.planned || '?'} had · ${T.remaining} left${T.owed ? ` · ${T.owed} make-up${T.owed > 1 ? 's' : ''} owed` : ''}${T.waiting ? ` · ${T.waiting} waiting` : ''}${T.disputed ? ` · <b style="color:var(--rd)">${T.disputed} disputed</b>` : ''}`;
+const sTag = T => T.behind ? `<span class="tag am">${T.behind} behind</span>` : '<span class="tag ok">On track</span>';
+const stuHref = name => { const s0 = HD.students().find(x => SCHED.nk(x.name) === SCHED.nk(name)); return s0 ? stuLink(s0.key) + '/sessions' : '#students'; };
+P.sessions = (only = '') => {
+  if(!can('tutors')) return `${crumb('#home', 'Home')}<p class="empty">You don't have permission to see sessions.</p>`;
+  const R = sessionRows(), qq = SF.q.trim().toLowerCase();
+  const rows = R.filter(r => (!SF.tutor || r.it.tutor === SF.tutor) && (!qq || [r.it.st, r.it.sub, r.it.tutor].some(x => String(x).toLowerCase().includes(qq))) && (only !== 'behind' || r.T.behind));
+  const tutors = [...new Set(R.map(r => r.it.tutor).filter(Boolean))].sort();
+  const C = HD.sessionsToConfirm(), disp = C.filter(e => HD.cfState(e) === 'disputed'), wait = C.filter(e => HD.cfState(e) === 'waiting');
   const row = e => { const st = HD.cfState(e); return `<button class="it" data-cf="${esc(e.id)}">${cfMark(st)}<span class="t"><b>${esc(e.st)} · ${esc(e.sub)}</b><small>${nice(e.d)}${e.t1 ? ' ' + esc(e.t1) + '–' + esc(e.t2 || '') : ''} · ${esc(e.tutor || '')} · ${CFL[st]} · ${esc(cfLine(e))}</small></span><span class="chev">›</span></button>`; };
-  return `${crumb('#home', 'Home', 'confirm')}
-  <div class="ph"><div class="tt"><h1>Sessions to confirm</h1><p>A session counts once it's confirmed. With no reply it confirms itself 48 hours after the tutor logged it, so you only need to act when a family says something was different.</p></div></div>
-  <label class="f" style="max-width:420px"><input class="in" id="cfQ" type="search" placeholder="Find a student, subject or tutor" value="${esc(cfQuery)}" autocomplete="off"></label>
-  ${disp.length ? `<div class="h2">Disputed <em>${disp.length}</em></div><div class="card">${disp.map(row).join('')}</div>` : ''}
-  <div class="h2">Waiting <em>${wait.length}</em></div>
-  ${Object.keys(days).sort().reverse().map(d => `<div class="card"><div class="wk" style="padding:10px 16px 6px;font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">${nice(d)} · ${days[d].length}</div>${days[d].map(row).join('')}</div>`).join('') || `<div class="card"><p class="empty">${qq ? 'Nothing matches.' : 'Nothing waiting. ✓'}</p></div>`}
-  ${recent.length ? `<div class="h2">Confirmed in the last two weeks <em>${recent.length}</em></div><div class="card">${recent.map(row).join('')}</div>` : ''}`;
+  return `${crumb('#tutors', 'Tutors', 'sessions')}
+  <div class="ph"><div class="tt"><h1>Sessions</h1><p>Tutors log, and students confirm (from Stage 2). Until then a session confirms itself 48 hours after it's logged. You settle disputes and keep an eye on the count.</p></div></div>
+  ${disp.length ? `<div class="h2">Disputed · to settle <em>${disp.length}</em></div><div class="card">${disp.map(row).join('')}</div>` : ''}
+  <div class="actf"><label class="f" style="margin:0;flex:2;min-width:200px"><input class="in" id="sfQ" type="search" placeholder="Find a student, subject or tutor" value="${esc(SF.q)}" autocomplete="off"></label>
+    <label class="f" style="margin:0;flex:1;min-width:170px"><select class="in" id="sfT" aria-label="Tutor"><option value="">All tutors</option>${tutors.map(n => `<option ${SF.tutor === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label></div>
+  <div class="seg"><a class="${only !== 'behind' ? 'on' : ''}" href="#sessions">Everyone</a><a class="${only === 'behind' ? 'on' : ''}" href="#sessions/behind">Behind</a></div>
+  <div class="h2">${only === 'behind' ? 'Behind' : 'This period'} <em>${rows.length}</em></div>
+  <div class="card">${rows.map(r => `<a class="it" href="${stuHref(r.it.st)}" style="align-items:flex-start"><span class="t"><b>${esc(r.it.st)} · ${esc(r.it.sub)}</b><small>${esc(r.it.tutor || 'No tutor')} · ${sLine(r.T)}</small>${sBar(r.T)}</span>${sTag(r.T)}</a>`).join('') || `<p class="empty">${qq || SF.tutor ? 'Nothing matches.' : only === 'behind' ? 'Nobody is behind. ✓' : 'No current tuition cards.'}</p>`}</div>
+  <p class="note">The dark mark on each bar is where the student should be by today. A session counts once it's confirmed; a missed one is owed as a make-up.</p>
+  ${wait.length ? `<details class="card" style="padding:0"><summary class="it" style="cursor:pointer"><span class="t"><b>Waiting to confirm themselves · ${wait.length}</b><small>Within 48 hours of being logged</small></span></summary>${wait.slice().reverse().map(row).join('')}</details>` : ''}`;
 };
+P.confirm = (id = '') => { if(id) setTimeout(() => confirmSheet(decodeURIComponent(id)), 0); return P.sessions(); };
+
+/* ---------- clashes on the cards: the tutor has the final say; LHQ can do the same ---------- */
+function openClashes(){ const R = store.get('lhq_clashes', {}) || {}; return SCHED.weekClashes(saved.filter(x => typeOf(x) === 'card'), today()).filter(c => !(R[c.key] && R[c.key].s === 'together')); }
+const KINDL = {group:'Same subject at once: teaching them together?', tutor:'A tutor with two subjects at once', student:'A student with two subjects at once'};
+const tellMsg = m => `Hello, a small change to ${first(m.st)}'s timetable: ${m.sub} moves from ${SCHED.DAYN[m.from.day]}s ${m.from.s}–${m.from.e} to ${SCHED.DAYN[m.to.day]}s ${m.to.s}–${m.to.e}, from this week. The number of sessions stays the same. Thank you, LHQ`;
+P.clashes = () => {
+  if(!can('tutors')) return `${crumb('#home', 'Home')}<p class="empty">You don't have permission to sort clashes.</p>`;
+  const R = store.get('lhq_clashes', {}) || {}, W = SCHED.weekClashes(saved.filter(x => typeOf(x) === 'card'), today());
+  const sent = W.filter(c => R[c.key] && R[c.key].s === 'admin'), wait = W.filter(c => !R[c.key]), tog = W.filter(c => R[c.key] && R[c.key].s === 'together');
+  const moves = Object.values(store.get('lhq_moves', {}) || {}).filter(Boolean).sort((a, b) => b.at - a.at), tell = moves.filter(m => !m.told), done = moves.filter(m => m.told).slice(0, 10);
+  const row = c => { const r = R[c.key]; return `<div class="it" style="align-items:flex-start;flex-wrap:wrap"><span class="t" style="min-width:220px"><b style="white-space:normal">${esc(SCHED.clashText(c))}</b><small>${KINDL[c.kind]} · ${c.members.map(m => `${esc(c.kind === 'student' ? m.sub : m.st)} ${m.s}–${m.e} (${esc(m.number || '')})`).join(' · ')}${r ? ` · ${r.s === 'together' ? 'taught together' : 'sent to LHQ'} by ${esc(r.by)}${r.note ? ': ' + esc(r.note) : ''}` : ''}</small></span>
+    <span class="acts">${r && r.s === 'together' ? `<button class="btn sm" data-clx="reopen:${esc(c.key)}">Reopen</button>` : `${c.kind === 'group' ? `<button class="btn sm n" data-clx="together:${esc(c.key)}">Teaching them together</button>` : ''}<button class="btn sm${c.kind === 'group' ? '' : ' n'}" data-clmove="${esc(c.key)}">Move a session</button>`}</span></div>`; };
+  const mvRow = m => { const sp = HD.students().find(x => SCHED.nk(x.name) === SCHED.nk(m.st));
+    return `<div class="it" style="align-items:flex-start;flex-wrap:wrap"><span class="t" style="min-width:220px"><b>${esc(m.st)} · ${esc(m.sub)}</b><small>${SCHED.DAYN[m.from.day]} ${m.from.s}–${m.from.e} → ${SCHED.DAYN[m.to.day]} ${m.to.s}–${m.to.e} · ${m.n1} session${m.n1 === 1 ? '' : 's'}${m.n1 !== m.n0 ? ` (was ${m.n0})` : ''} · moved by ${esc(m.by)}${m.told ? ' · family told by ' + esc(m.told.by) : ''}</small></span>
+    ${m.told ? '' : `<span class="acts"><a class="btn sm" target="_blank" rel="noopener" href="https://wa.me/${sp && sp.phone ? waNum(sp.phone) : ''}?text=${encodeURIComponent(tellMsg(m))}">${ic('wa',14)} WhatsApp</a><button class="btn sm n" data-cltold="${esc(m.id)}">Told them</button></span>`}</div>`; };
+  return `${crumb('#calendar', 'Calendar', 'clashes')}<div class="ph"><div class="tt"><h1>Clashes</h1><p>Week by week, from the tuition cards. The tutor has the final say: they teach the students together, move one of their sessions to a free time, or send it to you. You can do the same.</p></div></div>
+  ${sent.length ? `<div class="h2">Sent to you <em>${sent.length}</em></div><div class="card">${sent.map(row).join('')}</div>` : ''}
+  ${tell.length ? `<div class="h2">Tell the family <em>${tell.length}</em></div><div class="card">${tell.map(mvRow).join('')}</div>` : ''}
+  <div class="h2">Waiting for the tutor <em>${wait.length}</em></div><div class="card">${wait.map(row).join('') || '<p class="empty">No clashes. ✓</p>'}</div>
+  ${tog.length ? `<div class="h2">Taught together <em>${tog.length}</em></div><div class="card">${tog.map(row).join('')}</div>` : ''}
+  ${done.length ? `<div class="h2">Moved recently</div><div class="card">${done.map(mvRow).join('')}</div>` : ''}`;
+};
+/* move one session of a clash to a free time: shared by LHQ and the tutor's own page */
+async function clashMove(c, o = {}){
+  const mine = m => !o.me || SCHED.nk(m.tutor) === SCHED.nk(o.me), M = c.members.filter(mine);
+  const done = async () => { closeSheet(); if(o.after) await o.after(); else { await hub.pull(); render(); } };
+  const pick = async m => {
+    openSheet(`<div class="hx"><h3>Move ${esc(first(m.st))}'s ${esc(m.sub)}</h3><button class="ib" data-close>✕</button></div><p class="sp">Finding free times…</p>`);
+    let f; try{ f = await hub.api('clash', {method:'POST', body: JSON.stringify({action:'free', key:c.key, k:m.k})}); }catch(e){ closeSheet(); return toast(e.message); }
+    const ok = d => d.planned === f.n0;
+    openSheet(`<div class="hx"><h3>Move ${esc(first(m.st))}'s ${esc(m.sub)}</h3><button class="ib" data-close>✕</button></div>
+      <p class="sp">Now ${SCHED.DAYN[m.day]} ${m.s}–${m.e} · ${f.n0} session${f.n0 === 1 ? '' : 's'} this period. These times are free for ${esc(m.tutor)} and ${esc(first(m.st))}, inside LHQ's hours.</p>
+      ${f.days.map(d => `<div class="h2" style="margin-top:10px">${d.name}${d.day === m.day ? ' (same day)' : ''} <em style="${ok(d) ? '' : 'color:var(--am)'}">${d.planned} session${d.planned === 1 ? '' : 's'}${ok(d) ? ' ✓' : ` · was ${f.n0}`}</em></div>
+        ${!ok(d) && o.me ? `<p class="note" style="margin:0">Moving to ${d.name} changes the number of sessions, and the invoice was based on ${f.n0}. Send the clash to LHQ instead.</p>` : `<div style="display:flex;flex-wrap:wrap;gap:6px">${d.slots.map(t => `<button class="btn sm" data-mvto="${d.day} ${t}">${t}</button>`).join('')}</div>`}`).join('') || '<p class="empty">No free time this week. Send it to LHQ.</p>'}`);
+    $('sheet').querySelectorAll('[data-mvto]').forEach(b => b.onclick = async () => { const [day, t] = b.dataset.mvto.split(' '), d = f.days.find(x => x.day === day);
+      if(!ok(d) && !confirm(`This changes ${first(m.st)}'s ${m.sub} from ${f.n0} to ${d.planned} sessions, so the invoice may need changing. Move anyway?`)) return;
+      b.disabled = true;
+      try{ await hub.api('clash', {method:'POST', body: JSON.stringify({action:'move', key:c.key, k:m.k, to:{day, s:t}})}); toast(`Moved to ${SCHED.DAYN[day]} ${t}${o.me ? ': LHQ will tell the family' : ''}`); await done(); }catch(e){ b.disabled = false; toast(e.message); } });
+  };
+  if(M.length === 1) return pick(M[0]);
+  openSheet(`<div class="hx"><h3>Which session moves?</h3><button class="ib" data-close>✕</button></div><p class="sp">${esc(SCHED.clashText(c))}</p>
+    <div class="card">${M.map((m, i) => `<button class="it" data-mvpick="${i}"><span class="t"><b>${esc(m.st)} · ${esc(m.sub)}</b><small>${SCHED.DAYN[m.day]} ${m.s}–${m.e} · with ${esc(m.tutor)}</small></span><span class="chev">›</span></button>`).join('')}</div>`);
+  $('sheet').querySelectorAll('[data-mvpick]').forEach(b => b.onclick = () => pick(M[+b.dataset.mvpick]));
+}
+window.clashMove = clashMove;
 function confirmSheet(id, mode){
   const L = store.get('lhq_logs', {e:{}}), e = ((L && L.e) || {})[id]; if(!e) return toast('That session is no longer in the logs');
   const st = HD.cfState(e), cf = e.cf || {};
   const head = `<div class="hx"><h3>${esc(e.st)} · ${esc(e.sub)}</h3><button class="ib" data-close>✕</button></div>
     <p class="sp">${nice(e.d)}${e.t1 ? ' · ' + esc(e.t1) + '–' + esc(e.t2 || '') : ''} · with ${esc(e.tutor || 'the tutor')} · ${esc({present:'Present', late:'Late'}[e.a] || e.a || '')}</p>
     <div class="card pad" style="margin:0 0 12px">${cfMark(st)} <b>${CFL[st]}</b><p class="note" style="margin:4px 0 0">${esc(cfLine(e))}</p>${st === 'settled' && cf.note2 ? `<p class="note" style="margin:4px 0 0">${esc(cf.note2)}</p>` : ''}${st === 'settled' || st === 'disputed' ? `<p class="note" style="margin:4px 0 0">Disputed by ${esc(cf.from || 'the student')}${cf.t1 ? ` · says ${esc(cf.t1)}–${esc(cf.t2 || '')}` : ''}${cf.disputedBy || cf.by ? ' · recorded by ' + esc(cf.disputedBy || cf.by) : ''}</p>` : ''}</div>`;
-  let body = '';
-  if(st === 'waiting' && mode !== 'dispute') body = `<label class="f"><span>How was it confirmed?</span><input class="in" id="cfHow" placeholder="e.g. By phone with Mrs Banda"></label>
-    <button class="btn n full" data-cfdo="confirm">Confirm for ${esc(first(e.st))}</button>
-    <button class="btn full" style="margin-top:8px" data-cfmode="dispute">${esc(first(e.st))} or a parent says something was different</button>`;
-  else if(mode === 'dispute' || (st === 'waiting' && mode === 'dispute')) body = `<div class="r2"><label class="f"><span>Who says so</span><input class="in" id="cfFrom" value="${esc(first(e.st))}"></label><label class="f"><span>Minutes lost</span><input class="in" id="cfLost" inputmode="numeric" placeholder="e.g. 20"></label></div>
-    <div class="r2"><label class="f"><span>Started (their account)</span><input class="in" id="cfT1" placeholder="e.g. 14:20"></label><label class="f"><span>Finished</span><input class="in" id="cfT2" placeholder="e.g. 15:30"></label></div>
-    <label class="f"><span>What was different</span><input class="in" id="cfNote" placeholder="e.g. Started 20 minutes late"></label>
-    <button class="btn n full" data-cfdo="dispute">Record the dispute</button><p class="note">The session is held until it's settled. ${esc(first(e.tutor || 'The tutor'))} sees it's disputed.</p>`;
-  else if(st === 'disputed') body = `<div class="h2" style="margin-top:4px">Settle it</div>
+  let body = st === 'waiting' ? `<p class="note">${esc(first(e.st))} confirms it from Stage 2. Until then it confirms itself in ${Math.max(1, Math.round(HD.cfLeft(e) / 36e5))} h. If something was wrong, ${esc(first(e.st))} and ${esc(first(e.tutor || 'the tutor'))} sort it out first; you settle it if they don't agree.</p>` : '';
+  if(st === 'disputed') body = `<div class="h2" style="margin-top:4px">Settle it</div>
     <div class="t-opts"><button type="button" role="radio" aria-checked="true" class="t-opt on" data-cfout="keep"><span class="t-ind c"></span><span class="tx">The tutor's times stand<small>The whole session counts</small></span></button>
     <button type="button" role="radio" aria-checked="false" class="t-opt" data-cfout="lost"><span class="t-ind c"></span><span class="tx">Take minutes off<small>Only the minutes taught count</small></span></button></div>
     <label class="f" id="cfLostF" style="margin-top:10px"><span>Minutes to take off</span><input class="in" id="cfLost" inputmode="numeric" value="${cf.lost || ''}"></label>
@@ -814,11 +879,10 @@ function confirmSheet(id, mode){
   sh.querySelectorAll('[data-cfout]').forEach(b => b.onclick = () => { sh.querySelectorAll('[data-cfout]').forEach(x => { const on = x === b; x.classList.toggle('on', on); x.setAttribute('aria-checked', on); }); lostF(); }); lostF();
   sh.querySelectorAll('[data-cfdo]').forEach(b => b.onclick = async () => {
     const action = b.dataset.cfdo, v = x => (O(x) || {}).value || '';
-    const body = action === 'confirm' ? {how: v('#cfHow')} : action === 'dispute' ? {from: v('#cfFrom'), lost: v('#cfLost'), t1: v('#cfT1'), t2: v('#cfT2'), note: v('#cfNote')}
-      : {out: (sh.querySelector('[data-cfout].on') || {}).dataset.cfout, lost: v('#cfLost'), note: v('#cfNote')};
+    const body = {out: (sh.querySelector('[data-cfout].on') || {}).dataset.cfout, lost: v('#cfLost'), note: v('#cfNote')};
     b.disabled = true;
     try{ await hub.api('confirm', {method:'POST', body: JSON.stringify(Object.assign({action, id}, body))}); await hub.pull(); closeSheet();
-      toast(action === 'confirm' ? 'Confirmed: it counts for reports and pay' : action === 'dispute' ? 'Dispute recorded: the session is held' : 'Settled'); render(); }
+      toast('Settled: both see the outcome'); render(); }
     catch(err){ b.disabled = false; toast(err.message); }
   });
 }
@@ -826,7 +890,7 @@ function confirmSheet(id, mode){
 /* ---------- Activity: everything done in the Hub, by whom (Director and Admin) ---------- */
 const ACT = {key:'', rows:[], people:[], areas:[], busy:false, err:'', more:false};
 const AF = {when:'week', areas:new Set(), who:''};
-const AREAL = {documents:'Documents', money:'Money', budgets:'Budgets', students:'Students', teaching:'Teaching', sessions:'Confirmations', people:'People', settings:'Settings', pay:'Pay'};
+const AREAL = {documents:'Documents', money:'Money', budgets:'Budgets', students:'Students', teaching:'Teaching', sessions:'Sessions', people:'People', settings:'Settings', pay:'Pay'};
 function actFrom(){ const d = new Date(); d.setHours(0, 0, 0, 0); if(AF.when === 'week') d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); if(AF.when === 'month') d.setDate(1); if(AF.when === 'all') return '2000-01-01'; return d.toISOString(); }
 async function actLoad(more){
   const key = [AF.when, [...AF.areas].sort().join(','), AF.who].join('|');
@@ -867,21 +931,21 @@ P.calendar = (view = 'week', d = '') => {
   Object.values(store.get('lhq_makeups', {}) || {}).filter(m => m && m.status !== 'no' && m.d >= from && m.d <= to).forEach(m => all.push({date:m.d, day:SCHED.dayCode(m.d), s:m.s, e:m.e, a:SCHED.mins(m.s), b:SCHED.mins(m.e), tutor:m.tutor, student:m.st, sub:m.sub, k:m.k, where:m.status === 'asked' ? 'Make-up · to confirm' : 'Make-up', card:'', mu:m}));
   all.sort((p, q) => p.date.localeCompare(q.date) || (p.a ?? 9999) - (q.a ?? 9999));
   const tutors = [...new Set(SCHED.sessions(cards, t, HD.addDays(t, 30)).map(e => e.tutor).filter(Boolean))].sort(), studs = [...new Set(all.map(e => e.student))].sort();
-  const cl = new Map(); SCHED.clashes(all).forEach(c => { cl.set(c.a, c.kind); cl.set(c.b, c.kind); });
+  const cl = new Map(); SCHED.clashes(all, store.get('lhq_clashes', {}) || {}).forEach(c => { cl.set(c.a, c.kind); cl.set(c.b, c.kind); });
   const L = all.filter(e => (!CF.tutor || e.tutor === CF.tutor) && (!CF.student || e.student === CF.student)).map(e => Object.assign(e, {clash: cl.get(e) || (e.tutor && SCHED.unavailable(avail, e.tutor, e.day, e.a, e.b).length ? 'unavailable' : '')}));
   const logs = Object.values((store.get('lhq_logs', {e:{}}) || {}).e || {}).filter(x => x && !x.x && x.ty === 's');
   const byD = {}; L.forEach(e => (byD[e.date] = byD[e.date] || []).push(e));
-  const nCl = L.filter(e => e.clash).length, CW = {tutor:'tutor in two places', student:'student has two subjects', unavailable:"in the tutor's unavailable time"};
+  const nCl = L.filter(e => e.clash && e.clash !== 'group').length, nGr = L.filter(e => e.clash === 'group').length, CW = {tutor:'tutor in two places', student:'student has two subjects', unavailable:"in the tutor's unavailable time", group:'same subject at once: the tutor says if they teach them together'}, CC = k => k === 'group' ? 'var(--am)' : 'var(--rd)';
   const row = e => { const lg = logs.find(x => x.k === e.k && x.d === e.date), st = lg ? (lg.a === 'absent' ? ' · student absent' : lg.a === 'cancelled' ? ' · cancelled' : ' · ✓ logged') : '';
-    return `<a class="it" href="${e.mu ? '#bookings' : D('d=' + e.card)}" style="${e.clash ? 'border-left:3px solid var(--rd)' : e.mu && e.mu.status === 'asked' ? 'border-left:3px dashed var(--am)' : ''}"><span class="cal-t">${e.s || '?'}<small>${e.e || ''}</small></span><span class="t"><b>${esc(e.student)} · ${esc(e.sub)}</b><small>${esc(e.tutor || 'No tutor yet')}${e.where ? ' · ' + esc(e.where) : ''}${st}${e.clash ? ` · <span style="color:var(--rd);font-weight:700">${CW[e.clash]}</span>` : ''}</small></span><span class="chev">›</span></a>`; };
+    return `<a class="it" href="${e.mu ? '#bookings' : D('d=' + e.card)}" style="${e.clash ? 'border-left:3px solid ' + CC(e.clash) : e.mu && e.mu.status === 'asked' ? 'border-left:3px dashed var(--am)' : ''}"><span class="cal-t">${e.s || '?'}<small>${e.e || ''}</small></span><span class="t"><b>${esc(e.student)} · ${esc(e.sub)}</b><small>${esc(e.tutor || 'No tutor yet')}${e.where ? ' · ' + esc(e.where) : ''}${st}${e.clash ? ` · <span style="color:${CC(e.clash)};font-weight:700">${CW[e.clash]}</span>` : ''}</small></span><span class="chev">›</span></a>`; };
   let body;
   if(view === 'month'){ const cells = []; for(let x = wk(from); x <= to || cells.length % 7; x = HD.addDays(x, 1)) cells.push(x);
     body = `<div class="cal-m">${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(k => `<span class="h">${k}</span>`).join('')}${cells.map(x => { const D0 = byD[x] || [];
-      return `<a class="cal-d${x < from || x > to ? ' out' : ''}${x === t ? ' now' : ''}" href="${go('day', x)}"><b>${+x.slice(8)}</b>${D0.length ? `<small${D0.some(e => e.clash) ? ' class="cl"' : ''}>${D0.length}</small>` : ''}</a>`; }).join('')}</div>`; }
+      return `<a class="cal-d${x < from || x > to ? ' out' : ''}${x === t ? ' now' : ''}" href="${go('day', x)}"><b>${+x.slice(8)}</b>${D0.length ? `<small${D0.some(e => e.clash && e.clash !== 'group') ? ' class="cl"' : D0.some(e => e.clash) ? ' class="cg"' : ''}>${D0.length}</small>` : ''}</a>`; }).join('')}</div>`; }
   else { const days = []; for(let x = from; x <= to; x = HD.addDays(x, 1)) days.push(x);
     body = days.map(x => { const D0 = byD[x] || []; if(view === 'week' && !D0.length) return ''; return `<div class="h2">${x === t ? 'Today · ' : ''}${WD[HD.parseISO(x).getDay()]} ${nice(x)} <em>${D0.length}</em></div><div class="card">${D0.map(row).join('') || '<p class="empty">No sessions.</p>'}</div>`; }).join('') || '<p class="empty">No sessions.</p>'; }
   return `${crumb('#tutors', 'Tutors', 'calendar')}
-  <div class="ph"><div class="tt"><h1>Calendar</h1><p>Every tutor's sessions from the tuition cards${nCl ? ` · <b style="color:var(--rd)">${nCl} in a clash</b>` : ''}</p></div></div>
+  <div class="ph"><div class="tt"><h1>Calendar</h1><p>Every tutor's sessions from the tuition cards${nCl ? ` · <b style="color:var(--rd)">${nCl} in a clash</b>` : ''}${nGr ? ` · <b style="color:var(--am)">${nGr} for tutors to confirm</b>` : ''}</p></div><div class="acts"><a class="btn" href="#clashes">Clashes${(n => n ? ' · ' + n : '')(openClashes().length)}</a></div></div>
   <div class="seg">${[['day','Day'],['week','Week'],['month','Month']].map(([k, l]) => `<a class="${view === k ? 'on' : ''}" href="${go(k, date)}">${l}</a>`).join('')}</div>
   <div class="actf"><label class="f" style="margin:0;flex:1;min-width:170px"><select class="in" id="calT" aria-label="Tutor"><option value="">All tutors</option>${tutors.map(n => `<option ${CF.tutor === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>
     <label class="f" style="margin:0;flex:1;min-width:170px"><select class="in" id="calS" aria-label="Student"><option value="">All students</option>${studs.map(n => `<option ${CF.student === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label></div>
@@ -946,7 +1010,7 @@ P.tutors = (show = '') => {
   const ppl = HD.people(), pid = n => (ppl.find(p => p.name.toLowerCase() === n.toLowerCase()) || {}).id;
   const row = ({s, card, x}) => `<a class="it" href="${openLink(card)}"><span class="t"><b>${esc(s.name)}</b><small>${esc([x.name, (x.days || []).join(' '), x.start ? x.start + '–' + (x.end || '') : ''].filter(Boolean).join(' · '))}</small></span><span class="chev">${ic('chev',16,2)}</span></a>`;
   return `${crumb('#home', 'Home', 'tutors')}
-  <div class="ph"><div class="tt"><h1>Tutors teaching now</h1><p>${list.length} tutor${list.length === 1 ? '' : 's'} on current tuition cards${none.length ? ` · ${none.length} subject${none.length === 1 ? '' : 's'} without a tutor` : ''}</p></div>${can('tutors') ? `<div class="acts"><a class="btn" href="#calendar">${ic('clock',15)} Calendar</a><a class="btn" href="#bookings">Make-ups</a><a class="btn" href="#reqs">Requisitions</a><a class="btn" href="#confirm">${ic('clock',15)} Sessions to confirm${(n => n ? ' · ' + n : '')(HD.sessionsToConfirm().filter(e => HD.cfState(e) === 'disputed').length)}</a></div>` : ''}</div>
+  <div class="ph"><div class="tt"><h1>Tutors teaching now</h1><p>${list.length} tutor${list.length === 1 ? '' : 's'} on current tuition cards${none.length ? ` · ${none.length} subject${none.length === 1 ? '' : 's'} without a tutor` : ''}</p></div>${can('tutors') ? `<div class="acts"><a class="btn" href="#calendar">${ic('clock',15)} Calendar</a><a class="btn" href="#bookings">Make-ups</a><a class="btn" href="#reqs">Requisitions</a><a class="btn" href="#sessions">${ic('clock',15)} Sessions${(n => n ? ' · ' + n + ' disputed' : '')(HD.sessionsToConfirm().filter(e => HD.cfState(e) === 'disputed').length)}</a><a class="btn" href="#clashes">Clashes${(n => n ? ' · ' + n : '')(openClashes().length)}</a></div>` : ''}</div>
   ${window.PC ? PC.block('tutors', {}, 'At a glance') : ''}
   ${none.length ? `<div class="h2" id="none">No tutor yet <em>${none.length}</em></div><div class="card" style="border-color:var(--gold)">${none.map(row).join('')}</div>` : ''}
   ${list.map(([n, items]) => { const st = new Set(items.map(i => i.s.key)).size, open = show === encodeURIComponent(n) || show === n;
@@ -1211,6 +1275,12 @@ function bind(){
   on('[data-go]', (el, e) => { if(!e.target.closest('a')) location.href = el.dataset.go; });
   document.querySelectorAll('[data-go][tabindex]').forEach(el => el.onkeydown = e => { if(e.key === 'Enter' && e.target === el) location.href = el.dataset.go; });
   on('[data-cf]', el => confirmSheet(el.dataset.cf));
+  on('[data-clx]', async el => { const [a, ...k] = el.dataset.clx.split(':'); el.disabled = true;
+    try{ await hub.api('clash', {method:'POST', body: JSON.stringify({action:a, key:k.join(':')})}); await hub.pull(); render(); toast(a === 'together' ? 'Taught together: no longer a clash' : 'Reopened'); }catch(e){ el.disabled = false; toast(e.message); } });
+  on('[data-clmove]', el => { const c = openClashes().concat(SCHED.weekClashes(saved.filter(x => typeOf(x) === 'card'), today())).find(x => x.key === el.dataset.clmove); if(c) clashMove(c); });
+  on('[data-cltold]', async el => { el.disabled = true; try{ await hub.api('clash', {method:'POST', body: JSON.stringify({action:'told', id:el.dataset.cltold})}); await hub.pull(); render(); toast('Marked told'); }catch(e){ el.disabled = false; toast(e.message); } });
+  if($('sfQ')) $('sfQ').oninput = e => { SF.q = e.target.value; const p = e.target.selectionStart; render(); const x = $('sfQ'); if(x){ x.focus(); x.setSelectionRange(p, p); } };
+  if($('sfT')) $('sfT').onchange = e => { SF.tutor = e.target.value; render(); };
   on('[data-rq]', el => { const [a, ...k] = el.dataset.rq.split(':'); reqSheet(a, k.join(':')); });
   on('[data-mu]', async el => { const [d, id] = el.dataset.mu.split(':');
     const go = async note => { try{ await hub.api('makeup', {method:'POST', body: JSON.stringify({id, decision:d, note})}); await hub.pull(); closeSheet(); render(); toast(d === 'ok' ? 'Confirmed: it\'s in the tutor\'s calendar' : 'Declined: the tutor can book again'); }catch(e){ toast(e.message); } };

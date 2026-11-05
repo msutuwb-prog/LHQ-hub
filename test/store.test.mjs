@@ -245,28 +245,34 @@ test("migration 6 moves tutors' logs, classes and daily reports already in hub_k
   assert.equal((await one("SELECT value->'imports'->0->>'t' AS t FROM settings WHERE key = 'hub:lhq_logs:rest'")).t, "Peter Mvula");
 });
 
-test("confirming a logged session: on the student's behalf, a dispute, settling it; tutors' re-saves keep it", async () => {
+test("sessions: LHQ only settles; a confirmed session is locked for the tutor; tutors' re-saves keep a confirmation", async () => {
   const tok = (await call("signin", { id: "emmanuel.mkwamba", password: "Maths!2026x" })).j.token;
-  const c0 = await call("confirm", { action: "confirm", id: "e1aaaa" }, DIR);
-  assert.equal(c0.status, 400, "LHQ has to say how it was confirmed");
+  assert.equal((await call("confirm", { action: "confirm", id: "e1aaaa", how: "By phone" }, DIR)).status, 403, "LHQ doesn't confirm for the family");
+  assert.equal((await call("confirm", { action: "dispute", id: "e3cccc", note: "late" }, DIR)).status, 403, "nor dispute for them");
   assert.equal((await call("confirm", { action: "confirm", id: "e1aaaa", how: "x" }, tok)).status, 403, "a tutor can't confirm their own session");
-  const c1 = await call("confirm", { action: "confirm", id: "e1aaaa", how: "By phone with Mrs Banda" }, DIR);
-  assert.equal(c1.status, 200, JSON.stringify(c1.j)); assert.equal(c1.j.entry.cf.s, "confirmed");
+  // stand-ins for Stage 2: e1 confirmed by the student, e3 disputed by the student
+  const { pgStore } = await import("../netlify/lib/pgstore.mjs");
+  const L = await pgStore.get("kv/lhq_logs", { type: "json" });
+  L.e.e1aaaa.cf = { s: "confirmed", by: "Thoko Banda", at: Date.now() };
+  L.e.e3cccc.cf = { s: "disputed", by: "Thoko Banda", at: Date.now(), from: "Thoko Banda", note: "Started 20 minutes late", t1: "14:20", t2: "15:30", lost: 20 };
+  await pgStore.setJSON("kv/lhq_logs", L);
   assert.equal((await one("SELECT confirm FROM logs WHERE id = 'e1aaaa'")).confirm, "confirmed");
-  // the tutor edits the session later from an older copy: the confirmation stays
-  const ed = await call("tutor", { action: "entries", entries: [{ id: "e1aaaa", ty: "s", k: "thoko banda|mathematics", st: "Thoko Banda", sub: "Mathematics", d: "2026-11-04", a: "late" }] }, tok);
-  assert.equal(ed.status, 200); const row = await one("SELECT confirm, body->>'a' AS a FROM logs WHERE id = 'e1aaaa'");
-  assert.deepEqual(row, { confirm: "confirmed", a: "late" });
-  // a dispute on another session, then settling it
-  assert.equal((await call("confirm", { action: "settle", id: "e3cccc", out: "keep" }, DIR)).status, 409, "only a disputed session can be settled");
-  const d = await call("confirm", { action: "dispute", id: "e3cccc", from: "Mrs Banda", note: "Started 20 minutes late", t1: "14:20", t2: "15:30", lost: 20 }, DIR);
-  assert.equal(d.status, 200); assert.equal(d.j.entry.cf.lost, 20);
-  assert.equal((await call("confirm", { action: "confirm", id: "e3cccc", how: "x" }, DIR)).status, 409, "a disputed session is settled, not confirmed");
+  const base = { id: "e1aaaa", ty: "s", k: "thoko banda|mathematics", st: "Thoko Banda", sub: "Mathematics", d: "2026-11-04", a: "present" };
+  // the tutor can't change a confirmed session's attendance or times
+  const no = await call("tutor", { action: "entries", entries: [Object.assign({}, base, { a: "late" })] }, tok);
+  assert.equal(no.status, 409, JSON.stringify(no.j)); assert.match(no.j.error, /confirmed/);
+  // but can add topics, and the confirmation stays
+  const ed = await call("tutor", { action: "entries", entries: [Object.assign({}, base, { tp: ["Quadratics"] })] }, tok);
+  assert.equal(ed.status, 200, JSON.stringify(ed.j)); const row = await one("SELECT confirm, body->'tp'->>0 AS tp FROM logs WHERE id = 'e1aaaa'");
+  assert.deepEqual(row, { confirm: "confirmed", tp: "Quadratics" });
+  // LHQ settles the dispute
+  assert.equal((await call("confirm", { action: "settle", id: "e1aaaa", out: "keep" }, DIR)).status, 409, "only a disputed session can be settled");
+  assert.equal((await call("confirm", { action: "settle", id: "e3cccc", out: "keep" }, tok)).status, 403, "a tutor can't settle");
   const s2 = await call("confirm", { action: "settle", id: "e3cccc", out: "lost", lost: 20, note: "Agreed with both" }, DIR);
   assert.equal(s2.j.entry.cf.s, "settled"); assert.equal(s2.j.entry.cf.lost, 20); assert.equal(s2.j.entry.cf.note, "Started 20 minutes late");
   const st = await call("state", null, DIR, "GET");
   assert.equal(st.j.kv.lhq_logs.e.e3cccc.cf.s, "settled", "staff devices get it through the usual sync");
-  assert.equal((await call("confirm", { action: "confirm", id: "nope", how: "x" }, DIR)).status, 404);
+  assert.equal((await call("confirm", { action: "settle", id: "nope", out: "keep" }, DIR)).status, 404);
 });
 
 test("activity: every save leaves a line, in words, by whom; Admin doesn't see what they can't open", async () => {
@@ -284,7 +290,6 @@ test("activity: every save leaves a line, in words, by whom; Admin doesn't see w
   has(/^Changed levels$|^Changed Year & level$/, "a list changed");
   has(/^Logged a session · Thoko Banda · Mathematics · Wed 4 Nov$/, "a tutor's log, in their name");
   has(/^Sent the daily report for Wed 4 Nov/, "a daily report");
-  has(/^Confirmed Thoko Banda · Mathematics · Wed 4 Nov with Emmanuel Mkwamba for the family \(By phone with Mrs Banda\)$/, "a confirmation");
   has(/^Settled Thoko Banda · Mathematics · Tue 3 Nov with Emmanuel Mkwamba: 20 min taken off$/, "a settlement");
   const tutorLine = r.j.rows.find(x => /^Logged a session · Thoko/.test(x.summary));
   assert.equal(tutorLine.who, "Emmanuel Mkwamba");
@@ -354,6 +359,42 @@ test("make-ups: a tutor books, LHQ confirms or declines; requisitions: the Direc
   const g2 = await call("tutor", null, tok, "GET");
   assert.equal(g2.j.reqs[key1].s, "declined"); assert.equal(g2.j.reqs[key0].s, "bought", "the tutor sees both decisions");
   assert.equal((await call("sync", { kv: { lhq_reqs: { x: 1 } } }, (await call("signin", { id: "chisomo.banda", password: "Physics!2026x" })).j.token)).status, 403);
+});
+
+test("clashes: the tutor teaches them together, or moves a session to a free time keeping the count; LHQ tells the family", async () => {
+  const tok = (await call("signin", { id: "emmanuel.mkwamba", password: "Maths!2026x" })).j.token;
+  const other = (await call("signin", { id: "chisomo.banda", password: "Physics!2026x" })).j.token;
+  const day = n => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
+  const line = { name: "Chemistry", tutor: "Emmanuel Mkwamba", days: ["Tu"], start: "11:00", end: "12:00" };
+  await call("sync", { upserts: [{ doc: { id: "cg1", type: "card", number: "TC-0101", student: "Natasha Chirwa", periodStart: day(-3), periodEnd: day(40), subjects: [line] } },
+    { doc: { id: "cg2", type: "card", number: "TC-0102", student: "Tadala Phiri", periodStart: day(-3), periodEnd: day(40), subjects: [line] } }] }, DIR);
+  const g = await call("tutor", null, tok, "GET");
+  const c = g.j.clashes.find(x => x.kind === "group" && x.sub === "Chemistry");
+  assert.ok(c, JSON.stringify(g.j.clashes).slice(0, 300)); assert.equal(c.text, "Natasha Chirwa and Tadala Phiri both have Chemistry with Emmanuel Mkwamba Tue 11:00");
+  assert.equal((await call("clash", { action: "together", key: c.key }, other)).status, 403, "another tutor can't answer it");
+  const t = await call("clash", { action: "together", key: c.key }, tok); assert.equal(t.status, 200, JSON.stringify(t.j));
+  assert.equal((await call("tutor", null, tok, "GET")).j.clashes.find(x => x.key === c.key).res.s, "together");
+  assert.equal((await call("clash", { action: "reopen", key: c.key }, tok)).status, 403, "only LHQ reopens");
+  assert.equal((await call("clash", { action: "reopen", key: c.key }, DIR)).status, 200);
+  // move Tadala to another time the same day: the count stays
+  const k = "tadala phiri|chemistry", f = await call("clash", { action: "free", key: c.key, k }, tok);
+  assert.equal(f.status, 200, JSON.stringify(f.j)); const tu = f.j.days.find(x => x.day === "Tu");
+  assert.ok(tu && !tu.slots.includes("11:00") && !tu.slots.includes("10:30") && tu.slots.includes("09:00"), JSON.stringify(f.j.days).slice(0, 300));
+  assert.equal(tu.planned, f.j.n0);
+  const change = f.j.days.find(x => x.planned !== f.j.n0);
+  if (change) assert.equal((await call("clash", { action: "move", key: c.key, k, to: { day: change.day, s: change.slots[0] } }, tok)).status, 409, "a move that changes the count goes to LHQ");
+  const mv = await call("clash", { action: "move", key: c.key, k, to: { day: "Tu", s: "09:00" } }, tok);
+  assert.equal(mv.status, 200, JSON.stringify(mv.j)); assert.deepEqual(mv.j.move.to, { day: "Tu", s: "09:00", e: "10:00" });
+  const doc = await one("SELECT body FROM documents WHERE id = 'cg2'");
+  assert.deepEqual(doc.body.subjects[0].times.Tu, { s: "09:00", e: "10:00" }); assert.equal(doc.body.updatedBy, "Emmanuel Mkwamba");
+  assert.ok(!(await call("tutor", null, tok, "GET")).j.clashes.some(x => x.sub === "Chemistry"), "sorted");
+  const ack = (await call("tutor", null, tok, "GET")).j.acks.cg2; assert.equal(ack.s, "ok", "their own move isn't news to them");
+  // LHQ tells the family
+  const st = await call("state", null, DIR, "GET"); const m = st.j.kv.lhq_moves[mv.j.move.id]; assert.equal(m.told, null);
+  assert.equal((await call("clash", { action: "told", id: m.id }, tok)).status, 403);
+  assert.equal((await call("clash", { action: "told", id: m.id }, DIR)).status, 200);
+  const act = (await call("activity", null, DIR, "GET")).j.rows.map(x => x.summary);
+  assert.ok(act.some(x => /^Moved Tadala Phiri's Chemistry from Tue 11:00–12:00 to Tue 09:00–10:00/.test(x)), act.slice(0, 10).join("\n"));
 });
 
 test.after(async () => { await pool.end(); });

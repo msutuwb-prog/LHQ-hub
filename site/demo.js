@@ -33,6 +33,22 @@
   const WEEKDAYS = ['Mo','Tu','We','Th','Fr'];
   const DAYS = [['Mo','We','Fr'],['Tu','Th','Sa'],['Mo','Tu','Th'],['We','Fr','Sa'],['Mo','We','Th'],['Tu','Fr','Sa']];
   const TIMES = [['14:00','15:00'],['15:00','16:00'],['16:00','17:00'],['17:00','18:00'],['10:00','11:30']];
+  /* a timetable that mostly works: each subject gets a time and days when its tutor and the student are both free (per
+     tuition period); when nothing fits, a clash is left in, as happens in real life */
+  const SLOTS = ['14:00','15:00','16:00','13:00','10:00','11:00','09:00','08:00','12:00'], WD6 = ['Mo','Tu','We','Th','Fr','Sa'], BUSY = {};
+  const hh = t => String(+t.slice(0, 2) + 1).padStart(2, '0') + ':00';
+  function place(a, b, tutor, stu, n, seed){
+    const L = k => (BUSY[k] = BUSY[k] || []), T = tutor ? L('t:' + tutor) : [], S = L('s:' + stu);
+    const taken = (X, ds) => X.some(x => x.ds === ds && x.a <= b && a <= x.b);
+    const order = WD6.slice(seed % 6).concat(WD6.slice(0, seed % 6));
+    for(const t of SLOTS){ const ok = order.filter(d => !taken(T, d + t) && !taken(S, d + t)); if(ok.length >= n){
+      const pickD = []; for(let i = 0; pickD.length < n && i < ok.length; i += Math.max(1, Math.floor(ok.length / n))) pickD.push(ok[i]); ok.forEach(d => { if(pickD.length < n && !pickD.includes(d)) pickD.push(d); });
+      pickD.forEach(d => { if(tutor) T.push({a, b, ds: d + t}); S.push({a, b, ds: d + t}); }); return {days: WD6.filter(d => pickD.includes(d)), start: t, end: hh(t)}; } }
+    return null;
+  }
+  /* the subject's tutors in turn, so a full timetable passes the student to the other tutor; if nobody is free, a clash stays */
+  const placeAny = (a, b, subj, tutor, stu, n, seed) => { const P = tutor ? [tutor].concat((POOL[subj] || []).filter(x => x !== tutor)) : [''];
+    for(const t of P){ const r = place(a, b, t, stu, n, seed); if(r) return Object.assign(r, {tutor: t}); } return {tutor: P[0], days: WEEKDAYS.slice(0, n), start: '16:00', end: '17:00'}; };
   const HEARD = ['A friend or family member','Instagram','Facebook','Study Smart Session','Their school','WhatsApp','Google','Sibling at LHQ'];
   const SCHOOLS = ['Bishop Mackenzie International School','The Lilongwe Academy International School','Sapitwa International School','Kamuzu Academy','St Andrew’s International High School','Phwezi Boys Secondary School','Lilongwe Private School','Saint Patrick’s Secondary School'];
 
@@ -112,7 +128,7 @@
         email: rnd() < 0.7 ? norm(parent).replace(/[^a-z]/g, '') + si + '@gmail.com' : '', address:pick(['Area 10','Area 43','Area 47','Area 12','Area 3','Area 18','Area 9']) + ', Lilongwe',
         school:SCHOOLS[si % SCHOOLS.length], heard: name === 'Natasha Banda' ? 'Sibling at LHQ' : pick(HEARD)};
       const cost = RATE(level);
-      const perWeek = subjects.map((x, i) => subjects.length >= 4 ? [3,4,4,5][(si + i) % 4] : [5,5,4,5][(si + i) % 4]);
+      const perWeek = subjects.map((x, i) => subjects.length >= 4 ? [2,3,2,3][(si + i) % 4] : [3,3,2,4][(si + i) % 4]);
       const items = subjects.map((x, i) => ({desc:x, days:String(perWeek[i]), sessions:String(perWeek[i] * 4), cost:String(cost)}));
       const disc = opt && opt.disc ? {discType:'pct', discValue:String(opt.pct), discReason:opt.disc} : {};
       const total = items.reduce((a, it) => a + (+it.sessions) * cost, 0) * (1 - ((opt && opt.pct) || 0) / 100);
@@ -153,9 +169,9 @@
         });
         // tuition card
         if(!(isCur && sit === 'nocard') && !(isCur && sit === 'unpaid_new') && invDay + 2 < 0){
-          const subs = subjects.map((x, i) => ({name:x, list:listFor(level, x), tutor: sit === 'notutor' && i === 0 ? '' : (si % 7 === 3 && x === 'Mathematics' && k > 1 ? 'Mayamiko Goliati' : tutorFor(x, si + i)),
-            days: WEEKDAYS.slice(0, perWeek[i]), perWeek:String(perWeek[i]), sessions:String(perWeek[i] * 4), mins:'1 hour', start:TIMES[(si + i) % TIMES.length][0], end:TIMES[(si + i) % TIMES.length][1], tier: /IGCSE/.test(level) && ['Mathematics','Physics','Chemistry','Biology'].includes(x) ? 'Extended' : '',
-            mode:'full', picks:{}, details:{}, custom:[], grade: pick(['B','C','C','D','A','']), basis: 'End of term results', when:'', note:'', openCh:''}));
+          const subs = subjects.map((x, i) => { const tu = sit === 'notutor' && i === 0 ? '' : (si % 7 === 3 && x === 'Mathematics' && k > 1 ? 'Mayamiko Goliati' : tutorFor(x, si + i)), pl = placeAny(inv.periodStart, inv.periodEnd, x, tu, name, perWeek[i], si + i); return {name:x, list:listFor(level, x), tutor: pl.tutor,
+            days: pl.days, perWeek:String(perWeek[i]), sessions:String(perWeek[i] * 4), mins:'1 hour', start:pl.start, end:pl.end, tier: /IGCSE/.test(level) && ['Mathematics','Physics','Chemistry','Biology'].includes(x) ? 'Extended' : '',
+            mode:'full', picks:{}, details:{}, custom:[], grade: pick(['B','C','C','D','A','']), basis: 'End of term results', when:'', note:'', openCh:''}; });
           lastCard = mk('card', invDay + 3, s, {from:'@' + inv.id, f:{ref:'@' + inv.id, school:s.school, where:pick(['LHQ Centre','LHQ Centre','Online']), exam: /IGCSE|A Level|AS/.test(level) ? 'May/June 2027' : '',
             cardNote: k === n - 1 ? pick(['Prefers worked examples first.','Shy in class; ask questions directly.','Strong at theory, needs exam practice.','Has a mock exam in late November.']) : (lastCard ? lastCard.cardNote : ''),
             subjects:subs, periodStart:inv.periodStart, periodEnd:inv.periodEnd, level}});
@@ -179,6 +195,14 @@
     const dupOf = docs.find(d => d.type === 'receipt');
     const trash = dupOf ? [Object.assign(JSON.parse(JSON.stringify(dupOf)), {id:'demodup', number:'RCT-' + String(C.receipt + 1).padStart(4, '0'), deletedBy:'Catherine Mkwinda', deletedAt:T - 2 * DAY})] : [];
 
+    // two clashes on purpose, to try the clash tools: one tutor with two students in the same subject at once (maybe a group),
+    // and one tutor with two different subjects at once
+    { const td = iso(now), cur = docs.filter(d => d.type === 'card' && d.periodEnd >= td && d.periodStart <= td);
+      const lines = []; cur.forEach(c => (c.subjects || []).forEach(x => x.tutor && lines.push({c, x})));
+      const same = lines.find(p => lines.some(q => q.c !== p.c && q.x.tutor === p.x.tutor && q.x.name === p.x.name));
+      if(same){ const q = lines.find(q => q.c !== same.c && q.x.tutor === same.x.tutor && q.x.name === same.x.name); q.x.days = same.x.days.slice(); q.x.start = same.x.start; q.x.end = same.x.end; }
+      const diff = lines.find(p => p !== same && lines.some(q => q.c !== p.c && q.x.tutor === p.x.tutor && q.x.name !== p.x.name));
+      if(diff){ const q = lines.find(q => q.c !== diff.c && q.x.tutor === diff.x.tutor && q.x.name !== diff.x.name); q.x.days = [diff.x.days[0]].concat(q.x.days.filter(d => d !== diff.x.days[0])).slice(0, q.x.days.length); q.x.start = diff.x.start; q.x.end = diff.x.end; } }
     // tutors' session logs and SRAs for the last 8 weeks
     const DN = {Su:0, Mo:1, Tu:2, We:3, Th:4, Fr:5, Sa:6}, imports = [];
     docs.filter(d => d.type === 'card').forEach(card => {

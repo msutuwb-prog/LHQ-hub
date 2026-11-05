@@ -16,9 +16,34 @@ test("sessions: every card day inside its period, with its own day's time", () =
   assert.equal(S.sessions([thoko], "2026-12-01", "2026-12-31").length, 0, "nothing after the period");
 });
 
-test("clashes: a tutor in two places at once", () => {
+test("clashes: the same subject at once is a possible group; a different subject is a tutor clash", () => {
   const C = S.clashes(S.sessions([thoko, linga], "2026-11-02", "2026-11-08"));
-  assert.equal(C.length, 1); assert.equal(C[0].kind, "tutor"); assert.equal(C[0].a.date, "2026-11-05");
+  assert.equal(C.length, 1); assert.equal(C[0].kind, "group"); assert.equal(C[0].a.date, "2026-11-05");
+  const bio = card("5", "Linga Shaba", [{ name: "Biology", tutor: "Emmanuel Mkwamba", days: ["Th"], start: "14:30", end: "15:30" }]);
+  const D = S.clashes(S.sessions([thoko, bio], "2026-11-02", "2026-11-08"));
+  assert.deepEqual(D.map(c => c.kind), ["tutor"]);
+});
+
+test("week by week: one question per group, a key that changes with the students or times, and 'together' clears it", () => {
+  const W = S.weekClashes([thoko, linga], "2026-11-05");
+  assert.equal(W.length, 1); assert.equal(W[0].kind, "group"); assert.equal(W[0].day, "Th");
+  assert.equal(S.clashText(W[0]), "Thoko Banda and Linga Shaba both have Mathematics with Emmanuel Mkwamba Thu 14:00");
+  const res = { [W[0].key]: { s: "together" } };
+  assert.equal(S.clashes(S.sessions([thoko, linga], "2026-11-02", "2026-11-08"), res).length, 0, "answered: no clash on the calendar");
+  const moved = JSON.parse(JSON.stringify(linga)); moved.subjects[0].times.Th = { s: "14:00", e: "15:00" };
+  assert.notEqual(S.weekClashes([thoko, moved], "2026-11-05")[0].key, W[0].key, "times changed: asked again");
+  assert.equal(S.clashes(S.sessions([thoko, moved], "2026-11-02", "2026-11-08"), res).length, 1);
+  assert.equal(S.weekClashes([thoko, linga], "2026-12-01").length, 0, "cards that have ended don't count");
+});
+
+test("session counts: planned from the card (capped by a set number), had, owed, behind, confirmed", () => {
+  assert.equal(S.planned(thoko, thoko.subjects[0]), 8);
+  assert.equal(S.planned(thoko, Object.assign({}, thoko.subjects[0], { sessions: "6" })), 6);
+  assert.equal(S.planned(thoko, thoko.subjects[0], ["Mo", "We", "Fr"]), 12, "a move to three days would change the count");
+  const E = [{ id: "a", ty: "s", k: "thoko banda|mathematics", d: "2026-11-03", a: "attended" }, { id: "b", ty: "s", k: "thoko banda|mathematics", d: "2026-11-05", a: "absent" },
+    { id: "c", ty: "s", k: "thoko banda|mathematics", d: "2026-11-10", a: "late", cf: { s: "disputed" } }];
+  const T = S.tally({ k: "thoko banda|mathematics", days: ["Tu", "Th"], pa: "2026-11-02", b: "2026-11-29" }, E, "2026-11-12", e => e.cf ? e.cf.s : "auto");
+  assert.deepEqual([T.planned, T.expected, T.had, T.owed, T.remaining, T.behind, T.confirmed, T.disputed], [8, 4, 2, 1, 5, 1, 1, 1]);
 });
 
 test("the card check: the tutor's other cards, the student's own subjects, unavailable times", () => {
@@ -48,5 +73,5 @@ test("a tutor's version of a card changes only with their own lines", () => {
   assert.equal(S.sigFor(otherTutorChanged, "Emmanuel Mkwamba"), before);
   const mine = JSON.parse(JSON.stringify(thoko)); mine.subjects[0].days = ["Tu", "Fr"];
   assert.notEqual(S.sigFor(mine, "Emmanuel Mkwamba"), before);
-  assert.deepEqual(S.linesFor(thoko, "Emmanuel Mkwamba"), ["Mathematics · Tue 14:00–15:00, Thu 14:00–15:00"]);
+  assert.deepEqual(S.linesFor(thoko, "Emmanuel Mkwamba"), ["Mathematics · Tue 14:00–15:00, Thu 14:00–15:00 · 8 sessions, 2 Nov – 29 Nov"]);
 });

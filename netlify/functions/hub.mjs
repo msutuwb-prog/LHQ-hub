@@ -52,7 +52,7 @@ async function usesDbStore() {
 /* compare two values whatever order their keys come in (the database keeps keys in its own order) */
 const canon = v => JSON.stringify(v, (k, x) => x && typeof x === "object" && !Array.isArray(x) ? Object.keys(x).sort().reduce((o, key) => (o[key] = x[key], o), {}) : x);
 
-const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes", "lhq_treps", "lhq_avail", "lhq_cardack", "lhq_makeups", "lhq_reqs"];
+const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes", "lhq_treps", "lhq_avail", "lhq_cardack", "lhq_makeups", "lhq_reqs", "lhq_clashes", "lhq_moves"];
 
 /* ---------- roles and permissions ---------- */
 const PERMS = ["quotes", "receipts", "cards", "delete", "restore", "students", "money", "tpay", "tutors", "msgs", "numbering", "backup", "classes", "moveclass", "spend", "pl"];
@@ -307,8 +307,8 @@ async function checkSync(me, upserts, deletes, kv) {
       const ch = Object.keys(v || {}).filter(id => canon(v[id]) !== canon(old[id]) && (!old[id] || (v[id].at || 0) >= (old[id].at || 0)));
       if (ch.length && !can(me, "spend")) return "You don't have permission to record spending.";
       if (ch.some(id => old[id] && old[id].by !== me.name)) return "You can only change spending you recorded. Ask the Director to change the others.";
-    } else if (["lhq_makeups", "lhq_reqs", "lhq_treps"].includes(k)) {
-      if (changedKeys(old, v).length) return "Make-ups, requisitions and tutors' reports change through their own buttons.";
+    } else if (["lhq_makeups", "lhq_reqs", "lhq_treps", "lhq_clashes", "lhq_moves"].includes(k)) {
+      if (changedKeys(old, v).length) return "Make-ups, requisitions, clashes and tutors' reports change through their own buttons.";
     } else if (k === "lhq_avail" || k === "lhq_cardack") {
       if (changedKeys(old, v).length && !can(me, "tutors")) return "You don't have permission to change tutors' times.";
     } else if (k === "lhq_budget") {
@@ -345,6 +345,12 @@ async function sync(req, me) {
   const kvIn = body.kv && typeof body.kv === "object" ? Object.entries(body.kv).filter(([k]) => KV_KEYS.includes(k)) : [];
   const denied = await checkSync(me, upserts, deletes, kvIn);
   if (denied) return json({ error: denied, denied: true }, 403);
+  const r = await writeDocs(me, upserts, deletes, kvIn);
+  return r.error ? fail(r.error, 409) : json(r);
+}
+/* save documents (and shared lists) safely, with history and Activity: used by sync and by a tutor moving a session */
+async function writeDocs(me, upserts, deletes = [], kvIn = []) {
+  const s = store(), now = Date.now();
   const remap = {}, conflicts = [], saved = []; let kvOld = {};
   for (let attempt = 0; attempt < 5; attempt++) {
     const { data: idx, etag } = await getIndex();
@@ -392,9 +398,9 @@ async function sync(req, me) {
       await s.setJSON("doc/" + w.d.id, w.d); saved.push(w.d);
     }
     await syncActivity(me, writes, kvIn, kvOld, merged);
-    return json({ rev: idx.rev, epoch: idx.epoch, remap, conflicts, saved, kv: merged });
+    return { rev: idx.rev, epoch: idx.epoch, remap, conflicts, saved, kv: merged };
   }
-  return fail("Too many saves at once. Try again.", 409);
+  return { error: "Too many saves at once. Try again." };
 }
 
 /* ---------- Activity: one line for everything done in the Hub, by whom (database on). Never stops a save if it fails. ---------- */
@@ -500,12 +506,82 @@ async function decideReq(req, me) {
   return json({ ok: true, req: v });
 }
 
+/* Clashes on the tuition cards, week by week. The tutor has the final say: they teach the students together, move one of
+   their own sessions to a free time (only if the number of sessions stays the same, because the invoice was based on it),
+   or send it to LHQ. Admin and the Director can do the same, and may change the number. A move tells Admin to tell the family. */
+async function sched() { await import("../../site/schedule.js"); return globalThis.SCHED; }
+const mwToday = () => new Date(Date.now() + 2 * 3600e3).toISOString().slice(0, 10);   // Malawi, UTC+2
+async function clashState() {
+  const S = await sched(), cards = (await readAll("doc/")).filter(d => d && d.type === "card");
+  const [res, moves, avail] = await Promise.all(["lhq_clashes", "lhq_moves", "lhq_avail"].map(k => store().get("kv/" + k, { type: "json" })));
+  return { S, cards, res: res || {}, moves: moves || {}, avail: avail || {}, list: S.weekClashes(cards, mwToday()) };
+}
+const involves = (c, name) => c.members.some(m => nk(m.tutor) === nk(name));
+function moveOptions(S, st, m) {
+  const card = st.cards.find(c => c.id === m.card), x = card && (card.subjects || []).find(y => nk(y.name) === nk(m.sub) && nk(y.tutor) === nk(m.tutor));
+  if (!x) return null;
+  const n0 = S.planned(card, x), len = m.b - m.a, free = S.freeTimes(card, x.name, st.cards, st.avail, { len });
+  const days = free.filter(f => f.day === m.day || !(x.days || []).includes(f.day)).map(f => {
+    const nd = f.day === m.day ? x.days : x.days.map(z => z === m.day ? f.day : z);
+    return { day: f.day, name: f.name, slots: f.slots.filter(t => !(f.day === m.day && t === m.s)), planned: S.planned(card, x, nd) };
+  }).filter(f => f.slots.length);
+  return { card, x, n0, len, days };
+}
+async function clashAction(req, me) {
+  const b = await req.json().catch(() => ({})), st = await clashState(), S = st.S, now = Date.now(), isStaff = can(me, "tutors");
+  if (b.action === "told") {
+    if (!isStaff) return fail("Only LHQ can mark a family told.", 403);
+    const mv = st.moves[b.id]; if (!mv) return fail("That move isn't here.", 404);
+    await writeKv("lhq_moves", old => Object.assign({}, old, { [b.id]: Object.assign({}, mv, { told: { by: me.name, at: now } }) }));
+    await act(me, "teaching", "clash.told", `Told the family: ${mv.st}'s ${mv.sub} moved to ${S.DAYN[mv.to.day]} ${mv.to.s}`, "documents", mv.card);
+    return json({ ok: true });
+  }
+  const c = st.list.find(x => x.key === b.key);
+  if (!c) return fail("That clash has already been sorted (or the card changed).", 404);
+  if (!isStaff && !involves(c, me.name)) return fail("That clash isn't on your cards.", 403);
+  const text = S.clashText(c);
+  if (b.action === "together" || b.action === "admin" || b.action === "reopen") {
+    if (b.action === "together" && c.kind !== "group") return fail("Only students in the same subject can be taught together.");
+    if (b.action === "reopen" && !isStaff) return fail("Only LHQ can reopen a clash.", 403);
+    const v = b.action === "reopen" ? null : { s: b.action, by: me.name, at: now, note: String(b.note || "").trim().slice(0, 300) };
+    await writeKv("lhq_clashes", old => { const o = Object.assign({}, old); if (v) o[c.key] = v; else delete o[c.key]; return o; });
+    await act(me, "teaching", "clash." + b.action, b.action === "together" ? `Teaching them together: ${text}` : b.action === "admin" ? `Sent a clash to LHQ: ${text}${v.note ? " · " + v.note : ""}` : `Reopened a clash: ${text}`, "documents", c.members[0].card);
+    return json({ ok: true });
+  }
+  const m = c.members.find(x => x.k === b.k && x.day === c.day);
+  if (!m) return fail("Choose which session to move.");
+  if (!isStaff && nk(m.tutor) !== nk(me.name)) return fail("You can only move your own sessions.", 403);
+  const o = moveOptions(S, st, m); if (!o) return fail("That session isn't on the card any more.", 404);
+  if (b.action === "free") return json({ n0: o.n0, len: o.len, from: { day: m.day, s: m.s, e: m.e }, days: o.days });
+  if (b.action !== "move") return fail("Unknown action.");
+  const to = b.to || {}, opt = o.days.find(f => f.day === to.day);
+  if (!opt || !opt.slots.includes(to.s)) return fail("That time isn't free any more. Choose another.", 409);
+  if (opt.planned !== o.n0 && !isStaff) return fail(`That would change ${m.st}'s ${m.sub} from ${o.n0} to ${opt.planned} sessions, and the invoice was based on ${o.n0}. Send it to LHQ instead.`, 409);
+  const e = S.hhmm(S.mins(to.s) + o.len), card = JSON.parse(JSON.stringify(o.card)), x = card.subjects.find(y => nk(y.name) === nk(m.sub) && nk(y.tutor) === nk(m.tutor));
+  const times = Object.assign({}, x.times || {});
+  if (to.day === m.day) times[m.day] = { s: to.s, e };
+  else { x.days = x.days.map(z => z === m.day ? to.day : z); delete times[m.day]; times[to.day] = { s: to.s, e }; }
+  x.times = times; delete card.log;
+  const w = await writeDocs(me, [{ doc: card }]); if (w.error) return fail(w.error, 409);
+  if (nk(m.tutor) === nk(me.name)) await writeKv("lhq_cardack", old => Object.assign({}, old, { [`${card.id}|${nk(me.name)}`]: { s: "ok", sig: S.sigFor(card, me.name), at: now, note: "moved it themselves" } }));
+  const id = "mv" + crypto.randomBytes(5).toString("hex");
+  const mv = { id, card: card.id, number: card.number, st: m.st, sub: m.sub, tutor: m.tutor, from: { day: m.day, s: m.s, e: m.e }, to: { day: to.day, s: to.s, e }, n0: o.n0, n1: opt.planned, by: me.name, at: now, told: null };
+  await writeKv("lhq_moves", old => Object.assign({}, old, { [id]: mv }));
+  await act(me, "teaching", "clash.move", `Moved ${m.st}'s ${m.sub} from ${S.DAYN[m.day]} ${m.s}–${m.e} to ${S.DAYN[to.day]} ${to.s}–${e} (${opt.planned} session${opt.planned === 1 ? "" : "s"}) to sort a clash`, "documents", card.id);
+  return json({ ok: true, move: mv });
+}
+/* the clashes a tutor is part of, with any answer */
+async function tutorClashes(me) {
+  const st = await clashState();
+  return st.list.filter(c => involves(c, me.name)).map(c => Object.assign({ text: st.S.clashText(c), res: st.res[c.key] || null }, c));
+}
+
 /* Confirming a logged session. A session a tutor logged counts (for reports and pay) once it is confirmed: by the student
    or a parent (stage 2), by LHQ on their behalf (saying how), or on its own 48 hours after it was logged with no reply.
    A dispute holds it until LHQ settles it: the tutor's times stand, or the minutes lost are taken off. */
 const CONFIRM_HOURS = 48;
 async function confirmSession(req, me) {
-  if (!can(me, "tutors")) return fail("You don't have permission to confirm sessions.", 403);
+  if (!can(me, "tutors")) return fail("You don't have permission to settle sessions.", 403);
   const b = await req.json().catch(() => ({})), id = String(b.id || ""), now = Date.now();
   const txt = (v, n) => String(v || "").trim().slice(0, n), hm = v => /^\d{1,2}:\d{2}$/.test(String(v || "")) ? v : "";
   const cur = await store().get("kv/lhq_logs", { type: "json" }), e0 = cur && cur.e && cur.e[id];
@@ -513,6 +589,9 @@ async function confirmSession(req, me) {
   if (e0.a === "absent" || e0.a === "cancelled") return fail("A missed session has nothing to confirm.");
   const was = e0.cf && e0.cf.s;
   let cf;
+  // LHQ oversees: it settles disputes. Confirming and disputing is the student's (or, where LHQ allows it, a parent's) from Stage 2;
+  // until then a session confirms itself 48 hours after it was logged.
+  if ((b.action === "confirm" || b.action === "dispute") && !(me.role === "student" || me.role === "parent")) return fail("Students confirm their own sessions. Until they have accounts, sessions confirm themselves 48 hours after the tutor logs them.", 403);
   if (b.action === "confirm") {
     if (was === "disputed") return fail("This session is disputed: settle it instead.", 409);
     if (!txt(b.how, 200)) return fail("Say how it was confirmed, e.g. by phone with the parent.");
@@ -792,7 +871,7 @@ async function tutorExtras(me, d) {
   const [mu, rq] = await Promise.all(["lhq_makeups", "lhq_reqs"].map(k => store().get("kv/" + k, { type: "json" })));
   const makeups = Object.values(mu || {}).filter(x => x && nk(x.tutor) === mk);
   const reqs = {}; Object.entries(rq || {}).forEach(([k, v]) => { if (v && nk(v.tutor) === mk) reqs[k] = v; });
-  return { avail: (av || {})[mk] || [], acks, gone, ackFrom: ack._from, calLink: calPath(me.id), makeups, reqs };
+  return { avail: (av || {})[mk] || [], acks, gone, ackFrom: ack._from, calLink: calPath(me.id), makeups, reqs, clashes: await tutorClashes(me) };
 }
 async function tutorPost(req, me) {
   if (!isTutor(me)) return fail("This part is for tutors.", 403);
@@ -806,6 +885,11 @@ async function tutorPost(req, me) {
       if (JSON.stringify(e).length > 4000) return fail("An entry is too long.");
     }
     const prev = {}; d.entries.forEach(e => prev[e.id] = e);
+    // a session that is confirmed (by the student, or by itself after 48 hours) or settled can't be changed by the tutor
+    const locked = e => e && e.ty === "s" && !e.x && e.a !== "absent" && e.a !== "cancelled" && ((e.cf && e.cf.s) || now - (e.c || e.at || 0) >= 48 * 3600e3);
+    const same = (p, e) => ["a", "t1", "t2", "d", "k", "x"].every(f => String(p[f] ?? "") === String(e[f] ?? ""));
+    const stuck = list.find(e => locked(prev[e.id]) && !same(prev[e.id], e));
+    if (stuck) return fail(`${stuck.st || "That"} session on ${dayL(prev[stuck.id].d)} is confirmed, so its times and attendance can't change. Ask LHQ if something is wrong.`, 409);
     const add = {}; list.forEach(e => { if (prev[e.id] && nk(prev[e.id].tutor) && nk(prev[e.id].tutor) !== nk(me.name)) return; add[e.id] = Object.assign({}, e, { tutor: me.name, at: now, via: "hub" }); });
     const before = await store().get("kv/lhq_logs", { type: "json" });
     await writeKv("lhq_logs", old => mergeLogs(old, { e: add }));
@@ -941,6 +1025,7 @@ export default async (req, context) => {
     if (req.method === "POST" && path === "confirm") return await confirmSession(req, me);
     if (req.method === "POST" && path === "makeup") return await decideMakeup(req, me);
     if (req.method === "POST" && path === "req") return await decideReq(req, me);
+    if (req.method === "POST" && path === "clash") return await clashAction(req, me);
     if (req.method === "GET" && path === "activity") return await activityList(req, me);
     return fail("Not found.", 404);
   } catch (e) {

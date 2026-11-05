@@ -37,7 +37,7 @@ window.TUT = (function(){
 .t-ddp{border-top:1px solid var(--line);padding:10px;display:grid;gap:6px;max-height:320px;overflow:auto}
 .t-ddp .lbl{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:4px 2px 0}
 .cal-nav{display:flex;align-items:center;gap:8px;margin:0 0 12px;flex-wrap:wrap}.cal-nav b{flex:1;min-width:140px;text-align:center}.cal-t{flex:none;width:48px;font-weight:800;font-size:14px;line-height:1.2}.cal-t small{display:block;color:var(--muted);font-weight:600;font-size:12px}
-.cal-m{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}.cal-m .h{text-align:center;font-size:12px;font-weight:800;color:var(--muted)}.cal-d{border:1px solid var(--line2);background:var(--surface);border-radius:10px;min-height:52px;padding:5px;display:flex;flex-direction:column;align-items:center;text-decoration:none;color:var(--ink)}.cal-d.out{opacity:.4}.cal-d.now{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}.cal-d small{margin-top:auto;background:var(--accent);color:var(--onaccent);border-radius:99px;font-size:11px;font-weight:800;padding:0 7px}.cal-d small.cl{background:var(--rd);color:#fff}
+.cal-m{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}.cal-m .h{text-align:center;font-size:12px;font-weight:800;color:var(--muted)}.cal-d{border:1px solid var(--line2);background:var(--surface);border-radius:10px;min-height:52px;padding:5px;display:flex;flex-direction:column;align-items:center;text-decoration:none;color:var(--ink)}.cal-d.out{opacity:.4}.cal-d.now{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}.cal-d small{margin-top:auto;background:var(--accent);color:var(--onaccent);border-radius:99px;font-size:11px;font-weight:800;padding:0 7px}.cal-d small.cl{background:var(--rd);color:#fff}.cal-d small.cg{background:var(--am);color:#fff}
 .t-pk{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:10px}
 .t-pk .row{display:flex;align-items:center;gap:8px;font-weight:800}.t-pk .row span{flex:1}
 .t-x{border:0;background:none;color:var(--muted);font-size:20px;line-height:1;padding:2px 6px;cursor:pointer}
@@ -82,7 +82,7 @@ window.TUT = (function(){
     if(loading) return loading;
     loading = (async () => {
       await flush();
-      try{ const j = await hub.api('tutor'); data = {cards: j.cards || [], entries: j.entries || [], classes: j.classes || [], reports: j.reports || [], avail: j.avail || [], acks: j.acks || {}, gone: j.gone || [], ackFrom: j.ackFrom || 0, calLink: j.calLink || '', makeups: j.makeups || [], reqs: j.reqs || {}, at: Date.now()}; write(CK, data); err = ''; }
+      try{ const j = await hub.api('tutor'); data = {cards: j.cards || [], entries: j.entries || [], classes: j.classes || [], reports: j.reports || [], avail: j.avail || [], acks: j.acks || {}, gone: j.gone || [], ackFrom: j.ackFrom || 0, calLink: j.calLink || '', makeups: j.makeups || [], reqs: j.reqs || {}, clashes: j.clashes || [], at: Date.now()}; write(CK, data); err = ''; }
       catch(e){ err = navigator.onLine ? e.message : 'offline'; }
       loading = null; if(!form) render();
     })();
@@ -235,6 +235,17 @@ window.TUT = (function(){
     (data.gone || []).forEach(g => out.push({kind:'gone', card:{id:g.card, student:g.st, number:g.number}, lines:(g.subs || []).map(x => x + ' · no longer yours')}));
     return out;
   }
+  /* clashes on their cards: they have the final say */
+  function clashesBlock(){
+    const C = (data.clashes || []).filter(c => !c.res || c.res.s !== 'together'); if(!C.length) return '';
+    const KL = {group:'Same subject at the same time', tutor:'Two subjects at the same time', student:'The student has two subjects at once'};
+    const row = c => `<div class="it" style="align-items:flex-start;flex-wrap:wrap"><span class="t" style="min-width:200px"><b style="white-space:normal">${esc(c.text)}</b><small>${KL[c.kind]}${c.kind === 'group' ? ': are you teaching them together?' : ''}</small>${c.res && c.res.s === 'admin' ? `<small>Sent to LHQ${c.res.note ? ': “' + esc(c.res.note) + '”' : ''}</small>` : ''}</span>
+      <span class="acts" style="margin-top:6px">${c.kind === 'group' ? `<button class="btn sm n" data-tclx="together:${esc(c.key)}">Teaching them together</button>` : ''}<button class="btn sm${c.kind === 'group' ? '' : ' n'}" data-tclmove="${esc(c.key)}">Move a session</button>${c.res ? '' : `<button class="btn sm" data-tclx="admin:${esc(c.key)}">Send to LHQ</button>`}</span></div>`;
+    return `<div class="h2">Clashes to sort <em>${C.length}</em></div><div class="card">${C.slice(0, 4).map(row).join('')}${C.length > 4 ? `<details><summary class="it" style="cursor:pointer"><span class="t"><b>${C.length - 4} more</b></span></summary>${C.slice(4).map(row).join('')}</details>` : ''}</div>`;
+  }
+  async function clashDo(a, key, note){
+    try{ await hub.api('clash', {method:'POST', body: JSON.stringify({action:a, key, note: note || ''})}); closeSheet(); await fetchData(); toast(a === 'together' ? 'Thanks: no longer a clash' : 'Sent to LHQ'); }catch(e){ toast(e.message); }
+  }
   function noticesBlock(){
     const N = notices(); if(!N.length) return '';
     return `<div class="h2">New on your list <em>${N.length}</em></div><div class="card">${N.map(n => `<div class="it" style="align-items:flex-start;flex-wrap:wrap">
@@ -265,12 +276,13 @@ window.TUT = (function(){
     const L = SCHED.sessions(data.cards, from, to, {tutor: myName()}), E = live().filter(e => e.ty === 's');
     (data.makeups || []).filter(m => m.status !== 'no' && m.d >= from && m.d <= to).forEach(m => L.push({date:m.d, day:SCHED.dayCode(m.d), s:m.s, e:m.e, a:mins(m.s), b:mins(m.e), tutor:m.tutor, student:m.st, sub:m.sub, k:m.k, where:'Make-up', mu:m}));
     L.sort((p, q) => p.date.localeCompare(q.date) || (p.a ?? 9999) - (q.a ?? 9999));
-    const clash = new Set(); SCHED.clashes(L).forEach(c => { clash.add(c.a); clash.add(c.b); });
+    const res = {}; (data.clashes || []).forEach(c => { if(c.res) res[c.key] = c.res; });
+    const clash = new Map(); SCHED.clashes(L, res).forEach(c => { clash.set(c.a, c.kind); clash.set(c.b, c.kind); });
     return L.map(ev => { const lg = ev.mu ? null : E.find(e => e.k === ev.k && e.d === ev.date), un = SCHED.unavailable({x: data.avail || []}, 'x', ev.day, ev.a, ev.b).length;
-      return Object.assign(ev, {log: lg, clash: clash.has(ev) || !!un, un}); });
+      return Object.assign(ev, {log: lg, clash: clash.has(ev) || !!un, ck: un ? 'unavailable' : clash.get(ev) || '', un}); });
   }
   const evRow = ev => { const st = ev.log ? (ev.log.a === 'absent' ? 'absent' : ev.log.a === 'cancelled' ? 'cancelled' : 'had') : '';
-    return `<a class="it" href="${ev.mu ? '#teach/makeups' : '#teach/log/' + encodeURIComponent(ev.k)}" style="${ev.clash ? 'border-left:3px solid var(--rd)' : ev.mu && ev.mu.status === 'asked' ? 'border-left:3px dashed var(--am)' : ''}"><span class="cal-t">${ev.s || '?'}<small>${ev.e || ''}</small></span><span class="t"><b style="${st === 'absent' || st === 'cancelled' ? 'text-decoration:line-through;color:var(--muted)' : ''}">${esc(ev.student)} · ${esc(ev.sub)}</b><small>${ev.mu ? (ev.mu.status === 'asked' ? 'Make-up · waiting for LHQ' : 'Make-up · confirmed') : esc(ev.where || '')}${st ? ' · ' + {had:'✓ logged', absent:'student absent', cancelled:'cancelled'}[st] : ''}${ev.clash ? ' · <span style="color:var(--rd);font-weight:700">' + (ev.un ? 'in your unavailable time' : 'clash') + '</span>' : ''}</small></span><span class="chev">›</span></a>`; };
+    return `<a class="it" href="${ev.mu ? '#teach/makeups' : '#teach/log/' + encodeURIComponent(ev.k)}" style="${ev.clash ? 'border-left:3px solid ' + (ev.ck === 'group' ? 'var(--am)' : 'var(--rd)') : ev.mu && ev.mu.status === 'asked' ? 'border-left:3px dashed var(--am)' : ''}"><span class="cal-t">${ev.s || '?'}<small>${ev.e || ''}</small></span><span class="t"><b style="${st === 'absent' || st === 'cancelled' ? 'text-decoration:line-through;color:var(--muted)' : ''}">${esc(ev.student)} · ${esc(ev.sub)}</b><small>${ev.mu ? (ev.mu.status === 'asked' ? 'Make-up · waiting for LHQ' : 'Make-up · confirmed') : esc(ev.where || '')}${st ? ' · ' + {had:'✓ logged', absent:'student absent', cancelled:'cancelled'}[st] : ''}${ev.clash ? ' · <span style="color:var(--rd);font-weight:700">' + (ev.un ? 'in your unavailable time' : 'clash') + '</span>' : ''}</small></span><span class="chev">›</span></a>`; };
   function calPage(view, d){
     calView = ['day','week','month'].includes(view) ? view : calView; calDate = /^\d{4}-\d{2}-\d{2}$/.test(d || '') ? d : (calDate || today());
     const t = today(), go = (v, x) => `#teach/cal/${v}/${x}`;
@@ -417,7 +429,7 @@ window.TUT = (function(){
       (ed ? '<p class="note" style="margin:-6px 0 12px">Move or remove cards, or add one from the list below. Tap Done when finished.</p>'
         : rep ? `<a class="t-banner ok" href="#teach/report"><span><b>Today's report is in</b>Sent at ${hm(rep.sent)}. You can still log; changes show as edited.</span></a>`
         : `<a class="t-banner" href="#teach/report"><span><b>Daily report due before you leave</b>Reminder between 4 and 5 pm${G.length ? ` · ${G.length} thing${G.length > 1 ? 's' : ''} still to log` : ''}</span></a>`) +
-      (ed ? '' : noticesBlock()) + cardsBlock() + (ed ? '' : reqsBlock() + `
+      (ed ? '' : noticesBlock() + clashesBlock()) + cardsBlock() + (ed ? '' : reqsBlock() + `
       <div class="h2">Logged today <em>${L.length}</em></div>${timeline(L)}
       ${G.length ? `<div class="h2">Still to log <em>${G.length}</em></div>${gapCard(G)}` : ''}
       <div class="card">${[['#teach/cal','clock','Calendar','Your week from your tuition cards · clashes · times you can\'t teach'],['#teach/students','users','My students','Sessions had and remaining, make-ups'],['#teach/sra','restore','SRA tracker','Give, collect and print · next 7 days · by student'],['#teach/classes','users','Classes',`${(data.classes || []).length} official class${(data.classes || []).length === 1 ? '' : 'es'}`]].concat(tutorRole() ? [] : [['#teach/report','list','Daily report', rep ? 'Sent today' : 'Due before you leave']]).map(([h, i, b, s]) => `<a class="it" href="${h}"><span class="ico">${ic(i,18)}</span><span class="t"><b>${b}</b><small>${s}</small></span><span class="chev">${ic('chev',16,2)}</span></a>`).join('')}</div>`);
@@ -507,7 +519,8 @@ window.TUT = (function(){
     else if(!form || form.key !== key || form.edit) form = newForm(key || 'pick');
     const f = form, I = items(), C = data.classes || [], M = f.keys.map(itemOf).filter(Boolean), pickWho = !f.edit;
     const whoSel = `<select class="in" data-twho aria-label="Who">${f.key === 'pick' ? '<option value="pick">Choose…</option>' : ''}${C.length ? `<optgroup label="Classes">${C.map(c => `<option value="class:${c.id}" ${f.key === 'class:' + c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</optgroup>` : ''}<optgroup label="Students">${I.map(it => `<option value="${esc(it.k)}" ${f.key === it.k ? 'selected' : ''}>${esc(it.st)} · ${esc(it.sub)}</option>`).join('')}</optgroup><option value="group" ${f.key === 'group' ? 'selected' : ''}>Several students (not a class)</option></select>`;
-    return backHome() + head(f.edit ? 'Edit session' : 'Log a session', f.edit ? nice(f.d) : 'Fill in what happened. Ticks and circles only.') + `
+    const lockedNow = f.edit && Object.values(f.ids || {}).some(id => { const e = live().find(x => x.id === id); const st = e && HD.cfState(e); return st && st !== 'waiting'; });
+    return backHome() + head(f.edit ? 'Edit session' : 'Log a session', f.edit ? nice(f.d) : 'Fill in what happened. Ticks and circles only.') + (lockedNow ? `<div class="card pad" style="border-left:3px solid var(--am)"><b>Confirmed</b><p class="note" style="margin:4px 0 0">The times and attendance can't change now. You can still add topics. If something is wrong, ask LHQ.</p></div>` : '') + `
       <div class="card pad"><label class="f" style="margin:0"><span>Who</span>${pickWho ? whoSel : `<input class="in" value="${esc(f.cls ? (C.find(c => c.id === f.cls) || {}).name || 'Class' : M.map(m => m.st + ' · ' + m.sub).join(', '))}" readonly>`}</label>
         ${f.key === 'group' && pickWho ? `<div class="t-opts" style="margin-top:10px">${I.map(it => tick('keys:' + it.k, f.keys.includes(it.k), esc(it.st), esc(it.sub))).join('')}</div>` : ''}</div>
       ${M.length ? `
@@ -783,6 +796,11 @@ window.TUT = (function(){
     on('[data-tavrm]', el => { const L = (data.avail || []).slice().sort((a, b) => DORDER.indexOf(a.d) - DORDER.indexOf(b.d) || a.s.localeCompare(b.s)); L.splice(+el.dataset.tavrm, 1); saveAvail(L); });
     on('[data-tavadd]', () => { const d = $('tavD').value, s = $('tavS').value, e = $('tavE').value, n = $('tavN').value.trim(); if(!s || !e || s >= e){ toast('The time ends before it starts'); return; }
       saveAvail((data.avail || []).concat((d === 'wk' ? ['Mo','Tu','We','Th','Fr'] : [d]).map(x => ({d:x, s, e, note:n})))); });
+    on('[data-tclx]', el => { const [a, ...k] = el.dataset.tclx.split(':'), key = k.join(':');
+      if(a === 'together') return clashDo(a, key);
+      openSheet(`<div class="hx"><h3>Send the clash to LHQ</h3><button class="ib" data-close>✕</button></div><label class="f"><span>Anything LHQ should know (optional)</span><input class="in" id="tclN" placeholder="e.g. Tadala can only do Tuesdays"></label><button class="btn n full" id="tclGo">Send to LHQ</button>`);
+      $('tclGo').onclick = () => clashDo('admin', key, $('tclN').value); });
+    on('[data-tclmove]', el => { const c = (data.clashes || []).find(x => x.key === el.dataset.tclmove); if(c) window.clashMove(c, {me: myName(), after: fetchData}); });
     on('[data-tcallink]', async () => { const u = location.origin + (data.calLink || ''); try{ await navigator.clipboard.writeText(u); toast('Link copied'); }catch(e){ prompt('Copy this link:', u); } });
     on('[data-tgive]', el => { const x = unref(el.dataset.tgive); if(x) saveEntries(giveEntries([x]), true).then(ok => ok && toast(el.dataset.early ? 'Given early · still done on its review day · comes back after ' + nice(x.doOn) : 'Marked as given')); });
     on('[data-tgiveall]', () => { const G = SRA.today(sras(), today()).give; saveEntries(giveEntries(G), true).then(ok => ok && toast(`${G.length} marked as given`)); });
