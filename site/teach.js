@@ -82,7 +82,7 @@ window.TUT = (function(){
     if(loading) return loading;
     loading = (async () => {
       await flush();
-      try{ const j = await hub.api('tutor'); data = {cards: j.cards || [], entries: j.entries || [], classes: j.classes || [], reports: j.reports || [], avail: j.avail || [], acks: j.acks || {}, gone: j.gone || [], ackFrom: j.ackFrom || 0, calLink: j.calLink || '', at: Date.now()}; write(CK, data); err = ''; }
+      try{ const j = await hub.api('tutor'); data = {cards: j.cards || [], entries: j.entries || [], classes: j.classes || [], reports: j.reports || [], avail: j.avail || [], acks: j.acks || {}, gone: j.gone || [], ackFrom: j.ackFrom || 0, calLink: j.calLink || '', makeups: j.makeups || [], reqs: j.reqs || {}, at: Date.now()}; write(CK, data); err = ''; }
       catch(e){ err = navigator.onLine ? e.message : 'offline'; }
       loading = null; if(!form) render();
     })();
@@ -263,12 +263,14 @@ window.TUT = (function(){
   const wkStart = d => { const x = HD.parseISO(d), k = (x.getDay() + 6) % 7; x.setDate(x.getDate() - k); return HD.isoOf(x); };
   function calEvents(from, to){
     const L = SCHED.sessions(data.cards, from, to, {tutor: myName()}), E = live().filter(e => e.ty === 's');
+    (data.makeups || []).filter(m => m.status !== 'no' && m.d >= from && m.d <= to).forEach(m => L.push({date:m.d, day:SCHED.dayCode(m.d), s:m.s, e:m.e, a:mins(m.s), b:mins(m.e), tutor:m.tutor, student:m.st, sub:m.sub, k:m.k, where:'Make-up', mu:m}));
+    L.sort((p, q) => p.date.localeCompare(q.date) || (p.a ?? 9999) - (q.a ?? 9999));
     const clash = new Set(); SCHED.clashes(L).forEach(c => { clash.add(c.a); clash.add(c.b); });
-    return L.map(ev => { const lg = E.find(e => e.k === ev.k && e.d === ev.date), un = SCHED.unavailable({x: data.avail || []}, 'x', ev.day, ev.a, ev.b).length;
+    return L.map(ev => { const lg = ev.mu ? null : E.find(e => e.k === ev.k && e.d === ev.date), un = SCHED.unavailable({x: data.avail || []}, 'x', ev.day, ev.a, ev.b).length;
       return Object.assign(ev, {log: lg, clash: clash.has(ev) || !!un, un}); });
   }
   const evRow = ev => { const st = ev.log ? (ev.log.a === 'absent' ? 'absent' : ev.log.a === 'cancelled' ? 'cancelled' : 'had') : '';
-    return `<a class="it" href="#teach/log/${encodeURIComponent(ev.k)}" style="${ev.clash ? 'border-left:3px solid var(--rd)' : ''}"><span class="cal-t">${ev.s || '?'}<small>${ev.e || ''}</small></span><span class="t"><b style="${st === 'absent' || st === 'cancelled' ? 'text-decoration:line-through;color:var(--muted)' : ''}">${esc(ev.student)} · ${esc(ev.sub)}</b><small>${esc(ev.where || '')}${st ? ' · ' + {had:'✓ logged', absent:'student absent', cancelled:'cancelled'}[st] : ''}${ev.clash ? ' · <span style="color:var(--rd);font-weight:700">' + (ev.un ? 'in your unavailable time' : 'clash') + '</span>' : ''}</small></span><span class="chev">›</span></a>`; };
+    return `<a class="it" href="${ev.mu ? '#teach/makeups' : '#teach/log/' + encodeURIComponent(ev.k)}" style="${ev.clash ? 'border-left:3px solid var(--rd)' : ev.mu && ev.mu.status === 'asked' ? 'border-left:3px dashed var(--am)' : ''}"><span class="cal-t">${ev.s || '?'}<small>${ev.e || ''}</small></span><span class="t"><b style="${st === 'absent' || st === 'cancelled' ? 'text-decoration:line-through;color:var(--muted)' : ''}">${esc(ev.student)} · ${esc(ev.sub)}</b><small>${ev.mu ? (ev.mu.status === 'asked' ? 'Make-up · waiting for LHQ' : 'Make-up · confirmed') : esc(ev.where || '')}${st ? ' · ' + {had:'✓ logged', absent:'student absent', cancelled:'cancelled'}[st] : ''}${ev.clash ? ' · <span style="color:var(--rd);font-weight:700">' + (ev.un ? 'in your unavailable time' : 'clash') + '</span>' : ''}</small></span><span class="chev">›</span></a>`; };
   function calPage(view, d){
     calView = ['day','week','month'].includes(view) ? view : calView; calDate = /^\d{4}-\d{2}-\d{2}$/.test(d || '') ? d : (calDate || today());
     const t = today(), go = (v, x) => `#teach/cal/${v}/${x}`;
@@ -307,6 +309,43 @@ window.TUT = (function(){
   }
   async function saveAvail(L){ try{ const j = await hub.api('tutor', {method:'POST', body: JSON.stringify({action:'avail', blocks: L})}); data.avail = j.avail; write(CK, data); render(); toast('Saved: LHQ will check these'); }catch(e){ toast(e.message); } }
 
+  /* ---------- make-ups: book a time for a session owed; LHQ confirms or declines ---------- */
+  const MUL = {asked:'Waiting for LHQ', ok:'Confirmed', no:'Declined'};
+  function makeupsPage(){
+    const I = items().map(it => ({it, S: sessions(it)})).filter(x => x.S.owed > 0), M = (data.makeups || []).slice().sort((a, b) => (a.d + a.s).localeCompare(b.d + b.s));
+    const open = M.filter(m => m.status !== 'no' && m.d >= today()), past = M.filter(m => m.status === 'no' || m.d < today()).slice(-10).reverse();
+    const row = m => `<div class="it" style="align-items:flex-start"><span class="cal-t">${m.s}<small>${m.e}</small></span><span class="t"><b>${esc(m.st)} · ${esc(m.sub)}</b><small>${WEEKDAY[HD.parseISO(m.d).getDay()]} ${nice(m.d)} · ${MUL[m.status]}${m.note ? ' · ' + esc(m.note) : ''}${m.why ? ' · ' + esc(m.why) : ''}</small></span>${m.status === 'asked' ? `<button class="btn sm" data-tmucancel="${esc(m.id)}">Take back</button>` : m.status === 'no' ? `<button class="btn sm" data-tmubook="${esc(m.k)}">Book again</button>` : ''}</div>`;
+    return backHome() + head('Make-ups', 'Book a time for each session owed. LHQ confirms it, then it shows in your calendar.') +
+      `<div class="h2">Owed <em>${I.reduce((a, x) => a + x.S.owed, 0)}</em></div><div class="card">${I.map(({it, S}) => `<div class="it"><span class="t"><b>${esc(it.st)} · ${esc(it.sub)}</b><small>${S.owed} owed${(data.makeups || []).filter(m => m.k === it.k && m.status !== 'no' && m.d >= today()).length ? ' · ' + (data.makeups || []).filter(m => m.k === it.k && m.status !== 'no' && m.d >= today()).length + ' booked' : ''}</small></span><button class="btn sm n" data-tmubook="${esc(it.k)}">Book</button></div>`).join('') || '<p class="empty">No make-ups owed. ✓</p>'}</div>
+      ${open.length ? `<div class="h2">Booked <em>${open.length}</em></div><div class="card">${open.map(row).join('')}</div>` : ''}
+      ${past.length ? `<div class="h2">Earlier and declined</div><div class="card">${past.map(row).join('')}</div>` : ''}`;
+  }
+  function makeupSheet(k){
+    const it = itemOf(k); if(!it) return;
+    const len = (mins(it.end) - mins(it.start)) || 60, days = []; for(let i = 0; i < 21; i++) days.push(HD.addDays(today(), i));
+    const opt = (v, l, on) => `<option value="${v}"${on ? ' selected' : ''}>${l}</option>`;
+    openSheet(`<div class="hx"><h3>Book a make-up</h3><button class="ib" data-close>✕</button></div><p class="sp">${esc(it.st)} · ${esc(it.sub)} · ${sessions(it).owed} owed</p>
+      <label class="f"><span>Day</span><select class="in" id="muD">${days.map((d, i) => opt(d, (i === 0 ? 'Today · ' : i === 1 ? 'Tomorrow · ' : '') + WEEKDAY[HD.parseISO(d).getDay()].slice(0, 3) + ' ' + nice(d), i === 1)).join('')}</select></label>
+      <div class="r2"><label class="f"><span>Starts</span><select class="in" id="muS">${(() => { let o = ''; for(let m = 7 * 60; m <= 19 * 60; m += 30) o += opt(SCHED.hhmm(m), SCHED.hhmm(m), m === 14 * 60); return o; })()}</select></label>
+      <label class="f"><span>Length</span><select class="in" id="muL">${[45, 50, 60, 90, 120].map(n => opt(n, n < 60 ? n + ' min' : n / 60 + ' h', n === len)).join('')}</select></label></div>
+      <p class="note" id="muClash" style="color:var(--rd);font-weight:700;margin:0 0 10px"></p>
+      <label class="f"><span>For (optional)</span><input class="in" id="muW" placeholder="e.g. Absent on Tuesday 3 Nov"></label>
+      <button class="btn n full" id="muGo">Send to LHQ to confirm</button>`);
+    const check = () => { const d = $('muD').value, a = mins($('muS').value), b = a + +$('muL').value, dc = SCHED.dayCode(d);
+      const L = SCHED.sessions(data.cards, d, d, {tutor: myName()}).filter(e => SCHED.overlap(a, b, e.a, e.b)).map(e => `you teach ${e.student} then`);
+      (data.makeups || []).filter(m => m.d === d && m.status !== 'no' && SCHED.overlap(a, b, mins(m.s), mins(m.e))).forEach(m => L.push(`another make-up (${m.st}) then`));
+      (data.avail || []).filter(u => u.d === dc && SCHED.overlap(a, b, mins(u.s), mins(u.e))).forEach(u => L.push(`it's in your unavailable time ${u.s}–${u.e}`));
+      $('muClash').textContent = L.length ? '! ' + L.join(' · ') : ''; };
+    ['muD','muS','muL'].forEach(x => $(x).onchange = check); check();
+    $('muGo').onclick = async () => { const s = $('muS').value, e = SCHED.hhmm(mins(s) + +$('muL').value);
+      try{ await hub.api('tutor', {method:'POST', body: JSON.stringify({action:'makeup', k, d: $('muD').value, s, e, why: $('muW').value})}); closeSheet(); await fetchData(); toast('Sent: LHQ will confirm it'); }catch(err){ toast(err.message); } };
+  }
+  /* requisitions from the daily report, with LHQ's decision */
+  function reqsBlock(){
+    const R = Object.entries(data.reqs || {}).filter(([, v]) => v && v.at > Date.now() - 14 * 864e5).sort((a, b) => b[1].at - a[1].at);
+    return R.length ? `<div class="h2">Your requisitions</div><div class="card">${R.map(([, v]) => `<div class="it"><span class="t"><b>${esc(v.item)}${v.qty && v.qty !== '1' ? ' × ' + esc(v.qty) : ''}</b><small>${{approved:'✓ Approved · LHQ will get it', declined:'Declined', bought:'✓ Bought'}[v.s] || v.s}${v.note ? ' · ' + esc(v.note) : ''}</small></span></div>`).join('')}</div>` : '';
+  }
+
   function page(sub, a1, a2, a3){
     if(!data){ fetchData(); return head(homeName(), 'Getting your students…') + (err ? `<p class="empty">${err === 'offline' ? 'No connection. Your students appear once you are online.' : esc(err)}</p>` : ''); }
     data.reports = data.reports || [];
@@ -316,6 +355,7 @@ window.TUT = (function(){
     if(!['', undefined, 'student'].includes(sub)) editing = null;
     if(sub === 'cal') return calPage(a1, a2);
     if(sub === 'avail') return availPage();
+    if(sub === 'makeups') return makeupsPage();
     if(sub === 'students') return students();
     if(sub === 'student') return studentPage(decodeURIComponent(a1 || ''));
     if(sub === 'log') return logPage(decodeURIComponent(a1 || ''), a2);
@@ -333,7 +373,7 @@ window.TUT = (function(){
     week:{t:'This week', d:'Sessions logged against the timetable', f:() => { const t = today(), ws = weekStart(t), I = items(); let p = 0, d = 0, m = 0;
       for(let i = 0; i < 7; i++){ const day = addDays(ws, i); I.forEach(it => { if(!isDay(it, day)) return; p++; const e = live().find(x => x.ty === 's' && x.k === it.k && x.d === day); if(e){ if(taught(e.a)) d++; else m++; } }); }
       const left = Math.max(0, p - d - m); return {href:'#teach/students', v:`${d} <small>of ${p} sessions</small>`, bar: p ? Math.round(d / p * 100) : 0, s:`${m ? m + ' missed · ' : ''}${left} to come`, warn: m}; }},
-    mk:{t:'Make-ups', d:'Owed for absences and cancellations', f:() => { const o = items().reduce((a, it) => a + sessions(it).owed, 0); return {href:'#teach/students', v:`${o} <small>owed</small>`, s: o ? 'Booking comes with the calendar' : 'None owed', warn: o}; }},
+    mk:{t:'Make-ups', d:'Owed for absences and cancellations', f:() => { const o = items().reduce((a, it) => a + sessions(it).owed, 0); return {href:'#teach/makeups', v:`${o} <small>owed</small>`, s: o ? 'Tap to book times' : 'None owed', warn: o}; }},
     sra:{t:'SRAs today', d:'To give and to collect today', f:() => { const T = SRA.today(sras(), today()); return {href:'#teach/sra', v:`${T.give.length} <small>to give</small>`, s:`${T.collect.length} to collect`}; }},
     collect:{t:'SRAs to collect', d:'Due back, marks still to enter', f:() => { const n = SRA.today(sras(), today()).collect.length; return {href:'#teach/sra', v:`${n} <small>due back</small>`, s:'marks still to enter', warn: n}; }},
     wam:{t:'Assessments to mark', d:'Weekly assessments given, marks not entered', f:() => { const P = pendingWa(); return {href:'#teach/wa', v:`${P.length} <small>waiting</small>`, s: P.length ? 'oldest given ' + nice(P[0].d) : 'all marked', warn: P.some(w => w.d < today())}; }},
@@ -377,7 +417,7 @@ window.TUT = (function(){
       (ed ? '<p class="note" style="margin:-6px 0 12px">Move or remove cards, or add one from the list below. Tap Done when finished.</p>'
         : rep ? `<a class="t-banner ok" href="#teach/report"><span><b>Today's report is in</b>Sent at ${hm(rep.sent)}. You can still log; changes show as edited.</span></a>`
         : `<a class="t-banner" href="#teach/report"><span><b>Daily report due before you leave</b>Reminder between 4 and 5 pm${G.length ? ` · ${G.length} thing${G.length > 1 ? 's' : ''} still to log` : ''}</span></a>`) +
-      (ed ? '' : noticesBlock()) + cardsBlock() + (ed ? '' : `
+      (ed ? '' : noticesBlock()) + cardsBlock() + (ed ? '' : reqsBlock() + `
       <div class="h2">Logged today <em>${L.length}</em></div>${timeline(L)}
       ${G.length ? `<div class="h2">Still to log <em>${G.length}</em></div>${gapCard(G)}` : ''}
       <div class="card">${[['#teach/cal','clock','Calendar','Your week from your tuition cards · clashes · times you can\'t teach'],['#teach/students','users','My students','Sessions had and remaining, make-ups'],['#teach/sra','restore','SRA tracker','Give, collect and print · next 7 days · by student'],['#teach/classes','users','Classes',`${(data.classes || []).length} official class${(data.classes || []).length === 1 ? '' : 'es'}`]].concat(tutorRole() ? [] : [['#teach/report','list','Daily report', rep ? 'Sent today' : 'Due before you leave']]).map(([h, i, b, s]) => `<a class="it" href="${h}"><span class="ico">${ic(i,18)}</span><span class="t"><b>${b}</b><small>${s}</small></span><span class="chev">${ic('chev',16,2)}</span></a>`).join('')}</div>`);
@@ -736,6 +776,8 @@ window.TUT = (function(){
     if(data && tutorRole()){ const due = !todayRep(); document.querySelectorAll('a[href$="#teach/report"]').forEach(a => { if(a.closest('#main')) return; const d = document.createElement('span'); d.className = 't-dot' + (due ? '' : ' ok'); d.title = due ? 'Today\'s report is due' : 'Today\'s report is sent'; a.appendChild(d); }); }
     if(!data) return;
     on('[data-tlog]', el => chooser(el.dataset.tlog));
+    on('[data-tmubook]', el => makeupSheet(el.dataset.tmubook));
+    on('[data-tmucancel]', async el => { try{ await hub.api('tutor', {method:'POST', body: JSON.stringify({action:'makeup', id: el.dataset.tmucancel, cancel: true})}); await fetchData(); toast('Taken back'); }catch(e){ toast(e.message); } });
     on('[data-tack]', el => { const [s, id] = el.dataset.tack.split(':'); ack(id, s); });
     on('[data-tcant]', el => cantSheet(el.dataset.tcant));
     on('[data-tavrm]', el => { const L = (data.avail || []).slice().sort((a, b) => DORDER.indexOf(a.d) - DORDER.indexOf(b.d) || a.s.localeCompare(b.s)); L.splice(+el.dataset.tavrm, 1); saveAvail(L); });

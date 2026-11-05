@@ -102,6 +102,24 @@ try {
   check(/Printer paper|Stationery/.test(await text(D)), "the Director's Spending shows it");
   check((await api(Tt, "state")).status === 403, "the tutor can't open LHQ's documents or money");
 
+  /* 6b. A make-up and a requisition: the tutor books and asks, LHQ decides, the cost lands in Spending */
+  const mu = await api(Tt, "tutor", { action: "makeup", k: "linga shaba|mathematics", d: today, s: "16:00", e: "17:00", why: "Missed Tuesday" });
+  check(mu.ok, "the tutor books a make-up", JSON.stringify(mu).slice(0, 200));
+  await pull(A); await go(A, "#bookings", 1200); await A.locator('[data-mu^="ok:"]').first().click(); await A.waitForTimeout(1500);
+  const muRow = await sql("SELECT value FROM settings WHERE key = 'hub:lhq_makeups'");
+  check(muRow.length && Object.values(muRow[0].value).some(m => m.status === "ok" && m.decidedBy === "Catherine Mkwinda"), "Admin confirms it on the Make-ups page");
+  const rp = await api(Tt, "tutor", { action: "report", report: { d: today, req: [{ item: "Graph paper", qty: "2", by: "", for: "Linga Shaba" }], flag: null, comment: "", rate: 4, gaps: 0, hours: 1 } });
+  check(rp.ok, "the tutor asks for graph paper in the daily report", JSON.stringify(rp).slice(0, 200));
+  await pull(A); const rk = (await A.evaluate(() => reqList().map(r => r.key)))[0];
+  check((await api(A, "req", { key: rk, action: "approve" })).status === 403, "Admin can't approve a requisition");
+  await pull(D); await go(D, "#reqs", 1200); await D.locator('[data-rq^="approve:"]').first().click(); await D.waitForTimeout(1500);
+  await pull(A); await go(A, "#reqs", 1200); await A.locator('[data-rq^="bought:"]').first().click(); await A.waitForTimeout(400);
+  await A.fill("#rqC", "4500"); await A.click("#rqGo"); await A.waitForTimeout(1800);
+  const bought = await sql("SELECT amount, body->>'what' AS what FROM money WHERE kind = 'spend' AND body->>'what' LIKE 'Graph paper%'");
+  check(bought.length === 1 && +bought[0].amount === 4500, "the Director approves, Admin marks it bought, and MKW 4,500 is in Spending", JSON.stringify(bought));
+  const tv2 = await api(Tt, "tutor", null, "GET");
+  check(Object.values(tv2.reqs || {}).some(v => v.s === "bought") && (tv2.makeups || []).some(m => m.status === "ok"), "the tutor sees the make-up confirmed and the paper bought");
+
   /* 7. Activity: the Director sees who did what */
   await go(D, "#activity", 2500); const av = await text(D);
   const want = [["Catherine Mkwinda", /Made receipt RCT-0001 · Linga Shaba · MKW 120,000/], ["Emmanuel Mkwamba", /Logged 2 sessions/], ["Catherine Mkwinda", /Confirmed Linga Shaba · Mathematics/],

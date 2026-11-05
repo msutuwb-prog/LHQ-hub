@@ -352,7 +352,7 @@ function parse(){
 function render(){
   load(); parse();
   if(me().role === 'tutor' && !['teach','settings','set'].includes(route.page)){ location.replace('#teach'); route = {page:'teach', args:[]}; }
-  const sec = route.page === 'teach' && me().role === 'tutor' ? ({sra:'tsra', report:'trep', cal:'tcal', avail:'tcal'}[route.args[0]] || 'teach') : {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', teach:'teach', tutors:'home'}[route.page] || route.page;
+  const sec = route.page === 'teach' && me().role === 'tutor' ? ({sra:'tsra', report:'trep', cal:'tcal', avail:'tcal'}[route.args[0]] || 'teach') : {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', teach:'teach', tutors:'home', bookings:'home', reqs:'home'}[route.page] || route.page;
   LHQNav.section(sec);
   const m = $('main');
   m.className = 'main' + (['home','edithome','new','students','student','tutors','teach'].includes(route.page) ? ' narrow' : '');
@@ -436,6 +436,11 @@ function attention(list){
           out.push({w:-1, s:{name:`${tn} hasn't seen ${c.student}'s card`}, href:openLink(c), ico:'clock', col:'--am', sub:`${c.number} · sent ${Math.floor((now - upd) / 36e5)} h ago`, btn:['Nudge', `https://wa.me/${ph ? waNum(ph) : ''}?text=${encodeURIComponent(msg)}`]}); }
       }));
     }
+    const MU = Object.values(store.get('lhq_makeups', {}) || {}).filter(m => m && m.status === 'asked');
+    if(MU.length) out.push({w:-1, s:{name:`${MU.length} make-up${MU.length === 1 ? '' : 's'} to confirm`}, href:'#bookings', ico:'clock', col:'--am', sub:MU.slice(0, 3).map(m => `${m.st} · ${m.sub} · ${nice(m.d)} ${m.s}`).join(' · '), btn:['Review', '#bookings']});
+    const RQ = reqList(), ap = RQ.filter(r => !r.dec.s), buy = RQ.filter(r => r.dec.s === 'approved');
+    if(isDir() && ap.length) out.push({w:-1, s:{name:`${ap.length} requisition${ap.length === 1 ? '' : 's'} to approve`}, href:'#reqs', ico:'box', col:'--am', sub:ap.slice(0, 3).map(r => `${r.item.item} · ${r.rep.tutor}`).join(' · '), btn:['Review', '#reqs']});
+    if(can('spend') && buy.length) out.push({w:-1, s:{name:`${buy.length} approved requisition${buy.length === 1 ? '' : 's'} to buy`}, href:'#reqs', ico:'box', col:'--am', sub:buy.slice(0, 3).map(r => r.item.item).join(' · '), btn:['Review', '#reqs']});
     disp.forEach(e => out.push({w:-2, s:{name:e.st}, href:'#confirm/' + encodeURIComponent(e.id), ico:'alert', col:'--rd', sub:`${e.sub} with ${e.tutor || 'tutor'} · ${nice(e.d)} · disputed: ${e.cf.note}`, tag:['Disputed','rd']}));
   }
   return out.sort((a, b) => a.w - b.w);
@@ -859,6 +864,8 @@ P.calendar = (view = 'week', d = '') => {
   else if(view === 'month'){ const x = HD.parseISO(date); from = HD.isoOf(new Date(x.getFullYear(), x.getMonth(), 1)); to = HD.isoOf(new Date(x.getFullYear(), x.getMonth() + 1, 0)); title = MONTHL[x.getMonth()] + ' ' + x.getFullYear(); prev = HD.isoOf(new Date(x.getFullYear(), x.getMonth() - 1, 1)); next = HD.isoOf(new Date(x.getFullYear(), x.getMonth() + 1, 1)); }
   else { view = 'week'; from = wk(date); to = HD.addDays(from, 6); title = `Week of ${nice(from)}`; prev = HD.addDays(from, -7); next = HD.addDays(from, 7); }
   const cards = saved.filter(x => typeOf(x) === 'card'), all = SCHED.sessions(cards, from, to), avail = store.get('lhq_avail', {}) || {};
+  Object.values(store.get('lhq_makeups', {}) || {}).filter(m => m && m.status !== 'no' && m.d >= from && m.d <= to).forEach(m => all.push({date:m.d, day:SCHED.dayCode(m.d), s:m.s, e:m.e, a:SCHED.mins(m.s), b:SCHED.mins(m.e), tutor:m.tutor, student:m.st, sub:m.sub, k:m.k, where:m.status === 'asked' ? 'Make-up · to confirm' : 'Make-up', card:'', mu:m}));
+  all.sort((p, q) => p.date.localeCompare(q.date) || (p.a ?? 9999) - (q.a ?? 9999));
   const tutors = [...new Set(SCHED.sessions(cards, t, HD.addDays(t, 30)).map(e => e.tutor).filter(Boolean))].sort(), studs = [...new Set(all.map(e => e.student))].sort();
   const cl = new Map(); SCHED.clashes(all).forEach(c => { cl.set(c.a, c.kind); cl.set(c.b, c.kind); });
   const L = all.filter(e => (!CF.tutor || e.tutor === CF.tutor) && (!CF.student || e.student === CF.student)).map(e => Object.assign(e, {clash: cl.get(e) || (e.tutor && SCHED.unavailable(avail, e.tutor, e.day, e.a, e.b).length ? 'unavailable' : '')}));
@@ -866,7 +873,7 @@ P.calendar = (view = 'week', d = '') => {
   const byD = {}; L.forEach(e => (byD[e.date] = byD[e.date] || []).push(e));
   const nCl = L.filter(e => e.clash).length, CW = {tutor:'tutor in two places', student:'student has two subjects', unavailable:"in the tutor's unavailable time"};
   const row = e => { const lg = logs.find(x => x.k === e.k && x.d === e.date), st = lg ? (lg.a === 'absent' ? ' · student absent' : lg.a === 'cancelled' ? ' · cancelled' : ' · ✓ logged') : '';
-    return `<a class="it" href="${D('d=' + e.card)}" style="${e.clash ? 'border-left:3px solid var(--rd)' : ''}"><span class="cal-t">${e.s || '?'}<small>${e.e || ''}</small></span><span class="t"><b>${esc(e.student)} · ${esc(e.sub)}</b><small>${esc(e.tutor || 'No tutor yet')}${e.where ? ' · ' + esc(e.where) : ''}${st}${e.clash ? ` · <span style="color:var(--rd);font-weight:700">${CW[e.clash]}</span>` : ''}</small></span><span class="chev">›</span></a>`; };
+    return `<a class="it" href="${e.mu ? '#bookings' : D('d=' + e.card)}" style="${e.clash ? 'border-left:3px solid var(--rd)' : e.mu && e.mu.status === 'asked' ? 'border-left:3px dashed var(--am)' : ''}"><span class="cal-t">${e.s || '?'}<small>${e.e || ''}</small></span><span class="t"><b>${esc(e.student)} · ${esc(e.sub)}</b><small>${esc(e.tutor || 'No tutor yet')}${e.where ? ' · ' + esc(e.where) : ''}${st}${e.clash ? ` · <span style="color:var(--rd);font-weight:700">${CW[e.clash]}</span>` : ''}</small></span><span class="chev">›</span></a>`; };
   let body;
   if(view === 'month'){ const cells = []; for(let x = wk(from); x <= to || cells.length % 7; x = HD.addDays(x, 1)) cells.push(x);
     body = `<div class="cal-m">${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(k => `<span class="h">${k}</span>`).join('')}${cells.map(x => { const D0 = byD[x] || [];
@@ -881,6 +888,48 @@ P.calendar = (view = 'week', d = '') => {
   <div class="cal-nav"><a class="btn sm" href="${go(view, prev)}" aria-label="Earlier">‹</a><b>${title}</b><a class="btn sm" href="${go(view, next)}" aria-label="Later">›</a>${from <= t && t <= to ? '' : `<a class="btn sm" href="${go(view, t)}">Today</a>`}</div>
   ${body}`;
 };
+
+/* ---------- make-ups tutors booked: LHQ confirms or declines ---------- */
+P.bookings = () => {
+  if(!can('tutors')) return `${crumb('#home', 'Home')}<p class="empty">You don't have permission to confirm make-ups.</p>`;
+  const M = Object.values(store.get('lhq_makeups', {}) || {}).filter(Boolean).sort((a, b) => (a.d + a.s).localeCompare(b.d + b.s)), t = today();
+  const ask = M.filter(m => m.status === 'asked'), up = M.filter(m => m.status === 'ok' && m.d >= t), no = M.filter(m => m.status === 'no').slice(-10).reverse();
+  const clashOf = m => { const a = SCHED.mins(m.s), b = SCHED.mins(m.e), L = SCHED.sessions(saved.filter(x => typeOf(x) === 'card'), m.d, m.d).filter(e => SCHED.overlap(a, b, e.a, e.b) && (SCHED.nk(e.tutor) === SCHED.nk(m.tutor) || SCHED.nk(e.student) === SCHED.nk(m.st)));
+    return L.map(e => SCHED.nk(e.tutor) === SCHED.nk(m.tutor) ? `${m.tutor} teaches ${e.student} then` : `${m.st} has ${e.sub} then`); };
+  const row = m => { const c = m.status === 'asked' ? clashOf(m) : []; return `<div class="it" style="align-items:flex-start;flex-wrap:wrap"><span class="cal-t">${m.s}<small>${m.e}</small></span><span class="t" style="min-width:200px"><b>${esc(m.st)} · ${esc(m.sub)}</b><small>${nice(m.d)} · with ${esc(m.tutor)}${m.why ? ' · ' + esc(m.why) : ''}${m.note ? ' · ' + esc(m.note) : ''}${m.decidedBy ? ' · ' + esc(m.decidedBy) : ''}</small>${c.map(x => `<small style="color:var(--rd);font-weight:700">! ${esc(x)}</small>`).join('')}</span>
+    ${m.status === 'asked' ? `<span class="acts"><button class="btn sm n" data-mu="ok:${esc(m.id)}">Confirm</button><button class="btn sm" data-mu="no:${esc(m.id)}">Decline</button></span>` : ''}</div>`; };
+  return `${crumb('#tutors', 'Tutors', 'bookings')}<div class="ph"><div class="tt"><h1>Make-ups</h1><p>Times tutors booked for sessions owed. Confirm, or decline with a reason so they can book again.</p></div></div>
+  <div class="h2">To confirm <em>${ask.length}</em></div><div class="card">${ask.map(row).join('') || '<p class="empty">Nothing waiting. ✓</p>'}</div>
+  ${up.length ? `<div class="h2">Confirmed, coming up <em>${up.length}</em></div><div class="card">${up.map(row).join('')}</div>` : ''}
+  ${no.length ? `<div class="h2">Declined</div><div class="card">${no.map(row).join('')}</div>` : ''}`;
+};
+/* ---------- requisitions from tutors' daily reports ---------- */
+function reqList(){
+  const T = (store.get('lhq_treps', {e:{}}) || {}).e || {}, D = store.get('lhq_reqs', {}) || {}, out = [];
+  Object.values(T).forEach(rep => (rep && rep.req || []).forEach((item, i) => { const key = rep.id + '#' + i; out.push({key, rep, item, dec: D[key] || {}}); }));
+  return out.sort((a, b) => (b.rep.d || '').localeCompare(a.rep.d || ''));
+}
+P.reqs = () => {
+  const R = reqList(), ap = R.filter(r => !r.dec.s), buy = R.filter(r => r.dec.s === 'approved'), done = R.filter(r => ['bought','declined'].includes(r.dec.s)).slice(0, 20);
+  const row = r => `<div class="it" style="align-items:flex-start;flex-wrap:wrap"><span class="t" style="min-width:200px"><b>${esc(r.item.item)}${r.item.qty && r.item.qty !== '1' ? ' × ' + esc(r.item.qty) : ''}</b><small>${esc(r.rep.tutor)} · asked ${nice(r.rep.d)}${r.item.by ? ' · needed by ' + nice(r.item.by) : ''}${r.item.for ? ' · for ' + esc(r.item.for.replace(/\b\w/g, c => c.toUpperCase())) : ''}${r.dec.s ? ` · ${{approved:'approved', declined:'declined', bought:'bought'}[r.dec.s]} by ${esc(r.dec.boughtBy || r.dec.by)}` : ''}${r.dec.cost ? ' · MKW ' + Number(r.dec.cost).toLocaleString('en-US') : ''}${r.dec.note ? ' · ' + esc(r.dec.note) : ''}</small></span>
+    <span class="acts">${!r.dec.s && isDir() ? `<button class="btn sm n" data-rq="approve:${esc(r.key)}">Approve</button><button class="btn sm" data-rq="decline:${esc(r.key)}">Decline</button>` : r.dec.s === 'approved' && can('spend') ? `<button class="btn sm n" data-rq="bought:${esc(r.key)}">Mark bought</button>` : ''}</span></div>`;
+  return `${crumb('#home', 'Home', 'reqs')}<div class="ph"><div class="tt"><h1>Requisitions</h1><p>What tutors ask for in their daily report. ${isDir() ? 'You approve or decline;' : 'The Director approves;'} whoever records spending marks it bought, and the cost goes into Spending.</p></div></div>
+  <div class="h2">To approve <em>${ap.length}</em></div><div class="card">${ap.map(row).join('') || '<p class="empty">Nothing waiting. ✓</p>'}</div>
+  <div class="h2">Approved · to buy <em>${buy.length}</em></div><div class="card">${buy.map(row).join('') || '<p class="empty">Nothing to buy.</p>'}</div>
+  ${done.length ? `<div class="h2">Done</div><div class="card">${done.map(row).join('')}</div>` : ''}`;
+};
+function reqSheet(action, key){
+  const r = reqList().find(x => x.key === key); if(!r) return;
+  const send = async body => { try{ await hub.api('req', {method:'POST', body: JSON.stringify(Object.assign({action, key}, body))}); await hub.pull(); closeSheet(); render(); toast({approve:'Approved: Admin will get it', decline:'Declined: the tutor sees why', bought:'Bought: the cost is in Spending'}[action]); }catch(e){ toast(e.message); } };
+  if(action === 'approve') return send({});
+  const cats = (settingsKV().spendCats || '').split('\n').map(x => x.trim()).filter(Boolean);
+  openSheet(`<div class="hx"><h3>${action === 'decline' ? 'Decline' : 'Mark bought'}</h3><button class="ib" data-close>✕</button></div><p class="sp">${esc(r.item.item)}${r.item.qty && r.item.qty !== '1' ? ' × ' + esc(r.item.qty) : ''} · for ${esc(r.rep.tutor)}</p>
+    ${action === 'decline' ? `<label class="f"><span>Why (the tutor sees this)</span><input class="in" id="rqN" placeholder="e.g. We have some in the office"></label>`
+      : `<div class="r2"><label class="f"><span>What it cost (MKW)</span><input class="in" id="rqC" inputmode="numeric"></label><label class="f"><span>Category</span><select class="in" id="rqK">${cats.map(c => `<option${c === 'Stationery' ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select></label></div>
+      <label class="f"><span>Paid by</span><select class="in" id="rqM">${['Cash','Bank transfer','Airtel Money','TNM Mpamba'].map(m => `<option>${m}</option>`).join('')}</select></label>`}
+    <button class="btn n full" id="rqGo">${action === 'decline' ? 'Decline' : 'Save'}</button>`);
+  $('rqGo').onclick = () => send(action === 'decline' ? {note: $('rqN').value} : {cost: String($('rqC').value).replace(/[^\d]/g, ''), cat: $('rqK').value, method: $('rqM').value});
+}
 
 P.tutors = (show = '') => {
   const t = today(), by = new Map(), none = [];
@@ -897,7 +946,7 @@ P.tutors = (show = '') => {
   const ppl = HD.people(), pid = n => (ppl.find(p => p.name.toLowerCase() === n.toLowerCase()) || {}).id;
   const row = ({s, card, x}) => `<a class="it" href="${openLink(card)}"><span class="t"><b>${esc(s.name)}</b><small>${esc([x.name, (x.days || []).join(' '), x.start ? x.start + '–' + (x.end || '') : ''].filter(Boolean).join(' · '))}</small></span><span class="chev">${ic('chev',16,2)}</span></a>`;
   return `${crumb('#home', 'Home', 'tutors')}
-  <div class="ph"><div class="tt"><h1>Tutors teaching now</h1><p>${list.length} tutor${list.length === 1 ? '' : 's'} on current tuition cards${none.length ? ` · ${none.length} subject${none.length === 1 ? '' : 's'} without a tutor` : ''}</p></div>${can('tutors') ? `<div class="acts"><a class="btn" href="#calendar">${ic('clock',15)} Calendar</a><a class="btn" href="#confirm">${ic('clock',15)} Sessions to confirm${(n => n ? ' · ' + n : '')(HD.sessionsToConfirm().filter(e => HD.cfState(e) === 'disputed').length)}</a></div>` : ''}</div>
+  <div class="ph"><div class="tt"><h1>Tutors teaching now</h1><p>${list.length} tutor${list.length === 1 ? '' : 's'} on current tuition cards${none.length ? ` · ${none.length} subject${none.length === 1 ? '' : 's'} without a tutor` : ''}</p></div>${can('tutors') ? `<div class="acts"><a class="btn" href="#calendar">${ic('clock',15)} Calendar</a><a class="btn" href="#bookings">Make-ups</a><a class="btn" href="#reqs">Requisitions</a><a class="btn" href="#confirm">${ic('clock',15)} Sessions to confirm${(n => n ? ' · ' + n : '')(HD.sessionsToConfirm().filter(e => HD.cfState(e) === 'disputed').length)}</a></div>` : ''}</div>
   ${window.PC ? PC.block('tutors', {}, 'At a glance') : ''}
   ${none.length ? `<div class="h2" id="none">No tutor yet <em>${none.length}</em></div><div class="card" style="border-color:var(--gold)">${none.map(row).join('')}</div>` : ''}
   ${list.map(([n, items]) => { const st = new Set(items.map(i => i.s.key)).size, open = show === encodeURIComponent(n) || show === n;
@@ -1162,6 +1211,12 @@ function bind(){
   on('[data-go]', (el, e) => { if(!e.target.closest('a')) location.href = el.dataset.go; });
   document.querySelectorAll('[data-go][tabindex]').forEach(el => el.onkeydown = e => { if(e.key === 'Enter' && e.target === el) location.href = el.dataset.go; });
   on('[data-cf]', el => confirmSheet(el.dataset.cf));
+  on('[data-rq]', el => { const [a, ...k] = el.dataset.rq.split(':'); reqSheet(a, k.join(':')); });
+  on('[data-mu]', async el => { const [d, id] = el.dataset.mu.split(':');
+    const go = async note => { try{ await hub.api('makeup', {method:'POST', body: JSON.stringify({id, decision:d, note})}); await hub.pull(); closeSheet(); render(); toast(d === 'ok' ? 'Confirmed: it\'s in the tutor\'s calendar' : 'Declined: the tutor can book again'); }catch(e){ toast(e.message); } };
+    if(d === 'ok') return go('');
+    openSheet(`<div class="hx"><h3>Decline the make-up</h3><button class="ib" data-close>✕</button></div><label class="f"><span>Why (the tutor sees this)</span><input class="in" id="muN" placeholder="e.g. The room is booked then"></label><button class="btn n full" id="muNo">Decline</button>`);
+    $('muNo').onclick = () => go($('muN').value); });
   if($('calT')) $('calT').onchange = () => { CF.tutor = $('calT').value; render(); };
   if($('calS')) $('calS').onchange = () => { CF.student = $('calS').value; render(); };
   on('[data-actw]', el => { AF.when = el.dataset.actw; actLoad(); });

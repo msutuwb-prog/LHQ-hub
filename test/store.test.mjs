@@ -316,4 +316,33 @@ test("tutor's times: unavailable blocks, Got it / Can't make this time, taken of
   assert.equal((await hub(new Request("http://x" + link.replace(/\.[a-f0-9]{24}\./, ".000000000000000000000000.")), {})).status, 404, "a wrong signature gets nothing");
 });
 
+test("make-ups: a tutor books, LHQ confirms or declines; requisitions: the Director approves, Admin marks bought into Spending", async () => {
+  const tok = (await call("signin", { id: "emmanuel.mkwamba", password: "Maths!2026x" })).j.token;
+  const day = n => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
+  assert.equal((await call("tutor", { action: "makeup", k: "natasha chirwa|physics", d: day(2), s: "10:00", e: "11:00" }, tok)).status, 403, "only their own students");
+  assert.equal((await call("tutor", { action: "makeup", k: "thoko banda|mathematics", d: day(-5), s: "10:00", e: "11:00" }, tok)).status, 400, "not in the past");
+  const m = await call("tutor", { action: "makeup", k: "thoko banda|mathematics", d: day(2), s: "10:00", e: "11:00", why: "Absent on Tuesday" }, tok);
+  assert.equal(m.status, 200, JSON.stringify(m.j)); assert.equal(m.j.makeup.status, "asked"); assert.equal(m.j.makeup.st, "Thoko Banda");
+  assert.equal((await call("makeup", { id: m.j.makeup.id, decision: "ok" }, tok)).status, 403, "a tutor can't confirm their own");
+  assert.equal((await call("makeup", { id: m.j.makeup.id, decision: "no" }, DIR)).status, 400, "declining needs a reason");
+  const ok = await call("makeup", { id: m.j.makeup.id, decision: "ok" }, DIR); assert.equal(ok.j.makeup.status, "ok");
+  assert.equal((await call("tutor", { action: "makeup", id: m.j.makeup.id, cancel: true }, tok)).status, 409, "a confirmed one can't be taken back by the tutor");
+  const g = await call("tutor", null, tok, "GET"); assert.equal(g.j.makeups[0].status, "ok", "the tutor sees the decision");
+  // requisitions
+  const rep = await call("tutor", { action: "report", report: { d: day(0), req: [{ item: "Printer paper", qty: "5" }, { item: "Markers", qty: "1" }] } }, tok);
+  const key0 = rep.j.report.id + "#0", key1 = rep.j.report.id + "#1";
+  assert.equal((await call("req", { key: key0, action: "bought", cost: 45000 }, DIR)).status, 409, "approve first");
+  assert.equal((await call("req", { key: key0, action: "approve" }, tok)).status, 403);
+  assert.equal((await call("req", { key: key0, action: "approve" }, DIR)).j.req.s, "approved");
+  assert.equal((await call("req", { key: key1, action: "decline" }, DIR)).status, 400, "declining needs a reason");
+  await call("req", { key: key1, action: "decline", note: "We have some in the office" }, DIR);
+  const b = await call("req", { key: key0, action: "bought", cost: 45000, cat: "Stationery" }, DIR);
+  assert.equal(b.status, 200, JSON.stringify(b.j)); assert.equal(b.j.req.s, "bought");
+  const sp = await one("SELECT cat, amount::float a, body->>'what' w FROM money WHERE id = $1", [b.j.req.spend]);
+  assert.deepEqual(sp, { cat: "Stationery", a: 45000, w: "Printer paper × 5 (requisition from Emmanuel Mkwamba)" }, "the cost is in Spending");
+  const g2 = await call("tutor", null, tok, "GET");
+  assert.equal(g2.j.reqs[key1].s, "declined"); assert.equal(g2.j.reqs[key0].s, "bought", "the tutor sees both decisions");
+  assert.equal((await call("sync", { kv: { lhq_reqs: { x: 1 } } }, (await call("signin", { id: "chisomo.banda", password: "Physics!2026x" })).j.token)).status, 403);
+});
+
 test.after(async () => { await pool.end(); });

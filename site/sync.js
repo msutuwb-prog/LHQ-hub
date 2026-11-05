@@ -5,7 +5,7 @@
   'use strict';
   const API = '/api/hub/';
   const DOCS = 'lhq_saved';
-  const KV = ['lhq_settings','lhq_templates','lhq_counters','lhq_repEdits','lhq_logs','lhq_tlinks','lhq_students','lhq_spend','lhq_budget','lhq_income','lhq_classes','lhq_avail','lhq_cardack'];
+  const KV = ['lhq_settings','lhq_templates','lhq_counters','lhq_repEdits','lhq_logs','lhq_tlinks','lhq_students','lhq_spend','lhq_budget','lhq_income','lhq_classes','lhq_avail','lhq_cardack','lhq_treps','lhq_makeups','lhq_reqs'];
   const PRIVATE = ['lhq_spend','lhq_budget','lhq_income'];   // only sent to people allowed to see them; removed here when that changes
   const SESSION = 'lhq_session', BASE = 'lhq_syncBase', KVHASH = 'lhq_syncKv', REV = 'lhq_syncRev', DIRTY = 'lhq_syncDirty', EPOCH = 'lhq_syncEpoch';
   const ls = window.localStorage;
