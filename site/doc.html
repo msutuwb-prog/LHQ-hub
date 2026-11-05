@@ -22,6 +22,7 @@
 <script src="sync.js"></script>
 <script src="defaults.js"></script>
 <script src="hubdata.js"></script>
+<script src="schedule.js"></script>
 <script src="nav.js"></script>
 <script src="topics.js"></script>
 <script src="card.js"></script>
@@ -528,6 +529,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
   .preview-scale{transform:none!important;width:auto!important;height:auto!important;margin-left:0!important}
   .sheet-shadow{box-shadow:none}
 }
+.cc-ov{position:fixed;inset:0;z-index:90;background:rgba(10,18,30,.45);display:grid;place-items:center;padding:16px}.cc-box{background:var(--surface,#fff);color:var(--ink,#14213d);border-radius:18px;padding:18px;max-width:520px;width:100%;max-height:85vh;overflow:auto;box-shadow:0 18px 40px rgba(0,0,0,.25)}
 </style>
 </head>
 <body data-view="edit">
@@ -1819,7 +1821,26 @@ F('savedList').addEventListener('click', e=>{
   }
   if(b.dataset.del){ if(!confirm('Delete this saved document?')) return; saved=saved.filter(x=>x.id!==b.dataset.del); store.set('lhq_saved',saved); renderSaved(); }
 });
-F('btnSave').onclick = ()=>saveAndView();
+F('btnSave').onclick = ()=> doc.type === 'card' && window.SCHED ? cardClashCheck(saveAndView) : saveAndView();
+/* Before a tuition card is saved: does any line clash with the tutor's other students, the student's other subjects, or
+   times the tutor can't teach? If so, say so (with free times that suit both) and let LHQ change it or save anyway. */
+function cardClashCheck(go){
+  const avail = store.get('lhq_avail', {}) || {}, C = SCHED.checkCard(doc, saved, avail);
+  if(!C.length) return go();
+  const lines = [], subs = new Set();
+  C.filter(x => x.kind !== 'tutor').forEach(x => { lines.push(x.text); subs.add(x.sub); });
+  const T = {}; C.filter(x => x.kind === 'tutor').forEach(x => { const k = x.tutor + '|' + x.sub; (T[k] = T[k] || {tutor:x.tutor, sub:x.sub, who:new Set(), when:new Set()}); T[k].who.add(x.other); T[k].when.add(SCHED.DAYN[x.day] + ' ' + x.s); subs.add(x.sub); });
+  Object.values(T).forEach(t => { const w = [...t.who]; lines.push(`${t.tutor} already teaches ${w.slice(0, 3).join(', ')}${w.length > 3 ? ` and ${w.length - 3} more` : ''} then (${[...t.when].join(', ')}) · ${t.sub}`); });
+  const free = [...subs].map(sub => { const F = SCHED.freeTimes(doc, sub, saved, avail).slice(0, 6); return F.length ? `<div style="margin-top:8px"><b>${esc(sub)}</b> · free for the tutor and ${esc((doc.student || 'the student').split(' ')[0])}:<br>${F.map(d => `${d.name} ${d.slots.slice(0, 4).join(', ')}${d.slots.length > 4 ? '…' : ''}`).join(' · ')}</div>` : `<div style="margin-top:8px"><b>${esc(sub)}</b> · no free time this week for both.</div>`; }).join('');
+  const ov = document.createElement('div'); ov.className = 'cc-ov';
+  ov.innerHTML = `<div class="cc-box" role="dialog" aria-modal="true" aria-label="Clashes on this card"><h3 style="margin:0 0 6px">Clashes on this card</h3>
+    <ul style="margin:0 0 6px;padding-left:18px">${lines.map(l => `<li style="color:var(--rd,#b42318);font-weight:700;margin:4px 0">${esc(l)}</li>`).join('')}</ul>
+    <div class="note" style="font-size:13.5px">${free}</div>
+    <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap"><button class="dp-b n" data-cc="fix">Change the times</button><button class="dp-b" data-cc="save">Save anyway</button></div>
+    <p class="note" style="margin:8px 0 0;font-size:12.5px">The tutor sees the card on their list and can say if a time doesn't work.</p></div>`;
+  document.body.append(ov);
+  ov.onclick = e => { const b = e.target.closest('[data-cc]'); if(e.target === ov || b){ ov.remove(); if(b && b.dataset.cc === 'save') go(); } };
+}
 
 /* ================= PDF ================= */
 let pdfCache = null; // {key, blob}

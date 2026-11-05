@@ -163,6 +163,7 @@ function cardPickBtn(key, value, placeholder){
   return `<button type="button" class="picker-btn${value?'':' empty'}" data-pickfield="${key}" aria-haspopup="listbox" aria-expanded="false"><span class="pb-dot"></span><span class="pb-text">${esc(value||placeholder)}</span>${cardChev(false)}</button>`;
 }
 function cardChecklist(s, i){
+  s.picks = s.picks || {}; s.details = s.details || {};   // a card saved elsewhere may not have them yet
   cardFixPicks(s);
   const set = cardTopicSet(s.list);
   if(!set) return `<p class="hint" style="margin:0">No topic list chosen. Choose one from <b>Topic list</b> above, or add your own topics below.</p>`;
@@ -331,6 +332,7 @@ function cardHTML(d, only){
   const anyDays = subj.some(([,s])=>(s.days||[]).length), anyTbc = subj.some(([,s])=>(s.days||[]).some(dd=>!cardTimeOf(s,dd).start));
   // subject sections
   const sections = subj.map(([i,s])=>{
+    s.picks = s.picks || {}; s.details = s.details || {};
     const [c, tint] = CARD_COLORS[i % CARD_COLORS.length], set = cardTopicSet(s.list);
     const tutor = s.tutor ? `<b>${esc(s.tutor)}</b>` : '<b style="color:#9a5b00">To be confirmed</b>';
     const when = [cardHasDayTimes(s) ? esc(cardWhenText(s)) : cardDayText(s) || '<span style="color:#9a5b00">days to be confirmed</span>',

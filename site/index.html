@@ -25,6 +25,7 @@ if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash)
 <script src="sync.js"></script>
 <script src="defaults.js"></script>
 <script src="hubdata.js"></script>
+<script src="schedule.js"></script>
 <script src="nav.js"></script>
 <script src="schools.js"></script>
 <script src="business.js"></script>
@@ -118,7 +119,7 @@ textarea.in{min-height:200px;line-height:1.45;resize:vertical}
 @media (max-width:560px){.r2,.r3{grid-template-columns:1fr}}
 .seg{display:inline-grid;grid-auto-flow:column;grid-auto-columns:1fr;border:1px solid var(--line);border-radius:11px;overflow:hidden;background:var(--surface);margin-bottom:12px}
 .seg button{border:0;background:none;font-weight:700;padding:9px 16px;color:var(--muted)}
-.seg button.on{background:var(--accent);color:var(--onaccent)}
+.seg button.on,.seg a.on{background:var(--accent);color:var(--onaccent)}.seg a{font-weight:700;padding:9px 16px;color:var(--muted);text-align:center;text-decoration:none}
 .toggle{display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line2)}
 .cap + .toggle{border-top:0}
 .toggle .t{flex:1}.toggle .t b{display:block;font-weight:700}.toggle .t small{color:var(--muted);font-size:12.5px;display:block}
@@ -351,7 +352,7 @@ function parse(){
 function render(){
   load(); parse();
   if(me().role === 'tutor' && !['teach','settings','set'].includes(route.page)){ location.replace('#teach'); route = {page:'teach', args:[]}; }
-  const sec = route.page === 'teach' && me().role === 'tutor' ? ({sra:'tsra', report:'trep'}[route.args[0]] || 'teach') : {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', teach:'teach', tutors:'home'}[route.page] || route.page;
+  const sec = route.page === 'teach' && me().role === 'tutor' ? ({sra:'tsra', report:'trep', cal:'tcal', avail:'tcal'}[route.args[0]] || 'teach') : {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', teach:'teach', tutors:'home'}[route.page] || route.page;
   LHQNav.section(sec);
   const m = $('main');
   m.className = 'main' + (['home','edithome','new','students','student','tutors','teach'].includes(route.page) ? ' narrow' : '');
@@ -425,6 +426,16 @@ function attention(list){
   });
   if(can('tutors')){
     const disp = HD.sessionsToConfirm().filter(e => HD.cfState(e) === 'disputed');
+    if(window.SCHED){   // tuition cards a tutor hasn't seen after a day, or can't make
+      const ack = store.get('lhq_cardack', {}) || {}, from = ack._from || 0, now = Date.now(), info = settingsKV().tutorInfo || {};
+      saved.filter(d => typeOf(d) === 'card' && (d.periodEnd || '') >= t).forEach(c => [...new Set((c.subjects || []).map(x => x.tutor).filter(Boolean))].forEach(tn => {
+        const a = ack[c.id + '|' + SCHED.nk(tn)], sig = SCHED.sigFor(c, tn), upd = c.updatedAt || c.savedAt || 0;
+        if(a && a.s === 'cant' && a.sig === sig) out.push({w:-2, s:{name:`${tn} can't make ${c.student}'s times`}, href:openLink(c), ico:'alert', col:'--rd', sub:`${c.number} · “${a.note}” · change the card and they'll be asked again`, tag:['Change times','rd']});
+        else if((!a || a.sig !== sig) && upd > from && now - upd > 24 * 3600e3){ const ph = (info[tn] || {}).phone || '';
+          const msg = `Hi ${first(tn)}, ${c.student} is on your LHQ list: ${SCHED.linesFor(c, tn).join('; ')}. Please open LHQ Hub and tap Got it (or Can't make this time): ${location.origin}/#teach`;
+          out.push({w:-1, s:{name:`${tn} hasn't seen ${c.student}'s card`}, href:openLink(c), ico:'clock', col:'--am', sub:`${c.number} · sent ${Math.floor((now - upd) / 36e5)} h ago`, btn:['Nudge', `https://wa.me/${ph ? waNum(ph) : ''}?text=${encodeURIComponent(msg)}`]}); }
+      }));
+    }
     disp.forEach(e => out.push({w:-2, s:{name:e.st}, href:'#confirm/' + encodeURIComponent(e.id), ico:'alert', col:'--rd', sub:`${e.sub} with ${e.tutor || 'tutor'} · ${nice(e.d)} · disputed: ${e.cf.note}`, tag:['Disputed','rd']}));
   }
   return out.sort((a, b) => a.w - b.w);
@@ -838,6 +849,39 @@ P.activity = () => {
   ${ACT.more ? '<button class="btn" data-actmore>Show earlier</button>' : ''}`;
 };
 
+/* ---------- the all-tutors calendar (Director and Admin): every session on the current cards, clashes in red ---------- */
+const CF = {tutor:'', student:''};
+P.calendar = (view = 'week', d = '') => {
+  const t = today(), date = /^\d{4}-\d{2}-\d{2}$/.test(d) ? d : t, go = (v, x) => `#calendar/${v}/${x}`, WD = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
+  const wk = x => { const y = HD.parseISO(x); y.setDate(y.getDate() - (y.getDay() + 6) % 7); return HD.isoOf(y); };
+  let from, to, title, prev, next;
+  if(view === 'day'){ from = to = date; title = `${WD[HD.parseISO(date).getDay()]} ${nice(date)}`; prev = HD.addDays(date, -1); next = HD.addDays(date, 1); }
+  else if(view === 'month'){ const x = HD.parseISO(date); from = HD.isoOf(new Date(x.getFullYear(), x.getMonth(), 1)); to = HD.isoOf(new Date(x.getFullYear(), x.getMonth() + 1, 0)); title = MONTHL[x.getMonth()] + ' ' + x.getFullYear(); prev = HD.isoOf(new Date(x.getFullYear(), x.getMonth() - 1, 1)); next = HD.isoOf(new Date(x.getFullYear(), x.getMonth() + 1, 1)); }
+  else { view = 'week'; from = wk(date); to = HD.addDays(from, 6); title = `Week of ${nice(from)}`; prev = HD.addDays(from, -7); next = HD.addDays(from, 7); }
+  const cards = saved.filter(x => typeOf(x) === 'card'), all = SCHED.sessions(cards, from, to), avail = store.get('lhq_avail', {}) || {};
+  const tutors = [...new Set(SCHED.sessions(cards, t, HD.addDays(t, 30)).map(e => e.tutor).filter(Boolean))].sort(), studs = [...new Set(all.map(e => e.student))].sort();
+  const cl = new Map(); SCHED.clashes(all).forEach(c => { cl.set(c.a, c.kind); cl.set(c.b, c.kind); });
+  const L = all.filter(e => (!CF.tutor || e.tutor === CF.tutor) && (!CF.student || e.student === CF.student)).map(e => Object.assign(e, {clash: cl.get(e) || (e.tutor && SCHED.unavailable(avail, e.tutor, e.day, e.a, e.b).length ? 'unavailable' : '')}));
+  const logs = Object.values((store.get('lhq_logs', {e:{}}) || {}).e || {}).filter(x => x && !x.x && x.ty === 's');
+  const byD = {}; L.forEach(e => (byD[e.date] = byD[e.date] || []).push(e));
+  const nCl = L.filter(e => e.clash).length, CW = {tutor:'tutor in two places', student:'student has two subjects', unavailable:"in the tutor's unavailable time"};
+  const row = e => { const lg = logs.find(x => x.k === e.k && x.d === e.date), st = lg ? (lg.a === 'absent' ? ' · student absent' : lg.a === 'cancelled' ? ' · cancelled' : ' · ✓ logged') : '';
+    return `<a class="it" href="${D('d=' + e.card)}" style="${e.clash ? 'border-left:3px solid var(--rd)' : ''}"><span class="cal-t">${e.s || '?'}<small>${e.e || ''}</small></span><span class="t"><b>${esc(e.student)} · ${esc(e.sub)}</b><small>${esc(e.tutor || 'No tutor yet')}${e.where ? ' · ' + esc(e.where) : ''}${st}${e.clash ? ` · <span style="color:var(--rd);font-weight:700">${CW[e.clash]}</span>` : ''}</small></span><span class="chev">›</span></a>`; };
+  let body;
+  if(view === 'month'){ const cells = []; for(let x = wk(from); x <= to || cells.length % 7; x = HD.addDays(x, 1)) cells.push(x);
+    body = `<div class="cal-m">${['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(k => `<span class="h">${k}</span>`).join('')}${cells.map(x => { const D0 = byD[x] || [];
+      return `<a class="cal-d${x < from || x > to ? ' out' : ''}${x === t ? ' now' : ''}" href="${go('day', x)}"><b>${+x.slice(8)}</b>${D0.length ? `<small${D0.some(e => e.clash) ? ' class="cl"' : ''}>${D0.length}</small>` : ''}</a>`; }).join('')}</div>`; }
+  else { const days = []; for(let x = from; x <= to; x = HD.addDays(x, 1)) days.push(x);
+    body = days.map(x => { const D0 = byD[x] || []; if(view === 'week' && !D0.length) return ''; return `<div class="h2">${x === t ? 'Today · ' : ''}${WD[HD.parseISO(x).getDay()]} ${nice(x)} <em>${D0.length}</em></div><div class="card">${D0.map(row).join('') || '<p class="empty">No sessions.</p>'}</div>`; }).join('') || '<p class="empty">No sessions.</p>'; }
+  return `${crumb('#tutors', 'Tutors', 'calendar')}
+  <div class="ph"><div class="tt"><h1>Calendar</h1><p>Every tutor's sessions from the tuition cards${nCl ? ` · <b style="color:var(--rd)">${nCl} in a clash</b>` : ''}</p></div></div>
+  <div class="seg">${[['day','Day'],['week','Week'],['month','Month']].map(([k, l]) => `<a class="${view === k ? 'on' : ''}" href="${go(k, date)}">${l}</a>`).join('')}</div>
+  <div class="actf"><label class="f" style="margin:0;flex:1;min-width:170px"><select class="in" id="calT" aria-label="Tutor"><option value="">All tutors</option>${tutors.map(n => `<option ${CF.tutor === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>
+    <label class="f" style="margin:0;flex:1;min-width:170px"><select class="in" id="calS" aria-label="Student"><option value="">All students</option>${studs.map(n => `<option ${CF.student === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label></div>
+  <div class="cal-nav"><a class="btn sm" href="${go(view, prev)}" aria-label="Earlier">‹</a><b>${title}</b><a class="btn sm" href="${go(view, next)}" aria-label="Later">›</a>${from <= t && t <= to ? '' : `<a class="btn sm" href="${go(view, t)}">Today</a>`}</div>
+  ${body}`;
+};
+
 P.tutors = (show = '') => {
   const t = today(), by = new Map(), none = [];
   HD.students().forEach(s => {
@@ -853,7 +897,7 @@ P.tutors = (show = '') => {
   const ppl = HD.people(), pid = n => (ppl.find(p => p.name.toLowerCase() === n.toLowerCase()) || {}).id;
   const row = ({s, card, x}) => `<a class="it" href="${openLink(card)}"><span class="t"><b>${esc(s.name)}</b><small>${esc([x.name, (x.days || []).join(' '), x.start ? x.start + '–' + (x.end || '') : ''].filter(Boolean).join(' · '))}</small></span><span class="chev">${ic('chev',16,2)}</span></a>`;
   return `${crumb('#home', 'Home', 'tutors')}
-  <div class="ph"><div class="tt"><h1>Tutors teaching now</h1><p>${list.length} tutor${list.length === 1 ? '' : 's'} on current tuition cards${none.length ? ` · ${none.length} subject${none.length === 1 ? '' : 's'} without a tutor` : ''}</p></div>${can('tutors') ? `<div class="acts"><a class="btn" href="#confirm">${ic('clock',15)} Sessions to confirm${(n => n ? ' · ' + n : '')(HD.sessionsToConfirm().filter(e => HD.cfState(e) === 'disputed').length)}</a></div>` : ''}</div>
+  <div class="ph"><div class="tt"><h1>Tutors teaching now</h1><p>${list.length} tutor${list.length === 1 ? '' : 's'} on current tuition cards${none.length ? ` · ${none.length} subject${none.length === 1 ? '' : 's'} without a tutor` : ''}</p></div>${can('tutors') ? `<div class="acts"><a class="btn" href="#calendar">${ic('clock',15)} Calendar</a><a class="btn" href="#confirm">${ic('clock',15)} Sessions to confirm${(n => n ? ' · ' + n : '')(HD.sessionsToConfirm().filter(e => HD.cfState(e) === 'disputed').length)}</a></div>` : ''}</div>
   ${window.PC ? PC.block('tutors', {}, 'At a glance') : ''}
   ${none.length ? `<div class="h2" id="none">No tutor yet <em>${none.length}</em></div><div class="card" style="border-color:var(--gold)">${none.map(row).join('')}</div>` : ''}
   ${list.map(([n, items]) => { const st = new Set(items.map(i => i.s.key)).size, open = show === encodeURIComponent(n) || show === n;
@@ -1118,6 +1162,8 @@ function bind(){
   on('[data-go]', (el, e) => { if(!e.target.closest('a')) location.href = el.dataset.go; });
   document.querySelectorAll('[data-go][tabindex]').forEach(el => el.onkeydown = e => { if(e.key === 'Enter' && e.target === el) location.href = el.dataset.go; });
   on('[data-cf]', el => confirmSheet(el.dataset.cf));
+  if($('calT')) $('calT').onchange = () => { CF.tutor = $('calT').value; render(); };
+  if($('calS')) $('calS').onchange = () => { CF.student = $('calS').value; render(); };
   on('[data-actw]', el => { AF.when = el.dataset.actw; actLoad(); });
   on('[data-acta]', el => { const a = el.dataset.acta; if(!a) AF.areas.clear(); else AF.areas.has(a) ? AF.areas.delete(a) : AF.areas.add(a); actLoad(); });
   on('[data-actmore]', () => actLoad(true));

@@ -679,7 +679,7 @@ async function tutorData(me) {
   const mine = n => nk(n) === nk(me.name);
   const cards = (await readAll("doc/")).filter(d => d.type === "card" && (d.subjects || []).some(x => mine(x.tutor)))
     .map(c => ({ id: c.id, number: c.number, date: c.date, student: c.student, level: c.level, exam: c.exam, school: c.school, where: c.where,
-      periodStart: c.periodStart, periodEnd: c.periodEnd, period: c.period, cardNote: c.cardNote, savedAt: c.savedAt, subjects: (c.subjects || []).filter(x => mine(x.tutor)) }));
+      periodStart: c.periodStart, periodEnd: c.periodEnd, period: c.period, cardNote: c.cardNote, savedAt: c.savedAt, updatedAt: c.updatedAt || c.savedAt, createdAt: ((c.log || [])[0] || {}).at || c.savedAt, subjects: (c.subjects || []).filter(x => mine(x.tutor)) }));
   const keys = new Set(); cards.forEach(c => c.subjects.forEach(x => keys.add(nk(c.student) + "|" + nk(x.name))));
   const [logs, classes, reps] = await Promise.all(["lhq_logs", "lhq_classes", "lhq_treps"].map(k => store().get("kv/" + k, { type: "json" })));
   const entries = Object.values((logs && logs.e) || {}).filter(e => e && (keys.has(e.k) || mine(e.tutor)));
@@ -736,10 +736,13 @@ async function calFeed(path) {
 
 /* a tutor's own unavailable times, what they've acknowledged, and cards they've been taken off (to be told once) */
 async function tutorExtras(me, d) {
-  const mk = nk(me.name), [av, ack] = await Promise.all(["lhq_avail", "lhq_cardack"].map(k => store().get("kv/" + k, { type: "json" })));
+  const mk = nk(me.name);
+  let [av, ack] = await Promise.all(["lhq_avail", "lhq_cardack"].map(k => store().get("kv/" + k, { type: "json" })));
+  /* cards saved before acknowledgements started count as already acknowledged, so nobody is told about every student at once */
+  if (!ack || !ack._from) ack = await writeKv("lhq_cardack", old => Object.assign({}, old || {}, { _from: (old && old._from) || Date.now() }));
   const acks = {}, gone = [], mine = new Set(d.cards.map(c => c.id));
-  Object.entries(ack || {}).forEach(([k, v]) => { const [cid, t] = k.split("|"); if (t !== mk || !v) return; acks[cid] = v; if (!mine.has(cid) && v.s !== "gone") gone.push(Object.assign({ card: cid }, v)); });
-  return { avail: (av || {})[mk] || [], acks, gone, calLink: calPath(me.id) };
+  Object.entries(ack || {}).forEach(([k, v]) => { const [cid, t] = k.split("|"); if (t !== mk || !v || typeof v !== "object") return; acks[cid] = v; if (!mine.has(cid) && v.s !== "gone") gone.push(Object.assign({ card: cid }, v)); });
+  return { avail: (av || {})[mk] || [], acks, gone, ackFrom: ack._from, calLink: calPath(me.id) };
 }
 async function tutorPost(req, me) {
   if (!isTutor(me)) return fail("This part is for tutors.", 403);

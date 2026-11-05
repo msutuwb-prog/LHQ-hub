@@ -36,6 +36,8 @@ window.TUT = (function(){
 .t-dd>button i{font-style:normal;color:var(--muted)}
 .t-ddp{border-top:1px solid var(--line);padding:10px;display:grid;gap:6px;max-height:320px;overflow:auto}
 .t-ddp .lbl{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin:4px 2px 0}
+.cal-nav{display:flex;align-items:center;gap:8px;margin:0 0 12px;flex-wrap:wrap}.cal-nav b{flex:1;min-width:140px;text-align:center}.cal-t{flex:none;width:48px;font-weight:800;font-size:14px;line-height:1.2}.cal-t small{display:block;color:var(--muted);font-weight:600;font-size:12px}
+.cal-m{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}.cal-m .h{text-align:center;font-size:12px;font-weight:800;color:var(--muted)}.cal-d{border:1px solid var(--line2);background:var(--surface);border-radius:10px;min-height:52px;padding:5px;display:flex;flex-direction:column;align-items:center;text-decoration:none;color:var(--ink)}.cal-d.out{opacity:.4}.cal-d.now{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}.cal-d small{margin-top:auto;background:var(--accent);color:var(--onaccent);border-radius:99px;font-size:11px;font-weight:800;padding:0 7px}.cal-d small.cl{background:var(--rd);color:#fff}
 .t-pk{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:10px}
 .t-pk .row{display:flex;align-items:center;gap:8px;font-weight:800}.t-pk .row span{flex:1}
 .t-x{border:0;background:none;color:var(--muted);font-size:20px;line-height:1;padding:2px 6px;cursor:pointer}
@@ -80,7 +82,7 @@ window.TUT = (function(){
     if(loading) return loading;
     loading = (async () => {
       await flush();
-      try{ const j = await hub.api('tutor'); data = {cards: j.cards || [], entries: j.entries || [], classes: j.classes || [], reports: j.reports || [], at: Date.now()}; write(CK, data); err = ''; }
+      try{ const j = await hub.api('tutor'); data = {cards: j.cards || [], entries: j.entries || [], classes: j.classes || [], reports: j.reports || [], avail: j.avail || [], acks: j.acks || {}, gone: j.gone || [], ackFrom: j.ackFrom || 0, calLink: j.calLink || '', at: Date.now()}; write(CK, data); err = ''; }
       catch(e){ err = navigator.onLine ? e.message : 'offline'; }
       loading = null; if(!form) render();
     })();
@@ -213,6 +215,98 @@ window.TUT = (function(){
 
   /* ---------- pages ---------- */
   let form = null, editing = null, wform = null, mform = null, rform = null;
+  /* ---------- the tutor's schedule: new or changed cards, the calendar, unavailable times, the phone link ---------- */
+  const myName = () => { try{ return (hub.session().me || {}).name || ''; }catch(e){ return ''; } };
+  const DN = {Mo:'Mon',Tu:'Tue',We:'Wed',Th:'Thu',Fr:'Fri',Sa:'Sat',Su:'Sun'}, DORDER = ['Mo','Tu','We','Th','Fr','Sa','Su'];
+  /* cards new to this tutor, cards whose lines for them changed, and cards they were taken off */
+  function notices(){
+    if(!data || !window.SCHED) return [];
+    const me = myName(), acks = data.acks || {}, out = [];
+    (data.cards || []).forEach(c => {
+      const sig = SCHED.sigFor(c, me), a = acks[c.id];
+      if(a && a.sig === sig && a.s !== 'gone') return;
+      if(!a && Math.max(c.updatedAt || 0, c.savedAt || 0) < (data.ackFrom || 0)) return;   // already on their list before acknowledgements started
+      const C = SCHED.checkCard(c, data.cards, {[SCHED.nk(me)]: data.avail || []}).filter(x => x.kind !== 'student');
+      /* one line per kind of clash: "Already teaching then: Faith N., Thoko M. and 3 more (Mon 15:00, Wed 15:00)" */
+      const busy = C.filter(x => x.kind === 'tutor'), un = C.filter(x => x.kind === 'unavailable'), who = [...new Set(busy.map(x => x.other))], when = [...new Set(busy.map(x => SCHED.DAYN[x.day] + ' ' + x.s))];
+      const clash = un.map(x => ({text: x.text})).concat(busy.length ? [{text: `Already teaching then: ${who.slice(0, 3).map(short).join(', ')}${who.length > 3 ? ` and ${who.length - 3} more` : ''} (${when.join(', ')})`}] : []);
+      out.push({kind: (a && a.s !== 'gone') || (c.createdAt || 0) < (data.ackFrom || 0) ? 'changed' : 'new', card: c, sig, lines: SCHED.linesFor(c, me), clash});
+    });
+    (data.gone || []).forEach(g => out.push({kind:'gone', card:{id:g.card, student:g.st, number:g.number}, lines:(g.subs || []).map(x => x + ' · no longer yours')}));
+    return out;
+  }
+  function noticesBlock(){
+    const N = notices(); if(!N.length) return '';
+    return `<div class="h2">New on your list <em>${N.length}</em></div><div class="card">${N.map(n => `<div class="it" style="align-items:flex-start;flex-wrap:wrap">
+      <span class="t" style="min-width:200px"><b>${n.kind === 'new' ? 'New student' : n.kind === 'changed' ? 'Times changed' : 'Taken off your list'}: ${esc(n.card.student || '')}</b>
+      ${n.lines.map(l => `<small>${esc(l)}</small>`).join('')}${(n.clash || []).map(x => `<small style="color:var(--rd);font-weight:700">! ${esc(x.text)}</small>`).join('')}
+      ${n.kind !== 'gone' && (data.acks || {})[n.card.id] && data.acks[n.card.id].s === 'cant' ? `<small>You said: “${esc(data.acks[n.card.id].note)}” · LHQ has been told</small>` : ''}</span>
+      <span class="acts" style="margin-top:6px">${n.kind === 'gone' ? `<button class="btn sm n" data-tack="gone:${esc(n.card.id)}">OK</button>`
+        : `<button class="btn sm n" data-tack="ok:${esc(n.card.id)}">Got it</button><button class="btn sm" data-tcant="${esc(n.card.id)}">Can't make this time</button>`}</span></div>`).join('')}</div>`;
+  }
+  async function ack(id, s, note){
+    const n = notices().find(x => x.card.id === id);
+    try{ await hub.api('tutor', {method:'POST', body: JSON.stringify({action:'ack', card:id, s, note: note || '', sig: n ? n.sig || '' : ''})}); await fetchData();
+      toast(s === 'cant' ? 'Sent to LHQ: they\'ll find another time' : s === 'gone' ? 'Noted' : 'Thanks: it\'s in your calendar'); }
+    catch(e){ toast(e.message); }
+  }
+  function cantSheet(id){
+    const c = (data.cards || []).find(x => x.id === id); if(!c) return;
+    openSheet(`<div class="hx"><h3>Can't make this time</h3><button class="ib" data-close>✕</button></div><p class="sp">${esc(c.student)} · ${SCHED.linesFor(c, myName()).map(esc).join(' · ')}</p>
+      <label class="f"><span>What doesn't work, and what would</span><textarea class="in" id="tcantN" rows="3" placeholder="e.g. Tuesdays I teach at school until 15:00. Thursday 15:00 works."></textarea></label>
+      <button class="btn n full" id="tcantGo">Send to LHQ</button>`);
+    $('tcantGo').onclick = () => { const v = $('tcantN').value.trim(); if(!v){ toast('Say which times don\'t work'); return; } closeSheet(); ack(id, 'cant', v); };
+  }
+
+  /* the calendar: Week (a list by day), Day, Month; sessions from the cards, what was logged, unavailable times, clashes */
+  let calView = 'week', calDate = '';
+  const wkStart = d => { const x = HD.parseISO(d), k = (x.getDay() + 6) % 7; x.setDate(x.getDate() - k); return HD.isoOf(x); };
+  function calEvents(from, to){
+    const L = SCHED.sessions(data.cards, from, to, {tutor: myName()}), E = live().filter(e => e.ty === 's');
+    const clash = new Set(); SCHED.clashes(L).forEach(c => { clash.add(c.a); clash.add(c.b); });
+    return L.map(ev => { const lg = E.find(e => e.k === ev.k && e.d === ev.date), un = SCHED.unavailable({x: data.avail || []}, 'x', ev.day, ev.a, ev.b).length;
+      return Object.assign(ev, {log: lg, clash: clash.has(ev) || !!un, un}); });
+  }
+  const evRow = ev => { const st = ev.log ? (ev.log.a === 'absent' ? 'absent' : ev.log.a === 'cancelled' ? 'cancelled' : 'had') : '';
+    return `<a class="it" href="#teach/log/${encodeURIComponent(ev.k)}" style="${ev.clash ? 'border-left:3px solid var(--rd)' : ''}"><span class="cal-t">${ev.s || '?'}<small>${ev.e || ''}</small></span><span class="t"><b style="${st === 'absent' || st === 'cancelled' ? 'text-decoration:line-through;color:var(--muted)' : ''}">${esc(ev.student)} · ${esc(ev.sub)}</b><small>${esc(ev.where || '')}${st ? ' · ' + {had:'✓ logged', absent:'student absent', cancelled:'cancelled'}[st] : ''}${ev.clash ? ' · <span style="color:var(--rd);font-weight:700">' + (ev.un ? 'in your unavailable time' : 'clash') + '</span>' : ''}</small></span><span class="chev">›</span></a>`; };
+  function calPage(view, d){
+    calView = ['day','week','month'].includes(view) ? view : calView; calDate = /^\d{4}-\d{2}-\d{2}$/.test(d || '') ? d : (calDate || today());
+    const t = today(), go = (v, x) => `#teach/cal/${v}/${x}`;
+    let from, to, title, prev, next;
+    if(calView === 'day'){ from = to = calDate; title = `${WEEKDAY[HD.parseISO(calDate).getDay()]} ${nice(calDate)}`; prev = HD.addDays(calDate, -1); next = HD.addDays(calDate, 1); }
+    else if(calView === 'week'){ from = wkStart(calDate); to = HD.addDays(from, 6); title = `Week of ${nice(from)}`; prev = HD.addDays(from, -7); next = HD.addDays(from, 7); }
+    else { const x = HD.parseISO(calDate); from = HD.isoOf(new Date(x.getFullYear(), x.getMonth(), 1)); to = HD.isoOf(new Date(x.getFullYear(), x.getMonth() + 1, 0)); title = x.toLocaleDateString('en-GB', {month:'long', year:'numeric'}); prev = HD.isoOf(new Date(x.getFullYear(), x.getMonth() - 1, 1)); next = HD.isoOf(new Date(x.getFullYear(), x.getMonth() + 1, 1)); }
+    const E = calEvents(from, to), byD = {}; E.forEach(e => (byD[e.date] = byD[e.date] || []).push(e));
+    const nCl = E.filter(e => e.clash).length;
+    const seg = `<div class="seg" style="margin-bottom:10px">${[['day','Day'],['week','Week'],['month','Month']].map(([k, l]) => `<a class="${calView === k ? 'on' : ''}" href="${go(k, calDate)}">${l}</a>`).join('')}</div>`;
+    const nav = `<div class="cal-nav"><a class="btn sm" href="${go(calView, prev)}" aria-label="Earlier">‹</a><b>${title}</b><a class="btn sm" href="${go(calView, next)}" aria-label="Later">›</a>${(calView === 'day' ? calDate !== t : !(from <= t && t <= to)) ? `<a class="btn sm" href="${go(calView, t)}">Today</a>` : ''}</div>`;
+    let body;
+    if(calView === 'month'){
+      const first = wkStart(from), cells = []; for(let x = first; x <= to || cells.length % 7; x = HD.addDays(x, 1)) cells.push(x);
+      body = `<div class="cal-m">${DORDER.map(k => `<span class="h">${DN[k]}</span>`).join('')}${cells.map(x => { const L = byD[x] || [], out = x < from || x > to;
+        return `<a class="cal-d${out ? ' out' : ''}${x === t ? ' now' : ''}" href="${go('day', x)}"><b>${+x.slice(8)}</b>${L.length ? `<small${L.some(e => e.clash) ? ' class="cl"' : ''}>${L.length}</small>` : ''}</a>`; }).join('')}</div>`;
+    } else {
+      const days = []; for(let x = from; x <= to; x = HD.addDays(x, 1)) days.push(x);
+      const un = d => (data.avail || []).filter(u => u.d === SCHED.dayCode(d));
+      body = days.map(x => { const L = byD[x] || [], U = un(x); if(calView === 'week' && !L.length && !U.length) return '';
+        return `<div class="h2">${x === t ? 'Today · ' : ''}${WEEKDAY[HD.parseISO(x).getDay()]} ${nice(x)} <em>${L.length || ''}</em></div><div class="card">${L.map(evRow).join('')}${U.map(u => `<div class="it" style="opacity:.75"><span class="cal-t">${u.s}<small>${u.e}</small></span><span class="t"><b>Not available</b><small>${esc(u.note || '')}</small></span></div>`).join('') || '<p class="empty">No sessions.</p>'}</div>`; }).join('') || '<p class="empty">No sessions this week.</p>';
+    }
+    return backHome() + head('Calendar', `Your sessions from your tuition cards${nCl ? ` · <b style="color:var(--rd)">${nCl} clash${nCl === 1 ? '' : 'es'}</b>` : ''}`, `<div class="acts"><a class="btn" href="#teach/avail">Times I can't teach</a></div>`) + seg + nav + body +
+      `<div class="h2">On your phone</div><div class="card pad"><p style="margin:0 0 8px">Add your LHQ sessions to Google Calendar or your iPhone, next to your own appointments. They update when a card changes (your phone checks every few hours, so check the Hub for anything changed today).</p>
+      <div class="acts"><a class="btn n" href="${'webcal://' + location.host + (data.calLink || '')}">Add to my calendar</a><button class="btn" data-tcallink>Copy the link</button></div>
+      <p class="note" style="margin:8px 0 0">Google Calendar on a computer: Other calendars › + › From URL, and paste the link. iPhone: Settings › Calendar › Accounts › Add Account › Other › Add Subscribed Calendar. Keep the link to yourself.</p></div>`;
+  }
+  const halfHours = v => { let o = ''; for(let m = 6 * 60; m <= 21 * 60; m += 30){ const t = SCHED.hhmm(m); o += `<option${t === v ? ' selected' : ''}>${t}</option>`; } return o; };
+  function availPage(){
+    const L = (data.avail || []).slice().sort((a, b) => DORDER.indexOf(a.d) - DORDER.indexOf(b.d) || a.s.localeCompare(b.s));
+    return back('#teach/cal', 'Calendar') + head("Times I can't teach", 'LHQ checks these before giving you a new student or changing a time.') +
+      `<div class="card">${L.map((u, i) => `<div class="it"><span class="t"><b>${DN[u.d]} ${u.s}–${u.e}</b><small>${esc(u.note || '')}</small></span><button class="btn sm" data-tavrm="${i}">Remove</button></div>`).join('') || '<p class="empty">None yet: LHQ assumes you can teach any time during opening hours.</p>'}</div>
+      <div class="h2">Add a time</div><div class="card pad"><div class="r2"><label class="f"><span>Day</span><select class="in" id="tavD">${DORDER.map(k => `<option value="${k}">${DN[k]}</option>`).join('')}<option value="wk">Mon–Fri</option></select></label><label class="f"><span>Note (optional)</span><input class="in" id="tavN" placeholder="e.g. at school"></label></div>
+      <div class="r2"><label class="f"><span>From</span><select class="in" id="tavS">${halfHours('08:00')}</select></label><label class="f"><span>To</span><select class="in" id="tavE">${halfHours('13:00')}</select></label></div>
+      <button class="btn n full" data-tavadd>Add</button></div>`;
+  }
+  async function saveAvail(L){ try{ const j = await hub.api('tutor', {method:'POST', body: JSON.stringify({action:'avail', blocks: L})}); data.avail = j.avail; write(CK, data); render(); toast('Saved: LHQ will check these'); }catch(e){ toast(e.message); } }
+
   function page(sub, a1, a2, a3){
     if(!data){ fetchData(); return head(homeName(), 'Getting your students…') + (err ? `<p class="empty">${err === 'offline' ? 'No connection. Your students appear once you are online.' : esc(err)}</p>` : ''); }
     data.reports = data.reports || [];
@@ -220,6 +314,8 @@ window.TUT = (function(){
     if(Date.now() - (data.at || 0) > 60000 && !form) fetchData();
     if(sub !== 'log') form = null; if(sub !== 'wa') wform = null; if(sub !== 'marks') mform = null; if(sub !== 'report') rform = null;
     if(!['', undefined, 'student'].includes(sub)) editing = null;
+    if(sub === 'cal') return calPage(a1, a2);
+    if(sub === 'avail') return availPage();
     if(sub === 'students') return students();
     if(sub === 'student') return studentPage(decodeURIComponent(a1 || ''));
     if(sub === 'log') return logPage(decodeURIComponent(a1 || ''), a2);
@@ -281,10 +377,10 @@ window.TUT = (function(){
       (ed ? '<p class="note" style="margin:-6px 0 12px">Move or remove cards, or add one from the list below. Tap Done when finished.</p>'
         : rep ? `<a class="t-banner ok" href="#teach/report"><span><b>Today's report is in</b>Sent at ${hm(rep.sent)}. You can still log; changes show as edited.</span></a>`
         : `<a class="t-banner" href="#teach/report"><span><b>Daily report due before you leave</b>Reminder between 4 and 5 pm${G.length ? ` · ${G.length} thing${G.length > 1 ? 's' : ''} still to log` : ''}</span></a>`) +
-      cardsBlock() + (ed ? '' : `
+      (ed ? '' : noticesBlock()) + cardsBlock() + (ed ? '' : `
       <div class="h2">Logged today <em>${L.length}</em></div>${timeline(L)}
       ${G.length ? `<div class="h2">Still to log <em>${G.length}</em></div>${gapCard(G)}` : ''}
-      <div class="card">${[['#teach/students','users','My students','Sessions had and remaining, make-ups'],['#teach/sra','restore','SRA tracker','Give, collect and print · next 7 days · by student'],['#teach/classes','users','Classes',`${(data.classes || []).length} official class${(data.classes || []).length === 1 ? '' : 'es'}`]].concat(tutorRole() ? [] : [['#teach/report','list','Daily report', rep ? 'Sent today' : 'Due before you leave']]).map(([h, i, b, s]) => `<a class="it" href="${h}"><span class="ico">${ic(i,18)}</span><span class="t"><b>${b}</b><small>${s}</small></span><span class="chev">${ic('chev',16,2)}</span></a>`).join('')}</div>`);
+      <div class="card">${[['#teach/cal','clock','Calendar','Your week from your tuition cards · clashes · times you can\'t teach'],['#teach/students','users','My students','Sessions had and remaining, make-ups'],['#teach/sra','restore','SRA tracker','Give, collect and print · next 7 days · by student'],['#teach/classes','users','Classes',`${(data.classes || []).length} official class${(data.classes || []).length === 1 ? '' : 'es'}`]].concat(tutorRole() ? [] : [['#teach/report','list','Daily report', rep ? 'Sent today' : 'Due before you leave']]).map(([h, i, b, s]) => `<a class="it" href="${h}"><span class="ico">${ic(i,18)}</span><span class="t"><b>${b}</b><small>${s}</small></span><span class="chev">${ic('chev',16,2)}</span></a>`).join('')}</div>`);
   }
 
   /* students and a student's page */
@@ -640,6 +736,12 @@ window.TUT = (function(){
     if(data && tutorRole()){ const due = !todayRep(); document.querySelectorAll('a[href$="#teach/report"]').forEach(a => { if(a.closest('#main')) return; const d = document.createElement('span'); d.className = 't-dot' + (due ? '' : ' ok'); d.title = due ? 'Today\'s report is due' : 'Today\'s report is sent'; a.appendChild(d); }); }
     if(!data) return;
     on('[data-tlog]', el => chooser(el.dataset.tlog));
+    on('[data-tack]', el => { const [s, id] = el.dataset.tack.split(':'); ack(id, s); });
+    on('[data-tcant]', el => cantSheet(el.dataset.tcant));
+    on('[data-tavrm]', el => { const L = (data.avail || []).slice().sort((a, b) => DORDER.indexOf(a.d) - DORDER.indexOf(b.d) || a.s.localeCompare(b.s)); L.splice(+el.dataset.tavrm, 1); saveAvail(L); });
+    on('[data-tavadd]', () => { const d = $('tavD').value, s = $('tavS').value, e = $('tavE').value, n = $('tavN').value.trim(); if(!s || !e || s >= e){ toast('The time ends before it starts'); return; }
+      saveAvail((data.avail || []).concat((d === 'wk' ? ['Mo','Tu','We','Th','Fr'] : [d]).map(x => ({d:x, s, e, note:n})))); });
+    on('[data-tcallink]', async () => { const u = location.origin + (data.calLink || ''); try{ await navigator.clipboard.writeText(u); toast('Link copied'); }catch(e){ prompt('Copy this link:', u); } });
     on('[data-tgive]', el => { const x = unref(el.dataset.tgive); if(x) saveEntries(giveEntries([x]), true).then(ok => ok && toast(el.dataset.early ? 'Given early · still done on its review day · comes back after ' + nice(x.doOn) : 'Marked as given')); });
     on('[data-tgiveall]', () => { const G = SRA.today(sras(), today()).give; saveEntries(giveEntries(G), true).then(ok => ok && toast(`${G.length} marked as given`)); });
     on('[data-tin]', el => { const x = unref(el.dataset.tin); if(x) handInSheet(x); });
