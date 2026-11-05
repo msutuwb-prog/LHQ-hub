@@ -1,0 +1,10 @@
+# the offline copy's own file must always be checked, so updates reach every device
+/sw.js
+  Cache-Control: no-cache
+/manifest.webmanifest
+  Cache-Control: no-cache
+# basic protection for every page: no framing by other sites, no guessing file types, links don't leak the page address
+/*
+  X-Frame-Options: DENY
+  X-Content-Type-Options: nosniff
+  Referrer-Policy: same-origin

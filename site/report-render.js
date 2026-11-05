@@ -47,7 +47,7 @@ function whoHTML(m, monthly){
 }
 function figsHTML(m, monthly){
   const w = watchItems(m).length;
-  const status = w ? `<b style="color:#a86a00">${w} to watch</b><small>See below</small>` : `<b style="color:#1f7a4d">On track</b><small>Nothing to watch</small>`;
+  const status = w ? `<b style="color:#a86a00">${w} thing${w>1?'s':''} to work on</b><small>See “Where we'd like your help”</small>` : `<b style="color:#1f7a4d">All on track</b><small>Nothing needs your help this time</small>`;
   return `<div class="figs">
     <div><b>${m.attended} / ${m.sessions}</b><small>Sessions attended${m.sessions ? ` · ${Math.round(m.attended/m.sessions*100)}%` : ''}</small></div>
     <div><b>${m.testAvg!=null ? m.testAvg + '%' : '–'}</b><small>Topical assessments${monthly && m.testCount ? ` · ${m.testCount} taken` : ''}</small></div>
@@ -72,7 +72,7 @@ function gradeCell(s){
 function spark(vals){ return '<span class="spark">' + vals.map(v=>`<i style="height:${v==null ? 3 : Math.max(4, Math.round((v-40)/60*20)+2)}px"></i>`).join('') + '</span>'; }
 function watchHTML(m){
   const w = watchItems(m); if(!w.length) return '';
-  return `<div class="sec" style="margin-top:18px">To watch</div><ul class="watch">${w.map(([,c,t])=>`<li><i style="background:${c==='r'?'#c0392b':'#d99a00'}"></i><span>${t}</span></li>`).join('')}</ul>`;
+  return `<div class="sec" style="margin-top:18px">Where we'd like your help</div><ul class="watch">${w.map(([,c,t])=>`<li><i style="background:${c==='r'?'#c0392b':'#d99a00'}"></i><span>${t}</span></li>`).join('')}</ul>`;
 }
 
 /* ---------- weekly and 2-weekly: one page ---------- */
@@ -216,7 +216,7 @@ async function stageClone(){
 async function pageOnePng(){
   const wrap = await stageClone(), el = wrap.firstElementChild, w = el.offsetWidth, h = el.offsetHeight;
   try{
-    const canvas = await html2pdf().set({html2canvas:{scale:3, useCORS:true, backgroundColor:'#ffffff', x:0, y:0, scrollX:0, scrollY:0, width:w, height:h, windowWidth:w, windowHeight:h}}).from(el).toCanvas().get('canvas');
+    const canvas = await (await lhqPdf())().set({html2canvas:{scale:3, useCORS:true, backgroundColor:'#ffffff', x:0, y:0, scrollX:0, scrollY:0, width:w, height:h, windowWidth:w, windowHeight:h}}).from(el).toCanvas().get('canvas');
     return await new Promise(r=>canvas.toBlob(r, 'image/png'));
   } finally { F('stage').innerHTML = ''; }
 }
@@ -224,7 +224,7 @@ async function reportPdf(){
   const wrap = await stageClone(), first = wrap.firstElementChild, w = first.offsetWidth, h = wrap.offsetHeight;
   const monthly = state.freq==='m';
   try{
-    return await html2pdf().set({margin:0, image:{type:'jpeg', quality:0.98},
+    return await (await lhqPdf())().set({margin:0, image:{type:'jpeg', quality:0.98},
       html2canvas:{scale:3, useCORS:true, backgroundColor:'#ffffff', x:0, y:0, scrollX:0, scrollY:0, width:w, height:h, windowWidth:w, windowHeight:h},
       jsPDF: monthly ? {unit:'mm', format:'a4', orientation:'portrait'} : {unit:'pt', format:[w*0.75, h*0.75], orientation: h > w ? 'portrait' : 'landscape'},
       pagebreak:{mode:[]}}).from(wrap).outputPdf('blob');
@@ -233,14 +233,18 @@ async function reportPdf(){
 function download(blob, name){ const u = URL.createObjectURL(blob), a = document.createElement('a'); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(u), 30000); }
 async function shareFiles(files, text){
   if(navigator.canShare && navigator.canShare({files})){
-    try{ await navigator.share({files, text}); return true; }catch(e){ if(e && e.name==='AbortError') return true; }
+    // WhatsApp drops either the file or the text when given both: copy the text, share the file, paste as caption
+    let copied = window._capCopied === text; if(!copied){ try{ await navigator.clipboard.writeText(text); copied = true; }catch(e){} }
+    if(copied) toast('Message copied. In WhatsApp, paste it as the caption, then send.');
+    try{ await navigator.share({files}); return true; }catch(e){ if(e && e.name==='AbortError') return true; }
   }
   files.forEach((f,i)=>setTimeout(()=>download(f, f.name), i*900)); toast('Sharing isn\'t available here, so the files were downloaded'); return false;
 }
 async function busy(btn, fn){ const all = document.querySelectorAll('.dlg-foot button'); all.forEach(b=>b.disabled = true); toast('Preparing…'); try{ await fn(); }catch(e){ console.error(e); toast('Couldn\'t make the file. Check your connection and try again.'); } finally { all.forEach(b=>b.disabled = false); } }
 const shareText = () => `${pvModel.name}: ${state.freq==='m' ? 'progress report' : 'weekly report'} for ${range(pvModel.a, pvModel.b)} from LHQ Learning Solutions.`;
-F('pvShareImg').onclick = e=>busy(e.currentTarget, async ()=>{ const b = await pageOnePng(); await shareFiles([new File([b], fileBase()+'.png', {type:'image/png'})], shareText()); });
-F('pvSharePdf').onclick = e=>busy(e.currentTarget, async ()=>{ const b = await reportPdf(); await shareFiles([new File([b], fileBase()+'.pdf', {type:'application/pdf'})], shareText()); });
+const copyCaption = () => { const t = shareText(); window._capCopied = null; try{ navigator.clipboard.writeText(t).then(()=>{ window._capCopied = t; }).catch(()=>{}); }catch(e){} };   // while the tap still counts
+F('pvShareImg').onclick = e=>copyCaption() || busy(e.currentTarget, async ()=>{ const b = await pageOnePng(); await shareFiles([new File([b], fileBase()+'.png', {type:'image/png'})], shareText()); });
+F('pvSharePdf').onclick = e=>copyCaption() || busy(e.currentTarget, async ()=>{ const b = await reportPdf(); await shareFiles([new File([b], fileBase()+'.pdf', {type:'application/pdf'})], shareText()); });
 F('pvDownload').onclick = e=>busy(e.currentTarget, async ()=>{
   const img = await pageOnePng(); download(img, fileBase()+'.png');
   if(state.freq==='m'){ const pdf = await reportPdf(); setTimeout(()=>download(pdf, fileBase()+'.pdf'), 900); }

@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shared records · LHQ Hub</title>
+<link rel="icon" href="icon-32.png">
+<link rel="stylesheet" href="hub.css">
+<script src="theme.js"></script>
+<script src="picker.js" defer></script>
+<style>
+body{background:var(--bg);color:var(--ink);font:15px/1.45 Inter,system-ui,sans-serif;margin:0}
+main{max-width:720px;margin:0 auto;padding:20px 16px 60px}
+.crumb{color:var(--muted);font-weight:700;text-decoration:none;font-size:14px}
+h1{font-size:26px;margin:8px 0 2px;color:var(--brand)}.sub{color:var(--muted);margin:0 0 16px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:14px}
+.cap{font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:10px}
+.row{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-top:1px solid var(--line2)}.row:first-of-type{border-top:0}
+.st{display:inline-flex;align-items:center;gap:6px;font-weight:700}.st .c{width:16px;height:16px;border-radius:50%;display:grid;place-items:center;font-size:10px;font-weight:900;border:2px solid currentColor}
+.ok{color:var(--ok)}.ok .c{background:var(--ok);border-color:var(--ok);color:#fff}.am{color:var(--am)}.rd{color:var(--rd)}
+.btn{display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:11px 16px;font:inherit;font-weight:800;cursor:pointer;width:100%;margin-top:10px}
+.btn.n{background:var(--accent);color:var(--onaccent);border-color:var(--accent)}.btn:disabled{opacity:.5;cursor:default}
+.note{color:var(--muted);font-size:13px;margin:8px 0 0}
+.out{white-space:pre-wrap;font-size:13px;background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:10px;display:none}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px 16px;font-size:14px}.grid span{color:var(--muted)}
+.who{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}.who button{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:10px;padding:8px 12px;font:inherit;font-size:14px;font-weight:700;cursor:pointer}
+.who button.on{background:var(--accent);color:var(--onaccent);border-color:var(--accent)}.who b{display:block;width:100%;font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-top:6px}
+.chk{display:flex;gap:8px;padding:5px 0;font-size:14px}.chk .c{flex:none;width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:11px;font-weight:900;margin-top:1px}
+.chk.y .c{background:var(--ok);color:#fff}.chk.n .c{border:2px solid var(--muted);color:var(--muted)}
+</style></head>
+<body><main>
+<a class="crumb" href="index.html#home">‹ Home</a>
+<h1>Shared records</h1><p class="sub">The one set of records every account will work from. Director only.</p>
+<div class="card"><div class="cap">Status</div><div id="status">Checking…</div></div>
+<div class="card" id="oneCard" style="display:none"><div class="cap">One system: where the Hub keeps everything</div>
+  <p class="note" style="margin:0 0 10px">Documents, history, the deleted bin, lists, money and tutors' logs move from the old storage into this database. Copy first and check the totals match; then switch. Switching back is always possible, and nothing is deleted from the old storage.</p>
+  <div id="oneStatus"></div>
+  <div class="row" style="gap:8px;flex-wrap:wrap;justify-content:flex-start;margin-top:10px"><button class="btn" id="oneCopy">Copy into the database</button><button class="btn n" id="oneUse">Switch the Hub to the database</button><button class="btn" id="oneBack">Switch back to the old storage</button></div>
+  <div class="out" id="oneOut"></div></div>
+<div class="card" id="countsCard" style="display:none"><div class="cap">What's in the records</div><div class="grid" id="counts"></div></div>
+<div class="card" id="asCard" style="display:none"><div class="cap">See what each person gets</div>
+  <p class="note" style="margin:0 0 10px">Tap a person to see exactly what their phone would receive from the records. Nothing is changed.</p>
+  <div id="asList"></div><div id="asOut"></div></div>
+<div class="card" id="actions" style="display:none">
+  <div class="cap">Fill the records</div>
+  <div id="demoBox"><b>Demo people (test copy only)</b><p class="note">Adds the mockup's made-up people: Linga, Tadala, Chisomo's students, Grace (Linga's parent), five tutors, three weeks of sessions, a make-up waiting, two requisitions and pay profiles. Refused on the live Hub.</p>
+    <button class="btn n" id="demo">Fill the test copy with demo people</button></div>
+  <div style="margin-top:18px"><b>Copy the current Hub in</b><p class="note">Copies people (with their PINs, for the move to passwords), students, tuition cards, classes and the session and SRA logs. The current Hub isn't changed, and copying again adds nothing twice.</p>
+    <button class="btn" id="imp">Copy the current Hub into the records</button></div>
+  <div class="out" id="out"></div>
+</div>
+</main>
+<script>
+const $ = id => document.getElementById(id);
+const token = () => { try{ return (JSON.parse(localStorage.getItem('lhq_session') || 'null') || {}).token || ''; }catch(e){ return ''; } };
+const api = async (path, opt = {}) => { const r = await fetch('/api/v2/' + path, Object.assign({headers:{'content-type':'application/json', authorization:'Bearer ' + token()}, cache:'no-store'}, opt)); const j = await r.json().catch(() => ({})); return {ok:r.ok, status:r.status, j}; };
+const hubApi = async (body) => { const r = await fetch('/api/hub/store', {method:'POST', headers:{'content-type':'application/json', authorization:'Bearer ' + token()}, body:JSON.stringify(body)}); const j = await r.json().catch(() => ({})); return {ok:r.ok, status:r.status, j}; };
+const money = n => 'MKW ' + Math.round(n || 0).toLocaleString('en-US');
+function oneShow(j){
+  const T = j.totals || {blobs:{}, db:{}}, types = [...new Set(Object.keys(T.blobs).concat(Object.keys(T.db)))].sort();
+  $('oneStatus').innerHTML = `<div class="row"><span>The Hub uses</span><b>${j.using === 'db' ? st('ok', 'This database') : 'The old storage (Netlify Blobs)'}</b></div>
+    <div class="row"><span>Old storage</span><b>${j.blobs.all} items · ${j.blobs.docs} documents</b></div>
+    <div class="row"><span>Database</span><b>${j.db.all} items · ${j.db.docs} documents</b></div>
+    ${types.map(t => { const a = T.blobs[t] || {n:0, amount:0}, b = T.db[t] || {n:0, amount:0}, ok = a.n === b.n && Math.round(a.amount) === Math.round(b.amount); return `<div class="row"><span>${t[0].toUpperCase() + t.slice(1)}s</span>${st(ok ? 'ok' : 'am', `${a.n} · ${money(a.amount)} ${ok ? '' : '→ ' + b.n + ' · ' + money(b.amount)}`)}</div>`; }).join('')}
+    ${j.using === 'db' ? '<p class="note" style="margin:8px 0 0">The old storage stays as it was at the moment of switching, as a backup. New work is only in the database, so the two will differ from now on.</p>' : `<div class="row"><span>Copies match</span>${j.match ? st('ok', 'Yes') : st('am', j.db.all ? 'Not yet: copy again' : 'Not copied yet')}</div>`}`;
+  $('oneUse').style.display = j.using === 'db' ? 'none' : ''; $('oneBack').style.display = j.using === 'db' ? '' : 'none';
+  $('oneCopy').textContent = j.using === 'db' ? 'Copy again (only what is missing)' : 'Copy into the database';
+}
+async function oneLoad(){ const r = await hubApi({action:'status'}); if(r.ok){ $('oneCard').style.display = ''; oneShow(r.j); } }
+const st = (cls, t) => `<span class="st ${cls}"><span class="c">${cls === 'ok' ? '✓' : cls === 'rd' ? '!' : ''}</span>${t}</span>`;
+const LABELS = {people:'People', students:'Students', guardians:'Parent links', periods:'Tuition periods', groups:'Groups and classes', slots:'Timetable slots', sessions:'Sessions', attendance:'Attendance', makeups:'Make-ups', sras:'SRA reviews', assessments:'Assessments', marks:'Marks', requisitions:'Requisitions', pay_profiles:'Pay profiles', payslips:'Payslips', activity:'Activity lines'};
+async function load(){
+  const h = await api('health'); let html = '';
+  html += `<div class="row"><span>Database</span>${h.j.database === 'on' ? st('ok', 'On') : st('rd', h.j.database === 'off' ? 'Off' : 'Problem')}</div>`;
+  html += `<div class="row"><span>This copy</span><b>${h.j.preview ? 'Test copy (preview)' : 'Live Hub'}</b></div>`;
+  if(h.j.database !== 'on'){ $('status').innerHTML = html + `<p class="note">${h.j.detail || ''}</p>`; return; }
+  const me = await api('me');
+  if(!me.ok){ $('status').innerHTML = html + `<div class="row"><span>You</span>${st('am', 'Not signed in')}</div><p class="note">Sign in to the Hub first (as Director), then come back to this page.</p><a class="btn n" href="index.html#home" style="text-decoration:none">Go to the Hub and sign in</a>`; return; }
+  html += `<div class="row"><span>You</span><b>${me.j.me.name} · ${me.j.me.role}</b></div>`;
+  $('status').innerHTML = html;
+  if(me.j.me.role !== 'director'){ $('status').innerHTML += '<p class="note">Only the Director can fill the records.</p>'; return; }
+  oneLoad();
+  const rows = {}; let c = {j:{more:true, cursor:0}};
+  while(c.j && c.j.more){ c = await api('changes?since=' + c.j.cursor); if(!c.ok) break; Object.entries(c.j.rows || {}).forEach(([t, r]) => rows[t] = (rows[t] || []).concat(r)); }
+  $('counts').innerHTML = Object.entries(LABELS).map(([k, l]) => `<div><span>${l}</span> <b>${(rows[k] || []).filter(r => !r.del).length}</b></div>`).join('');
+  $('countsCard').style.display = ''; $('actions').style.display = '';
+  $('demoBox').style.display = h.j.preview ? '' : 'none';
+  const ppl = (rows.people || []).filter(p => !p.del), order = ['director','admin','tutor','parent','student','bdo'], RN = {director:'Director', admin:'Admin', tutor:'Tutors', parent:'Parents', student:'Students', bdo:'BDO'};
+  $('asList').innerHTML = '<div class="who">' + order.filter(r => ppl.some(p => p.role === r)).map(r => `<b>${RN[r]}</b>` + ppl.filter(p => p.role === r).sort((a, b) => a.name.localeCompare(b.name)).map(p => `<button type="button" data-p="${p.id}">${p.name}</button>`).join('')).join('') + '</div>';
+  $('asCard').style.display = '';
+  document.querySelectorAll('[data-p]').forEach(b => b.onclick = () => asOf(b));
+}
+/* both run in parts (each request has a time limit): keep asking for the next part until there is no more */
+async function act(btn, path, busy, key){
+  btn.disabled = true; const t = btn.textContent; btn.textContent = busy; $('out').style.display = 'block';
+  const total = {}; let skipped = [], r = {ok:true, j:{more:true, next:0}}, n = 0;
+  while(r.ok && r.j.more){
+    $('out').textContent = `Working… part ${++n}. Keep this page open.`;
+    r = await api(path, {method:'POST', body:JSON.stringify({[key]: r.j.next})});
+    if(r.ok) Object.entries(r.j).forEach(([k, v]) => { if(typeof v === 'number' && !['part','next','step','logs'].includes(k)) total[k] = (total[k] || 0) + v; if(k === 'skipped') skipped = skipped.concat(v); });
+  }
+  $('out').textContent = !r.ok ? 'Stopped at part ' + n + ': ' + (r.j.error || r.status) + '\nPress the button again to carry on from where it stopped.'
+    : r.j.already ? 'Already done: the demo people are in.'
+    : 'Done.\n' + Object.entries(total).map(([k, v]) => `${k}: ${v}`).join('\n') + (skipped.length ? `\nLeft out (${skipped.length}):\n  ` + skipped.slice(0, 20).join('\n  ') : '');
+  btn.textContent = t; btn.disabled = false; load();
+}
+async function asOf(btn){
+  document.querySelectorAll('[data-p]').forEach(x => x.classList.toggle('on', x === btn)); $('asOut').innerHTML = '<p class="note">Loading…</p>';
+  const r = await api('as?person=' + btn.dataset.p); if(!r.ok){ $('asOut').innerHTML = '<p class="note">' + (r.j.error || r.status) + '</p>'; return; }
+  const R = r.j.rows, live = t => (R[t] || []).filter(x => !x.del), P = r.j.person;
+  const list = (t, f) => { const L = [...new Set(live(t).map(f).filter(Boolean))]; return L.length > 12 ? L.slice(0, 12).concat(`and ${L.length - 12} more`) : L; };
+  const yes = (ok, t) => `<div class="chk ${ok ? 'y' : 'n'}"><span class="c">${ok ? '✓' : '×'}</span><span>${t}</span></div>`;
+  const stu = list('students', s => s.name), grp = list('groups', g => g.name || g.subject), nStu = live('students').length, nGrp = live('groups').length, fees = live('periods').some(p => 'fee' in p), contacts = live('students').some(s => s.info && Object.keys(s.info).length);
+  const others0 = live('people').filter(p => p.role === 'student' && p.id !== P.id).map(p => p.name), others = others0.length > 12 ? others0.slice(0, 12).concat(`and ${others0.length - 12} more`) : others0;
+  $('asOut').innerHTML = `<div class="card" style="margin:6px 0 0;background:var(--surface2)"><div class="cap">${P.name} · ${P.role}${P.also_tutor ? ' + tutor' : ''}</div>
+    ${yes(stu.length, `Students (${nStu}): ${stu.length ? stu.join(', ') : 'none'}`)}
+    ${yes(grp.length, `Groups and classes (${nGrp}): ${grp.length ? grp.join(', ') : 'none'}`)}
+    ${yes(live('sessions').length, `Sessions: ${live('sessions').length} · attendance rows: ${live('attendance').length} · SRA reviews: ${live('sras').length} · make-ups: ${live('makeups').length}`)}
+    ${yes(fees, fees ? 'Sees tuition fees' : 'No tuition fees')}
+    ${yes(contacts, contacts ? 'Sees home contacts' : 'No home contacts')}
+    ${yes(others.length, others.length ? 'Other students\' accounts: ' + others.join(', ') : 'No other student\'s account')}
+    ${yes(live('requisitions').length, `Requisitions: ${live('requisitions').length ? list('requisitions', q => q.item).join(', ') : 'none'}`)}
+    ${yes(live('pay_profiles').length, `Pay profiles: ${live('pay_profiles').length} · payslips: ${live('payslips').length}`)}
+    ${yes(live('feedback').length, `Students' feedback (single answers): ${live('feedback').length}`)}
+    ${yes((R.settings || []).some(s => s.key === 'pay_rules'), 'LHQ pay rules')}
+    ${yes(live('activity').length, `Activity lines: ${live('activity').length}`)}
+    <p class="note">✓ = their phone receives this · × = it never leaves the server for them.</p></div>`;
+}
+$('oneCopy').onclick = async () => {
+  const b = $('oneCopy'); b.disabled = true; $('oneOut').style.display = 'block'; let r = {ok:true, j:{more:true, next:0}}, n = 0, copied = 0;
+  while(r.ok && r.j.more){ $('oneOut').textContent = `Copying… part ${++n}. Keep this page open.`; r = await hubApi({action:'move', from:r.j.next}); if(r.ok) copied += r.j.moved.copied; }
+  $('oneOut').textContent = r.ok ? `Done: ${copied} items copied.${r.j.match ? ' The copies match.' : ' Check the totals above.'}` : 'Stopped: ' + (r.j.error || r.status) + '. Press again to carry on.';
+  if(r.ok && !r.j.more) oneShow(r.j); b.disabled = false;
+};
+$('oneUse').onclick = async () => { if(!confirm('Switch the Hub to the database? Everyone keeps working as before; new saves go to the database.')) return; const r = await hubApi({action:'use', to:'db'}); $('oneOut').style.display = 'block'; $('oneOut').textContent = r.ok ? 'Switched. The Hub now uses the database.' : (r.j.error || r.status); if(r.ok) oneShow(r.j); };
+$('oneBack').onclick = async () => { if(!confirm('Switch back to the old storage? Everything saved since switching is copied back first, so nothing is lost.')) return; const o = $('oneOut'); o.style.display = 'block';
+  let m = {j:{more:true, next:0}, ok:true}; while(m.ok && m.j.more){ o.textContent = 'Copying back… ' + (m.j.next || 0); m = await hubApi({action:'back', from:m.j.next || 0}); }
+  if(!m.ok){ o.textContent = m.j.error || m.status; return; }
+  const r = await hubApi({action:'use', to:'blobs'}); o.textContent = r.ok ? `Copied ${m.j.back.copied} records back and switched to the old storage.` : (r.j.error || r.status); if(r.ok) oneShow(r.j); };
+$('demo').onclick = () => act($('demo'), 'demo', 'Filling…', 'step');
+$('imp').onclick = () => { if(confirm('Copy the current Hub into the shared records? The current Hub stays as it is.')) act($('imp'), 'import', 'Copying…', 'part'); };
+load();
+</script>
+</body></html>
