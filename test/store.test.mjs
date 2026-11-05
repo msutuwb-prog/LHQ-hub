@@ -285,4 +285,35 @@ test("activity: every save leaves a line, in words, by whom; Admin doesn't see w
   assert.equal((await call("activity", null, tok, "GET")).status, 403, "tutors don't see the Activity page");
 });
 
+test("tutor's times: unavailable blocks, Got it / Can't make this time, taken off a card, and the phone calendar link", async () => {
+  const tok = (await call("signin", { id: "emmanuel.mkwamba", password: "Maths!2026x" })).j.token;
+  const av = await call("tutor", { action: "avail", blocks: [{ d: "Mo", s: "08:00", e: "13:00", note: "at school" }, { d: "Xx", s: "1", e: "2" }] }, tok);
+  assert.deepEqual(av.j.avail, [{ d: "Mo", s: "08:00", e: "13:00", note: "at school" }], "bad blocks are dropped");
+  const day = n => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
+  await call("sync", { upserts: [{ doc: { id: "tc9", type: "card", number: "TC-0009", student: "Linga Shaba", periodStart: day(-3), periodEnd: day(25), where: "LHQ Centre",
+    subjects: [{ name: "Mathematics", tutor: "Emmanuel Mkwamba", days: ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"], start: "14:00", end: "15:00" }] } }] }, DIR);
+  let g = await call("tutor", null, tok, "GET");
+  assert.ok(g.j.cards.some(c => c.id === "tc9")); assert.equal(g.j.acks.tc9, undefined, "not acknowledged yet");
+  assert.equal((await call("tutor", { action: "ack", card: "tc9", s: "cant" }, tok)).status, 400, "can't make it needs a reason");
+  const ok = await call("tutor", { action: "ack", card: "tc9", s: "cant", note: "Mondays I'm at school", sig: "v1" }, tok);
+  assert.equal(ok.status, 200); assert.equal(ok.j.ack.st, "Linga Shaba");
+  const st = await call("state", null, DIR, "GET");
+  assert.equal(st.j.kv.lhq_cardack["tc9|emmanuel mkwamba"].s, "cant", "staff see it"); assert.equal(st.j.kv.lhq_avail["emmanuel mkwamba"][0].note, "at school");
+  // the card goes to another tutor: Emmanuel is told once
+  await call("sync", { upserts: [{ doc: { id: "tc9", type: "card", number: "TC-0009", student: "Linga Shaba", periodStart: day(-3), periodEnd: day(25), subjects: [{ name: "Mathematics", tutor: "Chisomo Banda", days: ["Tu"], start: "14:00", end: "15:00" }] } }] }, DIR);
+  g = await call("tutor", null, tok, "GET");
+  assert.deepEqual(g.j.gone.map(x => x.card), ["tc9"]);
+  await call("tutor", { action: "ack", card: "tc9", s: "gone" }, tok);
+  assert.deepEqual((await call("tutor", null, tok, "GET")).j.gone, [], "told once");
+  assert.equal((await call("tutor", { action: "ack", card: "nope", s: "ok" }, tok)).status, 404);
+  // the phone calendar link
+  const link = g.j.calLink; assert.match(link, /^\/api\/hub\/cal\/p\w+\.[a-f0-9]{24}\.ics$/);
+  await call("sync", { upserts: [{ doc: { id: "tc10", type: "card", number: "TC-0010", student: "Kettie Gondwe", periodStart: day(-1), periodEnd: day(6), subjects: [{ name: "Physics", tutor: "Emmanuel Mkwamba", days: ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"], start: "16:00", end: "17:00" }] } }] }, DIR);
+  const r = await hub(new Request("http://x" + link), {}); const ics = await r.text();
+  assert.equal(r.status, 200); assert.match(r.headers.get("content-type"), /text\/calendar/);
+  assert.equal((ics.match(/BEGIN:VEVENT/g) || []).length, 8, "a week of Kettie's sessions, nobody else's");
+  assert.match(ics, /SUMMARY:Kettie Gondwe · Physics/); assert.match(ics, /DTSTART:\d{8}T140000Z/, "16:00 in Malawi is 14:00 UTC");
+  assert.equal((await hub(new Request("http://x" + link.replace(/\.[a-f0-9]{24}\./, ".000000000000000000000000.")), {})).status, 404, "a wrong signature gets nothing");
+});
+
 test.after(async () => { await pool.end(); });

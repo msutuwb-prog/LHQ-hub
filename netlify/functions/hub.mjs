@@ -52,7 +52,7 @@ async function usesDbStore() {
 /* compare two values whatever order their keys come in (the database keeps keys in its own order) */
 const canon = v => JSON.stringify(v, (k, x) => x && typeof x === "object" && !Array.isArray(x) ? Object.keys(x).sort().reduce((o, key) => (o[key] = x[key], o), {}) : x);
 
-const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes", "lhq_treps"];
+const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes", "lhq_treps", "lhq_avail", "lhq_cardack"];
 
 /* ---------- roles and permissions ---------- */
 const PERMS = ["quotes", "receipts", "cards", "delete", "restore", "students", "money", "tpay", "tutors", "msgs", "numbering", "backup", "classes", "moveclass", "spend", "pl"];
@@ -307,6 +307,8 @@ async function checkSync(me, upserts, deletes, kv) {
       const ch = Object.keys(v || {}).filter(id => canon(v[id]) !== canon(old[id]) && (!old[id] || (v[id].at || 0) >= (old[id].at || 0)));
       if (ch.length && !can(me, "spend")) return "You don't have permission to record spending.";
       if (ch.some(id => old[id] && old[id].by !== me.name)) return "You can only change spending you recorded. Ask the Director to change the others.";
+    } else if (k === "lhq_avail" || k === "lhq_cardack") {
+      if (changedKeys(old, v).length && !can(me, "tutors")) return "You don't have permission to change tutors' times.";
     } else if (k === "lhq_budget") {
       if (changedKeys(old, v).length) return "Only the Director can set budgets.";
     } else if (k === "lhq_students") {
@@ -706,8 +708,38 @@ async function writeKv(k, change) {
 }
 async function tutorGet(me) {
   if (!isTutor(me)) return fail("This part is for tutors.", 403);
-  const d = await tutorData(me);
-  return json({ me: pub(me), cards: d.cards, entries: d.entries, classes: d.classes, reports: d.reports, now: Date.now() });
+  const d = await tutorData(me), x = await tutorExtras(me, d);
+  return json(Object.assign({ me: pub(me), cards: d.cards, entries: d.entries, classes: d.classes, reports: d.reports, now: Date.now() }, x));
+}
+/* A private calendar link per tutor (for Google Calendar or an iPhone): their LHQ sessions from two weeks ago to twelve
+   weeks ahead, rebuilt every time the phone asks. The link carries a signature instead of a sign-in. */
+const calSig = id => crypto.createHmac("sha256", secret()).update("cal:" + id).digest("hex").slice(0, 24);
+const calPath = id => `/api/hub/cal/${id}.${calSig(id)}.ics`;
+async function calFeed(path) {
+  const m = /^cal\/([\w-]{3,40})\.([a-f0-9]{24})\.ics$/.exec(path);
+  if (!m || !crypto.timingSafeEqual(Buffer.from(m[2]), Buffer.from(calSig(m[1])))) return new Response("Not found", { status: 404 });
+  const p = (await getPeople()).find(x => x.id === m[1] && x.active !== false);
+  if (!p) return new Response("Not found", { status: 404 });
+  await import("../../site/schedule.js"); const S = globalThis.SCHED;
+  const cards = (await readAll("doc/")).filter(d => d.type === "card");
+  const t0 = new Date(Date.now() - 14 * 864e5), t1 = new Date(Date.now() + 84 * 864e5), day = d => d.toISOString().slice(0, 10);
+  const L = S.sessions(cards, day(t0), day(t1), { tutor: p.name }).filter(e => e.a != null && e.b != null);
+  const esc = v => String(v || "").replace(/[\\;,]/g, x => "\\" + x).replace(/\n/g, "\\n");
+  const utc = (date, mins) => { const [y, mo, d] = date.split("-").map(Number); const t = new Date(Date.UTC(y, mo - 1, d, 0, mins) - 2 * 3600e3);   // Malawi is UTC+2 all year
+    return t.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, ""); };
+  const now = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  const ev = L.map(e => ["BEGIN:VEVENT", `UID:${e.card}-${e.k.replace(/[^a-z0-9]/g, "")}-${e.date}@lhq-hub`, `DTSTAMP:${now}`, `DTSTART:${utc(e.date, e.a)}`, `DTEND:${utc(e.date, e.b)}`,
+    `SUMMARY:${esc(e.student + " · " + e.sub)}`, `LOCATION:${esc(e.where || "LHQ")}`, `DESCRIPTION:${esc("LHQ tuition · " + (e.number || "") + "\nCheck LHQ Hub for any change made today.")}`, "END:VEVENT"].join("\r\n"));
+  const body = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//LHQ Learning Solutions//LHQ Hub//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", `X-WR-CALNAME:${esc("LHQ · " + p.name)}`, "X-WR-TIMEZONE:Africa/Blantyre", "REFRESH-INTERVAL;VALUE=DURATION:PT6H", ...ev, "END:VCALENDAR"].join("\r\n") + "\r\n";
+  return new Response(body, { status: 200, headers: { "content-type": "text/calendar; charset=utf-8", "cache-control": "no-store" } });
+}
+
+/* a tutor's own unavailable times, what they've acknowledged, and cards they've been taken off (to be told once) */
+async function tutorExtras(me, d) {
+  const mk = nk(me.name), [av, ack] = await Promise.all(["lhq_avail", "lhq_cardack"].map(k => store().get("kv/" + k, { type: "json" })));
+  const acks = {}, gone = [], mine = new Set(d.cards.map(c => c.id));
+  Object.entries(ack || {}).forEach(([k, v]) => { const [cid, t] = k.split("|"); if (t !== mk || !v) return; acks[cid] = v; if (!mine.has(cid) && v.s !== "gone") gone.push(Object.assign({ card: cid }, v)); });
+  return { avail: (av || {})[mk] || [], acks, gone, calLink: calPath(me.id) };
 }
 async function tutorPost(req, me) {
   if (!isTutor(me)) return fail("This part is for tutors.", 403);
@@ -745,6 +777,25 @@ async function tutorPost(req, me) {
     await writeKv("lhq_treps", old => mergeLogs(old, { e: { [rep.id]: rep } }));
     await act(me, "teaching", "report.send", `Sent the daily report for ${dayL(d0)}${rep.req.length ? " · asked for " + rep.req.map(x => x.item).join(", ") : ""}${rep.flag ? " · flagged a student" : ""}`, "tutor_reports", rep.id);
     return json({ ok: true, report: rep });
+  }
+  if (b.action === "avail") {   // the times this tutor can't teach: [{d, s, e, note}]
+    const ok = t => /^\d{2}:\d{2}$/.test(String(t || ""));
+    const L = (Array.isArray(b.blocks) ? b.blocks : []).slice(0, 40).filter(x => x && ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"].includes(x.d) && ok(x.s) && ok(x.e) && x.s < x.e)
+      .map(x => ({ d: x.d, s: x.s, e: x.e, note: String(x.note || "").trim().slice(0, 80) }));
+    await writeKv("lhq_avail", old => Object.assign({}, old || {}, { [nk(me.name)]: L }));
+    await act(me, "teaching", "avail.save", L.length ? `Set the times they can't teach: ${L.map(x => `${x.d} ${x.s}–${x.e}`).join(", ")}` : "Cleared the times they can't teach", "avail", nk(me.name));
+    return json({ ok: true, avail: L });
+  }
+  if (b.action === "ack") {   // "Got it", "Can't make this time", or "seen" for a card they were taken off
+    const cid = String(b.card || ""), s0 = ["ok", "cant", "gone"].includes(b.s) ? b.s : "", key = cid + "|" + nk(me.name);
+    const card = d.cards.find(c => c.id === cid), prev = ((await store().get("kv/lhq_cardack", { type: "json" })) || {})[key];
+    if (!s0 || (!card && !(s0 === "gone" && prev))) return fail("That card isn't on your list.", 404);
+    if (s0 === "cant" && !String(b.note || "").trim()) return fail("Say which times don't work for you.");
+    const v = { s: s0, sig: String(b.sig || "").slice(0, 2000), at: now, note: String(b.note || "").trim().slice(0, 500), st: card ? card.student : (prev || {}).st, subs: card ? card.subjects.map(x => x.name) : (prev || {}).subs || [], number: card ? card.number : (prev || {}).number };
+    await writeKv("lhq_cardack", old => Object.assign({}, old || {}, { [key]: v }));
+    if (s0 === "cant") await act(me, "teaching", "card.cant", `Can't make the times on ${v.number || "a tuition card"} · ${v.st}: "${v.note}"`, "documents", cid);
+    if (s0 === "ok") await act(me, "teaching", "card.ok", `Acknowledged ${v.number || "a tuition card"} · ${v.st}`, "documents", cid);
+    return json({ ok: true, ack: v });
   }
   if (b.action === "class") {
     const c = b.cls || {}, id = /^[\w-]{4,40}$/.test(String(c.id || "")) ? c.id : "cl" + crypto.randomBytes(5).toString("hex");
@@ -788,6 +839,7 @@ export default async (req, context) => {
     if (req.method === "POST" && path === "setup") return await setup(req);
     if (req.method === "POST" && path === "login") return await login(req);
     if (req.method === "POST" && path === "recover") return await recover(req);
+    if (req.method === "GET" && /^cal\//.test(path)) return await calFeed(path);
     /* sign-in with a password (database on) */
     const ua = req.headers.get("user-agent") || "", ip = req.headers.get("x-nf-client-connection-ip") || req.headers.get("x-forwarded-for") || "";
     if (req.method === "POST" && ["signin", "code", "dircode", "password"].includes(path)) {

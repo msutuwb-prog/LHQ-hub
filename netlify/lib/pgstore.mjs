@@ -107,7 +107,7 @@ async function mapPut(key, value, mode, match) {
 }
 
 /* single values in the settings table: lists, messages, numbering, report edits, tutor links, budgets */
-const SETTINGS = new Set(["kv/lhq_settings", "kv/lhq_templates", "kv/lhq_counters", "kv/lhq_repEdits", "kv/lhq_tlinks", "kv/lhq_budget"]);
+const SETTINGS = new Set(["kv/lhq_settings", "kv/lhq_templates", "kv/lhq_counters", "kv/lhq_repEdits", "kv/lhq_tlinks", "kv/lhq_budget", "kv/lhq_avail", "kv/lhq_cardack"]);
 const skey = key => "hub:" + key.slice(3);
 async function setGet(key) { return one("SELECT value AS v, ver::text AS etag FROM settings WHERE key = $1 AND NOT del", [skey(key)]); }
 async function setPut(key, value, mode, match) {
