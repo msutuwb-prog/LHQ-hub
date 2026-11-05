@@ -258,4 +258,31 @@ test("confirming a logged session: on the student's behalf, a dispute, settling 
   assert.equal((await call("confirm", { action: "confirm", id: "nope", how: "x" }, DIR)).status, 404);
 });
 
+test("activity: every save leaves a line, in words, by whom; Admin doesn't see what they can't open", async () => {
+  const r = await call("activity", null, DIR, "GET");
+  assert.equal(r.status, 200, JSON.stringify(r.j));
+  const S = r.j.rows.map(x => x.summary);
+  const has = (re, msg) => assert.ok(S.some(x => re.test(x)), msg + "\n" + S.slice(0, 40).join("\n"));
+  has(/^Made receipt RCT-0001 · Thoko Banda · MKW 240,000$/, "a new receipt");
+  has(/^Edited invoice INV-0001 · Thoko Banda · MKW 260,000$/, "an edit");
+  has(/^Deleted quote Q-0001 · Thoko Banda$/, "a delete, by name");
+  has(/^Restored quote Q-0001/, "a restore");
+  has(/^Recorded spending · Utilities · MKW 45,000/, "spending recorded");
+  has(/^Deleted spending · Utilities/, "spending deleted");
+  has(/^Added student Natasha Chirwa$/, "a student added");
+  has(/^Changed levels$|^Changed Year & level$/, "a list changed");
+  has(/^Logged a session · Thoko Banda · Mathematics · Wed 4 Nov$/, "a tutor's log, in their name");
+  has(/^Sent the daily report for Wed 4 Nov/, "a daily report");
+  has(/^Confirmed Thoko Banda · Mathematics · Wed 4 Nov with Emmanuel Mkwamba for the family \(By phone with Mrs Banda\)$/, "a confirmation");
+  has(/^Settled Thoko Banda · Mathematics · Tue 3 Nov with Emmanuel Mkwamba: 20 min taken off$/, "a settlement");
+  const tutorLine = r.j.rows.find(x => /^Logged a session · Thoko/.test(x.summary));
+  assert.equal(tutorLine.who, "Emmanuel Mkwamba");
+  const f = await call("activity?area=money", null, DIR, "GET");
+  assert.ok(f.j.rows.length && f.j.rows.every(x => x.area === "money"), "filter by type");
+  const w = await call("activity?who=" + encodeURIComponent("Emmanuel Mkwamba"), null, DIR, "GET");
+  assert.ok(w.j.rows.length && w.j.rows.every(x => x.who === "Emmanuel Mkwamba"), "filter by person");
+  const tok = (await call("signin", { id: "emmanuel.mkwamba", password: "Maths!2026x" })).j.token;
+  assert.equal((await call("activity", null, tok, "GET")).status, 403, "tutors don't see the Activity page");
+});
+
 test.after(async () => { await pool.end(); });

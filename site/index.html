@@ -74,6 +74,7 @@ a{color:inherit}
 .on>.t-ind.s{border-color:var(--accent);background:var(--accent)}
 .on>.t-ind.s::after{content:"";width:9px;height:5px;border:2.5px solid var(--onaccent);border-top:0;border-right:0;transform:translateY(-1px) rotate(-45deg)}
 :root{--t-sel:#eef3fa}:root[data-theme=dark]{--t-sel:rgba(244,178,35,.09)}
+.actf .seg button{white-space:nowrap;padding-left:10px;padding-right:10px}.actf{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:0 0 10px}.tks{display:flex;flex-wrap:wrap;gap:4px 12px;margin:0 0 14px;align-items:center}.tk{display:inline-flex;align-items:center;gap:7px;border:0;background:none;padding:6px 4px;font:inherit;font-weight:700;font-size:14px;cursor:pointer;color:var(--ink);border-radius:8px}.tk:hover{background:var(--hover)}.cbx{width:20px;height:20px;border-radius:50%;border:1.8px solid var(--line);display:inline-grid;place-items:center;font-size:11px;font-weight:900}.tk.on .cbx{background:var(--accent);border-color:var(--accent);color:var(--onaccent)}
 .cfm{flex:none;width:20px;height:20px;border-radius:50%;display:inline-grid;place-items:center;font-size:11px;font-weight:900;vertical-align:-4px}.cfm.ok{background:var(--ok);color:#fff}.cfm.dp{background:var(--rd);color:#fff}.cfm.wt{border:2px dashed var(--am)}
 .h2{font-size:13px;font-weight:800;margin:6px 2px 8px;display:flex;justify-content:space-between;align-items:center;gap:10px}
 .h2 em{font-style:normal;color:var(--muted);font-weight:700}
@@ -806,6 +807,37 @@ function confirmSheet(id, mode){
   });
 }
 
+/* ---------- Activity: everything done in the Hub, by whom (Director and Admin) ---------- */
+const ACT = {key:'', rows:[], people:[], areas:[], busy:false, err:'', more:false};
+const AF = {when:'week', areas:new Set(), who:''};
+const AREAL = {documents:'Documents', money:'Money', budgets:'Budgets', students:'Students', teaching:'Teaching', sessions:'Confirmations', people:'People', settings:'Settings', pay:'Pay'};
+function actFrom(){ const d = new Date(); d.setHours(0, 0, 0, 0); if(AF.when === 'week') d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); if(AF.when === 'month') d.setDate(1); if(AF.when === 'all') return '2000-01-01'; return d.toISOString(); }
+async function actLoad(more){
+  const key = [AF.when, [...AF.areas].sort().join(','), AF.who].join('|');
+  if(!more && ACT.key === key) return; ACT.busy = true; ACT.key = key; if(!more){ ACT.rows = []; } render();
+  try{ const before = more && ACT.rows.length ? ACT.rows[ACT.rows.length - 1].created_at : '';
+    const j = await hub.api(`activity?from=${encodeURIComponent(actFrom())}&area=${[...AF.areas].join(',')}&who=${encodeURIComponent(AF.who)}${before ? '&before=' + encodeURIComponent(before) : ''}`);
+    ACT.rows = more ? ACT.rows.concat(j.rows || []) : (j.rows || []); ACT.people = j.people || []; ACT.areas = j.areas || []; ACT.more = (j.rows || []).length === 300; ACT.err = j.off ? 'Activity starts once the Hub uses the database.' : '';
+  }catch(e){ ACT.err = e.message; }
+  ACT.busy = false; if(route.page === 'activity') render();
+}
+const actHref = x => x.entity === 'documents' && x.action !== 'doc.delete' ? D('d=' + x.entity_id) : x.entity === 'logs' && x.area === 'sessions' ? '#confirm/' + encodeURIComponent(x.entity_id) : x.area === 'money' ? '#biz/spending' : x.entity === 'students' && x.entity_id ? stuLink(x.entity_id) : x.area === 'settings' ? '#set/lists' : x.area === 'people' ? '#set/people' : x.action === 'doc.delete' ? '#set/deleted' : '';
+P.activity = () => {
+  if(!isDir() && me().role !== 'admin') return `${crumb('#home', 'Home')}<p class="empty">Activity is for the Director and Admin.</p>`;
+  setTimeout(() => actLoad(), 0);
+  const days = {}; ACT.rows.forEach(x => { const d = x.created_at.slice(0, 10); (days[d] = days[d] || []).push(x); });
+  const t = new Date(), tk = t.toISOString().slice(0, 10), hm = s => new Date(s).toTimeString().slice(0, 5), dl = d => d === tk ? 'Today' : nice(d);
+  const areas = (ACT.areas.length ? ACT.areas : Object.keys(AREAL)).filter(a => AREAL[a]);
+  return `${crumb('#home', 'Home', 'activity')}
+  <div class="ph"><div class="tt"><h1>Activity</h1><p>Everything done in the Hub, by whom${isDir() ? '' : '. You see the parts you can open'}.</p></div></div>
+  <div class="actf"><div class="seg">${[['today','Today'],['week','This week'],['month','This month'],['all','All']].map(([k, l]) => `<button class="${AF.when === k ? 'on' : ''}" data-actw="${k}">${l}</button>`).join('')}</div>
+    <label class="f" style="margin:0;min-width:200px;flex:1;max-width:300px"><select class="in" id="actWho" aria-label="Person"><option value="">Everyone</option>${ACT.people.map(n => `<option ${AF.who === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label></div>
+  <div class="tks">${areas.map(a => `<button class="tk${AF.areas.has(a) ? ' on' : ''}" data-acta="${a}" aria-pressed="${AF.areas.has(a)}"><span class="cbx">${AF.areas.has(a) ? '✓' : ''}</span>${AREAL[a]}</button>`).join('')}${AF.areas.size ? '<button class="btn sm" data-acta="">Clear</button>' : ''}</div>
+  ${ACT.err ? `<p class="note">${esc(ACT.err)}</p>` : ''}
+  ${Object.entries(days).map(([d, L]) => `<div class="h2">${dl(d)} <em>${L.length}</em></div><div class="card">${L.map(x => { const h = actHref(x); return `<${h ? `a href="${h}"` : 'div'} class="it"><span class="av">${esc(inits(x.who || '?'))}</span><span class="t"><b>${esc(x.who || 'LHQ Hub')}${x.role ? ` <span style="color:var(--muted);font-weight:600">· ${esc({director:'Director', admin:'Admin', tutor:'Tutor', student:'Student', parent:'Parent'}[x.role] || x.role)}</span>` : ''}</b><small>${esc(x.summary)}</small><small style="font-size:12px">${AREAL[x.area] || x.area} · ${hm(x.created_at)}</small></span>${h ? '<span class="chev">›</span>' : ''}</${h ? 'a' : 'div'}>`; }).join('')}</div>`).join('') || (ACT.busy ? '<p class="note">Loading…</p>' : '<div class="card"><p class="empty">Nothing in this period.</p></div>')}
+  ${ACT.more ? '<button class="btn" data-actmore>Show earlier</button>' : ''}`;
+};
+
 P.tutors = (show = '') => {
   const t = today(), by = new Map(), none = [];
   HD.students().forEach(s => {
@@ -832,7 +864,7 @@ P.tutors = (show = '') => {
 /* ================= business (business.js) ================= */
 P.biz = (tab, period, cat) => (!tab || tab === 'home' ? crumb(null, null, 'biz') : '') + BIZ.page(tab, period, cat);
 P.perf = () => { setTimeout(() => location.replace('#rep/business'), 0); return ''; };
-P.reports = () => PERF.page();
+P.reports = () => PERF.page() + (isDir() || me().role === 'admin' ? `<div class="card" style="margin-top:14px"><a class="it" href="#activity"><span class="t"><b>Activity</b><small>Everything done in the Hub, by whom</small></span><span class="chev">›</span></a></div>` : '');
 P.teach = (sub, a1, a2) => TUT.page(sub, a1, a2);
 P.rep = (kind, arg) => PERF.page(kind, arg);
 
@@ -1086,6 +1118,10 @@ function bind(){
   on('[data-go]', (el, e) => { if(!e.target.closest('a')) location.href = el.dataset.go; });
   document.querySelectorAll('[data-go][tabindex]').forEach(el => el.onkeydown = e => { if(e.key === 'Enter' && e.target === el) location.href = el.dataset.go; });
   on('[data-cf]', el => confirmSheet(el.dataset.cf));
+  on('[data-actw]', el => { AF.when = el.dataset.actw; actLoad(); });
+  on('[data-acta]', el => { const a = el.dataset.acta; if(!a) AF.areas.clear(); else AF.areas.has(a) ? AF.areas.delete(a) : AF.areas.add(a); actLoad(); });
+  on('[data-actmore]', () => actLoad(true));
+  if($('actWho')) $('actWho').onchange = () => { AF.who = $('actWho').value; actLoad(); };
   if($('cfQ')) $('cfQ').oninput = () => { cfQuery = $('cfQ').value; const pos = $('cfQ').selectionStart; render(); const q = $('cfQ'); if(q){ q.focus(); q.setSelectionRange(pos, pos); } };
   if($('attTog')) $('attTog').onclick = () => { attOpen = !attOpen; try{ localStorage.setItem('lhq_attOpen', attOpen ? '1' : '0'); }catch(e){} render(); };
   on('[data-mv]', el => { const [i, d] = el.dataset.mv.split(':').map(Number), a = myCards(); [a[i], a[i + d]] = [a[i + d], a[i]]; saveHome(a); });

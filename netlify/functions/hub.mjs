@@ -341,7 +341,7 @@ async function sync(req, me) {
   const kvIn = body.kv && typeof body.kv === "object" ? Object.entries(body.kv).filter(([k]) => KV_KEYS.includes(k)) : [];
   const denied = await checkSync(me, upserts, deletes, kvIn);
   if (denied) return json({ error: denied, denied: true }, 403);
-  const remap = {}, conflicts = [], saved = [];
+  const remap = {}, conflicts = [], saved = []; let kvOld = {};
   for (let attempt = 0; attempt < 5; attempt++) {
     const { data: idx, etag } = await getIndex();
     const docs = idx.docs || {};
@@ -368,11 +368,12 @@ async function sync(req, me) {
     }
     for (const x of deletes) { if (x && x.id && docs[x.id]) { delete docs[x.id]; markGone(idx, x.id, (idx.rev || 0) + 1); writes.push({ del: x.id }); } }
     // setting lists are written before the index moves on, so a device that sees the new rev also finds them
-    const merged = {};
+    const merged = {}; kvOld = {};
     for (const [k, v] of kvIn) {
-      if (MERGED.includes(k)) { const m = mergeSpend(await s.get("kv/" + k, { type: "json" }), v, me); merged[k] = m; await s.setJSON("kv/" + k, m); }
-      else if (k === "lhq_logs" || k === "lhq_treps") { const m = mergeLogs(await s.get("kv/" + k, { type: "json" }), v); merged[k] = m; await s.setJSON("kv/" + k, m); }
-      else if (k === "lhq_classes") { const m = mergeSpend(await s.get("kv/" + k, { type: "json" }), v, me); merged[k] = m; await s.setJSON("kv/" + k, m); }
+      const old = await s.get("kv/" + k, { type: "json" }); kvOld[k] = old;
+      if (MERGED.includes(k)) { const m = mergeSpend(old, v, me); merged[k] = m; await s.setJSON("kv/" + k, m); }
+      else if (k === "lhq_logs" || k === "lhq_treps") { const m = mergeLogs(old, v); merged[k] = m; await s.setJSON("kv/" + k, m); }
+      else if (k === "lhq_classes") { const m = mergeSpend(old, v, me); merged[k] = m; await s.setJSON("kv/" + k, m); }
       else await s.setJSON("kv/" + k, v);
       (idx.kvr = idx.kvr || {})[k] = (idx.rev || 0) + 1;
     }
@@ -386,9 +387,72 @@ async function sync(req, me) {
       w.d.log = logEntry(old, w.d, me, now);
       await s.setJSON("doc/" + w.d.id, w.d); saved.push(w.d);
     }
+    await syncActivity(me, writes, kvIn, kvOld, merged);
     return json({ rev: idx.rev, epoch: idx.epoch, remap, conflicts, saved, kv: merged });
   }
   return fail("Too many saves at once. Try again.", 409);
+}
+
+/* ---------- Activity: one line for everything done in the Hub, by whom (database on). Never stops a save if it fails. ---------- */
+const WORDT = { quote: "quote", invoice: "invoice", receipt: "receipt", card: "tuition card" };
+const money = n => "MKW " + Math.round(Number(n) || 0).toLocaleString("en-US");
+const dayL = d => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(d || "")); if (!m) return d || ""; const t = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
+  return `${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][t.getUTCDay()]} ${+m[3]} ${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][+m[2] - 1]}`; };
+const docName = d => `${WORDT[d.type || "quote"] || "document"} ${d.number || ""}`.trim() + (d.student || d.name ? " · " + (d.student || d.name) : "");
+async function act(me, area, action, summary, entity, entityId, data) {
+  if (!dbMode() || !me) return;
+  try { await q("INSERT INTO activity (id, actor_id, action, area, entity, entity_id, summary, data) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+    ["ac" + crypto.randomBytes(8).toString("hex"), me.id && /^p/.test(me.id) ? me.id : null, action, area, entity || null, entityId || null, String(summary).slice(0, 300), JSON.stringify(Object.assign({ who: me.name }, data || {}))]); }
+  catch (e) { console.error("activity", e.message); }
+}
+const AREA_SEE = { documents: () => true, students: () => true, teaching: () => true, sessions: () => true, people: () => true, settings: () => true,
+  money: p => can(p, "spend") || can(p, "pl"), budgets: p => can(p, "pl"), pay: p => isDirector(p) };
+async function activityList(req, me) {
+  if (!staff(me)) return fail("Only LHQ admin can see activity.", 403);
+  if (!dbMode()) return json({ rows: [], off: true });
+  const u = new URL(req.url).searchParams, from = u.get("from") || "1970-01-01", area = u.get("area") || "", who = u.get("who") || "", before = u.get("before") || "";
+  const areas = Object.keys(AREA_SEE).filter(a => AREA_SEE[a](me) && (!area || area.split(",").includes(a)));
+  const rows = await q(`SELECT a.id, a.action, a.area, a.entity, a.entity_id, a.summary, a.created_at, coalesce(p.name, a.data->>'who', 'LHQ Hub') AS who, p.role
+    FROM activity a LEFT JOIN people p ON p.id = a.actor_id
+    WHERE NOT a.del AND a.area = ANY($1) AND a.created_at >= $2::timestamptz AND ($3 = '' OR coalesce(p.name, a.data->>'who') = $3) AND ($4 = '' OR a.created_at < $4::timestamptz)
+    ORDER BY a.created_at DESC, a.id LIMIT 300`, [areas, from, who, before]);
+  const people = (await q(`SELECT DISTINCT coalesce(p.name, a.data->>'who') AS n FROM activity a LEFT JOIN people p ON p.id = a.actor_id WHERE a.area = ANY($1) AND NOT a.del ORDER BY 1`, [areas])).map(r => r.n).filter(Boolean);
+  return json({ rows, people, areas });
+}
+
+/* what a save did, in words: documents, money, students, lists, logs imported */
+async function syncActivity(me, writes, kvIn, kvOld, merged) {
+  if (!dbMode()) return;
+  for (const w of writes) {
+    if (w.del) { const t = await store().get("trash/" + w.del, { type: "json" }).catch(() => null); await act(me, "documents", "doc.delete", `Deleted ${t ? docName(t) : w.del}`, "documents", w.del); continue; }
+    const d = w.d, l0 = (d.log || [])[(d.log || []).length - 1] || {}, last = l0.at === d.updatedAt ? l0 : { a: w.prev ? "edited" : "created" }, amt = d.type === "receipt" ? d.receivedAmt : d.total;
+    const verb = { created: "Made", edited: "Edited", emailed: "Emailed", whatsapp: "Sent on WhatsApp", paid: "Recorded a payment on" }[last.a] || "Saved";
+    const action = "doc." + (last.a || "save");
+    if (last.a === "edited" && await one("SELECT 1 FROM activity WHERE entity_id = $1 AND action = 'doc.edited' AND data->>'who' = $2 AND created_at > now() - interval '30 minutes'", [d.id, me.name]).catch(() => null)) continue;
+    await act(me, "documents", action, `${verb} ${docName(d)}${amt ? " · " + money(amt) : ""}${last.to ? " to " + last.to : ""}`, "documents", d.id);
+  }
+  for (const [k] of kvIn) {
+    const old = kvOld[k] || {}, now = merged[k] || (await store().get("kv/" + k, { type: "json" })) || {};
+    if (k === "lhq_spend" || k === "lhq_income") {
+      const word = k === "lhq_spend" ? "spending" : "money in";
+      for (const [id, e] of Object.entries(now)) {
+        if (canon(e) === canon(old[id])) continue;
+        const v = !old[id] ? "Recorded" : e.del && !old[id].del ? "Deleted" : "Edited";
+        await act(me, "money", "money." + v.toLowerCase(), `${v} ${word} · ${e.cat || ""} · ${money(e.amount)}${e.what ? " · " + e.what : ""}${e.date ? " · " + dayL(e.date) : ""}`, "money", id);
+      }
+    } else if (k === "lhq_students") {
+      const ch = Object.keys(now).filter(x => canon(now[x]) !== canon(old[x]));
+      for (const x of ch.slice(0, 10)) await act(me, "students", old[x] ? "student.edit" : "student.add", `${old[x] ? "Updated the details of" : "Added student"} ${(now[x] || {}).name || x}`, "students", x);
+    } else if (k === "lhq_settings") {
+      const ch = Object.keys(Object.assign({}, old, now)).filter(f => canon(old[f]) !== canon(now[f]));
+      if (ch.length) await act(me, "settings", "settings.edit", `Changed ${ch.map(f => ({ levels: "Year & level", spendCats: "spending categories", heardFrom: "how families hear about LHQ", methods: "payment methods", tutors: "tutors on cards", tutorInfo: "tutors' contacts" }[f] || f)).join(", ")}`, "settings", k);
+    } else if (k === "lhq_templates") { if (canon(old) !== canon(now)) await act(me, "settings", "messages.edit", "Changed the message wording", "settings", k); }
+    else if (k === "lhq_budget") { if (canon(old) !== canon(now)) await act(me, "budgets", "budget.edit", "Changed the budgets", "settings", k); }
+    else if (k === "lhq_logs") {
+      const n = Object.keys(now.e || {}).filter(id => !(old.e || {})[id]).length;
+      if (n) await act(me, "teaching", "logs.import", `Added ${n} log line${n === 1 ? "" : "s"} for tutors (from WhatsApp)`, "logs", null);
+    } else if (k === "lhq_classes") { if (canon(old) !== canon(now)) await act(me, "teaching", "classes.edit", "Changed the classes", "classes", null); }
+  }
 }
 
 /* Confirming a logged session. A session a tutor logged counts (for reports and pay) once it is confirmed: by the student
@@ -418,6 +482,9 @@ async function confirmSession(req, me) {
     cf = Object.assign({}, e0.cf, { s: "settled", by: me.name, at: now, out: b.out === "keep" ? "keep" : "lost", lost, note2: txt(b.note, 500), disputedBy: e0.cf.by, disputedAt: e0.cf.at });
   } else return fail("Unknown action.");
   const next = await writeKv("lhq_logs", old => { const o = old || { e: {} }, e = Object.assign({}, o.e); e[id] = Object.assign({}, e[id], { cf, at: now }); return Object.assign({}, o, { e }); });
+  const what = `${e0.st} · ${e0.sub} · ${dayL(e0.d)}${e0.tutor ? " with " + e0.tutor : ""}`;
+  await act(me, "sessions", "session." + b.action, b.action === "confirm" ? `Confirmed ${what} for the family (${cf.how})` : b.action === "dispute" ? `Recorded a dispute: ${what} · ${cf.from}: "${cf.note}"`
+    : `Settled ${what}: ${cf.out === "keep" ? "the tutor's times stand" : cf.lost + " min taken off"}`, "logs", id);
   return json({ ok: true, entry: next.e[id] });
 }
 
@@ -524,6 +591,7 @@ async function restore(req, me) {
     const res = await s.setJSON("index", idx, etag ? { onlyIfMatch: etag } : { onlyIfNew: true });
     if (res && res.modified === false) continue;
     await s.setJSON("doc/" + d.id, d); await s.delete("trash/" + d.id);
+    await act(me, "documents", "doc.restore", `Restored ${docName(d)}${note ? " (was " + note + ")" : ""}`, "documents", d.id);
     return json({ ok: true, doc: d, rev: idx.rev, renumbered: note });
   }
   return fail("Too many saves at once. Try again.", 409);
@@ -654,7 +722,15 @@ async function tutorPost(req, me) {
     }
     const prev = {}; d.entries.forEach(e => prev[e.id] = e);
     const add = {}; list.forEach(e => { if (prev[e.id] && nk(prev[e.id].tutor) && nk(prev[e.id].tutor) !== nk(me.name)) return; add[e.id] = Object.assign({}, e, { tutor: me.name, at: now, via: "hub" }); });
+    const before = await store().get("kv/lhq_logs", { type: "json" });
     await writeKv("lhq_logs", old => mergeLogs(old, { e: add }));
+    const fresh = Object.values(add).filter(e => !((before && before.e) || {})[e.id]), edits = Object.keys(add).length - fresh.length;
+    const TY = { s: "session", g: "SRA given", r: "SRA marked", w: "assessment mark" }, cnt = {};
+    fresh.forEach(e => { const t = TY[e.ty] || "line"; cnt[t] = (cnt[t] || 0) + 1; });
+    const sess = fresh.filter(e => e.ty === "s"), first = sess[0] || fresh[0];
+    if (fresh.length === 1 && first) await act(me, "teaching", "log.add", `Logged a ${TY[first.ty] || "line"} · ${first.st} · ${first.sub} · ${dayL(first.d)}`, "logs", first.id);
+    else if (fresh.length) await act(me, "teaching", "log.add", `Logged ${Object.entries(cnt).map(([t, n]) => n + " " + t + (n === 1 ? "" : "s")).join(", ")}${sess.length ? " · " + [...new Set(sess.map(e => e.st))].slice(0, 4).join(", ") : ""}`, "logs", first.id);
+    if (edits) await act(me, "teaching", "log.edit", `Changed ${edits} logged line${edits === 1 ? "" : "s"}`, "logs", null);
     return json({ ok: true, saved: Object.values(add) });
   }
   if (b.action === "report") {   // the tutor's daily report: one per tutor per day, sent again replaces it
@@ -667,6 +743,7 @@ async function tutorPost(req, me) {
     const rep = { id: "r" + nk(me.name).replace(/[^a-z0-9]/g, "") + d0.replace(/-/g, ""), d: d0, tutor: me.name, req, flag, comment: txt(r.comment, 1500), rate: [1, 2, 3, 4, 5].includes(+r.rate) ? +r.rate : 0, gaps: Math.max(0, Math.min(99, +r.gaps || 0)), hours: Math.max(0, Math.min(24, +r.hours || 0)), sent: now, at: now };
     rep.id = rep.id.slice(0, 40);
     await writeKv("lhq_treps", old => mergeLogs(old, { e: { [rep.id]: rep } }));
+    await act(me, "teaching", "report.send", `Sent the daily report for ${dayL(d0)}${rep.req.length ? " · asked for " + rep.req.map(x => x.item).join(", ") : ""}${rep.flag ? " · flagged a student" : ""}`, "tutor_reports", rep.id);
     return json({ ok: true, report: rep });
   }
   if (b.action === "class") {
@@ -679,6 +756,7 @@ async function tutorPost(req, me) {
     if (!c.del && stu.length < 2) return fail("A class needs at least two of your students.");
     const cls = c.del ? Object.assign({}, cur[id] || {}, { id, del: true, at: now }) : { id, name: String(c.name).trim().slice(0, 60), sub: String(c.sub || "").trim().slice(0, 60), mode: c.mode === "online" ? "online" : "in person", stu, tutor: me.name, at: now };
     await writeKv("lhq_classes", old => Object.assign({}, old || {}, { [id]: Object.assign({}, cls, { by: (old && old[id] && old[id].by) || me.name }) }));
+    await act(me, "teaching", c.del ? "class.remove" : "class.save", `${c.del ? "Removed" : cur[id] ? "Changed" : "Made"} the class ${cls.name || (cur[id] || {}).name || ""}`, "classes", id);
     return json({ ok: true, cls });
   }
   return fail("Unknown action.");
@@ -735,6 +813,7 @@ export default async (req, context) => {
     if (req.method === "POST" && path === "reset") return await reset(req, me);
     if (req.method === "POST" && path === "store") return await hubStore(req, me);
     if (req.method === "POST" && path === "confirm") return await confirmSession(req, me);
+    if (req.method === "GET" && path === "activity") return await activityList(req, me);
     return fail("Not found.", 404);
   } catch (e) {
     if (e instanceof A.AuthError) return json(Object.assign({ error: e.message }, e.extra), e.status);
