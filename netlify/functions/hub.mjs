@@ -583,6 +583,8 @@ const CONFIRM_HOURS = 48;
 async function confirmSession(req, me) {
   if (!can(me, "tutors")) return fail("You don't have permission to settle sessions.", 403);
   const b = await req.json().catch(() => ({})), id = String(b.id || ""), now = Date.now();
+  if ((b.action === "confirm" || b.action === "dispute") && !(me.role === "student" || me.role === "parent")) return fail("Students confirm their own sessions. Until they have accounts, sessions confirm themselves 48 hours after the tutor logs them.", 403);
+
   const txt = (v, n) => String(v || "").trim().slice(0, n), hm = v => /^\d{1,2}:\d{2}$/.test(String(v || "")) ? v : "";
   const cur = await store().get("kv/lhq_logs", { type: "json" }), e0 = cur && cur.e && cur.e[id];
   if (!e0 || e0.x || e0.ty !== "s") return fail("That session isn't in the logs.", 404);
@@ -591,7 +593,6 @@ async function confirmSession(req, me) {
   let cf;
   // LHQ oversees: it settles disputes. Confirming and disputing is the student's (or, where LHQ allows it, a parent's) from Stage 2;
   // until then a session confirms itself 48 hours after it was logged.
-  if ((b.action === "confirm" || b.action === "dispute") && !(me.role === "student" || me.role === "parent")) return fail("Students confirm their own sessions. Until they have accounts, sessions confirm themselves 48 hours after the tutor logs them.", 403);
   if (b.action === "confirm") {
     if (was === "disputed") return fail("This session is disputed: settle it instead.", 409);
     if (!txt(b.how, 200)) return fail("Say how it was confirmed, e.g. by phone with the parent.");

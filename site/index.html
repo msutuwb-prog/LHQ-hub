@@ -442,7 +442,7 @@ function attention(list){
     TF.forEach(m => { const sp = HD.students().find(x => SCHED.nk(x.name) === SCHED.nk(m.st)), msg = tellMsg(m);
       out.push({w:-1, s:{name:`Tell the family: ${m.st}`}, href:'#clashes', ico:'msg', col:'--am', sub:`${m.sub} moves from ${SCHED.DAYN[m.from.day]} ${m.from.s} to ${SCHED.DAYN[m.to.day]} ${m.to.s} · moved by ${m.by}`, btn:['WhatsApp', `https://wa.me/${sp && sp.phone ? waNum(sp.phone) : ''}?text=${encodeURIComponent(msg)}`]}); });
     const behind = sessionRows().filter(r => r.T.behind >= 2);
-    if(behind.length) out.push({w:0, s:{name:`${behind.length} student${behind.length === 1 ? '' : 's'} behind on sessions`}, href:'#sessions/behind', ico:'clock', col:'--am', sub:behind.slice(0, 3).map(r => `${r.it.st} · ${r.it.sub} ${r.T.behind} behind`).join(' · '), btn:['See', '#sessions/behind']});
+    if(behind.length) out.push({w:-1, s:{name:`${behind.length} student${behind.length === 1 ? '' : 's'} behind on sessions`}, href:'#sessions/behind', ico:'clock', col:'--am', sub:behind.slice(0, 3).map(r => `${r.it.st} · ${r.it.sub} ${r.T.behind} behind`).join(' · '), btn:['See', '#sessions/behind']});
     const MU = Object.values(store.get('lhq_makeups', {}) || {}).filter(m => m && m.status === 'asked');
     if(MU.length) out.push({w:-1, s:{name:`${MU.length} make-up${MU.length === 1 ? '' : 's'} to confirm`}, href:'#bookings', ico:'clock', col:'--am', sub:MU.slice(0, 3).map(m => `${m.st} · ${m.sub} · ${nice(m.d)} ${m.s}`).join(' · '), btn:['Review', '#bookings']});
     const RQ = reqList(), ap = RQ.filter(r => !r.dec.s), buy = RQ.filter(r => r.dec.s === 'approved');
@@ -509,7 +509,7 @@ async function saveHome(cards){
   render();
   try{ await hub.api('people', {method:'POST', body:JSON.stringify({action:'home', cards})}); }catch(e){ toast('Couldn\'t save your Home online. It will look like this on this device.'); }
 }
-let attOpen = true; try{ attOpen = localStorage.getItem('lhq_attOpen') !== '0'; }catch(e){}
+let attAll = false, attOpen = true; try{ attOpen = localStorage.getItem('lhq_attOpen') !== '0'; }catch(e){}
 
 P.home = () => {
   const list = HD.students(), att = attention(list), m = metrics(list), cards = myCards();
@@ -523,7 +523,7 @@ P.home = () => {
   ${draftRow}
   ${PREVIEW && isDir() && !saved.length ? `<div class="card pad" style="border-color:var(--gold)"><div class="cap">Preview</div><p class="note" style="margin:0 0 10px">This preview has its own storage and is empty. Load six months of demo data to try every page.</p><a class="btn n" href="#set/demo">Demo data</a></div>` : ''}
   <div class="h2">Needs attention <span class="acts" style="align-items:center"><em>${att.length || ''}</em><button class="btn sm" id="attTog">${attOpen ? 'Hide' : 'Show'}</button></span></div>
-  ${attOpen ? `<div class="card">${att.slice(0, 15).map(x => `<div class="it" data-go="${x.href}" style="cursor:pointer"><span class="ico" style="color:var(${x.col})">${ic(x.ico)}</span><span class="t"><b>${esc(x.s.name)}</b><small>${esc(x.sub)}</small></span>${x.tag ? `<span class="tag ${x.tag[1]}">${x.tag[0]}</span>` : x.btn ? `<a class="btn sm" href="${x.btn[1]}">${x.btn[0]}</a>` : ''}</div>`).join('') || '<p class="empty">Nothing needs attention. Overdue payments, paid invoices without a card, subjects without a tutor and periods ending this week show here.</p>'}</div>`
+  ${attOpen ? `<div class="card">${att.slice(0, attAll ? 999 : 15).map(x => `<div class="it" data-go="${x.href}" style="cursor:pointer"><span class="ico" style="color:var(${x.col})">${ic(x.ico)}</span><span class="t"><b>${esc(x.s.name)}</b><small>${esc(x.sub)}</small></span>${x.tag ? `<span class="tag ${x.tag[1]}">${x.tag[0]}</span>` : x.btn ? `<a class="btn sm" href="${x.btn[1]}">${x.btn[0]}</a>` : ''}</div>`).join('') || '<p class="empty">Nothing needs attention. Overdue payments, paid invoices without a card, subjects without a tutor and periods ending this week show here.</p>'}${att.length > 15 && !attAll ? `<button class="it" id="attAll" style="justify-content:center"><b>Show all ${att.length}</b></button>` : ''}</div>`
     : `<p class="note" style="margin:-2px 2px 18px">${att.length} item${att.length === 1 ? '' : 's'} hidden. Needs attention always stays on Home so nothing is missed.</p>`}
   <div class="h2">Recent <a class="btn sm" href="#docs">All documents</a></div>
   <div class="card">${recent.map(x => docRow(x, {when:true})).join('') || '<p class="empty">Nothing saved yet. Tap New to start with a quote.</p>'}</div>`;
@@ -1294,6 +1294,7 @@ function bind(){
   on('[data-actmore]', () => actLoad(true));
   if($('actWho')) $('actWho').onchange = () => { AF.who = $('actWho').value; actLoad(); };
   if($('cfQ')) $('cfQ').oninput = () => { cfQuery = $('cfQ').value; const pos = $('cfQ').selectionStart; render(); const q = $('cfQ'); if(q){ q.focus(); q.setSelectionRange(pos, pos); } };
+  if($('attAll')) $('attAll').onclick = () => { attAll = true; render(); };
   if($('attTog')) $('attTog').onclick = () => { attOpen = !attOpen; try{ localStorage.setItem('lhq_attOpen', attOpen ? '1' : '0'); }catch(e){} render(); };
   on('[data-mv]', el => { const [i, d] = el.dataset.mv.split(':').map(Number), a = myCards(); [a[i], a[i + d]] = [a[i + d], a[i]]; saveHome(a); });
   on('[data-rm]', el => { const a = myCards(); a.splice(+el.dataset.rm, 1); saveHome(a); });

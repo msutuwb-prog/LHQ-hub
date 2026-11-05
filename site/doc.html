@@ -2137,6 +2137,8 @@ window.hubApply = ()=>{
   if(open && open.savedAt > (doc.savedAt||0) && open.updatedBy){ toast(`${open.number} was updated by ${open.updatedBy}. Open it again to see the changes.`); }
   renderSaved(); fillStudentList(); fillBackup(); fillNumbering(); fillSettings(); fillTemplates();
   if(!doc.id && doc.number === nextNumber(doc.type)) {} else if(!doc.id){ doc.number = nextNumber(doc.type); F('f_number').value = doc.number; update(); }
+  // a link opened before this device had the document (e.g. from Activity or Needs attention): show it as soon as it arrives
+  if(document.body.dataset.mode === 'missing') route();
 };
 window.hubRemap = (id, number)=>{
   saved = store.get('lhq_saved', []);
