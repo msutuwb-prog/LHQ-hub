@@ -176,6 +176,19 @@ export const pgStore = {
 
 /* Copy everything from a Blobs store into the database, `size` keys per call (each request has a time limit): call again
    with from = next until more is false. Safe to run again: a key already here is left as it is unless `replace`. */
+/* the way back: copy everything in the database into Blobs (paged), so switching back loses nothing saved since */
+export async function copyToBlobs(blobs, { from = 0, size = 400 } = {}) {
+  const list = (await pgStore.list()).blobs.map(b => b.key).sort();
+  const end = Math.min(list.length, from + size);
+  let copied = 0;
+  for (let i = from; i < end; i += 25) {
+    const part = list.slice(i, Math.min(i + 25, end));
+    const vals = await Promise.all(part.map(k => pgStore.get(k, { type: "json" }).catch(() => null)));
+    for (let j = 0; j < part.length; j++) { if (vals[j] == null) continue; await blobs.setJSON(part[j], vals[j]); copied++; }
+  }
+  return { keys: list.length, copied, more: end < list.length, next: end < list.length ? end : null };
+}
+
 export async function moveFromBlobs(blobs, { replace = false, from = 0, size = 400 } = {}) {
   const list = (await blobs.list()).blobs.sort((a, b) => a.key.localeCompare(b.key));
   const end = Math.min(list.length, from + size);

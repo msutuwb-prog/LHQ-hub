@@ -21,7 +21,7 @@
 import { getStore } from "@netlify/blobs";
 import crypto from "node:crypto";
 import * as A from "../lib/auth.mjs";
-import { pgStore, moveFromBlobs as copyBlobs } from "../lib/pgstore.mjs";
+import { pgStore, moveFromBlobs as copyBlobs, copyToBlobs } from "../lib/pgstore.mjs";
 import { one, q } from "../lib/db.mjs";
 
 /* With the shared records' database switched on, people and sign-in live there (username or email + password, see
@@ -557,6 +557,10 @@ async function hubStore(req, me) {
     if (storeOnDb && !b.replace) return fail("The Hub already uses the database. Moving again would overwrite newer work.", 409);
     const r = await copyBlobs(blobs(), { replace: !!b.replace, from: Math.max(0, +b.from || 0) });
     return json(r.more ? { moved: r, more: true, next: r.next } : Object.assign({ moved: r }, await status()));
+  }
+  if (b.action === "back") {   // before switching back: copy the database into the old storage, so nothing saved since is lost
+    const r = await copyToBlobs(blobs(), { from: Math.max(0, +b.from || 0) });
+    return json(r.more ? { back: r, more: true, next: r.next } : Object.assign({ back: r }, await status()));
   }
   if (b.action === "use") {
     const to = b.to === "db" ? "db" : "blobs";

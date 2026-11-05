@@ -130,7 +130,10 @@ $('oneCopy').onclick = async () => {
   if(r.ok && !r.j.more) oneShow(r.j); b.disabled = false;
 };
 $('oneUse').onclick = async () => { if(!confirm('Switch the Hub to the database? Everyone keeps working as before; new saves go to the database.')) return; const r = await hubApi({action:'use', to:'db'}); $('oneOut').style.display = 'block'; $('oneOut').textContent = r.ok ? 'Switched. The Hub now uses the database.' : (r.j.error || r.status); if(r.ok) oneShow(r.j); };
-$('oneBack').onclick = async () => { if(!confirm('Switch back to the old storage? Anything saved since switching stays in the database but won\'t show until you switch again.')) return; const r = await hubApi({action:'use', to:'blobs'}); $('oneOut').style.display = 'block'; $('oneOut').textContent = r.ok ? 'Switched back to the old storage.' : (r.j.error || r.status); if(r.ok) oneShow(r.j); };
+$('oneBack').onclick = async () => { if(!confirm('Switch back to the old storage? Everything saved since switching is copied back first, so nothing is lost.')) return; const o = $('oneOut'); o.style.display = 'block';
+  let m = {j:{more:true, next:0}, ok:true}; while(m.ok && m.j.more){ o.textContent = 'Copying back… ' + (m.j.next || 0); m = await hubApi({action:'back', from:m.j.next || 0}); }
+  if(!m.ok){ o.textContent = m.j.error || m.status; return; }
+  const r = await hubApi({action:'use', to:'blobs'}); o.textContent = r.ok ? `Copied ${m.j.back.copied} records back and switched to the old storage.` : (r.j.error || r.status); if(r.ok) oneShow(r.j); };
 $('demo').onclick = () => act($('demo'), 'demo', 'Filling…', 'step');
 $('imp').onclick = () => { if(confirm('Copy the current Hub into the shared records? The current Hub stays as it is.')) act($('imp'), 'import', 'Copying…', 'part'); };
 load();

@@ -120,6 +120,17 @@ test("switching back to Blobs works (nothing deleted either side)", async () => 
   await call("store", { action: "use", to: "db" }, DIR);
 });
 
+test("switching back after copying back keeps everything saved on the database", async () => {
+  let m = { j: { more: true, next: 0 } };
+  while (m.j.more) { m = await call("store", { action: "back", from: m.j.next || 0 }, DIR); assert.equal(m.status, 200, JSON.stringify(m.j)); }
+  assert.ok(m.j.back.copied > 0);
+  await call("store", { action: "use", to: "blobs" }, DIR);
+  const st = await call("state", null, DIR, "GET");
+  assert.equal(st.j.docs.filter(d => /^c\d$/.test(d.id)).length, 4, "the quotes saved on the database are in Blobs too");
+  assert.ok(st.j.docs.some(d => d.number === "Q-0002"));
+  await call("store", { action: "use", to: "db" }, DIR);
+});
+
 test("a big Hub is copied in parts, and the parts add up to everything", async () => {
   const { moveFromBlobs } = await import("../netlify/lib/pgstore.mjs");
   for (let i = 0; i < 9; i++) put("hist/q1/" + i, { id: "q1", v: i });
