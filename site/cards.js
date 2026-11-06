@@ -141,7 +141,7 @@ window.PC = (function(){
     const ed = editing === page, link = (href, html, cls) => ed || !href ? `<div class="${cls}">${html}</div>` : `<a class="mcl ${cls}" href="${href}">${html}<span class="mca">›</span></a>`;
     const ctl = ed ? `<div class="ctl"><button title="Move earlier" ${i === 0 ? 'disabled' : ''} data-pcmv="${page}:${i}:-1">${ic('back',15,2.2)}</button><button title="Move later" ${i === n - 1 ? 'disabled' : ''} data-pcmv="${page}:${i}:1">${ic('chev',15,2.2)}</button><button class="rm" title="Remove" data-pcrm="${page}:${i}">✕</button></div>` : '';
     return `<div class="mc${ed ? ' ed' : ''}"${!ed && r.href ? ` data-go="${r.href}" role="link" tabindex="0"` : ''} aria-label="${esc(def.t)}">${ctl}<span class="l">${ic(def.ic, 15, 2)}${esc(def.t)}</span>
-      ${link(r.href, r.v, 'v')}${r.bar != null ? `<div class="bar"><i style="width:${r.bar}%"></i></div>` : ''}${(r.lines || []).map(([x, h, c]) => link(h || '', esc(x), 's' + (c ? ' ' + c : ''))).join('')}${r.spark || ''}${r.tr || ''}</div>`;
+      ${link(r.href, String(r.v).replace(/^MKW\s+/, '<small class="u">MKW</small>'), 'v')}${r.bar != null ? `<div class="bar"><i style="width:${r.bar}%"></i></div>` : ''}${(r.lines || []).map(([x, h, c]) => link(h || '', esc(x), 's' + (c ? ' ' + c : ''))).join('')}${r.spark || ''}${r.tr || ''}</div>`;
   }
   function chartCard(item){
     try{ const D = I().chartData(Object.assign({n: 12, over: 'm'}, item.c)), s = D.series.slice(0, 3);
@@ -155,7 +155,7 @@ window.PC = (function(){
     const L = chosen(page), ed = editing === page;
     const lib = Object.entries(LIB[page]).filter(([, c]) => okNeed(c));
     const head = `<div class="h2 pc-h">${title || ''}<button class="btn sm${ed ? ' n' : ''}" data-pcedit="${page}" title="${ed ? 'Done' : 'Choose cards'}" aria-label="${ed ? 'Done' : 'Choose cards'}">${ed ? 'Done' : ic('edit', 15)}</button></div>`;
-    const grid = L.length ? `<div class="mcs pc-g">${L.map((x, i) => cardHTML(page, x, ctx, i, L.length)).join('')}</div>` : (ed ? '' : `<p class="note">No cards chosen. Tap the pencil to add some.</p>`);
+    const grid = L.length ? `<div class="mcs pc-g" data-n="${L.length}">${L.map((x, i) => cardHTML(page, x, ctx, i, L.length)).join('')}</div>` : (ed ? '' : `<p class="note">No cards chosen. Tap the pencil to add some.</p>`);
     const add = ed ? `<div class="h2">Add a card</div><div class="card">${lib.map(([k, c]) => `<div class="it"><span class="ico">${ic(c.ic)}</span><span class="t"><b>${esc(c.t)}</b><small>${esc(c.d)}</small></span>${L.includes(k) ? '<span class="tag ok">Showing</span>' : `<button class="btn sm" data-pcadd="${page}:${k}" ${L.length >= 16 ? 'disabled' : ''}>+ Add</button>`}</div>`).join('')}
       ${page === 'biz' && can('pl') ? `<div class="it"><span class="ico">${ic('rep')}</span><span class="t"><b>A chart of your own</b><small>In Charts, set up a view and tap "Pin as a card".</small></span><a class="btn sm" href="#biz/charts">Charts</a></div>` : ''}</div>
       <p class="note">Only you see your choice, on any device.</p>` : '';

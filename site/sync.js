@@ -5,7 +5,7 @@
   'use strict';
   const API = '/api/hub/';
   const DOCS = 'lhq_saved';
-  const KV = ['lhq_settings','lhq_templates','lhq_counters','lhq_repEdits','lhq_logs','lhq_tlinks','lhq_students','lhq_spend','lhq_budget','lhq_income','lhq_classes','lhq_avail','lhq_cardack','lhq_treps','lhq_makeups','lhq_reqs','lhq_clashes','lhq_moves'];
+  const KV = ['lhq_settings','lhq_templates','lhq_counters','lhq_repEdits','lhq_logs','lhq_tlinks','lhq_students','lhq_spend','lhq_budget','lhq_income','lhq_classes','lhq_avail','lhq_cardack','lhq_treps','lhq_makeups','lhq_reqs','lhq_clashes','lhq_moves','lhq_confirmer','lhq_sradone'];
   const PRIVATE = ['lhq_spend','lhq_budget','lhq_income'];   // only sent to people allowed to see them; removed here when that changes
   const SESSION = 'lhq_session', BASE = 'lhq_syncBase', KVHASH = 'lhq_syncKv', REV = 'lhq_syncRev', DIRTY = 'lhq_syncDirty', EPOCH = 'lhq_syncEpoch';
   const ls = window.localStorage;
@@ -300,7 +300,8 @@
   }
   async function signedIn(j){
     put(SESSION, {token:j.token, me:j.me, keep:!!j.keep, expires:j.expires || null});
-    if(['student','parent','bdo'].includes(j.me.role)){ location.href = 'account.html'; return; }   // their own accounts; not LHQ's documents
+    if(j.me.role === 'bdo'){ location.href = 'account.html'; return; }
+    if(['student','parent'].includes(j.me.role)){ document.getElementById('hubOv')?.remove(); mountAccount(); location.hash = '#me'; if(window.hubReady) window.hubReady(); return; }   // their own part: never LHQ's documents
     const box = overlay(); box.innerHTML = `<img class="lhq-logo" src="${LOGO()}" alt="LHQ"><h2>Welcome, ${esc(j.me.name.split(' ')[0])}</h2><p class="s">Getting LHQ's documents…</p>`;
     if(!j.me.admin){
       if(j.me.tutor || j.me.role === 'tutor'){ document.getElementById('hubOv')?.remove(); mountAccount(); if(!/^#(teach|settings|set)/.test(location.hash)) location.hash = '#teach'; if(window.hubReady) window.hubReady(); return; }
@@ -519,7 +520,7 @@
     window.addEventListener('online', () => { if(!session()) return; status('saving'); schedulePush(1000); setTimeout(() => { if(get(DIRTY, false)) push(); }, 5000); });
     window.addEventListener('offline', () => { if(session()) status('offline'); });
     if(!session()){ showSignIn(); return; }
-    if(['student','parent','bdo'].includes((session().me || {}).role)){ location.replace('account.html'); return; }
+    if((session().me || {}).role === 'bdo'){ location.replace('account.html'); return; }
     mountAccount();
     setTimeout(needPassword, 300);
     if(window.hubReady) window.hubReady();

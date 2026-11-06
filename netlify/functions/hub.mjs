@@ -52,7 +52,7 @@ async function usesDbStore() {
 /* compare two values whatever order their keys come in (the database keeps keys in its own order) */
 const canon = v => JSON.stringify(v, (k, x) => x && typeof x === "object" && !Array.isArray(x) ? Object.keys(x).sort().reduce((o, key) => (o[key] = x[key], o), {}) : x);
 
-const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes", "lhq_treps", "lhq_avail", "lhq_cardack", "lhq_makeups", "lhq_reqs", "lhq_clashes", "lhq_moves"];
+const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes", "lhq_treps", "lhq_avail", "lhq_cardack", "lhq_makeups", "lhq_reqs", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone"];
 
 /* ---------- roles and permissions ---------- */
 const PERMS = ["quotes", "receipts", "cards", "delete", "restore", "students", "money", "tpay", "tutors", "msgs", "numbering", "backup", "classes", "moveclass", "spend", "pl"];
@@ -128,7 +128,7 @@ function unsign(token) {
 }
 const hashPin = (pin, salt) => crypto.scryptSync(String(pin), salt, 32).toString("hex");
 const pinOk = pin => /^\d{4,6}$/.test(String(pin || ""));
-const pub = p => Object.assign({ id: p.id, name: p.name, role: p.role, admin: staff(p), tutor: !!p.tutor, perms: isDirector(p) ? PERMS.slice() : (p.perms || []), active: p.active !== false, home: p.home || null, cards: p.cards || {}, view: p.view === "full" ? "full" : "lean", seen: p.seen || 0 },
+const pub = p => Object.assign({ id: p.id, name: p.name, role: p.role, admin: staff(p), tutor: !!p.tutor, perms: isDirector(p) ? PERMS.slice() : (p.perms || []), active: p.active !== false, home: p.home || null, cards: p.cards || {}, view: p.view === "full" ? "full" : "lean", nav: Array.isArray(p.nav) ? p.nav : null, seen: p.seen || 0 },
   p.auth === "password" ? { auth: "password", username: p.username, email: p.email, status: p.status, hasPw: p.hasPw, locked: !!p.locked, codeUntil: p.codeUntil || null, children: p.children || undefined } : { auth: "pin" });
 
 async function getPeople() {
@@ -307,7 +307,7 @@ async function checkSync(me, upserts, deletes, kv) {
       const ch = Object.keys(v || {}).filter(id => canon(v[id]) !== canon(old[id]) && (!old[id] || (v[id].at || 0) >= (old[id].at || 0)));
       if (ch.length && !can(me, "spend")) return "You don't have permission to record spending.";
       if (ch.some(id => old[id] && old[id].by !== me.name)) return "You can only change spending you recorded. Ask the Director to change the others.";
-    } else if (["lhq_makeups", "lhq_reqs", "lhq_treps", "lhq_clashes", "lhq_moves"].includes(k)) {
+    } else if (["lhq_makeups", "lhq_reqs", "lhq_treps", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone"].includes(k)) {
       if (changedKeys(old, v).length) return "Make-ups, requisitions, clashes and tutors' reports change through their own buttons.";
     } else if (k === "lhq_avail" || k === "lhq_cardack") {
       if (changedKeys(old, v).length && !can(me, "tutors")) return "You don't have permission to change tutors' times.";
@@ -514,13 +514,14 @@ const mwToday = () => new Date(Date.now() + 2 * 3600e3).toISOString().slice(0, 1
 async function clashState() {
   const S = await sched(), cards = (await readAll("doc/")).filter(d => d && d.type === "card");
   const [res, moves, avail] = await Promise.all(["lhq_clashes", "lhq_moves", "lhq_avail"].map(k => store().get("kv/" + k, { type: "json" })));
-  return { S, cards, res: res || {}, moves: moves || {}, avail: avail || {}, list: S.weekClashes(cards, mwToday()) };
+  const set = (await store().get("kv/lhq_settings", { type: "json" })) || {};
+  return { S, cards, res: res || {}, moves: moves || {}, avail: avail || {}, open: set.openHours || null, list: S.weekClashes(cards, mwToday()) };
 }
 const involves = (c, name) => c.members.some(m => nk(m.tutor) === nk(name));
 function moveOptions(S, st, m) {
   const card = st.cards.find(c => c.id === m.card), x = card && (card.subjects || []).find(y => nk(y.name) === nk(m.sub) && nk(y.tutor) === nk(m.tutor));
   if (!x) return null;
-  const n0 = S.planned(card, x), len = m.b - m.a, free = S.freeTimes(card, x.name, st.cards, st.avail, { len });
+  const n0 = S.planned(card, x), len = m.b - m.a, free = S.freeTimes(card, x.name, st.cards, st.avail, { len, open: st.open });
   const days = free.filter(f => f.day === m.day || !(x.days || []).includes(f.day)).map(f => {
     const nd = f.day === m.day ? x.days : x.days.map(z => z === m.day ? f.day : z);
     return { day: f.day, name: f.name, slots: f.slots.filter(t => !(f.day === m.day && t === m.s)), planned: S.planned(card, x, nd) };
@@ -574,6 +575,105 @@ async function clashAction(req, me) {
 async function tutorClashes(me) {
   const st = await clashState();
   return st.list.filter(c => involves(c, me.name)).map(c => Object.assign({ text: st.S.clashText(c), res: st.res[c.key] || null }, c));
+}
+
+/* ---------- Students and parents (Stage 2) ----------
+   A student sees their own sessions, SRAs and timetable; a parent sees each of their children, and their payments.
+   The student confirms their sessions (✓ or ✕); where LHQ switches it on for a child, the parent does instead.
+   "Not right" goes to the tutor first (Accept, or Keep mine with a note), back to the student, and only then to LHQ. */
+const CF_MS = 48 * 3600e3;
+const firstName = n => String(n || "").trim().split(/\s+/)[0];
+const cfState = (e, now = Date.now()) => !e || e.x || e.ty !== "s" || e.a === "absent" || e.a === "cancelled" ? null : e.cf && e.cf.s ? e.cf.s : now - (e.c || e.at || 0) >= CF_MS ? "auto" : "waiting";
+async function familyOf(me) {
+  if (!dbMode()) return [];
+  const rows = me.role === "student" ? await q("SELECT id, key, name, level FROM students WHERE person_id = $1 AND NOT del", [me.id])
+    : me.role === "parent" ? await q("SELECT s.id, s.key, s.name, s.level FROM guardians g JOIN students s ON s.id = g.student_id WHERE g.parent_id = $1 AND NOT g.del AND NOT s.del ORDER BY s.name", [me.id]) : [];
+  return rows.map(r => ({ id: r.id, key: nk(r.name), name: r.name, level: r.level || "" }));
+}
+const lite = e => ({ id: e.id, d: e.d, t1: e.t1 || "", t2: e.t2 || "", a: e.a || "", sub: e.sub, tutor: e.tutor || "", k: e.k, mk: !!e.mk, tp: e.tp || [], st: cfState(e), cf: e.cf ? { s: e.cf.s, step: e.cf.step || null, kind: e.cf.kind || null, t1: e.cf.t1 || "", t2: e.cf.t2 || "", note: e.cf.note || "", tutorNote: e.cf.tutorNote || "", by: e.cf.by || "", out: e.cf.out || null, lost: e.cf.lost || 0, agreed: !!e.cf.agreed } : null, left: Math.max(0, (e.c || e.at || 0) + CF_MS - Date.now()) });
+async function familyData(me) {
+  const kids = await familyOf(me);
+  if (!kids.length) return { kids: [] };
+  await import("../../site/schedule.js"); await import("../../site/sra.js"); const S = globalThis.SCHED, SR = globalThis.SRA;
+  const t = mwToday(), docs = (await readAll("doc/")).filter(d => d && !d.del), cards = docs.filter(d => d.type === "card");
+  const [logs, conf, done, moves, mus] = await Promise.all(["lhq_logs", "lhq_confirmer", "lhq_sradone", "lhq_moves", "lhq_makeups"].map(k => store().get("kv/" + k, { type: "json" })));
+  const E = Object.values((logs && logs.e) || {}).filter(e => e && !e.x);
+  const items = S.items(cards, t);
+  return { kids: kids.map(kid => {
+    const mineK = k => String(k || "").split("|")[0] === kid.key;
+    const its = items.filter(it => nk(it.st) === kid.key);
+    const confirmer = (conf || {})[kid.key] === "parent" ? "parent" : "student";
+    const ent = E.filter(e => mineK(e.k));
+    const subjects = its.map(it => { const T = S.tally(it, ent, t, e => cfState(e)); return { k: it.k, sub: it.sub, tutor: it.tutor, days: it.days, times: it.days.map(d => Object.assign({ d }, S.timesOf(it.x, d))), pa: it.pa, b: it.b, cap: it.cap,
+      planned: T.planned, expected: T.expected, had: T.had, owed: T.owed, remaining: T.remaining, behind: T.behind, confirmed: T.confirmed, waiting: T.waiting, disputed: T.disputed }; });
+    const since = S.addDays(t, -60);
+    const sessions = ent.filter(e => e.ty === "s" && e.d >= since).sort((a, b) => (b.d + (b.t1 || "")).localeCompare(a.d + (a.t1 || ""))).map(lite);
+    const canConfirm = me.role === confirmer;
+    const toConfirm = canConfirm ? sessions.filter(e => e.st === "waiting") : [];
+    const answers = canConfirm ? sessions.filter(e => e.st === "disputed" && e.cf && e.cf.step === "student") : [];
+    const sras = SR.build(its.map(it => ({ k: it.k, days: it.days, a: it.pa, b: it.b, st: it.st, sub: it.sub })), ent, t)
+      .filter(x => x.given && x.status !== "in").map(x => ({ id: [x.k, x.topic, x.stage].join("|"), sub: x.sub, topic: x.topic, label: x.label, stage: x.stage, doOn: x.doOn, due: x.due, status: x.status, done: !!(done || {})[[x.k, x.topic, x.stage].join("|")] }));
+    const week = S.sessions(cards, t, S.addDays(t, 13), { student: kid.name }).map(e => ({ date: e.date, s: e.s, e: e.e, sub: e.sub, tutor: e.tutor, where: e.where }));
+    const changes = Object.values(moves || {}).filter(m => m && nk(m.st) === kid.key && Date.now() - m.at < 30 * 864e5).sort((a, b) => b.at - a.at).map(m => ({ sub: m.sub, from: m.from, to: m.to, at: m.at, by: m.by }));
+    const makeups = Object.values(mus || {}).filter(m => m && nk(m.st) === kid.key && m.status === "ok" && m.d >= t).map(m => ({ d: m.d, s: m.s, e: m.e, sub: m.sub, tutor: m.tutor }));
+    let pay = null;
+    if (me.role === "parent") {
+      const mine = docs.filter(d => nk(d.student) === kid.key && ["invoice", "receipt", "quote"].includes(d.type || "quote"));
+      const num = v => Number(String(v || "").replace(/[^\d.-]/g, "")) || 0;
+      pay = mine.sort((a, b) => (b.date || "").localeCompare(a.date || "")).slice(0, 30).map(d => { const total = num(d.total), paid = d.type === "invoice" ? num(d.paid) : 0;
+        return { id: d.id, type: d.type || "quote", number: d.number, date: d.date, total, received: num(d.received), paid, balance: d.type === "invoice" ? Math.max(0, total - paid) : 0, due: d.dueDate || d.validUntil || "", over: d.type === "invoice" && total - paid > 0.5 && (d.dueDate || "9") < t }; });
+    }
+    return Object.assign({}, kid, { confirmer, canConfirm, subjects, sessions, toConfirm, answers, sras, week, changes, makeups, pay });
+  }) };
+}
+async function familyGet(me) {
+  if (!["student", "parent"].includes(me.role)) return fail("This part is for students and parents.", 403);
+  return json(Object.assign({ me: pub(me), today: mwToday(), now: Date.now() }, await familyData(me)));
+}
+async function familyPost(req, me) {
+  if (!["student", "parent"].includes(me.role)) return fail("This part is for students and parents.", 403);
+  const b = await req.json().catch(() => ({})), now = Date.now(), kids = await familyOf(me);
+  const txt = (v, n) => String(v || "").trim().slice(0, n), hm = v => /^\d{1,2}:\d{2}$/.test(String(v || "")) ? v : "";
+  if (b.action === "done") {   // the student ticks an SRA done (their tutor's Handed in is what counts)
+    if (me.role !== "student") return fail("Only the student ticks SRAs done.", 403);
+    const id = String(b.id || ""); if (!kids.some(k => id.split("|")[0] === k.key)) return fail("That SRA isn't yours.", 403);
+    await writeKv("lhq_sradone", old => { const o = Object.assign({}, old); if (b.done) o[id] = { at: now }; else delete o[id]; return o; });
+    return json({ ok: true });
+  }
+  const cur = await store().get("kv/lhq_logs", { type: "json" }), e0 = cur && cur.e && cur.e[String(b.id || "")];
+  if (!e0 || e0.x || e0.ty !== "s") return fail("That session isn't in the logs.", 404);
+  const kid = kids.find(k => String(e0.k || "").split("|")[0] === k.key);
+  if (!kid) return fail("That session isn't yours.", 403);
+  const conf = (await store().get("kv/lhq_confirmer", { type: "json" })) || {};
+  if (me.role !== ((conf[kid.key] === "parent") ? "parent" : "student")) return fail(me.role === "parent" ? `${firstName(kid.name)} confirms their own sessions.` : "Your parent confirms your sessions.", 403);
+  const st = cfState(e0, now); let cf, line;
+  const what = `${e0.sub} · ${dayL(e0.d)}${e0.tutor ? " with " + e0.tutor : ""}`;
+  if (b.action === "confirm") {
+    if (st !== "waiting") return fail(st === "auto" ? "That session has already confirmed itself." : "That session has already been answered.", 409);
+    cf = { s: "confirmed", by: me.name, at: now }; line = `Confirmed ${kid.name}'s ${what}`;
+  } else if (b.action === "dispute") {
+    if (st !== "waiting" && st !== "auto") return fail("That session has already been answered.", 409);
+    if (st === "auto" && now - (e0.c || e0.at || 0) > 7 * 864e5) return fail("Sessions older than a week can't be changed here. Ask LHQ.", 409);
+    const kind = ["late", "early", "none", "other"].includes(b.kind) ? b.kind : "other";
+    if (kind === "other" && !txt(b.note, 300)) return fail("Say what happened.");
+    cf = { s: "disputed", step: "tutor", by: me.name, from: me.name, at: now, kind, t1: hm(b.t1), t2: hm(b.t2), note: txt(b.note, 300) };
+    line = `Said ${kid.name}'s ${what} wasn't right (${{ late: "started late", early: "ended early", none: "didn't happen", other: "other" }[kind]})`;
+  } else if (b.action === "reply") {   // after the tutor kept their times: fine, or still not right (goes to LHQ)
+    if (!(e0.cf && e0.cf.s === "disputed" && e0.cf.step === "student")) return fail("Nothing to answer here.", 409);
+    cf = b.ok ? Object.assign({}, e0.cf, { s: "confirmed", agreed: true, by: me.name, at: now, step: null }) : Object.assign({}, e0.cf, { step: "lhq", at: now });
+    line = b.ok ? `Agreed with the tutor about ${kid.name}'s ${what}` : `Sent ${kid.name}'s ${what} to LHQ to settle`;
+  } else return fail("Unknown action.");
+  const next = await writeKv("lhq_logs", old => { const o = old || { e: {} }, e = Object.assign({}, o.e); e[e0.id] = Object.assign({}, e[e0.id], { cf, at: now }); return Object.assign({}, o, { e }); });
+  await act(me, "sessions", "session." + b.action, line, "logs", e0.id);
+  return json({ ok: true, entry: lite(next.e[e0.id]) });
+}
+/* LHQ chooses who confirms a child's sessions: the student (default) or the parent */
+async function setConfirmer(req, me) {
+  if (!can(me, "tutors") && !can(me, "students")) return fail("You can't change this.", 403);
+  const b = await req.json().catch(() => ({})), key = nk(b.key || ""); if (!key) return fail("Which student?");
+  await writeKv("lhq_confirmer", old => { const o = Object.assign({}, old); if (b.who === "parent") o[key] = "parent"; else delete o[key]; return o; });
+  await act(me, "students", "confirmer", `${b.who === "parent" ? "The parent" : "The student"} confirms ${b.name || key}'s sessions`, "students", key);
+  return json({ ok: true });
 }
 
 /* Confirming a logged session. A session a tutor logged counts (for reports and pay) once it is confirmed: by the student
@@ -730,7 +830,7 @@ async function managePeople(req, me) {
   const b = await req.json().catch(() => ({}));
   if (dbMode()) {
     if (b.action === "mypin" || b.action === "pin") return fail("PINs are replaced by passwords. Use a setup code instead.", 410);
-    if (["add", "code", "unlock", "outall", "email", "username", "off", "on", "students"].includes(b.action)) {
+    if (["add", "code", "unlock", "outall", "email", "username", "off", "on", "students", "link"].includes(b.action)) {
       if (!staff(me)) return fail("Only LHQ admin can manage people.", 403);
       const r = await A.manage(me, b);
       return json(Object.assign({ ok: true }, r, b.action === "students" ? {} : { people: (await A.peopleForStaff(me)).map(pub) }));
@@ -748,6 +848,11 @@ async function managePeople(req, me) {
   }
   if (b.action === "view") {   // what each person sees: lean (the default) or full
     const p = find(me.id); p.view = b.view === "full" ? "full" : "lean";
+    await putPeople(list); return json({ ok: true, me: pub(p) });
+  }
+  if (b.action === "nav") {   // what each person keeps in the bar and sidebar (after Home): up to 3 places, or null for the default
+    const p = find(me.id), OK = ["students", "docs", "business", "reports", "calendar", "tutors", "activity", "teach", "settings"];
+    p.nav = Array.isArray(b.nav) ? [...new Set(b.nav.filter(x => OK.includes(x)))].slice(0, 3) : null;
     await putPeople(list); return json({ ok: true, me: pub(p) });
   }
   if (b.action === "home") {   // each person's own Home cards
@@ -876,7 +981,9 @@ async function tutorExtras(me, d) {
   const [mu, rq] = await Promise.all(["lhq_makeups", "lhq_reqs"].map(k => store().get("kv/" + k, { type: "json" })));
   const makeups = Object.values(mu || {}).filter(x => x && nk(x.tutor) === mk);
   const reqs = {}; Object.entries(rq || {}).forEach(([k, v]) => { if (v && nk(v.tutor) === mk) reqs[k] = v; });
-  return { avail: (av || {})[mk] || [], acks, gone, ackFrom: ack._from, calLink: calPath(me.id), makeups, reqs, clashes: await tutorClashes(me) };
+  const sd = (await store().get("kv/lhq_sradone", { type: "json" })) || {}, sradone = {};
+  Object.keys(sd).forEach(k => { if (d.keys.has(k.split("|").slice(0, 2).join("|"))) sradone[k] = sd[k]; });
+  return { avail: (av || {})[mk] || [], acks, gone, ackFrom: ack._from, calLink: calPath(me.id), makeups, reqs, clashes: await tutorClashes(me), sradone };
 }
 async function tutorPost(req, me) {
   if (!isTutor(me)) return fail("This part is for tutors.", 403);
@@ -938,6 +1045,24 @@ async function tutorPost(req, me) {
     if (s0 === "cant") await act(me, "teaching", "card.cant", `Can't make the times on ${v.number || "a tuition card"} · ${v.st}: "${v.note}"`, "documents", cid);
     if (s0 === "ok") await act(me, "teaching", "card.ok", `Acknowledged ${v.number || "a tuition card"} · ${v.st}`, "documents", cid);
     return json({ ok: true, ack: v });
+  }
+  if (b.action === "answer") {   // a student (or parent) said a session wasn't right: Accept, or Keep mine with a note
+    const cur = await store().get("kv/lhq_logs", { type: "json" }), e0 = cur && cur.e && cur.e[String(b.id || "")];
+    if (!e0 || e0.x || e0.ty !== "s" || nk(e0.tutor) !== nk(me.name)) return fail("That session isn't yours.", 404);
+    if (!(e0.cf && e0.cf.s === "disputed" && e0.cf.step === "tutor")) return fail("Nothing to answer here.", 409);
+    const now = Date.now(), c0 = e0.cf, note = String(b.note || "").trim().slice(0, 300);
+    let patch;
+    if (b.accept) {
+      patch = { cf: Object.assign({}, c0, { s: "confirmed", agreed: true, step: null, by: me.name, at: now, was: { t1: e0.t1 || "", t2: e0.t2 || "", a: e0.a || "" } }) };
+      if (c0.kind === "late" || c0.kind === "early") { if (c0.t1) patch.t1 = c0.t1; if (c0.t2) patch.t2 = c0.t2; }
+      if (c0.kind === "none") patch.a = "cancelled";
+    } else {
+      if (!note) return fail("Add a note for the student.");
+      patch = { cf: Object.assign({}, c0, { step: "student", tutorNote: note, tutorAt: now }) };
+    }
+    const next = await writeKv("lhq_logs", old => { const o = old || { e: {} }, e = Object.assign({}, o.e); e[e0.id] = Object.assign({}, e[e0.id], patch, { at: now }); return Object.assign({}, o, { e }); });
+    await act(me, "sessions", b.accept ? "session.accept" : "session.keep", `${b.accept ? "Accepted" : "Kept their times on"} ${e0.st}'s ${e0.sub} · ${dayL(e0.d)}${b.accept ? "" : `: "${note}"`}`, "logs", e0.id);
+    return json({ ok: true, entry: next.e[e0.id] });
   }
   if (b.action === "makeup") {   // book a make-up for one of their students, or take back one LHQ hasn't decided yet
     const hmOk = t => /^\d{2}:\d{2}$/.test(String(t || "")), id = /^[\w-]{4,40}$/.test(String(b.id || "")) ? b.id : "mu" + crypto.randomBytes(5).toString("hex");
@@ -1031,6 +1156,9 @@ export default async (req, context) => {
     if (req.method === "POST" && path === "makeup") return await decideMakeup(req, me);
     if (req.method === "POST" && path === "req") return await decideReq(req, me);
     if (req.method === "POST" && path === "clash") return await clashAction(req, me);
+    if (req.method === "GET" && path === "family") return await familyGet(me);
+    if (req.method === "POST" && path === "family") return await familyPost(req, me);
+    if (req.method === "POST" && path === "confirmer") return await setConfirmer(req, me);
     if (req.method === "GET" && path === "activity") return await activityList(req, me);
     return fail("Not found.", 404);
   } catch (e) {

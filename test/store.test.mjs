@@ -397,4 +397,55 @@ test("clashes: the tutor teaches them together, or moves a session to a free tim
   assert.ok(act.some(x => /^Moved Tadala Phiri's Chemistry from Tue 11:00–12:00 to Tue 09:00–10:00/.test(x)), act.slice(0, 10).join("\n"));
 });
 
+test("students and parents: their own children only; the student confirms or says not right; the tutor answers; LHQ settles; parents see payments", async () => {
+  const day = n => new Date(Date.now() + 2 * 3600e3 + n * 864e5).toISOString().slice(0, 10);
+  const newAcct = async (body, pw) => { const add = await call("people", Object.assign({ action: "add" }, body), DIR); assert.equal(add.status, 200, JSON.stringify(add.j));
+    const c = await call("code", { code: add.j.code }); return (await call("password", { ticket: c.j.ticket, password: pw })).j.token; };
+  const tok = (await call("signin", { id: "emmanuel.mkwamba", password: "Maths!2026x" })).j.token;
+  const subj = { name: "Biology", tutor: "Emmanuel Mkwamba", days: ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"], start: "09:00", end: "10:00", sessions: "8" };
+  await call("sync", { upserts: [{ doc: { id: "fc1", type: "card", number: "TC-0201", student: "Wezi Banda", periodStart: day(-5), periodEnd: day(20), subjects: [subj] } },
+    { doc: { id: "fi1", type: "invoice", number: "INV-0201", student: "Wezi Banda", date: day(-6), dueDate: day(-1), total: 200000, paid: "50000" } },
+    { doc: { id: "fi2", type: "invoice", number: "INV-0202", student: "Someone Else", date: day(-6), total: 99000 } }] }, DIR);
+  const stu = await newAcct({ name: "Wezi Banda", role: "student" }, "Lilongwe#2026q");
+  const par = await newAcct({ name: "Ruth Banda", role: "parent", childNames: ["Wezi Banda"] }, "Lilongwe#2026r");
+  const other = await newAcct({ name: "Mphatso Kalua", role: "student" }, "Lilongwe#2026s");
+  const k = "wezi banda|biology", old = Date.now() - 5 * 3600e3;
+  const E = [{ id: "fsx1", ty: "s", k, st: "Wezi Banda", sub: "Biology", d: day(-1), a: "present", t1: "09:00", t2: "10:00", c: old },
+    { id: "fsx2", ty: "s", k, st: "Wezi Banda", sub: "Biology", d: day(-2), a: "present", t1: "09:00", t2: "10:00", c: old },
+    { id: "fsx3", ty: "s", k, st: "Wezi Banda", sub: "Biology", d: day(-3), a: "present", t1: "09:00", t2: "10:00", c: old }];
+  const en = await call("tutor", { action: "entries", entries: E }, tok); assert.equal(en.status, 200, JSON.stringify(en.j));
+  const g = await call("family", null, stu, "GET"); assert.equal(g.status, 200, JSON.stringify(g.j));
+  const kid = g.j.kids[0]; assert.equal(g.j.kids.length, 1); assert.equal(kid.name, "Wezi Banda");
+  assert.equal(kid.subjects[0].planned, 8); assert.equal(kid.subjects[0].had, 3); assert.equal(kid.toConfirm.length, 3); assert.equal(kid.pay, null, "students don't see payments");
+  assert.equal((await call("family", null, other, "GET")).j.kids.length, 1, "another student sees only themselves");
+  assert.equal((await call("family", { action: "confirm", id: "fsx1" }, other)).status, 403, "and can't confirm someone else's session");
+  assert.equal((await call("family", null, tok, "GET")).status, 403, "tutors don't use this");
+  // the student confirms one, and says another wasn't right
+  assert.equal((await call("family", { action: "confirm", id: "fsx1" }, stu)).status, 200);
+  const d1 = await call("family", { action: "dispute", id: "fsx2", kind: "late", t1: "09:20", t2: "10:00", note: "Sir came at 9:20" }, stu);
+  assert.equal(d1.status, 200, JSON.stringify(d1.j)); assert.equal(d1.j.entry.cf.step, "tutor");
+  assert.equal((await call("family", { action: "dispute", id: "fsx3", kind: "none" }, stu)).status, 200);
+  assert.equal((await call("family", { action: "confirm", id: "fsx3" }, par)).status, 403, "the parent doesn't confirm unless LHQ says so");
+  // the tutor accepts one (the times change) and keeps the other with a note
+  assert.equal((await call("tutor", { action: "answer", id: "fsx3", accept: true }, tok)).status, 200);
+  const row3 = await one("SELECT body FROM logs WHERE id = 'fsx3'"); assert.equal(row3.body.a, "cancelled", "didn't happen, accepted: a make-up is owed"); assert.equal(row3.body.cf.s, "confirmed");
+  assert.equal((await call("tutor", { action: "answer", id: "fsx2", accept: false }, tok)).status, 400, "keeping needs a note");
+  assert.equal((await call("tutor", { action: "answer", id: "fsx2", accept: false, note: "We started at 9 with the past paper" }, tok)).status, 200);
+  const g2 = (await call("family", null, stu, "GET")).j.kids[0]; assert.equal(g2.answers.length, 1); assert.equal(g2.answers[0].cf.tutorNote, "We started at 9 with the past paper");
+  // still not right: it goes to LHQ, who settles it
+  assert.equal((await call("family", { action: "reply", id: "fsx2", ok: false }, stu)).status, 200);
+  assert.equal((await one("SELECT body FROM logs WHERE id = 'fsx2'")).body.cf.step, "lhq");
+  const st = await call("confirm", { action: "settle", id: "fsx2", out: "lost", lost: 20, note: "Gate log says 9:18" }, DIR); assert.equal(st.status, 200, JSON.stringify(st.j));
+  // LHQ switches on "the parent confirms": now the parent does, and sees the payments for their child only
+  assert.equal((await call("confirmer", { key: "Wezi Banda", who: "parent" }, DIR)).status, 200);
+  const E2 = [{ id: "fsx4", ty: "s", k, st: "Wezi Banda", sub: "Biology", d: day(0), a: "present", t1: "09:00", t2: "10:00" }];
+  await call("tutor", { action: "entries", entries: E2 }, tok);
+  assert.equal((await call("family", { action: "confirm", id: "fsx4" }, stu)).status, 403, "now the student doesn't");
+  const pg = (await call("family", null, par, "GET")).j.kids[0];
+  assert.equal(pg.toConfirm.length, 1); assert.deepEqual(pg.pay.map(p => [p.number, p.balance, p.over]), [["INV-0201", 150000, true]]);
+  assert.equal((await call("family", { action: "confirm", id: "fsx4" }, par)).status, 200);
+  const acts = (await call("activity", null, DIR, "GET")).j.rows.map(x => x.summary);
+  assert.ok(acts.some(x => /^Sent Wezi Banda's Biology .* to LHQ to settle$/.test(x)), acts.slice(0, 8).join("\n"));
+});
+
 test.after(async () => { await pool.end(); });

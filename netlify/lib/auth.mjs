@@ -49,7 +49,7 @@ const mkUsername = async (T, name) => {
 /* ---------- the people list for the current Hub's code (old shape <-> rows) ---------- */
 export function toOld(r) {
   return { id: r.id, name: r.name, role: r.role, perms: r.perms || [], tutor: r.role === "tutor" || !!r.also_tutor, active: r.status !== "off" && !r.del,
-    home: (r.prefs || {}).home || null, cards: (r.prefs || {}).cards || {}, view: (r.prefs || {}).view || null, seen: r.last_seen ? new Date(r.last_seen).getTime() : 0, pv: r.pv || 1,
+    home: (r.prefs || {}).home || null, cards: (r.prefs || {}).cards || {}, view: (r.prefs || {}).view || null, nav: (r.prefs || {}).nav || null, seen: r.last_seen ? new Date(r.last_seen).getTime() : 0, pv: r.pv || 1,
     admin: r.role === "director" || r.role === "admin", username: r.username || "", email: r.email || "", status: r.status, hasPw: !!r.pw_hash,
     locked: !!(r.locked_until && new Date(r.locked_until) > new Date()), salt: r.pin_salt, hash: r.pin_hash, auth: "password" };
 }
@@ -60,7 +60,7 @@ export async function savePeople(list) {
     const rows = await T.q("SELECT * FROM people WHERE NOT del"), byId = new Map(rows.map(r => [r.id, r])), keep = new Set();
     for (const p of list) {
       keep.add(p.id);
-      const r = byId.get(p.id), prefs = Object.assign({}, r ? r.prefs : {}, { home: p.home || null, cards: p.cards || {} }, p.view ? { view: p.view } : {});
+      const r = byId.get(p.id), prefs = Object.assign({}, r ? r.prefs : {}, { home: p.home || null, cards: p.cards || {} }, p.view ? { view: p.view } : {}, Array.isArray(p.nav) ? { nav: p.nav } : p.nav === null && r && r.prefs && r.prefs.nav ? { nav: null } : {});
       const status = p.active === false ? "off" : (r && r.status !== "off" ? r.status : (r && r.pw_hash ? "active" : p.hash ? "pin" : "setup"));
       const set = { name: p.name, role: p.role, perms: JSON.stringify(p.role === "admin" ? (p.perms || []) : []), also_tutor: p.role !== "tutor" && !!p.tutor,
         prefs: JSON.stringify(prefs), status, pv: p.pv || 1, last_seen: p.seen ? new Date(p.seen).toISOString() : null };
@@ -300,6 +300,12 @@ export async function manage(me, b) {
       const email = String(b.email || "").trim() || null;
       if (email && await T.one("SELECT 1 FROM people WHERE lower(email) = lower($1) AND NOT del", [email])) no("Someone already signs in with that email.");
       const kids = role === "parent" ? (Array.isArray(b.children) ? b.children.map(String) : []) : [];
+      if (role === "parent" && Array.isArray(b.childNames)) for (const n of b.childNames.map(x => String(x || "").trim()).filter(Boolean)) {   // from a student's page: by name
+        let r = await T.one("SELECT id FROM students WHERE key = $1", [nk(n)]);
+        if (!r) { r = { id: newId("st") }; await T.q("INSERT INTO students (id, key, name) VALUES ($1, $2, $3)", [r.id, nk(n), n]); }
+        else await T.q("UPDATE students SET del = false WHERE id = $1", [r.id]);
+        if (!kids.includes(r.id)) kids.push(r.id);
+      }
       if (role === "parent" && !kids.length) no("Tick at least one child.");
       const id = newId("p"), username = await mkUsername(T, name);
       await T.q("INSERT INTO people (id, name, role, username, email, status, perms) VALUES ($1, $2, $3, $4, $5, 'setup', $6)",
@@ -319,6 +325,13 @@ export async function manage(me, b) {
     if (p.id === me.id) no("Change your own sign-in under My account.");
     if (!mayManage(me, p)) no(p.role === "director" ? "Nobody can change the Director's account." : "Only Wanangwa can change this person.", 403);
     const log = s => T.q("INSERT INTO activity (id, actor_id, action, area, entity, entity_id, summary) VALUES ($1, $2, $3, 'people', 'people', $4, $5)", [newId("ac"), me.id, "person." + a, p.id, s]);
+    if (a === "link" && p.role === "parent") {   // a parent's children: add one by name
+      const n = String(b.childName || "").trim(); if (!n) no("Which child?");
+      let r = await T.one("SELECT id FROM students WHERE key = $1", [nk(n)]);
+      if (!r) { r = { id: newId("st") }; await T.q("INSERT INTO students (id, key, name) VALUES ($1, $2, $3)", [r.id, nk(n), n]); }
+      await T.q("INSERT INTO guardians (id, parent_id, student_id) VALUES ($1, $2, $3) ON CONFLICT (parent_id, student_id) DO UPDATE SET del = false", [newId("gu"), p.id, r.id]);
+      await log(`Linked ${p.name} to ${n}`); return { ok: true };
+    }
     if (a === "code") { const r = await makeCode(T, me, p.id); await log(`New setup code for ${p.name}`); return Object.assign({ name: p.name, username: p.username }, r); }
     if (a === "unlock") { await T.q("UPDATE people SET fails = 0, locked_until = NULL WHERE id = $1", [p.id]); await log(`Unlocked ${p.name}`); return { ok: true }; }
     if (a === "outall") { await T.q("UPDATE people SET pv = pv + 1 WHERE id = $1", [p.id]); await T.q("UPDATE devices SET revoked_at = now() WHERE person_id = $1 AND revoked_at IS NULL", [p.id]); await log(`Signed ${p.name} out of every device`); return { ok: true }; }

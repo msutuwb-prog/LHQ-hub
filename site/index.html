@@ -34,6 +34,7 @@ if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash)
 <script src="cards.js"></script>
 <script src="sra.js"></script>
 <script src="teach.js"></script>
+<script src="family.js"></script>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0}
@@ -43,7 +44,7 @@ button,input,select,textarea{font:inherit;color:inherit}
 button{cursor:pointer}
 a{color:inherit}
 [hidden]{display:none!important}
-.main{width:100%;max-width:1040px;margin:0 auto;padding:0 24px 60px}
+.main{width:100%;max-width:1280px;margin:0 auto;padding:0 24px 60px}
 .main.narrow{max-width:800px}
 @media (max-width:699px){.main{padding:0 16px 40px}}
 
@@ -87,10 +88,12 @@ a.it,button.it{cursor:pointer}
 a.it:hover .t b,button.it:hover .t b{text-decoration:underline;text-underline-offset:2px}
 .it .t{flex:1;min-width:0}.it .t b{display:block;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}.it .t small{display:block;color:var(--muted);font-size:12.5px}
 .it .ico{color:var(--brand);flex:none}.it .chev{color:var(--muted);opacity:.6}
-.tag{font-size:10.5px;font-weight:800;border-radius:6px;padding:3px 7px;white-space:nowrap;flex:none}
+.tag{display:inline-flex;align-items:center;gap:6px;font-size:12.5px;font-weight:700;padding:0;border-radius:0;white-space:nowrap;flex:none;background:none!important}
+.tag::before{content:"";width:8px;height:8px;border-radius:50%;background:currentColor;flex:none}
 .ok{background:var(--ok-bg);color:var(--ok)}.rd{background:var(--rd-bg);color:var(--rd)}.am{background:var(--am-bg);color:var(--am)}.bl{background:var(--bl-bg);color:var(--bl)}.gr{background:var(--gr-bg);color:var(--gr)}
 .av{width:32px;height:32px;border-radius:50%;background:var(--bl-bg);color:var(--bl);display:grid;place-items:center;font-weight:800;font-size:12.5px;flex:none}
 .kv{display:grid;grid-template-columns:120px 1fr;gap:8px 10px;font-size:13.5px;margin:4px 0}
+.kv dd .tag{margin-left:8px;vertical-align:1px}
 .kv dt{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding-top:2px}.kv dd{margin:0;font-weight:700;min-width:0;overflow-wrap:anywhere}
 .note{font-size:12.5px;color:var(--muted);margin:8px 0 0}
 .empty{color:var(--muted);font-size:13.5px;margin:12px 0}
@@ -108,6 +111,25 @@ a.it:hover .t b,button.it:hover .t b{text-decoration:underline;text-underline-of
 .chain .ar{color:var(--muted);opacity:.6}
 .grid2{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:0 18px;align-items:start}
 @media (max-width:899px){.grid2{grid-template-columns:minmax(0,1fr)}}
+/* wide screens: two columns where it helps */
+.hcols{display:grid;grid-template-columns:minmax(0,1fr);gap:0 16px;align-items:start}
+@container (min-width:860px){.hcols{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)}}
+.one .it .t small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.one .it{padding:10px 0}
+/* Students: a table on wide screens */
+.srow .c,.srow.sh{display:none}
+@container (min-width:860px){
+  #slist .srow{display:grid;grid-template-columns:32px minmax(0,1.3fr) minmax(0,.8fr) minmax(0,.9fr) minmax(0,1.8fr) 100px;gap:14px;align-items:center}
+  #slist .srow .c{display:block;color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  #slist .srow .t small{display:none}
+  #slist .srow.sh{display:grid;padding:12px 0 6px;font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
+  #slist .srow.sh .c{font-size:inherit}
+  #slist .srow .tag{justify-self:start}}
+/* the sidebar has + New, so the page doesn't repeat it */
+@media (min-width:700px){body.hn-L-side .hnew{display:none}}
+@media (min-width:1100px){body.hn-L-bottom .hnew{display:none}}
+.tabs a i{font-style:normal;font-size:11.5px;color:var(--muted);margin-left:4px}
+@media (max-width:699px){.x-ph{display:none}.tabs a{padding:10px 7px;font-size:13px}.ph h1{font-size:23px}}
 /* forms */
 label.f{display:block;font-size:12px;font-weight:700;color:var(--muted);margin:0 0 12px}
 label.f > span{display:block;margin-bottom:5px}
@@ -140,17 +162,16 @@ textarea.in{min-height:200px;line-height:1.45;resize:vertical}
 .svc i{width:9px;height:9px;border-radius:50%;background:var(--muted);flex:none}.svc.ok i{background:#2fa36b}.svc.warn i{background:#d08a00}
 
 /* home cards */
-.mcs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:22px}
+.mcs{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:18px}
+.mcs>.mc{flex:1 1 190px;min-width:0;overflow:hidden}
 /* Lean: compact Home cards (a number and one line), three across */
 html.lean:not(.lean-open) .lm{display:none!important}
 .lean-more{display:none;width:100%;border:1px dashed var(--line);background:none;border-radius:12px;padding:12px 14px;font:inherit;font-weight:700;color:var(--brand);margin:0 0 12px;cursor:pointer}
 html.lean .lean-more{display:block}html.lean.lean-open .lean-more{display:none}
 html.lean:not(.flt-open) .flt{display:none!important}
 .flt-btn{display:none}html.lean .flt-btn{display:inline-flex}
-html.lean .main.narrow .mcs,html.lean .mcs{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
 html.lean .mc{min-height:0}html.lean .mc .bar,html.lean .mc .tr{display:none}html.lean .mc .s ~ .s{display:none}html.lean .mc .bad ~ .s{display:none}
-@media (min-width:1100px){.main.narrow .mcs{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.mc{text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:3px;position:relative;min-height:132px;color:var(--ink);text-decoration:none}
+.mc{text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:3px;position:relative;color:var(--ink);text-decoration:none}
 .mc[data-go]{cursor:pointer}.mc[data-go]:hover{border-color:var(--muted)}
 .mcl{display:flex;align-items:center;gap:3px;text-decoration:none;color:inherit;border-radius:6px;margin:0 -5px;padding:1px 5px;width:fit-content;max-width:calc(100% + 10px)}
 a.mcl:hover{background:var(--hover)}a.mcl .mca{opacity:.55;font-weight:800;margin-left:2px;flex:none}
@@ -158,11 +179,12 @@ a.mcl:hover{background:var(--hover)}a.mcl .mca{opacity:.55;font-weight:800;margi
 .fbar a{margin-left:auto;font-weight:800;color:inherit}
 a.kpi{text-decoration:none;color:inherit;display:block}a.kpi:hover{border-color:var(--muted)}a.kpi small::after{content:" ›";opacity:.7}
 a.bz-bud{display:block;text-decoration:none;color:inherit}a.bz-bud:hover b{text-decoration:underline;text-underline-offset:2px}
-.mc .l{font-size:11.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;gap:6px}
+.mc .l{font-size:11px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mc .l svg{color:var(--brand)}
-.mc .v{font-size:27px;font-weight:800;color:var(--brand);letter-spacing:-.6px;font-variant-numeric:tabular-nums;line-height:1.15;margin-top:4px}
+.mc .v{font-size:25px;font-weight:800;color:var(--brand);letter-spacing:-.5px;font-variant-numeric:tabular-nums;line-height:1.2;margin-top:3px;white-space:nowrap}
+.mc .v small.u{font-size:11px;font-weight:800;letter-spacing:.04em;margin-right:4px}
 .mc .v small{font-size:13px;color:var(--muted);font-weight:700;letter-spacing:0}
-.mc .s{font-size:12.5px;color:var(--muted)}
+.mc .s{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .mc .s.warn{color:var(--am);font-weight:700}.mc .s.bad{color:var(--rd);font-weight:700}
 .mc .tr{font-size:11.5px;font-weight:800;margin-top:auto;padding-top:4px}.mc .tr.up{color:var(--ok)}.mc .tr.dn{color:var(--rd)}.mc .tr.fl{color:var(--muted)}
 .mc .bar{height:6px;border-radius:99px;background:var(--gr-bg);overflow:hidden;margin:6px 0 3px}.mc .bar i{display:block;height:100%;background:var(--gold)}
@@ -171,7 +193,12 @@ a.bz-bud{display:block;text-decoration:none;color:inherit}a.bz-bud:hover b{text-
 .mc .ctl button{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--surface);padding:0;display:grid;place-items:center;color:var(--ink)}
 .mc .ctl button.rm{color:var(--rd);margin-left:auto}
 .mc .ctl button:disabled{opacity:.3}
-@media (max-width:699px){.mc{padding:12px 13px;min-height:0}.mc .v{font-size:21px}.mc .v small{font-size:12px}.mcs{gap:10px}}
+@media (max-width:699px){.mc{padding:11px 12px}.mc .v{font-size:21px}.mc .v small{font-size:12px}.mcs{gap:8px}.mcs>.mc{flex-basis:130px}
+  html.lean .mcs:not([data-n="2"]):not([data-n="4"])>.mc{flex-basis:90px;padding:9px 10px}
+  html.lean .mcs:not([data-n="2"]):not([data-n="4"]) .mc .v{font-size:19px;letter-spacing:-.4px}
+  html.lean .mcs:not([data-n="2"]):not([data-n="4"]) .mc .s{display:none}
+  html.lean .mc .l{font-size:10px;letter-spacing:.04em}html.lean .mc .l svg{display:none}html.lean .mc .s{font-size:11.5px}
+  .mc .v small.u{font-size:10px;margin-right:3px}html.lean .mcs .mc .v .mca{display:none}}
 
 /* settings */
 .sw{display:grid;grid-template-columns:240px minmax(0,1fr);gap:24px;align-items:start}
@@ -247,8 +274,7 @@ a.bz-bud{display:block;text-decoration:none;color:inherit}a.bz-bud:hover b{text-
 .pf-paper .ins-leg{font-size:10.5px}.pf-paper svg{width:100%}
 .pf-f{border-top:1px solid #e4e7ec;padding-top:8px;margin-top:10px;color:#6b7585;font-size:10px}
 .pc-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:4px}.pc-h:empty{display:none}
-.pc-g{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))!important}
-@media (max-width:699px){.pc-g{grid-template-columns:repeat(2,minmax(0,1fr))!important}}
+@media (min-width:700px){.pc-g>.mc{flex-basis:170px}}
 .pc-spark{margin:4px -4px 0}.pc-spark svg{min-width:0!important;height:70px}
 .bz-secs{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
 .bz-secs a{display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:11px 14px;font-weight:700;color:var(--ink);text-decoration:none}
@@ -359,6 +385,34 @@ function parse(){
   route = {page: P[page] ? page : 'home', args: parts.slice(1)};
 }
 const LEAN = () => me().view !== 'full';
+const staffRole = () => ['director','admin'].includes(me().role);
+/* ---------- the bell, on every account: what needs you (counted) and news ---------- */
+const BELL_SEEN = 'lhq_bell_seen';
+function bellItems(){
+  const r = me().role;
+  if(r === 'student' || r === 'parent') return FAM.bell();
+  if(r === 'tutor') return TUT.bell();
+  const att = attRows(attention(HD.students()));
+  const need = att.map(x => x.grp ? {t:`${x.items.length} ${GL[x.grp] || 'items'}`, s:'', href:'#home'} : {t:x.x.s.name, s:x.x.sub, href:x.x.href});
+  const T = me().tutor && window.TUT ? TUT.bell() : {need: [], info: []};
+  return {need: T.need.concat(need), info: T.info.concat((window.BELLINFO || []))};
+}
+function bellCount(){
+  const b = document.getElementById('hnBell'); if(!b || !hub.session()) return;
+  let n = 0; try{ n = bellItems().need.length; }catch(e){}
+  b.hidden = false; const c = b.querySelector('.hn-bn'); c.hidden = !n; c.textContent = n > 99 ? '99+' : n;
+  b.onclick = bellOpen;
+}
+window.lhqBellRefresh = bellCount;
+async function bellOpen(){
+  const B = bellItems(), seen = +(localStorage.getItem(BELL_SEEN) || 0);
+  if(staffRole() && can('tutors')){ try{ const j = await hub.api('activity?from=' + encodeURIComponent(new Date(Date.now() - 3 * 864e5).toISOString())); window.BELLINFO = (j.rows || []).filter(x => x.who !== me().name).slice(0, 12).map(x => ({t:x.summary, s:x.who + ' · ' + ago(new Date(x.created_at).getTime()), at:new Date(x.created_at).getTime(), href:'#activity'})); B.info = B.info.concat(window.BELLINFO); }catch(e){} }
+  const row = (x, need) => `<a class="it" href="${esc(x.href || '#')}" data-close><span class="ico" style="color:var(${need ? '--am' : '--bl'})">${ic(need ? 'alert' : 'clock')}</span><span class="t"><b style="${!need && (x.at || 0) <= seen ? 'font-weight:600' : ''}">${esc(x.t)}</b>${x.s ? `<small>${esc(x.s)}</small>` : ''}</span><span class="chev">›</span></a>`;
+  openSheet(`<div class="hx"><h3>Bell</h3><button class="ib" data-close>✕</button></div>
+    <div class="h2">Needs you <em>${B.need.length}</em></div><div class="card">${B.need.slice(0, 30).map(x => row(x, true)).join('') || '<p class="empty">Nothing. ✓</p>'}</div>
+    <div class="h2">For your info</div><div class="card">${B.info.sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 20).map(x => row(x, false)).join('') || '<p class="empty">Nothing new.</p>'}</div>`);
+  try{ localStorage.setItem(BELL_SEEN, String(Date.now())); }catch(e){}
+}
 document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-leanmore]'); if(b){ e.preventDefault(); document.documentElement.classList.add('lean-open'); }
   const fb = e.target.closest && e.target.closest('[data-flt]'); if(fb){ e.preventDefault(); document.documentElement.classList.toggle('flt-open'); } });
 function render(){
@@ -367,10 +421,11 @@ function render(){
   if(render.last !== route.page){ document.documentElement.classList.remove('flt-open'); render.last = route.page; }
   if(render.lastH !== location.hash){ document.documentElement.classList.remove('lean-open'); render.lastH = location.hash; }
   if(me().role === 'tutor' && !['teach','settings','set'].includes(route.page)){ location.replace('#teach'); route = {page:'teach', args:[]}; }
-  const sec = route.page === 'teach' && me().role === 'tutor' ? ({sra:'tsra', report:'trep', cal:'tcal', avail:'tcal'}[route.args[0]] || 'teach') : {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', teach:'teach', tutors:'tutors', bookings:'tutors', reqs:'tutors', sessions:'tutors', confirm:'tutors', clashes:'tutors', calendar:'calendar', more:'more'}[route.page] || route.page;
+  if(['student','parent'].includes(me().role) && !['me','settings','set'].includes(route.page)){ location.replace('#me'); route = {page:'me', args:[]}; }
+  const sec = route.page === 'me' ? ({practice:'mprac', calendar:'mcal', progress:'mprog', sessions:'mprog', subject:'mprog', payments:'mpay', more:'more'}[route.args[0]] || 'me') : route.page === 'teach' && me().role === 'tutor' ? ({sra:'tsra', report:'trep', cal:'tcal', avail:'tcal'}[route.args[0]] || 'teach') : {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', teach:'teach', tutors:'tutors', bookings:'tutors', reqs:'tutors', sessions:'tutors', confirm:'tutors', clashes:'tutors', calendar:'calendar', more:'more'}[route.page] || route.page;
   LHQNav.section(sec);
   const m = $('main');
-  m.className = 'main' + (['home','edithome','new','students','student','tutors','teach'].includes(route.page) ? ' narrow' : '');
+  m.className = 'main' + (['edithome','new','tutors','teach'].includes(route.page) ? ' narrow' : '');
   m.innerHTML = P[route.page](...route.args) || '';
   if(!['new','makeups'].includes(route.page)) LHQNav.visit(pageLabel());
   bind();
@@ -392,7 +447,7 @@ function placeScroll(prevPage, tap){
   else if(!same) scrollTo(0, 0);
 }
 window.addEventListener('hashchange', () => { if(!/^#(new|makeups)/.test(location.hash) && !$('sheet').hidden){ $('sheet').hidden = true; $('shbg').hidden = true; } const prev = pageKey(), tap = byTap; byTap = false; const y = scrollY; render(); if(/^#(new|makeups)/.test(location.hash)) scrollTo(0, y); else placeScroll(prev, tap); });
-window.hubApply = render; window.hubReady = () => { render(); HD.refreshPeople().then(render); }; window.hubRemap = render; window.hubMe = render;
+window.hubApply = render; window.hubReady = () => { render(); if(staffRole() || me().role === 'tutor') HD.refreshPeople().then(render).catch(() => {}); }; window.hubRemap = render; window.hubMe = render;
 window.addEventListener('pageshow', e => { if(e.persisted) render(); });
 window.addEventListener('lhqinstall', () => { if(route.page === 'set') render(); });
 
@@ -402,7 +457,7 @@ function crumb(fbHref, fbLabel, within){
   const b = LHQNav.back(fbHref, fbLabel, within ? u => u.startsWith('index.html#' + within) : null);
   return b.href ? `<a class="crumb" href="${esc(b.href)}">${ic('back',16,2.2)} ${esc(b.label)}</a>` : '';
 }
-const PAGE_LABEL = {home:'Home', edithome:'Edit Home', students:'Students', docs:'Documents', biz:'Business', settings:'Settings', tutors:'Tutors', more:'More', perf:'Reports', reports:'Reports', rep:'Report', teach:'Teaching'};
+const PAGE_LABEL = {home:'Home', edithome:'Edit Home', students:'Students', docs:'Documents', biz:'Business', settings:'Settings', tutors:'Tutors', more:'More', me:'Home', perf:'Reports', reports:'Reports', rep:'Report', teach:'Teaching'};
 function pageLabel(){
   const h = document.querySelector('#main h1, #main .sec-h');
   if(route.page === 'biz' && route.args[0] && route.args[0] !== 'home'){ const h = document.querySelector('#main h1'); if(h) return h.textContent.trim(); }
@@ -463,7 +518,7 @@ function attention(list){
     const RQ = reqList(), ap = RQ.filter(r => !r.dec.s), buy = RQ.filter(r => r.dec.s === 'approved');
     if(isDir() && ap.length) out.push({w:-1, s:{name:`${ap.length} requisition${ap.length === 1 ? '' : 's'} to approve`}, href:'#reqs', ico:'box', col:'--am', sub:ap.slice(0, 3).map(r => `${r.item.item} · ${r.rep.tutor}`).join(' · '), btn:['Review', '#reqs']});
     if(can('spend') && buy.length) out.push({w:-1, s:{name:`${buy.length} approved requisition${buy.length === 1 ? '' : 's'} to buy`}, href:'#reqs', ico:'box', col:'--am', sub:buy.slice(0, 3).map(r => r.item.item).join(' · '), btn:['Review', '#reqs']});
-    disp.forEach(e => out.push({w:-2, g:'disp', s:{name:e.st}, href:'#confirm/' + encodeURIComponent(e.id), ico:'alert', col:'--rd', sub:`${e.sub} with ${e.tutor || 'tutor'} · ${nice(e.d)} · disputed: ${e.cf.note}`, tag:['Disputed','rd']}));
+    disp.filter(e => !e.cf.step || e.cf.step === 'lhq').forEach(e => out.push({w:-2, g:'disp', s:{name:'Settle: ' + e.st}, href:'#confirm/' + encodeURIComponent(e.id), ico:'alert', col:'--rd', sub:`${e.sub} with ${e.tutor || 'tutor'} · ${nice(e.d)} · ${cfLine(e)}`, tag:['Disputed','rd']}));
   }
   return out.sort((a, b) => a.w - b.w);
 }
@@ -495,26 +550,27 @@ function metrics(list){
     tutors: tutorNames.size, perTutor: tutorNames.size ? Math.round(active.length / tutorNames.size * 10) / 10 : 0, noTutor};
 }
 /* a line on a Home card that opens the list behind it (plain text while editing Home) */
-const L = (href, html, cls = 's') => route.page === 'edithome' ? `<div class="${cls}">${html}</div>` : `<a class="mcl ${cls}" href="${href}">${html}<span class="mca">›</span></a>`;
+const mkV = h => String(h).replace(/^MKW\s+/, '<small class="u">MKW</small>');
+const L = (href, html, cls = 's') => { if(cls === 'v') html = mkV(html); return route.page === 'edithome' ? `<div class="${cls}">${html}</div>` : `<a class="mcl ${cls}" href="${href}">${html}<span class="mca">›</span></a>`; };
 const trend = (now, before, word) => { if(!before && !now) return ''; if(!before) return `<div class="tr fl">First month with figures</div>`; const p = Math.round((now - before) / before * 100); return `<div class="tr ${p >= 0 ? 'up' : 'dn'}">${p >= 0 ? '▲' : '▼'} ${Math.abs(p)}% ${word}</div>`; };
 const CARDS = {
-  money:{t:'Money this month', ic:'cash', need:'money', d:'Received this month against what was invoiced, and what is still owed', href:() => can('pl') ? '#biz/money/' + ym(today()) : '#docs/receipt/m-' + ym(today()),
-    html:m => `${L(can('pl') ? '#biz/money/' + ym(today()) : '#docs/receipt/m-' + ym(today()), `${mkShort(m.recv)} <small>received</small>`, 'v')}<div class="bar"><i style="width:${m.invoiced ? Math.min(100, Math.round(m.recv / m.invoiced * 100)) : 0}%"></i></div>${L(can('pl') ? '#biz/money/' + ym(today()) : '#docs/invoice/m-' + ym(today()), `${mkShort(m.invoiced)} invoiced this month`)}${L('#docs/invoice/unpaid', `Outstanding ${mkShort(m.owed)}${m.overN ? ` · ${m.overN} overdue` : ''}`, 's' + (m.overN ? ' bad' : ''))}${trend(m.recv, m.recvLast, 'received vs last month')}`},
-  owed:{t:'Outstanding & overdue', ic:'alert', need:'money', d:'Unpaid balances, with overdue ones first', href:'#biz/owed',
+  money:{s:'Money in', t:'Money this month', ic:'cash', need:'money', d:'Received this month against what was invoiced, and what is still owed', href:() => can('pl') ? '#biz/money/' + ym(today()) : '#docs/receipt/m-' + ym(today()),
+    html:m => `${L(can('pl') ? '#biz/money/' + ym(today()) : '#docs/receipt/m-' + ym(today()), mkShort(m.recv), 'v')}<div class="bar"><i style="width:${m.invoiced ? Math.min(100, Math.round(m.recv / m.invoiced * 100)) : 0}%"></i></div>${L(can('pl') ? '#biz/money/' + ym(today()) : '#docs/invoice/m-' + ym(today()), `${mkShort(m.invoiced)} invoiced this month`)}${L('#docs/invoice/unpaid', `Outstanding ${mkShort(m.owed)}${m.overN ? ` · ${m.overN} overdue` : ''}`, 's' + (m.overN ? ' bad' : ''))}${trend(m.recv, m.recvLast, 'received vs last month')}`},
+  owed:{s:'Owed', t:'Outstanding & overdue', ic:'alert', need:'money', d:'Unpaid balances, with overdue ones first', href:'#biz/owed',
     html:m => `${L('#biz/owed', mkShort(m.owed), 'v')}${L('#biz/owed', `${m.owingN} invoice${m.owingN === 1 ? '' : 's'} not fully paid`)}${m.overN ? L('#biz/owed', `${m.overN} overdue · ${mkShort(m.overAmt)}`, 's bad') : '<div class="s">Nothing overdue</div>'}`},
-  students:{t:'Students', ic:'users', d:'Students in a tuition period now, new ones, and periods ending', href:'#students',
-    html:m => `${L('#students/current', `${m.active} <small>active</small>`, 'v')}${L('#students/new', `+${m.newM} new this month`)}${L('#students/ending', `${m.ending} period${m.ending === 1 ? '' : 's'} end${m.ending === 1 ? 's' : ''} this week`)}${m.newL || m.newM ? `<div class="tr ${m.newM >= m.newL ? 'up' : 'dn'}">${m.newM >= m.newL ? '▲' : '▼'} ${Math.abs(m.newM - m.newL)} new vs last month</div>` : ''}`},
-  enrol:{t:'Enrolments', ic:'quote', d:'Quotes waiting for the parent, and how many become invoices', href:'#docs/quote',
+  students:{s:'Students', t:'Students', ic:'users', d:'Students in a tuition period now, new ones, and periods ending', href:'#students',
+    html:m => `${L('#students/current', `${m.active} <small>active</small>`, 'v')}${m.newM ? L('#students/new', `+${m.newM} new this month`) : ''}${L('#students/ending', `${m.ending} period${m.ending === 1 ? '' : 's'} end${m.ending === 1 ? 's' : ''} this week`)}${m.newL || m.newM ? `<div class="tr ${m.newM >= m.newL ? 'up' : 'dn'}">${m.newM >= m.newL ? '▲' : '▼'} ${Math.abs(m.newM - m.newL)} new vs last month</div>` : ''}`},
+  enrol:{s:'Enrolments', t:'Enrolments', ic:'quote', d:'Quotes waiting for the parent, and how many become invoices', href:'#docs/quote',
     html:m => `${L('#docs/quote/waiting', `${m.waiting} <small>quote${m.waiting === 1 ? '' : 's'} waiting</small>`, 'v')}${can('money') ? `<div class="s">Worth ${mkShort(m.waitingAmt)}</div>` : ''}${L('#docs/quote/m-' + ym(today()), `${m.qMconv} of ${m.qM} quotes this month became invoices`)}${m.oldest ? `<div class="tr fl">Oldest waiting: ${m.oldest} days</div>` : ''}`},
-  renew:{t:'Renewals due', ic:'clock', d:'Tuition periods ending in the next 7 days', href:'#students/ending',
+  renew:{s:'Renewals', t:'Renewals due', ic:'clock', d:'Tuition periods ending in the next 7 days', href:'#students/ending',
     html:m => `${L('#students/ending', `${m.ending}`, 'v')}${L('#students/ending', `period${m.ending === 1 ? '' : 's'} end in the next 7 days`)}<div class="s">${m.renewed} renewed already</div>${m.endingNext ? `<div class="tr fl">Next: ${esc(m.endingNext.name)}, ${nice(m.endingNext.cur.inv.periodEnd)}</div>` : ''}`},
-  tutors:{t:'Tutors', ic:'user', d:'Tutors teaching now, and subjects with no tutor', href:'#tutors',
+  tutors:{s:'Tutors', t:'Tutors', ic:'user', d:'Tutors teaching now, and subjects with no tutor', href:'#tutors',
     html:m => `${L('#tutors', `${m.tutors} <small>teaching</small>`, 'v')}<div class="s">${m.perTutor ? `About ${m.perTutor} students each` : 'From the current tuition cards'}</div>${m.noTutor ? L('#tutors/none', `${m.noTutor} subject${m.noTutor === 1 ? ' has' : 's have'} no tutor yet`, 's warn') : '<div class="s">Every subject has a tutor</div>'}`},
   sessions:{t:'Sessions this week', ic:'clock', step2:true, d:'Sessions done and still to come, from tutors’ logs'},
   sras:{t:'SRAs due', ic:'restore', step2:true, d:'Spaced repetition reviews due this week'},
   reports:{t:'Reports to send', ic:'rep', step2:true, d:'Weekly reports ready for parents'},
-  profit:{t:'Profit this month', ic:'cash', need:'pl', d:'Money in less spending this month, and the margin', href:'#biz/pl', html:() => BIZ.cardProfit()},
-  spend:{t:'Spending this month', ic:'box', need:'spend', d:'What has been spent this month, against the budget', href:'#biz/spending', html:() => BIZ.cardSpend()},
+  profit:{s:'Profit', t:'Profit this month', ic:'cash', need:'pl', d:'Money in less spending this month, and the margin', href:'#biz/pl', html:() => BIZ.cardProfit()},
+  spend:{s:'Spending', t:'Spending this month', ic:'box', need:'spend', d:'What has been spent this month, against the budget', href:'#biz/spending', html:() => BIZ.cardSpend()},
   tpay:{t:'Tutor pay this month', ic:'cash', need:'tpay', step2:true, d:'Pay so far from logged sessions, and what is left after paying tutors'},
 };
 const DEFAULT_HOME = () => LEAN() ? (can('money') ? ['money','owed','students'] : ['students','enrol','renew']) : can('money') ? ['money','students','enrol','tutors'] : ['students','enrol','renew','tutors'];
@@ -540,6 +596,7 @@ function attGroup(r){
   const L = r.items, open = attG[r.grp], names = [...new Set(L.map(x => x.s.name.replace(/ (hasn't seen|can't make) .*/, '')))];
   return `<button class="it" data-attg="${r.grp}"><span class="ico" style="color:var(${r.x.col})">${ic(r.x.ico)}</span><span class="t"><b>${L.length} ${GL[r.grp] || 'items'}</b><small>${esc(names.slice(0, 2).join(', '))}${names.length > 2 ? ` and ${names.length - 2} more` : ''}</small></span><span class="chev" style="${open ? 'transform:rotate(90deg)' : ''}">${ic('chev', 16, 2)}</span></button>${open ? L.map(x => attRow(x, true)).join('') : ''}`;
 }
+const PREVIEW_OR_DB = () => true;
 let attAll = false, attOpen = true; try{ attOpen = localStorage.getItem('lhq_attOpen') !== '0'; }catch(e){}
 
 P.home = () => {
@@ -548,22 +605,22 @@ P.home = () => {
   const recent = saved.slice().sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0)).slice(0, 6);
   const draft = store.get('lhq_draft', null);
   const draftRow = draft && !draft.id && (draft.student || draft.name) ? `<div class="card"><a class="it" href="doc.html#draft"><span class="ico">${ic('edit')}</span><span class="t"><b>Unsaved ${esc(WORD[draft.type || 'quote'].toLowerCase())} · ${esc(draft.student || draft.name)}</b><small>Not saved yet</small></span><span class="tag am">Draft</span></a></div>` : '';
-  return `<div class="ph"><div class="tt"><h1>${greet}${me().name ? ', ' + esc(first(me().name)) : ''}</h1><p>${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()]} ${d.getDate()} ${MONTHL[d.getMonth()]}</p></div>
-    <div class="acts"><a class="btn" href="#edithome" title="Edit Home" aria-label="Edit Home">${ic('edit',16)}</a>${can('quotes') || can('receipts') || can('cards') ? `<a class="btn n" href="#new">${ic('plus',16,2.4)} New</a>` : ''}</div></div>
-  ${cards.length ? `<div class="mcs">${cards.map(k => { const c = CARDS[k]; return `<div class="mc" data-go="${typeof c.href === 'function' ? c.href() : c.href}" role="link" tabindex="0" aria-label="${esc(c.t)}"><span class="l">${ic(c.ic,15,2)}${c.t}</span>${c.html(m)}</div>`; }).join('')}</div>` : ''}
+  return `<div class="ph"><div class="tt"><h1>${greet}${me().name ? '<span class="x-ph">, ' + esc(first(me().name)) + '</span>' : ''}</h1><p>${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()]} ${d.getDate()} ${MONTHL[d.getMonth()]}</p></div>
+    <div class="acts"><a class="btn" href="#edithome" title="Edit Home" aria-label="Edit Home">${ic('edit',16)}</a>${can('quotes') || can('receipts') || can('cards') ? `<a class="btn n hnew" href="#new">${ic('plus',16,2.4)} New</a>` : ''}</div></div>
+  ${cards.length ? `<div class="mcs" data-n="${cards.length}">${cards.map(k => { const c = CARDS[k]; return `<div class="mc" data-go="${typeof c.href === 'function' ? c.href() : c.href}" role="link" tabindex="0" aria-label="${esc(c.t)}"><span class="l">${ic(c.ic,15,2)}${LEAN() && c.s ? c.s : c.t}</span>${c.html(m)}</div>`; }).join('')}</div>` : ''}
   ${draftRow}
   ${PREVIEW && isDir() && !saved.length ? `<div class="card pad" style="border-color:var(--gold)"><div class="cap">Preview</div><p class="note" style="margin:0 0 10px">This preview has its own storage and is empty. Load six months of demo data to try every page.</p><a class="btn n" href="#set/demo">Demo data</a></div>` : ''}
-  <div class="h2">Needs attention <span class="acts" style="align-items:center"><em>${AR.length || ''}</em><button class="btn sm" id="attTog">${attOpen ? 'Hide' : 'Show'}</button></span></div>
-  ${attOpen ? `<div class="card">${AR.slice(0, attAll ? 999 : 15).map(r => r.grp ? attGroup(r) : attRow(r.x)).join('') || '<p class="empty">Nothing needs attention. ✓</p>'}${AR.length > 15 && !attAll ? `<button class="it" id="attAll" style="justify-content:center"><b>Show all ${AR.length}</b></button>` : ''}</div>`
+  <div class="hcols"><div><div class="h2">Needs attention <span class="acts" style="align-items:center"><em>${AR.length || ''}</em><button class="btn sm" id="attTog">${attOpen ? 'Hide' : 'Show'}</button></span></div>
+  ${attOpen ? `<div class="card one">${AR.slice(0, attAll ? 999 : 15).map(r => r.grp ? attGroup(r) : attRow(r.x)).join('') || '<p class="empty">Nothing needs attention. ✓</p>'}${AR.length > 15 && !attAll ? `<button class="it" id="attAll" style="justify-content:center"><b>Show all ${AR.length}</b></button>` : ''}</div>`
     : `<p class="note" style="margin:-2px 2px 18px">${att.length} item${att.length === 1 ? '' : 's'} hidden. Needs attention always stays on Home so nothing is missed.</p>`}
-  <div class="h2">Recent <a class="btn sm" href="#docs">All documents</a></div>
-  <div class="card">${recent.map(x => docRow(x, {when:true})).join('') || '<p class="empty">Nothing saved yet. Tap New to start with a quote.</p>'}</div>`;
+  </div><div><div class="h2">Recent <a class="btn sm" href="#docs">All documents</a></div>
+  <div class="card one">${recent.map(x => docRow(x, {when:true})).join('') || '<p class="empty">Nothing saved yet. Tap New to start with a quote.</p>'}</div></div></div>`;
 };
 P.edithome = () => {
   const cards = myCards(), MAX = 6, m = metrics(HD.students());
   const lib = Object.entries(CARDS).filter(([k, c]) => !c.need || can(c.need));
   return `<div class="ph"><div class="tt"><h1>Edit Home</h1><p>${cards.length} of ${MAX} cards</p></div><a class="btn n" href="#home">Done</a></div>
-  ${cards.length ? `<div class="mcs">${cards.map((k, i) => { const c = CARDS[k]; return `<div class="mc ed"><div class="ctl"><button title="Move earlier" ${i===0?'disabled':''} data-mv="${i}:-1">${ic('back',15,2.2)}</button><button title="Move later" ${i===cards.length-1?'disabled':''} data-mv="${i}:1">${ic('chev',15,2.2)}</button><button class="rm" title="Remove" data-rm="${i}">✕</button></div><span class="l">${ic(c.ic,15,2)}${c.t}</span>${c.html(m)}</div>`; }).join('')}</div>` : '<p class="empty">No cards. Add some below.</p>'}
+  ${cards.length ? `<div class="mcs" data-n="${cards.length}">${cards.map((k, i) => { const c = CARDS[k]; return `<div class="mc ed"><div class="ctl"><button title="Move earlier" ${i===0?'disabled':''} data-mv="${i}:-1">${ic('back',15,2.2)}</button><button title="Move later" ${i===cards.length-1?'disabled':''} data-mv="${i}:1">${ic('chev',15,2.2)}</button><button class="rm" title="Remove" data-rm="${i}">✕</button></div><span class="l">${ic(c.ic,15,2)}${c.t}</span>${c.html(m)}</div>`; }).join('')}</div>` : '<p class="empty">No cards. Add some below.</p>'}
   <div class="h2">Add a card</div>
   <div class="card">${lib.map(([k, c]) => `<div class="it"><span class="ico">${ic(c.ic)}</span><span class="t"><b>${c.t}</b><small>${c.d}</small></span>${c.step2 ? '<span class="tag gr">With step 2</span>' : cards.includes(k) ? '<span class="tag ok">On Home</span>' : `<button class="btn sm" data-add="${k}" ${cards.length >= MAX ? 'disabled title="Remove a card first"' : ''}>+ Add</button>`}</div>`).join('')}</div>
   ${can('money') ? '' : '<p class="note">Money cards need money access.</p>'}`;
@@ -580,12 +637,13 @@ P.students = (f = 'all') => {
   ${window.PC ? PC.block('students', {}, 'At a glance') : ''}
   <label class="search">${ic('search',18)}<input id="sq" type="search" placeholder="Search name, parent or number" value="${esc(sQ)}" autocomplete="off"></label>
   ${f === 'all' ? `<button class="btn sm flt-btn" data-flt style="margin:0 0 10px">${ic('list',14)} Filter</button>` : ''}<div class="chips ${f === 'all' ? 'flt' : ''}">${Object.entries(S_F).filter(([k]) => !S_HIDE.includes(k) || k === f).map(([k, [l, fn]]) => `<a class="chip ${f === k ? 'on' : ''}" href="#students/${k}">${l}<i>${list.filter(fn).length}</i></a>`).join('')}</div>
-  <div class="card" id="slist">${studentRows(list, f)}</div>`;
+  <div class="card one" id="slist">${studentRows(list, f)}</div>`;
 };
 function studentRows(list, f){
   const q = sk(sQ);
   const rows = list.filter(S_F[f || 'all'][1]).filter(s => !q || sk([s.name, s.parent, s.level, ...s.docs.map(d => d.number)].join(' ')).includes(q));
-  return rows.map(s => `<a class="it" href="${stuLink(s.key)}"><span class="av">${inits(s.name)}</span><span class="t"><b>${esc(s.name)}</b><small>${esc([s.level, s.cur ? range(s.cur.inv.periodStart, s.cur.inv.periodEnd) : '', subjectsOf(s)].filter(Boolean).join(' · '))}</small></span><span class="tag ${s.status.cls}">${s.status.text}</span></a>`).join('')
+  const per = s => s.cur ? range(s.cur.inv.periodStart, s.cur.inv.periodEnd) : '';
+  return (rows.length ? `<div class="it srow sh"><span></span><span>Name</span><span class="c">Year</span><span class="c">Period</span><span class="c">Subjects</span><span>Status</span></div>` : '') + rows.map(s => `<a class="it srow" href="${stuLink(s.key)}"><span class="av">${inits(s.name)}</span><span class="t"><b>${esc(s.name)}</b><small>${esc([s.level, per(s), subjectsOf(s)].filter(Boolean).join(' · '))}</small></span><span class="c">${esc(s.level || '–')}</span><span class="c">${esc(per(s) || '–')}</span><span class="c">${esc(subjectsOf(s) || '–')}</span><span class="tag ${s.status.cls}">${s.status.text}</span></a>`).join('')
     || `<p class="empty">${list.length ? 'No students match.' : 'No students yet. Add one, or they appear as soon as a quote is saved.'}</p>`;
 }
 function subjectsOf(s){
@@ -597,9 +655,21 @@ P.student = (key, tab = 'overview') => {
   const s = HD.students().find(x => x.key === key);
   if(!s) return `${crumb('#students', 'Students')}<p class="empty">That student isn't here. They may have been renamed.</p>`;
   const myRows = can('tutors') ? sessionRows().filter(r => SCHED.nk(r.it.st) === SCHED.nk(s.name)) : [];
-  const tabs = [['overview','Overview']].concat(myRows.length ? [['sessions','Sessions']] : [], [['documents',`Documents (${s.docs.length})`],['details','Details']]);
+  const tabs = [['overview','Overview']].concat(myRows.length ? [['sessions','Sessions']] : [], (isDir() || can('tutors')) && PREVIEW_OR_DB() ? [['accounts','Accounts']] : [], [['documents',`Doc<span class="x-ph">ument</span>s<i>${s.docs.length}</i>`],['details','Details']]);
   let body = '';
   if(tab === 'overview') body = (window.PC ? PC.block('student', {s}, 'This period') : '') + stuOverview(s);
+  if(tab === 'accounts'){
+    const ppl = HD.people(), nkk = SCHED.nk, sp = ppl.find(p => p.role === 'student' && nkk(p.name) === nkk(s.name)), par = ppl.filter(p => p.role === 'parent' && (p.children || []).some(c => nkk(c) === nkk(s.name)));
+    const conf = (store.get('lhq_confirmer', {}) || {})[nkk(s.name)] === 'parent' ? 'parent' : 'student';
+    const st = p => !p ? 'No account' : p.status === 'active' ? 'Signed up' + (p.seen ? ' · last in ' + ago(p.seen) : '') : p.codeUntil ? 'Code given' : 'No sign-in yet';
+    const row = (p, who) => `<div class="it"><span class="ico">${ic(p && p.status === 'active' ? 'check' : 'user')}</span><span class="t"><b>${esc(p.name)}</b><small>${who} · ${esc(p.username || '')} · ${st(p)}</small></span><button class="btn sm" data-acode="${p.id}">Setup code</button></div>`;
+    body = `<div class="card">${sp ? row(sp, 'Student') : `<div class="it"><span class="ico">${ic('user')}</span><span class="t"><b>${esc(s.name)}</b><small>Student · no account</small></span><button class="btn sm n" data-aadd="student">Give an account</button></div>`}
+      ${par.map(p => row(p, 'Parent' + ((p.children || []).length > 1 ? ' · also ' + (p.children || []).filter(c => nkk(c) !== nkk(s.name)).map(first).join(', ') : ''))).join('')}
+      <button class="it" data-aadd="parent"><span class="ico">${ic('plus')}</span><span class="t"><b>Add a parent</b></span></button></div>
+      <div class="h2">Confirms sessions</div><div class="card">
+        <button class="it" data-aconf="student"><span class="cfm" style="${conf === 'student' ? 'background:var(--ok);border-color:var(--ok);color:#fff' : 'border:2px solid var(--line)'}">${conf === 'student' ? '✓' : ''}</span><span class="t"><b>${esc(first(s.name))}</b></span></button>
+        <button class="it" data-aconf="parent"><span class="cfm" style="${conf === 'parent' ? 'background:var(--ok);border-color:var(--ok);color:#fff' : 'border:2px solid var(--line)'}">${conf === 'parent' ? '✓' : ''}</span><span class="t"><b>The parent</b><small>For young children, or when a family asks</small></span></button></div>`;
+  }
   if(tab === 'sessions'){
     body = myRows.map(({it, T}) => `<div class="h2">${esc(it.sub)} <em>${esc(it.tutor || 'No tutor')}</em></div><div class="card pad">
       <div class="t-ses" style="grid-template-columns:repeat(4,1fr)"><div><b>${T.planned || '?'}</b><small>Planned</small></div><div><b>${T.had}</b><small>Had</small></div><div><b>${T.remaining}</b><small>Left</small></div><div><b>${T.owed}</b><small>Owed</small></div></div>${sBar(T)}
@@ -621,7 +691,7 @@ P.student = (key, tab = 'overview') => {
          <p class="note">New documents use these.</p></div>`;
   }
   return `${crumb('#students', 'Students', 'student/' + encodeURIComponent(key))}
-  <div class="ph"><div class="tt"><h1>${esc(s.name)}</h1><p>${esc([s.level, s.school].filter(Boolean).join(' · ') || ' ')}</p></div><div class="acts" style="align-items:center"><span class="tag ${s.status.cls}" style="font-size:12px">${s.status.text}</span><a class="btn sm" href="#rep/student/${encodeURIComponent(s.key)}">${ic('rep',15)} Report</a></div></div>
+  <div class="ph"><div class="tt"><h1>${esc(s.name)}</h1><p>${esc([s.level, s.school].filter(Boolean).join(' · ') || ' ')}</p></div><div class="acts" style="align-items:center"><span class="tag ${s.status.cls}">${s.status.text}</span><a class="btn sm" href="#rep/student/${encodeURIComponent(s.key)}">${ic('rep',15)} Report</a></div></div>
   <div class="tabs">${tabs.map(([k, l]) => `<a class="${tab === k ? 'on' : ''}" href="${stuLink(s.key, k)}">${l}</a>`).join('')}</div>${body}`;
 };
 function stuOverview(s){
@@ -648,10 +718,10 @@ function stuOverview(s){
   }
   if(!nexts.length && can('quotes')) nexts.push(`<a class="btn n full" href="${D('new=quote&student=' + encodeURIComponent(s.key))}">New quote for ${esc(first(s.name))}</a>`);
   const earlier = s.periods.slice(1);
-  return `<div class="card pad">${head ? `<div class="cap">${esc(head)}</div>` : ''}${chain ? `<div class="chain">${chain}</div>` : '<p class="empty" style="margin-top:0">No documents yet.</p>'}
-    <dl class="kv">${facts}${s.parent ? `<dt>Parent</dt><dd>${esc(s.parent)}</dd>` : ''}${s.phone ? `<dt>WhatsApp</dt><dd><a href="https://wa.me/${esc(waNum(s.phone))}" target="_blank" rel="noopener">${esc(s.phone)}</a></dd>` : ''}${s.heard ? `<dt>Heard via</dt><dd>${esc(s.heard)}</dd>` : ''}</dl></div>
+  return `<div class="hcols"><div><div class="card pad">${head ? `<div class="cap">${esc(head)}</div>` : ''}${chain ? `<div class="chain">${chain}</div>` : '<p class="empty" style="margin-top:0">No documents yet.</p>'}
+    <dl class="kv">${facts}${s.parent ? `<dt>Parent</dt><dd>${esc(s.parent)}</dd>` : ''}${s.phone ? `<dt>WhatsApp</dt><dd><a href="https://wa.me/${esc(waNum(s.phone))}" target="_blank" rel="noopener">${esc(s.phone)}</a></dd>` : ''}${s.heard ? `<dt>Heard via</dt><dd>${esc(s.heard)}</dd>` : ''}</dl></div></div><div>
   ${nexts.length ? `<div class="card pad"><div class="cap">Next step</div>${nexts.join('')}</div>` : ''}
-  ${earlier.length ? `<div class="h2">Earlier periods</div><div class="card">${earlier.map(p => `<a class="it" href="${openLink(p.inv)}"><span class="t"><b>${esc(range(p.inv.periodStart, p.inv.periodEnd) || nice(p.inv.date))}</b><small>${esc(p.inv.number)}${p.card ? ' · ' + esc(p.card.number) : ''} · ${mk(p.st.total)}</small></span><span class="tag ${p.st.cls}">${esc(p.st.paidUp ? 'Paid' : p.st.text)}</span></a>`).join('')}</div>` : ''}`;
+  ${earlier.length ? `<div class="h2">Earlier periods</div><div class="card">${earlier.map(p => `<a class="it" href="${openLink(p.inv)}"><span class="t"><b>${esc(range(p.inv.periodStart, p.inv.periodEnd) || nice(p.inv.date))}</b><small>${esc(p.inv.number)}${p.card ? ' · ' + esc(p.card.number) : ''} · ${mk(p.st.total)}</small></span><span class="tag ${p.st.cls}">${esc(p.st.paidUp ? 'Paid' : p.st.text)}</span></a>`).join('')}</div>` : ''}</div></div>`;
 }
 function waNum(raw){ let n = String(raw || '').replace(/\D/g, ''); if(n.startsWith('0')) n = '265' + n.slice(1); else if(n.length === 9) n = '265' + n; return n; }
 const lines = v => String(v || '').split('\n').map(x => x.trim()).filter(Boolean);
@@ -815,7 +885,7 @@ const CFL = {waiting:'Waiting', auto:'Auto-confirmed', confirmed:'Confirmed', di
 const cfMark = st => st === 'disputed' ? '<span class="cfm dp">!</span>' : st === 'waiting' ? '<span class="cfm wt"></span>' : st ? '<span class="cfm ok">✓</span>' : '';
 const cfLine = e => { const st = HD.cfState(e), cf = e.cf || {};
   return st === 'waiting' ? `Confirms itself in ${Math.max(1, Math.round(HD.cfLeft(e) / 36e5))} h` : st === 'auto' ? 'No reply in 48 h' : st === 'confirmed' ? `By ${cf.by}${cf.how ? ' · ' + cf.how : ''}`
-    : st === 'disputed' ? `${cf.from || 'The student'}: ${cf.note}` : st === 'settled' ? (cf.out === 'keep' ? 'The tutor\'s times stand' : `${cf.lost} min taken off`) + ` · by ${cf.by}` : ''; };
+    : st === 'disputed' ? `${cf.from || 'The student'}: ${{late:'started ' + (cf.t1 || 'late'), early:'ended ' + (cf.t2 || 'early'), none:"didn't happen"}[cf.kind] || cf.note}${cf.kind && cf.kind !== 'other' && cf.note ? ' · ' + cf.note : ''}${cf.tutorNote ? ' · ' + (e.tutor || 'tutor') + ': ' + cf.tutorNote : ''}` : st === 'settled' ? (cf.out === 'keep' ? 'The tutor\'s times stand' : `${cf.lost} min taken off`) + ` · by ${cf.by}` : ''; };
 /* ---------- More (Lean): the places that aren't in the bar ---------- */
 P.more = () => `<div class="ph"><div class="tt"><h1>More</h1></div></div><div class="card">${LHQNav.moreItems().map(([k, l, h]) => `<a class="it" href="${h}"><span class="ico">${LHQNav.ic(k, 20)}</span><span class="t"><b>${l}</b></span><span class="chev">›</span></a>`).join('')}</div>`;
 
@@ -834,11 +904,12 @@ P.sessions = (only = '') => {
   const R = sessionRows(), qq = SF.q.trim().toLowerCase();
   const rows = R.filter(r => (!SF.tutor || r.it.tutor === SF.tutor) && (!qq || [r.it.st, r.it.sub, r.it.tutor].some(x => String(x).toLowerCase().includes(qq))) && (only !== 'behind' || r.T.behind));
   const tutors = [...new Set(R.map(r => r.it.tutor).filter(Boolean))].sort();
-  const C = HD.sessionsToConfirm(), disp = C.filter(e => HD.cfState(e) === 'disputed'), wait = C.filter(e => HD.cfState(e) === 'waiting');
+  const C = HD.sessionsToConfirm(), dispAll = C.filter(e => HD.cfState(e) === 'disputed'), disp = dispAll.filter(e => !e.cf.step || e.cf.step === 'lhq'), between = dispAll.filter(e => e.cf.step === 'tutor' || e.cf.step === 'student'), wait = C.filter(e => HD.cfState(e) === 'waiting');
   const row = e => { const st = HD.cfState(e); return `<button class="it" data-cf="${esc(e.id)}">${cfMark(st)}<span class="t"><b>${esc(e.st)} · ${esc(e.sub)}</b><small>${nice(e.d)}${e.t1 ? ' ' + esc(e.t1) + '–' + esc(e.t2 || '') : ''} · ${esc(e.tutor || '')} · ${CFL[st]} · ${esc(cfLine(e))}</small></span><span class="chev">›</span></button>`; };
   return `${crumb('#tutors', 'Tutors', 'sessions')}
   <div class="ph"><div class="tt"><h1>Sessions</h1><p>Confirms itself 48 h after it's logged</p></div></div>
   ${disp.length ? `<div class="h2">Disputed · to settle <em>${disp.length}</em></div><div class="card">${disp.map(row).join('')}</div>` : ''}
+  ${between.length ? `<div class="h2">Being sorted out <em>${between.length}</em></div><div class="card">${between.map(e => `<button class="it" data-cf="${esc(e.id)}">${cfMark('waiting')}<span class="t"><b>${esc(e.st)} · ${esc(e.sub)}</b><small>${nice(e.d)} · ${e.cf.step === 'tutor' ? 'with ' + esc(e.tutor || 'the tutor') : 'back with ' + esc(first(e.cf.from || e.st))}</small></span><span class="chev">›</span></button>`).join('')}</div>` : ''}
   <div class="actf"><label class="f" style="margin:0;flex:2;min-width:200px"><input class="in" id="sfQ" type="search" placeholder="Find a student, subject or tutor" value="${esc(SF.q)}" autocomplete="off"></label>
     <label class="f" style="margin:0;flex:1;min-width:170px"><select class="in" id="sfT" aria-label="Tutor"><option value="">All tutors</option>${tutors.map(n => `<option ${SF.tutor === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label></div>
   <div class="seg"><a class="${only !== 'behind' ? 'on' : ''}" href="#sessions">Everyone</a><a class="${only === 'behind' ? 'on' : ''}" href="#sessions/behind">Behind</a></div>
@@ -903,7 +974,7 @@ function confirmSheet(id, mode){
   if(st === 'disputed') body = `<div class="h2" style="margin-top:4px">Settle it</div>
     <div class="t-opts"><button type="button" role="radio" aria-checked="true" class="t-opt on" data-cfout="keep"><span class="t-ind c"></span><span class="tx">The tutor's times stand<small>The whole session counts</small></span></button>
     <button type="button" role="radio" aria-checked="false" class="t-opt" data-cfout="lost"><span class="t-ind c"></span><span class="tx">Take minutes off<small>Only the minutes taught count</small></span></button></div>
-    <label class="f" id="cfLostF" style="margin-top:10px"><span>Minutes to take off</span><input class="in" id="cfLost" inputmode="numeric" value="${cf.lost || ''}"></label>
+    <label class="f" id="cfLostF" style="margin-top:10px"><span>Minutes to take off</span><input class="in" id="cfLost" inputmode="numeric" value="${cf.lost || (cf.kind === 'late' && cf.t1 && e.t1 ? Math.max(0, SCHED.mins(cf.t1) - SCHED.mins(e.t1)) : cf.kind === 'early' && cf.t2 && e.t2 ? Math.max(0, SCHED.mins(e.t2) - SCHED.mins(cf.t2)) : '') || ''}"></label>
     <label class="f"><span>Note to both</span><input class="in" id="cfNote" placeholder="e.g. Spoke to both and agreed"></label>
     <button class="btn n full" data-cfdo="settle">Settle</button>`;
   openSheet(head + body);
@@ -1061,20 +1132,21 @@ P.biz = (tab, period, cat) => (!tab || tab === 'home' ? crumb(null, null, 'biz')
 P.perf = () => { setTimeout(() => location.replace('#rep/business'), 0); return ''; };
 P.reports = () => PERF.page() + (isDir() || me().role === 'admin' ? `<div class="card" style="margin-top:14px"><a class="it" href="#activity"><span class="t"><b>Activity</b><small>Everything done in the Hub, by whom</small></span><span class="chev">›</span></a></div>` : '');
 P.teach = (sub, a1, a2) => TUT.page(sub, a1, a2);
+P.me = (sub, a1, a2) => FAM.page(sub, a1, a2);
 P.rep = (kind, arg) => PERF.page(kind, arg);
 
 /* ================= settings ================= */
 const SETS = [
-  ['Account', [['account','user','My account']]],
-  ['LHQ', [['people','users','People & access', () => isDir() || can('tutors')],['company','bank','Company & bank details', isDir],['payments','cash','Payments & due dates', isDir],['tutorinfo','users','Tutors\' contacts', () => isDir() || can('tutors') || can('msgs')]]],
+  ['Account', [['account','user','My account'],['appearance','layout','Appearance']]],
+  ['LHQ', [['people','users','People & access', () => isDir() || can('tutors')],['company','bank','Company & bank details', isDir],['payments','cash','Payments & due dates', isDir],['hours','clock','Opening hours', isDir],['tutorinfo','users','Tutors\' contacts', () => isDir() || can('tutors') || can('msgs')]]],
   ['Documents', [['numbering','hash','Numbering', () => can('numbering')],['messages','msg','Messages', () => can('msgs')],['lists','list','Lists', () => can('msgs')]]],
-  ['Enrolment & sending', [['enrol','link','Student checklist', () => me().role !== 'tutor'],['sending','wa','Email & WhatsApp', () => me().role !== 'tutor']]],
+  ['Enrolment & sending', [['enrol','link','Student checklist', () => staffRole()],['sending','wa','Email & WhatsApp', () => staffRole()]]],
   ['Data', [['records.html','layout','Shared records', () => isDir()],['backup','box','Backup & restore', () => can('backup')],['deleted','bin','Recently deleted', () => can('restore')],['demo','restore','Demo data (preview)', () => isDir() && PREVIEW]]],
 ];
 const setVis = ids => SETS.flatMap(([, items]) => items).filter(x => ids.includes(x[0]) && (!x[3] || x[3]()));
-const DETAILS = ['company','payments','numbering','messages','sending','tutorinfo','enrol'], DATA = ['records.html','backup','deleted','demo'];
+const DETAILS = ['company','payments','hours','numbering','messages','sending','tutorinfo','enrol'], DATA = ['records.html','backup','deleted','demo'];
 /* Lean: 5 places. Things set once sit inside LHQ details; shared records, backups and the bin inside Data */
-const LEAN_SETS = () => [['Account', [['account','user','My account']]],
+const LEAN_SETS = () => [['Account', [['account','user','My account'],['appearance','layout','Appearance']]],
   ['LHQ', setVis(['people']).concat(setVis(DETAILS).length ? [['details','bank','LHQ details']] : [], setVis(['lists']))],
   ['Data', setVis(DATA).length ? [['data','box','Data']] : []]];
 const allowed = id => SETS.some(([, items]) => items.some(x => x[0] === id && (!x[3] || x[3]()))) || (id === 'details' && setVis(DETAILS).length > 0) || (id === 'data' && setVis(DATA).length > 0);
@@ -1094,17 +1166,16 @@ const settingsKV = () => withDefaults(store.get('lhq_settings', {}));
 function saveSettings(fields){ const s = Object.assign({}, store.get('lhq_settings', {}), fields); store.set('lhq_settings', s); toast('Saved'); }
 const fieldRow = (id, l, v, attrs = '') => `<label class="f"><span>${l}</span><input class="in" id="${id}" value="${esc(v)}" ${attrs}></label>`;
 
+S.hours = () => { const H = Object.assign({}, SCHED.OPEN, settingsKV().openHours || {}), D = [['Mo','Monday'],['Tu','Tuesday'],['We','Wednesday'],['Th','Thursday'],['Fr','Friday'],['Sa','Saturday'],['Su','Sunday']];
+  const T = []; for(let m = 6 * 60; m <= 21 * 60; m += 30) T.push(SCHED.hhmm(m));
+  const sel = (id, v) => `<select class="in" id="${id}" style="padding:8px">${['', ...T].map(t => `<option value="${t}" ${t === (v || '') ? 'selected' : ''}>${t || 'Closed'}</option>`).join('')}</select>`;
+  return `<h2 class="sec-h">Opening hours</h2><div class="card pad">${D.map(([d, n]) => `<div class="r2" style="align-items:center;grid-template-columns:110px 1fr 1fr;margin-bottom:8px"><b>${n}</b>${sel('oh' + d + 'a', (H[d] || [])[0])}${sel('oh' + d + 'b', (H[d] || [])[1])}</div>`).join('')}
+    <button class="btn n" id="ohSave">Save</button></div><p class="note">Used for free times when moving a session.</p>`; };
 S.details = () => `<h2 class="sec-h">LHQ details</h2>${setList(DETAILS)}`;
 S.data = () => `<h2 class="sec-h">Data</h2>${setList(DATA)}`;
 S.account = () => { const m = me(), L = LHQNav.layout();
-  return `<h2 class="sec-h">My account</h2><p class="sec-p">How you sign in, and how LHQ Hub looks on this device.</p>
+  return `<h2 class="sec-h">My account</h2><p class="sec-p">Who you are and how you sign in.</p>
   <div class="card pad"><dl class="kv"><dt>Name</dt><dd>${esc(m.name || '')}</dd><dt>Role</dt><dd>${roleText(m)}</dd><dt>This device</dt><dd id="acStatus"></dd></dl></div>
-  <div class="card pad"><div class="cap">What you see</div>
-    <div class="seg"><button class="${LEAN() ? 'on' : ''}" data-view="lean">Lean</button><button class="${LEAN() ? '' : 'on'}" data-view="full">Full</button></div>
-    <p class="note" style="margin:0">${LEAN() ? 'The main places, main fields. Everything else under More.' : 'Everything in view.'}</p></div>
-  <div class="card pad"><div class="cap">Navigation on this device</div>
-    <div class="seg"><button class="${L === 'bottom' ? 'on' : ''}" data-layout="bottom">Bottom bar</button><button class="${L === 'side' ? 'on' : ''}" data-layout="side">Sidebar</button></div>
-    <p class="note" style="margin:0">Phones always use the bottom bar.</p></div>
   <div class="card pad"><div class="cap">LHQ Hub on this device</div>
     ${window.lhqInstalled && lhqInstalled() ? '<p class="note" style="margin:0">Installed. Works offline too.</p>'
     : `<p class="note" style="margin:0 0 10px">Opens from your home screen, also offline.</p>${window.lhqInstall ? `<button class="btn n" id="instGo">Install LHQ Hub</button>` : '<p class="note" style="margin:0"><b>iPhone or iPad:</b> Safari › Share › Add to Home Screen. <b>Android:</b> Chrome menu ⋮ › Install app (or Add to Home screen).</p>'}`}</div>
@@ -1115,6 +1186,31 @@ S.account = () => { const m = me(), L = LHQNav.layout();
     ${isDir() ? `<div class="card pad"><div class="cap">If you forget your password</div><p class="note" style="margin:0">Nobody else can reset the Director's password. On the sign-in screen tap Forgot password › I'm the Director, and use the setup code (the first 8 characters of LHQ_SECRET in Netlify). Keep it somewhere safe.</p></div>` : ''}` : `<div class="card pad"><div class="cap">Change my PIN</div><div class="r3"><label class="f"><span>Current PIN</span><input class="in" id="pin0" type="password" inputmode="numeric" maxlength="6"></label><label class="f"><span>New PIN</span><input class="in" id="pin1" type="password" inputmode="numeric" maxlength="6"></label><label class="f"><span>New PIN again</span><input class="in" id="pin2" type="password" inputmode="numeric" maxlength="6"></label></div><button class="btn n" id="pinGo">Change PIN</button></div>
   ${isDir() ? `<div class="card pad"><div class="cap">If you forget your PIN</div><p class="note" style="margin:0">As Director, nobody else can reset your PIN. Tap "Forgot your PIN?" when signing in and use the setup code (the first 8 characters of LHQ_SECRET in Netlify). Keep it somewhere safe.</p></div>` : ''}`}
   <div class="card pad"><div class="cap">Sign out</div><p class="note" style="margin:0 0 10px">Clears this device. Everything stays online.</p><button class="btn rd" id="outGo">${ic('out',16)} Sign out of this device</button></div>`; };
+
+/* Appearance: how the Hub looks. Theme, text size and bar or sidebar are per device; Lean or Full, the menu and Home cards follow the person */
+S.appearance = () => { const L = LHQNav.layout(), th = lhqTheme.choice(), tx = lhqTheme.text(), staffNav = !['tutor','student','parent'].includes(me().role);
+  const seg = (attr, cur, opts) => `<div class="seg" style="margin-bottom:${attr === 'data-layout' || attr === 'data-view' ? 6 : 14}px">${opts.map(([v, l]) => `<button class="${cur === v ? 'on' : ''}" ${attr}="${v}">${l}</button>`).join('')}</div>`;
+  let menu = '';
+  if(staffNav){
+    const P = LHQNav.pool(), C = LHQNav.chosenKeys(), custom = Array.isArray(me().nav);
+    const tick = on => `<span class="cbx" style="${on ? 'background:var(--accent);border-color:var(--accent);color:var(--onaccent)' : ''}">${on ? '✓' : ''}</span>`;
+    const row = (k, l, i) => { const on = i >= 0; return `<div class="it" style="padding:8px 0"><button class="tk" data-navk="${k}" style="flex:1;min-width:0">${tick(on)}<span class="ico" style="color:var(--brand)">${LHQNav.ic(k, 18)}</span>${esc(l)}</button>${on ? `<button class="btn sm" data-navmv="${i}:-1" ${i === 0 ? 'disabled' : ''} aria-label="Move up">↑</button><button class="btn sm" data-navmv="${i}:1" ${i === C.length - 1 ? 'disabled' : ''} aria-label="Move down">↓</button>` : ''}</div>`; };
+    menu = `<div class="card pad"><div class="cap">Bar and sidebar</div>
+      <div class="it" style="padding:8px 0;opacity:.6"><span class="tk" style="cursor:default">${tick(true)}<span class="ico">${LHQNav.ic('home', 18)}</span>Home</span></div>
+      ${C.map((k, i) => row(k, P.find(x => x[0] === k)[1], i)).join('')}${P.filter(x => !C.includes(x[0])).map(([k, l]) => row(k, l, -1)).join('')}
+      <p class="note" style="margin:8px 0 0">Home and 3 of your choice. The rest are under More.${custom ? ' <button class="btn sm" data-navreset style="margin-left:6px">Reset</button>' : ''}</p></div>`;
+  }
+  return `<h2 class="sec-h" style="margin-bottom:14px">Appearance</h2>
+  <div class="h2">This device</div>
+  <div class="card pad"><div class="cap">Theme</div>${seg('data-thm', th, [['light','Light'],['dark','Dark'],['auto','Auto']])}
+    <div class="cap">Text size</div>${seg('data-txt', tx, [['s','Standard'],['l','Large']])}
+    <div class="x-ph"><div class="cap">Menu</div>${seg('data-layout', L, [['bottom','Bottom bar'],['side','Sidebar']])}</div></div>
+  <div class="h2">Everywhere you sign in</div>
+  <div class="card pad"><div class="cap">What you see</div>${seg('data-view', LEAN() ? 'lean' : 'full', [['lean','Lean'],['full','Full']])}
+    <p class="note" style="margin:0">${LEAN() ? 'Main places and fields. The rest under More.' : 'Everything in view.'}</p></div>
+  ${menu}
+  ${staffNav ? `<div class="card"><a class="it" href="#edithome"><span class="ico">${ic('edit', 18)}</span><span class="t"><b>Home cards</b><small>${myCards().length} on Home</small></span><span class="chev">›</span></a></div>` : ''}`;
+};
 
 const PWD = () => (me() || {}).auth === 'password';
 const pStatus = p => p.active === false || p.status === 'off' ? '<span class="pst"><i></i>Off</span>' : p.locked ? '<span class="pst rd"><i>!</i>Locked</span>'
@@ -1323,6 +1419,8 @@ function bind(){
   if(['perf','rep','reports'].includes(route.page)) PERF.bind();
   if(window.PC) PC.bind();
   if(route.page === 'teach') TUT.bind();
+  if(route.page === 'me') FAM.bind();
+  bellCount();
   on('[data-go]', (el, e) => { if(!e.target.closest('a')) location.href = el.dataset.go; });
   document.querySelectorAll('[data-go][tabindex]').forEach(el => el.onkeydown = e => { if(e.key === 'Enter' && e.target === el) location.href = el.dataset.go; });
   on('[data-cf]', el => confirmSheet(el.dataset.cf));
@@ -1346,6 +1444,19 @@ function bind(){
   if($('actWho')) $('actWho').onchange = () => { AF.who = $('actWho').value; actLoad(); };
   if($('cfQ')) $('cfQ').oninput = () => { cfQuery = $('cfQ').value; const pos = $('cfQ').selectionStart; render(); const q = $('cfQ'); if(q){ q.focus(); q.setSelectionRange(pos, pos); } };
   if($('attAll')) $('attAll').onclick = () => { attAll = true; render(); };
+  document.querySelectorAll('[data-acode]').forEach(el => el.onclick = async () => { try{ const r = await hub.api('people', {method:'POST', body: JSON.stringify({action:'code', id: el.dataset.acode})}); store.set('lhq_people', r.people); codeSheet(r); }catch(e){ toast(e.message); } });
+  document.querySelectorAll('[data-aconf]').forEach(el => el.onclick = async () => { const s0 = HD.students().find(x => x.key === route.args[0]) || {}; try{ await hub.api('confirmer', {method:'POST', body: JSON.stringify({key: s0.name, name: s0.name, who: el.dataset.aconf})}); await hub.pull(); render(); toast('Saved'); }catch(e){ toast(e.message); } });
+  document.querySelectorAll('[data-aadd]').forEach(el => el.onclick = () => { const s0 = HD.students().find(x => x.key === route.args[0]) || {}, role = el.dataset.aadd;
+    const go = async (name, email) => { try{ const r = await hub.api('people', {method:'POST', body: JSON.stringify(Object.assign({action:'add', name, role, email}, role === 'parent' ? {childNames:[s0.name]} : {}))}); store.set('lhq_people', r.people); render(); codeSheet(Object.assign({name:r.name, role:r.role}, r), true); }catch(e){ toast(e.message); } };
+    if(role === 'student') return go(s0.name, '');
+    const others = HD.people().filter(p => p.role === 'parent');
+    openSheet(`<div class="hx"><h3>Add a parent</h3><button class="ib" data-close>✕</button></div>
+      <label class="f"><span>Full name</span><input class="in" id="apN" value="${esc(s0.parent || '')}" placeholder="e.g. Grace Phiri"></label><label class="f"><span>Email (optional)</span><input class="in" id="apE" type="email"></label>
+      <button class="btn n full" id="apAdd">Add and get a setup code</button>
+      ${others.length ? `<div class="h2">Or an existing parent</div><div class="card">${others.slice(0, 30).map(p => `<button class="it" data-alink="${p.id}"><span class="t"><b>${esc(p.name)}</b><small>${esc((p.children || []).join(', '))}</small></span></button>`).join('')}</div>` : ''}`);
+    $('apAdd').onclick = () => go($('apN').value.trim(), $('apE').value.trim());
+    document.querySelectorAll('[data-alink]').forEach(b => b.onclick = async () => { try{ const r = await hub.api('people', {method:'POST', body: JSON.stringify({action:'link', id: b.dataset.alink, childName: s0.name})}); store.set('lhq_people', r.people); closeSheet(); render(); toast('Linked'); }catch(e){ toast(e.message); } }); });
+  if($('ohSave')) $('ohSave').onclick = () => { const o = {}; ['Mo','Tu','We','Th','Fr','Sa','Su'].forEach(d => { const a = $('oh' + d + 'a').value, b = $('oh' + d + 'b').value; o[d] = a && b && a < b ? [a, b] : null; }); saveSettings({openHours: o}); };
   document.querySelectorAll('[data-view]').forEach(el => el.onclick = async () => { const v = el.dataset.view, s0 = hub.session();
     if(s0 && s0.me){ s0.me.view = v; localStorage.setItem('lhq_session', JSON.stringify(s0)); } LHQNav.section(route.page); render();
     try{ await hub.api('people', {method:'POST', body: JSON.stringify({action:'view', view:v})}); toast(v === 'lean' ? 'Lean' : 'Full'); }catch(e){ toast('Saved on this device'); } });
@@ -1367,6 +1478,14 @@ function bind(){
     if(key !== route.args[0]) location.hash = stuLink(key, 'details'); else render();
   };
   // account
+  on('[data-thm]', el => { lhqTheme.set(el.dataset.thm); render(); });
+  on('[data-txt]', el => { lhqTheme.setText(el.dataset.txt); render(); });
+  const saveNav = async nav => { const s0 = hub.session(); if(s0 && s0.me){ s0.me.nav = nav; localStorage.setItem('lhq_session', JSON.stringify(s0)); } render();
+    try{ await hub.api('people', {method:'POST', body: JSON.stringify({action:'nav', nav})}); }catch(e){ toast('Saved on this device'); } };
+  on('[data-navk]', el => { const k = el.dataset.navk, C = LHQNav.chosenKeys().slice(), i = C.indexOf(k);
+    if(i >= 0) C.splice(i, 1); else { if(C.length >= 3) return toast('3 at most. Untick one first.'); C.push(k); } saveNav(C); });
+  on('[data-navmv]', el => { const [i, d] = el.dataset.navmv.split(':').map(Number), C = LHQNav.chosenKeys().slice(); [C[i], C[i + d]] = [C[i + d], C[i]]; saveNav(C); });
+  on('[data-navreset]', () => saveNav(null));
   on('[data-layout]', el => { LHQNav.setLayout(el.dataset.layout); render(); toast(el.dataset.layout === 'side' ? 'Sidebar on this device' : 'Bottom bar on this device'); });
   if($('acStatus')) $('acStatus').innerHTML = `<span class="tag ${localStorage.getItem('lhq_syncDirty') === 'true' ? 'am">Saving changes' : 'ok">Everything saved online'}</span>`;
   if($('pinGo')) $('pinGo').onclick = async () => {
@@ -1486,7 +1605,7 @@ async function checkServices(){
 }
 /* backup: one file with every document and setting */
 async function doBackup(){
-  const data = {}; const SKIP = ['lhq_code','lhq_lastBackup','lhq_bkSnooze','lhq_session','lhq_syncBase','lhq_syncKv','lhq_syncRev','lhq_syncDirty','lhq_people','lhq_draft','lhq_layout','lhq_theme','lhq_attOpen'];
+  const data = {}; const SKIP = ['lhq_code','lhq_lastBackup','lhq_bkSnooze','lhq_session','lhq_syncBase','lhq_syncKv','lhq_syncRev','lhq_syncDirty','lhq_people','lhq_draft','lhq_layout','lhq_theme','lhq_text','lhq_attOpen'];
   for(let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if(k && k.startsWith('lhq_') && !SKIP.includes(k)){ try{ data[k] = JSON.parse(localStorage.getItem(k)); }catch(e){} } }
   const name = `LHQ-backup_${today()}.json`, text = JSON.stringify({app:'LHQ Quotes & Invoices', version:2, exportedAt:new Date().toISOString(), data});
   try{
