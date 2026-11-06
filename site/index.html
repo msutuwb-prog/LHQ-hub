@@ -517,7 +517,7 @@ P.home = () => {
   const h = new Date().getHours(), greet = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening', d = new Date();
   const recent = saved.slice().sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0)).slice(0, 6);
   const draft = store.get('lhq_draft', null);
-  const draftRow = draft && !draft.id && (draft.student || draft.name) ? `<div class="card"><a class="it" href="doc.html#draft"><span class="ico">${ic('edit')}</span><span class="t"><b>Unsaved ${esc(WORD[draft.type || 'quote'].toLowerCase())} · ${esc(draft.student || draft.name)}</b><small>Not saved yet. Open it to finish and save.</small></span><span class="tag am">Draft</span></a></div>` : '';
+  const draftRow = draft && !draft.id && (draft.student || draft.name) ? `<div class="card"><a class="it" href="doc.html#draft"><span class="ico">${ic('edit')}</span><span class="t"><b>Unsaved ${esc(WORD[draft.type || 'quote'].toLowerCase())} · ${esc(draft.student || draft.name)}</b><small>Not saved yet</small></span><span class="tag am">Draft</span></a></div>` : '';
   return `<div class="ph"><div class="tt"><h1>${greet}${me().name ? ', ' + esc(first(me().name)) : ''}</h1><p>${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()]} ${d.getDate()} ${MONTHL[d.getMonth()]}</p></div>
     <div class="acts"><a class="btn" href="#edithome" title="Edit Home" aria-label="Edit Home">${ic('edit',16)}</a>${can('quotes') || can('receipts') || can('cards') ? `<a class="btn n" href="#new">${ic('plus',16,2.4)} New</a>` : ''}</div></div>
   ${cards.length ? `<div class="mcs">${cards.map(k => { const c = CARDS[k]; return `<div class="mc" data-go="${typeof c.href === 'function' ? c.href() : c.href}" role="link" tabindex="0" aria-label="${esc(c.t)}"><span class="l">${ic(c.ic,15,2)}${c.t}</span>${c.html(m)}</div>`; }).join('')}</div>` : ''}
@@ -532,11 +532,11 @@ P.home = () => {
 P.edithome = () => {
   const cards = myCards(), MAX = 6, m = metrics(HD.students());
   const lib = Object.entries(CARDS).filter(([k, c]) => !c.need || can(c.need));
-  return `<div class="ph"><div class="tt"><h1>Edit Home</h1><p>Your cards: ${cards.length} of ${MAX}. Only you see your choice, on any device. Needs attention and Recent always stay.</p></div><a class="btn n" href="#home">Done</a></div>
+  return `<div class="ph"><div class="tt"><h1>Edit Home</h1><p>${cards.length} of ${MAX} cards</p></div><a class="btn n" href="#home">Done</a></div>
   ${cards.length ? `<div class="mcs">${cards.map((k, i) => { const c = CARDS[k]; return `<div class="mc ed"><div class="ctl"><button title="Move earlier" ${i===0?'disabled':''} data-mv="${i}:-1">${ic('back',15,2.2)}</button><button title="Move later" ${i===cards.length-1?'disabled':''} data-mv="${i}:1">${ic('chev',15,2.2)}</button><button class="rm" title="Remove" data-rm="${i}">✕</button></div><span class="l">${ic(c.ic,15,2)}${c.t}</span>${c.html(m)}</div>`; }).join('')}</div>` : '<p class="empty">No cards. Add some below.</p>'}
   <div class="h2">Add a card</div>
   <div class="card">${lib.map(([k, c]) => `<div class="it"><span class="ico">${ic(c.ic)}</span><span class="t"><b>${c.t}</b><small>${c.d}</small></span>${c.step2 ? '<span class="tag gr">With step 2</span>' : cards.includes(k) ? '<span class="tag ok">On Home</span>' : `<button class="btn sm" data-add="${k}" ${cards.length >= MAX ? 'disabled title="Remove a card first"' : ''}>+ Add</button>`}</div>`).join('')}</div>
-  ${can('money') ? '' : '<p class="note">Money cards are not in your list: the Director has not given you money access.</p>'}`;
+  ${can('money') ? '' : '<p class="note">Money cards need money access.</p>'}`;
 };
 
 /* ================= students ================= */
@@ -575,7 +575,7 @@ P.student = (key, tab = 'overview') => {
       <div class="t-ses" style="grid-template-columns:repeat(4,1fr)"><div><b>${T.planned || '?'}</b><small>Planned</small></div><div><b>${T.had}</b><small>Had</small></div><div><b>${T.remaining}</b><small>Left</small></div><div><b>${T.owed}</b><small>Owed</small></div></div>${sBar(T)}
       ${it.cap && T.planned < it.cap ? `<p class="note" style="margin:8px 0 0;color:var(--am);font-weight:700">The card's days only fit ${T.planned} of the ${it.cap} sessions paid for: add a day or a make-up.</p>` : ''}
       <p class="note" style="margin:8px 0 0">${nice(it.pa)} – ${nice(it.b)}${it.cap ? ` · ${it.cap} sessions on the card` : ''} · ${T.confirmed} confirmed${T.waiting ? ` · ${T.waiting} waiting` : ''}${T.disputed ? ` · ${T.disputed} disputed` : ''}${T.lost ? ` · ${T.lost} min taken off` : ''} · ${T.behind ? `<b style="color:var(--am)">${T.behind} behind</b>` : 'on track'}</p></div>
-      <div class="card">${T.entries.slice().reverse().map(e => { const st = HD.cfState(e); return `<button class="it" ${st ? `data-cf="${esc(e.id)}"` : ''}>${st ? cfMark(st) : '<span class="cfm" style="border:2px solid var(--line)"></span>'}<span class="t"><b>${nice(e.d)}${e.t1 ? ' · ' + esc(e.t1) + '–' + esc(e.t2 || '') : ''}${e.mk ? ' · make-up' : ''}</b><small>${esc({attended:'On time', present:'Present', late:'Late', absent:'Absent: a make-up is owed', cancelled:'Cancelled: a make-up is owed'}[e.a] || e.a || '')}${st ? ' · ' + CFL[st] : ''}${(e.tp || []).length ? ' · ' + esc(e.tp.join(', ')) : ''} · ${esc(e.tutor || '')}</small></span></button>`; }).join('') || '<p class="empty">No sessions logged yet.</p>'}</div>`).join('');
+      <div class="card">${T.entries.slice().reverse().map(e => { const st = HD.cfState(e); return `<button class="it" ${st ? `data-cf="${esc(e.id)}"` : ''}>${st ? cfMark(st) : '<span class="cfm" style="border:2px solid var(--line)"></span>'}<span class="t"><b>${nice(e.d)}${e.t1 ? ' · ' + esc(e.t1) + '–' + esc(e.t2 || '') : ''}${e.mk ? ' · make-up' : ''}</b><small>${esc({attended:'On time', present:'Present', late:'Late', absent:'Absent · owed', cancelled:'Cancelled · owed'}[e.a] || e.a || '')}${st ? ' · ' + CFL[st] : ''}${(e.tp || []).length ? ' · ' + esc(e.tp.join(', ')) : ''} · ${esc(e.tutor || '')}</small></span></button>`; }).join('') || '<p class="empty">No sessions logged yet.</p>'}</div>`).join('');
   }
   if(tab === 'documents'){
     body = `<div class="card">${s.docs.map(d => docRow(d, {noName:true})).join('') || '<p class="empty">No documents yet.</p>'}</div>
@@ -588,7 +588,7 @@ P.student = (key, tab = 'overview') => {
          <div class="acts"><button class="btn n" id="sdSave">Save details</button><button class="btn" id="sdCancel">Cancel</button></div></div>`
       : `<div class="card pad"><dl class="kv">${F.map(([l, f]) => `<dt>${l}</dt><dd>${esc(s[f]) || '<span style="color:var(--muted);font-weight:500">Not added</span>'}</dd>`).join('')}</dl>
          ${can('students') ? `<div class="acts" style="margin-top:12px"><button class="btn" id="sdEdit">${ic('edit',16)} Edit details</button></div>` : ''}
-         <p class="note">New quotes, invoices, receipts and cards fill these in. Documents already saved or sent keep what they had.</p></div>`;
+         <p class="note">New documents use these.</p></div>`;
   }
   return `${crumb('#students', 'Students', 'student/' + encodeURIComponent(key))}
   <div class="ph"><div class="tt"><h1>${esc(s.name)}</h1><p>${esc([s.level, s.school].filter(Boolean).join(' · ') || ' ')}</p></div><div class="acts" style="align-items:center"><span class="tag ${s.status.cls}" style="font-size:12px">${s.status.text}</span><a class="btn sm" href="#rep/student/${encodeURIComponent(s.key)}">${ic('rep',15)} Report</a></div></div>
@@ -651,7 +651,7 @@ function newStudentSheet(thenQuote){
     <button class="btn n full" id="nsGo">${thenQuote ? 'Save and make a quote' : 'Save student'}</button>`);
   $('nsGo').onclick = () => {
     const name = $('ns_name').value.trim(); if(!name){ toast('Add the student\'s name'); $('ns_name').focus(); return; }
-    if(!$('ns_heard').value){ toast('Choose how they heard about LHQ. It shows which marketing works.'); $('ns_heard').focus(); return; }
+    if(!$('ns_heard').value){ toast('Choose how they heard about LHQ'); $('ns_heard').focus(); return; }
     const f = {}; HD.DETAIL.forEach(k => { const el = $('ns_' + k); if(el && el.value.trim()) f[k] = el.value; });
     let key;
     if(HD.studentRecords()[sk(name)] || saved.some(d => sk(d.student) === sk(name))){
@@ -711,7 +711,7 @@ function makeupSheet(id){
     <p class="sp">${esc(card.student)} · ${esc(range(card.periodStart, card.periodEnd))}. The period has ended with these sessions not made up.</p>
     ${rows.map((x, i) => `<div class="card pad" style="margin-bottom:10px"><b>${esc(x.sub)}</b> · ${x.owed} session${x.owed === 1 ? '' : 's'}<small style="display:block;color:var(--muted)">${[x.missS ? `${x.missS} student absent` : '', x.missT ? `${x.missT} tutor couldn't teach` : '', x.cf ? `${x.cf} carried in` : '', x.made ? `${x.made} made up` : ''].filter(Boolean).join(' · ')}</small>
       <div class="seg" data-mu="${i}" style="margin:10px 0 0"><button class="on" data-v="carry">Carry to next period</button><button data-v="refund">Refund ${mkShort(x.owed * rate(x.sub))}</button></div></div>`).join('')}
-    <p class="note" style="margin:0 0 12px">Carried sessions show on the next tuition card and the tutor's page. A refund is recorded in Business › Spending as a refund.</p>
+    <p class="note" style="margin:0 0 12px">Carried sessions go on the next card. Refunds go to Spending.</p>
     <button class="btn n full" id="muGo">Save</button>`);
   document.querySelectorAll('[data-mu] button').forEach(b => b.onclick = () => b.parentElement.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)));
   $('muGo').onclick = () => {
@@ -726,7 +726,7 @@ function makeupSheet(id){
         sp[eid] = {id: eid, date: today(), cat: 'Refunds', amount: refund, what: `Refund: ${parts.join(', ')} session(s) not made up · ${card.student}`, to: card.name || '', method: '', by: me().name, at: Date.now(), refund: card.number};
         store.set('lhq_spend', sp);
         const st = Object.assign({}, store.get('lhq_settings', {})); const L = lines(st.spendCats || DEFAULT_SPEND_CATS.join('\n')); if(!L.includes('Refunds')){ L.push('Refunds'); st.spendCats = L.join('\n'); store.set('lhq_settings', st); }
-      } else toast('Saved. Ask the Director to record the refund in Business › Spending.');
+      } else toast('Saved · the Director records the refund');
     }
     closeSheet(); location.hash = '#home'; toast(refund ? `Saved. Refund of ${mk(refund)} recorded.` : 'Saved. The sessions carry to the next period.');
   };
@@ -804,33 +804,33 @@ P.sessions = (only = '') => {
   const C = HD.sessionsToConfirm(), disp = C.filter(e => HD.cfState(e) === 'disputed'), wait = C.filter(e => HD.cfState(e) === 'waiting');
   const row = e => { const st = HD.cfState(e); return `<button class="it" data-cf="${esc(e.id)}">${cfMark(st)}<span class="t"><b>${esc(e.st)} · ${esc(e.sub)}</b><small>${nice(e.d)}${e.t1 ? ' ' + esc(e.t1) + '–' + esc(e.t2 || '') : ''} · ${esc(e.tutor || '')} · ${CFL[st]} · ${esc(cfLine(e))}</small></span><span class="chev">›</span></button>`; };
   return `${crumb('#tutors', 'Tutors', 'sessions')}
-  <div class="ph"><div class="tt"><h1>Sessions</h1><p>Tutors log, and students confirm (from Stage 2). Until then a session confirms itself 48 hours after it's logged. You settle disputes and keep an eye on the count.</p></div></div>
+  <div class="ph"><div class="tt"><h1>Sessions</h1><p>Confirms itself 48 h after it's logged</p></div></div>
   ${disp.length ? `<div class="h2">Disputed · to settle <em>${disp.length}</em></div><div class="card">${disp.map(row).join('')}</div>` : ''}
   <div class="actf"><label class="f" style="margin:0;flex:2;min-width:200px"><input class="in" id="sfQ" type="search" placeholder="Find a student, subject or tutor" value="${esc(SF.q)}" autocomplete="off"></label>
     <label class="f" style="margin:0;flex:1;min-width:170px"><select class="in" id="sfT" aria-label="Tutor"><option value="">All tutors</option>${tutors.map(n => `<option ${SF.tutor === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label></div>
   <div class="seg"><a class="${only !== 'behind' ? 'on' : ''}" href="#sessions">Everyone</a><a class="${only === 'behind' ? 'on' : ''}" href="#sessions/behind">Behind</a></div>
   <div class="h2">${only === 'behind' ? 'Behind' : 'This period'} <em>${rows.length}</em></div>
   <div class="card">${rows.map(r => `<a class="it" href="${stuHref(r.it.st)}" style="align-items:flex-start"><span class="t"><b>${esc(r.it.st)} · ${esc(r.it.sub)}</b><small>${esc(r.it.tutor || 'No tutor')} · ${sLine(r.T)}</small>${sBar(r.T)}</span>${sTag(r.T)}</a>`).join('') || `<p class="empty">${qq || SF.tutor ? 'Nothing matches.' : only === 'behind' ? 'Nobody is behind. ✓' : 'No current tuition cards.'}</p>`}</div>
-  <p class="note">The dark mark on each bar is where the student should be by today. A session counts once it's confirmed; a missed one is owed as a make-up.</p>
+  <p class="note">Dark mark: where they should be today.</p>
   ${wait.length ? `<details class="card" style="padding:0"><summary class="it" style="cursor:pointer"><span class="t"><b>Waiting to confirm themselves · ${wait.length}</b><small>Within 48 hours of being logged</small></span></summary>${wait.slice().reverse().map(row).join('')}</details>` : ''}`;
 };
 P.confirm = (id = '') => { if(id) setTimeout(() => confirmSheet(decodeURIComponent(id)), 0); return P.sessions(); };
 
 /* ---------- clashes on the cards: the tutor has the final say; LHQ can do the same ---------- */
 function openClashes(){ const R = store.get('lhq_clashes', {}) || {}; return SCHED.weekClashes(saved.filter(x => typeOf(x) === 'card'), today()).filter(c => !(R[c.key] && R[c.key].s === 'together')); }
-const KINDL = {group:'Same subject at once: teaching them together?', tutor:'A tutor with two subjects at once', student:'A student with two subjects at once'};
+const KINDL = {group:'Together?', tutor:'Double-booked', student:'Double-booked'};
 const tellMsg = m => `Hello, a small change to ${first(m.st)}'s timetable: ${m.sub} moves from ${SCHED.DAYN[m.from.day]}s ${m.from.s}–${m.from.e} to ${SCHED.DAYN[m.to.day]}s ${m.to.s}–${m.to.e}, from this week. The number of sessions stays the same. Thank you, LHQ`;
 P.clashes = () => {
   if(!can('tutors')) return `${crumb('#home', 'Home')}<p class="empty">You don't have permission to sort clashes.</p>`;
   const R = store.get('lhq_clashes', {}) || {}, W = SCHED.weekClashes(saved.filter(x => typeOf(x) === 'card'), today());
   const sent = W.filter(c => R[c.key] && R[c.key].s === 'admin'), wait = W.filter(c => !R[c.key]), tog = W.filter(c => R[c.key] && R[c.key].s === 'together');
   const moves = Object.values(store.get('lhq_moves', {}) || {}).filter(Boolean).sort((a, b) => b.at - a.at), tell = moves.filter(m => !m.told), done = moves.filter(m => m.told).slice(0, 10);
-  const row = c => { const r = R[c.key]; return `<div class="it" style="align-items:flex-start;flex-wrap:wrap"><span class="t" style="min-width:220px"><b style="white-space:normal">${esc(SCHED.clashText(c))}</b><small>${KINDL[c.kind]} · ${c.members.map(m => `${esc(c.kind === 'student' ? m.sub : m.st)} ${m.s}–${m.e} (${esc(m.number || '')})`).join(' · ')}${r ? ` · ${r.s === 'together' ? 'taught together' : 'sent to LHQ'} by ${esc(r.by)}${r.note ? ': ' + esc(r.note) : ''}` : ''}</small></span>
-    <span class="acts">${r && r.s === 'together' ? `<button class="btn sm" data-clx="reopen:${esc(c.key)}">Reopen</button>` : `${c.kind === 'group' ? `<button class="btn sm n" data-clx="together:${esc(c.key)}">Teaching them together</button>` : ''}<button class="btn sm${c.kind === 'group' ? '' : ' n'}" data-clmove="${esc(c.key)}">Move a session</button>`}</span></div>`; };
+  const row = c => { const r = R[c.key]; return `<div class="it" style="align-items:flex-start;flex-wrap:wrap"><span class="t" style="min-width:220px"><b style="white-space:normal">${SCHED.DAYN[c.day]} ${c.members[0].s} · ${esc(c.kind === 'student' ? c.st : c.tutor)}</b><small>${KINDL[c.kind]} · ${c.members.map(m => esc(c.kind === 'student' ? m.sub : c.kind === 'group' ? m.st : `${m.st} (${m.sub})`)).join(', ')}${r ? ` · ${r.s === 'together' ? 'taught together' : 'sent to LHQ'} by ${esc(r.by)}${r.note ? ': ' + esc(r.note) : ''}` : ''}</small></span>
+    <span class="acts">${r && r.s === 'together' ? `<button class="btn sm" data-clx="reopen:${esc(c.key)}">Reopen</button>` : `${c.kind === 'group' ? `<button class="btn sm n" data-clx="together:${esc(c.key)}">Together</button>` : ''}<button class="btn sm${c.kind === 'group' ? '' : ' n'}" data-clmove="${esc(c.key)}">Move</button>`}</span></div>`; };
   const mvRow = m => { const sp = HD.students().find(x => SCHED.nk(x.name) === SCHED.nk(m.st));
     return `<div class="it" style="align-items:flex-start;flex-wrap:wrap"><span class="t" style="min-width:220px"><b>${esc(m.st)} · ${esc(m.sub)}</b><small>${SCHED.DAYN[m.from.day]} ${m.from.s}–${m.from.e} → ${SCHED.DAYN[m.to.day]} ${m.to.s}–${m.to.e} · ${m.n1} session${m.n1 === 1 ? '' : 's'}${m.n1 !== m.n0 ? ` (was ${m.n0})` : ''} · moved by ${esc(m.by)}${m.told ? ' · family told by ' + esc(m.told.by) : ''}</small></span>
     ${m.told ? '' : `<span class="acts"><a class="btn sm" target="_blank" rel="noopener" href="https://wa.me/${sp && sp.phone ? waNum(sp.phone) : ''}?text=${encodeURIComponent(tellMsg(m))}">${ic('wa',14)} WhatsApp</a><button class="btn sm n" data-cltold="${esc(m.id)}">Told them</button></span>`}</div>`; };
-  return `${crumb('#calendar', 'Calendar', 'clashes')}<div class="ph"><div class="tt"><h1>Clashes</h1><p>Week by week, from the tuition cards. The tutor has the final say: they teach the students together, move one of their sessions to a free time, or send it to you. You can do the same.</p></div></div>
+  return `${crumb('#calendar', 'Calendar', 'clashes')}<div class="ph"><div class="tt"><h1>Clashes</h1><p>The tutor decides first</p></div></div>
   ${sent.length ? `<div class="h2">Sent to you <em>${sent.length}</em></div><div class="card">${sent.map(row).join('')}</div>` : ''}
   ${tell.length ? `<div class="h2">Tell the family <em>${tell.length}</em></div><div class="card">${tell.map(mvRow).join('')}</div>` : ''}
   <div class="h2">Waiting for the tutor <em>${wait.length}</em></div><div class="card">${wait.map(row).join('') || '<p class="empty">No clashes. ✓</p>'}</div>
@@ -846,13 +846,13 @@ async function clashMove(c, o = {}){
     let f; try{ f = await hub.api('clash', {method:'POST', body: JSON.stringify({action:'free', key:c.key, k:m.k})}); }catch(e){ closeSheet(); return toast(e.message); }
     const ok = d => d.planned === f.n0;
     openSheet(`<div class="hx"><h3>Move ${esc(first(m.st))}'s ${esc(m.sub)}</h3><button class="ib" data-close>✕</button></div>
-      <p class="sp">Now ${SCHED.DAYN[m.day]} ${m.s}–${m.e} · ${f.n0} session${f.n0 === 1 ? '' : 's'} this period. These times are free for ${esc(m.tutor)} and ${esc(first(m.st))}, inside LHQ's hours.</p>
+      <p class="sp">Now ${SCHED.DAYN[m.day]} ${m.s} · ${f.n0} session${f.n0 === 1 ? '' : 's'} · free times</p>
       ${f.days.map(d => `<div class="h2" style="margin-top:10px">${d.name}${d.day === m.day ? ' (same day)' : ''} <em style="${ok(d) ? '' : 'color:var(--am)'}">${d.planned} session${d.planned === 1 ? '' : 's'}${ok(d) ? ' ✓' : ` · was ${f.n0}`}</em></div>
-        ${!ok(d) && o.me ? `<p class="note" style="margin:0">Moving to ${d.name} changes the number of sessions, and the invoice was based on ${f.n0}. Send the clash to LHQ instead.</p>` : `<div style="display:flex;flex-wrap:wrap;gap:6px">${d.slots.map(t => `<button class="btn sm" data-mvto="${d.day} ${t}">${t}</button>`).join('')}</div>`}`).join('') || '<p class="empty">No free time this week. Send it to LHQ.</p>'}`);
+        ${!ok(d) && o.me ? `<p class="note" style="margin:0">Changes the count: send it to LHQ.</p>` : `<div style="display:flex;flex-wrap:wrap;gap:6px">${d.slots.map(t => `<button class="btn sm" data-mvto="${d.day} ${t}">${t}</button>`).join('')}</div>`}`).join('') || '<p class="empty">No free time. Send it to LHQ.</p>'}`);
     $('sheet').querySelectorAll('[data-mvto]').forEach(b => b.onclick = async () => { const [day, t] = b.dataset.mvto.split(' '), d = f.days.find(x => x.day === day);
       if(!ok(d) && !confirm(`This changes ${first(m.st)}'s ${m.sub} from ${f.n0} to ${d.planned} sessions, so the invoice may need changing. Move anyway?`)) return;
       b.disabled = true;
-      try{ await hub.api('clash', {method:'POST', body: JSON.stringify({action:'move', key:c.key, k:m.k, to:{day, s:t}})}); toast(`Moved to ${SCHED.DAYN[day]} ${t}${o.me ? ': LHQ will tell the family' : ''}`); await done(); }catch(e){ b.disabled = false; toast(e.message); } });
+      try{ await hub.api('clash', {method:'POST', body: JSON.stringify({action:'move', key:c.key, k:m.k, to:{day, s:t}})}); toast(`Moved to ${SCHED.DAYN[day]} ${t}`); await done(); }catch(e){ b.disabled = false; toast(e.message); } });
   };
   if(M.length === 1) return pick(M[0]);
   openSheet(`<div class="hx"><h3>Which session moves?</h3><button class="ib" data-close>✕</button></div><p class="sp">${esc(SCHED.clashText(c))}</p>
@@ -866,7 +866,7 @@ function confirmSheet(id, mode){
   const head = `<div class="hx"><h3>${esc(e.st)} · ${esc(e.sub)}</h3><button class="ib" data-close>✕</button></div>
     <p class="sp">${nice(e.d)}${e.t1 ? ' · ' + esc(e.t1) + '–' + esc(e.t2 || '') : ''} · with ${esc(e.tutor || 'the tutor')} · ${esc({present:'Present', late:'Late'}[e.a] || e.a || '')}</p>
     <div class="card pad" style="margin:0 0 12px">${cfMark(st)} <b>${CFL[st]}</b><p class="note" style="margin:4px 0 0">${esc(cfLine(e))}</p>${st === 'settled' && cf.note2 ? `<p class="note" style="margin:4px 0 0">${esc(cf.note2)}</p>` : ''}${st === 'settled' || st === 'disputed' ? `<p class="note" style="margin:4px 0 0">Disputed by ${esc(cf.from || 'the student')}${cf.t1 ? ` · says ${esc(cf.t1)}–${esc(cf.t2 || '')}` : ''}${cf.disputedBy || cf.by ? ' · recorded by ' + esc(cf.disputedBy || cf.by) : ''}</p>` : ''}</div>`;
-  let body = st === 'waiting' ? `<p class="note">${esc(first(e.st))} confirms it from Stage 2. Until then it confirms itself in ${Math.max(1, Math.round(HD.cfLeft(e) / 36e5))} h. If something was wrong, ${esc(first(e.st))} and ${esc(first(e.tutor || 'the tutor'))} sort it out first; you settle it if they don't agree.</p>` : '';
+  let body = st === 'waiting' ? `<p class="note">Confirms itself in ${Math.max(1, Math.round(HD.cfLeft(e) / 36e5))} h.</p>` : '';
   if(st === 'disputed') body = `<div class="h2" style="margin-top:4px">Settle it</div>
     <div class="t-opts"><button type="button" role="radio" aria-checked="true" class="t-opt on" data-cfout="keep"><span class="t-ind c"></span><span class="tx">The tutor's times stand<small>The whole session counts</small></span></button>
     <button type="button" role="radio" aria-checked="false" class="t-opt" data-cfout="lost"><span class="t-ind c"></span><span class="tx">Take minutes off<small>Only the minutes taught count</small></span></button></div>
@@ -883,7 +883,7 @@ function confirmSheet(id, mode){
     const body = {out: (sh.querySelector('[data-cfout].on') || {}).dataset.cfout, lost: v('#cfLost'), note: v('#cfNote')};
     b.disabled = true;
     try{ await hub.api('confirm', {method:'POST', body: JSON.stringify(Object.assign({action, id}, body))}); await hub.pull(); closeSheet();
-      toast('Settled: both see the outcome'); render(); }
+      toast('Settled'); render(); }
     catch(err){ b.disabled = false; toast(err.message); }
   });
 }
@@ -910,7 +910,7 @@ P.activity = () => {
   const t = new Date(), tk = t.toISOString().slice(0, 10), hm = s => new Date(s).toTimeString().slice(0, 5), dl = d => d === tk ? 'Today' : nice(d);
   const areas = (ACT.areas.length ? ACT.areas : Object.keys(AREAL)).filter(a => AREAL[a]);
   return `${crumb('#home', 'Home', 'activity')}
-  <div class="ph"><div class="tt"><h1>Activity</h1><p>Everything done in the Hub, by whom${isDir() ? '' : '. You see the parts you can open'}.</p></div></div>
+  <div class="ph"><div class="tt"><h1>Activity</h1><p>Who did what</p></div></div>
   <div class="actf"><div class="seg">${[['today','Today'],['week','This week'],['month','This month'],['all','All']].map(([k, l]) => `<button class="${AF.when === k ? 'on' : ''}" data-actw="${k}">${l}</button>`).join('')}</div>
     <label class="f" style="margin:0;min-width:200px;flex:1;max-width:300px"><select class="in" id="actWho" aria-label="Person"><option value="">Everyone</option>${ACT.people.map(n => `<option ${AF.who === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label></div>
   <div class="tks">${areas.map(a => `<button class="tk${AF.areas.has(a) ? ' on' : ''}" data-acta="${a}" aria-pressed="${AF.areas.has(a)}"><span class="cbx">${AF.areas.has(a) ? '✓' : ''}</span>${AREAL[a]}</button>`).join('')}${AF.areas.size ? '<button class="btn sm" data-acta="">Clear</button>' : ''}</div>
@@ -936,7 +936,7 @@ P.calendar = (view = 'week', d = '') => {
   const L = all.filter(e => (!CF.tutor || e.tutor === CF.tutor) && (!CF.student || e.student === CF.student)).map(e => Object.assign(e, {clash: cl.get(e) || (e.tutor && SCHED.unavailable(avail, e.tutor, e.day, e.a, e.b).length ? 'unavailable' : '')}));
   const logs = Object.values((store.get('lhq_logs', {e:{}}) || {}).e || {}).filter(x => x && !x.x && x.ty === 's');
   const byD = {}; L.forEach(e => (byD[e.date] = byD[e.date] || []).push(e));
-  const nCl = L.filter(e => e.clash && e.clash !== 'group').length, nGr = L.filter(e => e.clash === 'group').length, CW = {tutor:'tutor in two places', student:'student has two subjects', unavailable:"in the tutor's unavailable time", group:'same subject at once: the tutor says if they teach them together'}, CC = k => k === 'group' ? 'var(--am)' : 'var(--rd)';
+  const nCl = L.filter(e => e.clash && e.clash !== 'group').length, nGr = L.filter(e => e.clash === 'group').length, CW = {tutor:'tutor double-booked', student:'student double-booked', unavailable:'tutor unavailable', group:'same subject: together?'}, CC = k => k === 'group' ? 'var(--am)' : 'var(--rd)';
   const row = e => { const lg = logs.find(x => x.k === e.k && x.d === e.date), st = lg ? (lg.a === 'absent' ? ' · student absent' : lg.a === 'cancelled' ? ' · cancelled' : ' · ✓ logged') : '';
     return `<a class="it" href="${e.mu ? '#bookings' : D('d=' + e.card)}" style="${e.clash ? 'border-left:3px solid ' + CC(e.clash) : e.mu && e.mu.status === 'asked' ? 'border-left:3px dashed var(--am)' : ''}"><span class="cal-t">${e.s || '?'}<small>${e.e || ''}</small></span><span class="t"><b>${esc(e.student)} · ${esc(e.sub)}</b><small>${esc(e.tutor || 'No tutor yet')}${e.where ? ' · ' + esc(e.where) : ''}${st}${e.clash ? ` · <span style="color:${CC(e.clash)};font-weight:700">${CW[e.clash]}</span>` : ''}</small></span><span class="chev">›</span></a>`; };
   let body;
@@ -963,7 +963,7 @@ P.bookings = () => {
     return L.map(e => SCHED.nk(e.tutor) === SCHED.nk(m.tutor) ? `${m.tutor} teaches ${e.student} then` : `${m.st} has ${e.sub} then`); };
   const row = m => { const c = m.status === 'asked' ? clashOf(m) : []; return `<div class="it" style="align-items:flex-start;flex-wrap:wrap"><span class="cal-t">${m.s}<small>${m.e}</small></span><span class="t" style="min-width:200px"><b>${esc(m.st)} · ${esc(m.sub)}</b><small>${nice(m.d)} · with ${esc(m.tutor)}${m.why ? ' · ' + esc(m.why) : ''}${m.note ? ' · ' + esc(m.note) : ''}${m.decidedBy ? ' · ' + esc(m.decidedBy) : ''}</small>${c.map(x => `<small style="color:var(--rd);font-weight:700">! ${esc(x)}</small>`).join('')}</span>
     ${m.status === 'asked' ? `<span class="acts"><button class="btn sm n" data-mu="ok:${esc(m.id)}">Confirm</button><button class="btn sm" data-mu="no:${esc(m.id)}">Decline</button></span>` : ''}</div>`; };
-  return `${crumb('#tutors', 'Tutors', 'bookings')}<div class="ph"><div class="tt"><h1>Make-ups</h1><p>Times tutors booked for sessions owed. Confirm, or decline with a reason so they can book again.</p></div></div>
+  return `${crumb('#tutors', 'Tutors', 'bookings')}<div class="ph"><div class="tt"><h1>Make-ups</h1></div></div>
   <div class="h2">To confirm <em>${ask.length}</em></div><div class="card">${ask.map(row).join('') || '<p class="empty">Nothing waiting. ✓</p>'}</div>
   ${up.length ? `<div class="h2">Confirmed, coming up <em>${up.length}</em></div><div class="card">${up.map(row).join('')}</div>` : ''}
   ${no.length ? `<div class="h2">Declined</div><div class="card">${no.map(row).join('')}</div>` : ''}`;
@@ -978,14 +978,14 @@ P.reqs = () => {
   const R = reqList(), ap = R.filter(r => !r.dec.s), buy = R.filter(r => r.dec.s === 'approved'), done = R.filter(r => ['bought','declined'].includes(r.dec.s)).slice(0, 20);
   const row = r => `<div class="it" style="align-items:flex-start;flex-wrap:wrap"><span class="t" style="min-width:200px"><b>${esc(r.item.item)}${r.item.qty && r.item.qty !== '1' ? ' × ' + esc(r.item.qty) : ''}</b><small>${esc(r.rep.tutor)} · asked ${nice(r.rep.d)}${r.item.by ? ' · needed by ' + nice(r.item.by) : ''}${r.item.for ? ' · for ' + esc(r.item.for.replace(/\b\w/g, c => c.toUpperCase())) : ''}${r.dec.s ? ` · ${{approved:'approved', declined:'declined', bought:'bought'}[r.dec.s]} by ${esc(r.dec.boughtBy || r.dec.by)}` : ''}${r.dec.cost ? ' · MKW ' + Number(r.dec.cost).toLocaleString('en-US') : ''}${r.dec.note ? ' · ' + esc(r.dec.note) : ''}</small></span>
     <span class="acts">${!r.dec.s && isDir() ? `<button class="btn sm n" data-rq="approve:${esc(r.key)}">Approve</button><button class="btn sm" data-rq="decline:${esc(r.key)}">Decline</button>` : r.dec.s === 'approved' && can('spend') ? `<button class="btn sm n" data-rq="bought:${esc(r.key)}">Mark bought</button>` : ''}</span></div>`;
-  return `${crumb('#home', 'Home', 'reqs')}<div class="ph"><div class="tt"><h1>Requisitions</h1><p>What tutors ask for in their daily report. ${isDir() ? 'You approve or decline;' : 'The Director approves;'} whoever records spending marks it bought, and the cost goes into Spending.</p></div></div>
+  return `${crumb('#home', 'Home', 'reqs')}<div class="ph"><div class="tt"><h1>Requisitions</h1><p>${isDir() ? 'You approve · bought goes to Spending' : 'The Director approves · bought goes to Spending'}</p></div></div>
   <div class="h2">To approve <em>${ap.length}</em></div><div class="card">${ap.map(row).join('') || '<p class="empty">Nothing waiting. ✓</p>'}</div>
   <div class="h2">Approved · to buy <em>${buy.length}</em></div><div class="card">${buy.map(row).join('') || '<p class="empty">Nothing to buy.</p>'}</div>
   ${done.length ? `<div class="h2">Done</div><div class="card">${done.map(row).join('')}</div>` : ''}`;
 };
 function reqSheet(action, key){
   const r = reqList().find(x => x.key === key); if(!r) return;
-  const send = async body => { try{ await hub.api('req', {method:'POST', body: JSON.stringify(Object.assign({action, key}, body))}); await hub.pull(); closeSheet(); render(); toast({approve:'Approved: Admin will get it', decline:'Declined: the tutor sees why', bought:'Bought: the cost is in Spending'}[action]); }catch(e){ toast(e.message); } };
+  const send = async body => { try{ await hub.api('req', {method:'POST', body: JSON.stringify(Object.assign({action, key}, body))}); await hub.pull(); closeSheet(); render(); toast({approve:'Approved', decline:'Declined', bought:'Added to Spending'}[action]); }catch(e){ toast(e.message); } };
   if(action === 'approve') return send({});
   const cats = (settingsKV().spendCats || '').split('\n').map(x => x.trim()).filter(Boolean);
   openSheet(`<div class="hx"><h3>${action === 'decline' ? 'Decline' : 'Mark bought'}</h3><button class="ib" data-close>✕</button></div><p class="sp">${esc(r.item.item)}${r.item.qty && r.item.qty !== '1' ? ' × ' + esc(r.item.qty) : ''} · for ${esc(r.rep.tutor)}</p>
@@ -1054,17 +1054,17 @@ S.account = () => { const m = me(), L = LHQNav.layout();
   <div class="card pad"><dl class="kv"><dt>Name</dt><dd>${esc(m.name || '')}</dd><dt>Role</dt><dd>${roleText(m)}</dd><dt>This device</dt><dd id="acStatus"></dd></dl></div>
   <div class="card pad"><div class="cap">Navigation on this device</div>
     <div class="seg"><button class="${L === 'bottom' ? 'on' : ''}" data-layout="bottom">Bottom bar</button><button class="${L === 'side' ? 'on' : ''}" data-layout="side">Sidebar</button></div>
-    <p class="note" style="margin:0">Bottom bar: sections along the bottom on tablet and phone (a sidebar on a computer). Sidebar: sections down the left on tablet and computer. Phones always use the bottom bar.</p></div>
+    <p class="note" style="margin:0">Phones always use the bottom bar.</p></div>
   <div class="card pad"><div class="cap">LHQ Hub on this device</div>
-    ${window.lhqInstalled && lhqInstalled() ? '<p class="note" style="margin:0">Installed. It opens from your home screen, and also opens with no internet: what you save then uploads when the connection is back.</p>'
-    : `<p class="note" style="margin:0 0 10px">Install it to open LHQ Hub from your home screen like an app, faster, and also with no internet.</p>${window.lhqInstall ? `<button class="btn n" id="instGo">Install LHQ Hub</button>` : '<p class="note" style="margin:0"><b>iPhone or iPad:</b> Safari › Share › Add to Home Screen. <b>Android:</b> Chrome menu ⋮ › Install app (or Add to Home screen).</p>'}`}</div>
+    ${window.lhqInstalled && lhqInstalled() ? '<p class="note" style="margin:0">Installed. Works offline too.</p>'
+    : `<p class="note" style="margin:0 0 10px">Opens from your home screen, also offline.</p>${window.lhqInstall ? `<button class="btn n" id="instGo">Install LHQ Hub</button>` : '<p class="note" style="margin:0"><b>iPhone or iPad:</b> Safari › Share › Add to Home Screen. <b>Android:</b> Chrome menu ⋮ › Install app (or Add to Home screen).</p>'}`}</div>
   ${PWD() ? `<div class="card pad"><div class="cap">How you sign in</div><dl class="kv"><dt>Username</dt><dd>${esc(m.username || '')}</dd><dt>Email</dt><dd>${esc(m.email || 'not added')}</dd></dl>
-      <p class="note" style="margin:6px 0 10px">You sign in with your username or your email, and your password. Your username is set by LHQ.</p>
+      <p class="note" style="margin:6px 0 10px">Sign in with your username or email.</p>
       <div class="acts"><button class="btn sm" id="pwChange">Change password</button><button class="btn sm" id="emChange">${m.email ? 'Change email' : 'Add email'}</button></div></div>
     <div class="card pad"><div class="cap">Signed in on</div><div id="acDev"><p class="note" style="margin:0">Loading…</p></div></div>
     ${isDir() ? `<div class="card pad"><div class="cap">If you forget your password</div><p class="note" style="margin:0">Nobody else can reset the Director's password. On the sign-in screen tap Forgot password › I'm the Director, and use the setup code (the first 8 characters of LHQ_SECRET in Netlify). Keep it somewhere safe.</p></div>` : ''}` : `<div class="card pad"><div class="cap">Change my PIN</div><div class="r3"><label class="f"><span>Current PIN</span><input class="in" id="pin0" type="password" inputmode="numeric" maxlength="6"></label><label class="f"><span>New PIN</span><input class="in" id="pin1" type="password" inputmode="numeric" maxlength="6"></label><label class="f"><span>New PIN again</span><input class="in" id="pin2" type="password" inputmode="numeric" maxlength="6"></label></div><button class="btn n" id="pinGo">Change PIN</button></div>
   ${isDir() ? `<div class="card pad"><div class="cap">If you forget your PIN</div><p class="note" style="margin:0">As Director, nobody else can reset your PIN. Tap "Forgot your PIN?" when signing in and use the setup code (the first 8 characters of LHQ_SECRET in Netlify). Keep it somewhere safe.</p></div>` : ''}`}
-  <div class="card pad"><div class="cap">Sign out</div><p class="note" style="margin:0 0 10px">Removes LHQ's documents from this device. They stay online.</p><button class="btn rd" id="outGo">${ic('out',16)} Sign out of this device</button></div>`; };
+  <div class="card pad"><div class="cap">Sign out</div><p class="note" style="margin:0 0 10px">Clears this device. Everything stays online.</p><button class="btn rd" id="outGo">${ic('out',16)} Sign out of this device</button></div>`; };
 
 const PWD = () => (me() || {}).auth === 'password';
 const pStatus = p => p.active === false || p.status === 'off' ? '<span class="pst"><i></i>Off</span>' : p.locked ? '<span class="pst rd"><i>!</i>Locked</span>'
@@ -1103,7 +1103,7 @@ function personPage(id){
   const acts = saved.flatMap(d => (d.log || []).filter(a => a.by === p.name).map(a => ({...a, d}))).sort((a, b) => b.at - a.at).slice(0, 8);
   return `<h2 class="sec-h">${esc(p.name)}</h2><p class="sec-p">${roleText(p)}${p.seen ? ' · last seen ' + ago(p.seen) : ''}</p>
   ${D0 && ['tutor','admin'].includes(p.role) ? `<div class="card pad"><div class="cap">Role</div><div class="seg">${['tutor','admin'].map(r => `<button class="${p.role === r ? 'on' : ''}" data-role="${r}">${HD.ROLE[r]}</button>`).join('')}</div>
-      ${p.role === 'admin' ? `<div class="toggle"><div class="t"><b>Also teaches</b><small>Has their own students, calendar and SRAs</small></div><button class="sw-t ${p.tutor ? 'on' : ''}" data-teach role="switch" aria-checked="${!!p.tutor}" aria-label="Also teaches"></button></div>` : '<p class="note" style="margin:0">Tutors see only their own students. They have no access to money.</p>'}</div>
+      ${p.role === 'admin' ? `<div class="toggle"><div class="t"><b>Also teaches</b><small>Own students, calendar, SRAs</small></div><button class="sw-t ${p.tutor ? 'on' : ''}" data-teach role="switch" aria-checked="${!!p.tutor}" aria-label="Also teaches"></button></div>` : '<p class="note" style="margin:0">Own students only. No money.</p>'}</div>
     ${p.role === 'admin' ? `<div class="card pad"><div class="cap">What ${esc(first(p.name))} can do</div>
       ${PERMS.map(([g, list]) => `<div class="cap" style="font-size:10.5px;margin-top:16px">${g}</div>${list.map(([k, l, sub]) => `<div class="toggle"><div class="t"><b>${l}</b>${sub ? `<small>${sub}</small>` : ''}</div><button class="sw-t ${(p.perms || []).includes(k) ? 'on' : ''}" data-perm="${k}" role="switch" aria-checked="${(p.perms || []).includes(k)}" aria-label="${l}"></button></div>`).join('')}`).join('')}
       <div class="acts" style="margin-top:12px"><button class="btn sm" id="permDefault">Use admin defaults</button></div>
@@ -1127,7 +1127,7 @@ async function addPersonPw(){
       <label class="f"><span>Full name</span><input class="in" id="ap_name" autocomplete="off" value="${esc(F.name)}" placeholder="e.g. Kondwani Kalua"></label>
       <label class="f"><span>Role</span></label><div class="seg" style="flex-wrap:wrap;margin-bottom:12px">${roles.map(([k, l]) => `<button class="${F.role === k ? 'on' : ''}" data-aprole="${k}">${l}</button>`).join('')}</div>
       ${F.role === 'parent' ? `<label class="f"><span>Their children</span></label>${F.students ? F.students.map(st => `<button type="button" class="kidtick${F.kids.includes(st.id) ? ' on' : ''}" data-apkid="${st.id}"><span class="bx">${F.kids.includes(st.id) ? '✓' : ''}</span><span><b>${esc(st.name)}</b>${st.level ? `<small style="display:block;color:var(--muted)">${esc(st.level)}</small>` : ''}</span></button>`).join('') || '<p class="note">No students in the records yet.</p>' : '<p class="note">Loading students…</p>'}` : ''}
-      ${F.role === 'student' ? '<p class="note" style="margin:-4px 0 12px">Linked to the student with the same name in the records, or a new one.</p>' : ''}
+      ${F.role === 'student' ? '' : ''}
       <label class="f" style="margin-top:8px"><span>Email <small>(optional)</small></span><input class="in" id="ap_email" type="email" value="${esc(F.email)}" placeholder="If they have one"></label>
       <button class="btn n full" id="apGo">Add · get a setup code</button>`);
     bind();
@@ -1204,7 +1204,7 @@ const tutorNames = () => { const s = settingsKV(), n = new Set(lines(s.tutors));
 let tiDraft = null;   // contacts read from pasted text, waiting for Save
 S.tutorinfo = () => { const info = Object.assign({}, settingsKV().tutorInfo || {}, tiDraft || {}), names = [...new Set(tutorNames().concat(Object.keys(tiDraft || {})))].sort((a, b) => a.localeCompare(b));
   return `<h2 class="sec-h">Tutors' contacts</h2><p class="sec-p">Used to send each tutor their tuition-card link straight to their WhatsApp or email.</p>
-  <div class="card pad"><div class="cap">Paste contacts</div><p class="note" style="margin:0 0 8px">Paste names with numbers and emails, in any layout. They are matched to the tutors below; check them, then Save.</p>
+  <div class="card pad"><div class="cap">Paste contacts</div><p class="note" style="margin:0 0 8px">Paste names, numbers and emails in any layout, then check and Save.</p>
     <textarea class="in" id="tiPaste" rows="4" placeholder="Maureen Story +265 886 394 944&#10;storymaureen0@gmail.com"></textarea><button class="btn sm" id="tiRead" style="margin-top:8px">Fill in from the text</button></div>
   <div class="card pad">${names.map((n, i) => { const o = info[n] || {}, d = tiDraft && tiDraft[n];
     return `<div class="ti-row${d ? ' new' : ''}"><b>${esc(n)}${d ? ` <span class="tag am">${d.as ? 'from the text: ' + esc(d.as) : 'from the text'}</span>` : ''}</b><div class="r2"><input class="in" data-tiph="${i}" value="${esc(o.phone || '')}" placeholder="WhatsApp, e.g. 0991 234 567" inputmode="tel"><input class="in" data-tiem="${i}" value="${esc(o.email || '')}" placeholder="Email" type="email" inputmode="email"></div></div>`; }).join('') || '<p class="empty" style="margin:0">No tutors yet. Add them under Lists › Tutors, or as people who teach.</p>'}
@@ -1233,13 +1233,13 @@ S.enrol = () => { const link = new URL('checklist.html', location.href).href;
 
 S.sending = () => `<h2 class="sec-h">Email & WhatsApp</h2><p class="sec-p">Sending documents straight from LHQ Hub.</p>
   <div class="card pad"><p class="svc" id="svcEmail"><i></i><span>Email: checking…</span></p><p class="svc" id="svcWa"><i></i><span>WhatsApp: checking…</span></p>
-  <p class="note" style="margin:6px 0 0">Anyone signed in to LHQ Hub as Director or admin can send. No access code is needed any more.</p></div>`;
+  </div>`;
 
 S.backup = () => { const last = store.get('lhq_lastBackup', 0);
   return `<h2 class="sec-h">Backup & restore</h2><p class="sec-p">Everything is stored online in LHQ Hub. A backup is an extra copy as one file: keep it in Google Drive or send it to yourself.</p>
   <div class="card pad"><dl class="kv"><dt>Last backup</dt><dd>${last ? ago(last) : 'Never'}</dd><dt>Documents</dt><dd>${saved.length}</dd>${window.lhqStorageUse ? `<dt>This device</dt><dd>${(lhqStorageUse() / 1048576).toFixed(1)} MB used of about 5 MB</dd>` : ''}</dl>
   <div class="acts" style="margin-top:12px"><button class="btn n" id="bkGo">Back up now</button><button class="btn" id="rsGo">Add from a backup</button></div>
-  <p class="note">Adding from a backup brings back documents that are missing, and the newer copy wins where a document is in both. It never deletes anything.</p></div>`; };
+  <p class="note">Adds what's missing; the newer copy wins. Never deletes.</p></div>`; };
 
 /* previews have their own storage; the Director can fill it with demo data */
 let PREVIEW = false; try{ PREVIEW = sessionStorage.getItem('lhq_preview') === '1'; }catch(e){}
@@ -1277,14 +1277,14 @@ function bind(){
   document.querySelectorAll('[data-go][tabindex]').forEach(el => el.onkeydown = e => { if(e.key === 'Enter' && e.target === el) location.href = el.dataset.go; });
   on('[data-cf]', el => confirmSheet(el.dataset.cf));
   on('[data-clx]', async el => { const [a, ...k] = el.dataset.clx.split(':'); el.disabled = true;
-    try{ await hub.api('clash', {method:'POST', body: JSON.stringify({action:a, key:k.join(':')})}); await hub.pull(); render(); toast(a === 'together' ? 'Taught together: no longer a clash' : 'Reopened'); }catch(e){ el.disabled = false; toast(e.message); } });
+    try{ await hub.api('clash', {method:'POST', body: JSON.stringify({action:a, key:k.join(':')})}); await hub.pull(); render(); toast(a === 'together' ? 'Together' : 'Reopened'); }catch(e){ el.disabled = false; toast(e.message); } });
   on('[data-clmove]', el => { const c = openClashes().concat(SCHED.weekClashes(saved.filter(x => typeOf(x) === 'card'), today())).find(x => x.key === el.dataset.clmove); if(c) clashMove(c); });
   on('[data-cltold]', async el => { el.disabled = true; try{ await hub.api('clash', {method:'POST', body: JSON.stringify({action:'told', id:el.dataset.cltold})}); await hub.pull(); render(); toast('Marked told'); }catch(e){ el.disabled = false; toast(e.message); } });
   if($('sfQ')) $('sfQ').oninput = e => { SF.q = e.target.value; const p = e.target.selectionStart; render(); const x = $('sfQ'); if(x){ x.focus(); x.setSelectionRange(p, p); } };
   if($('sfT')) $('sfT').onchange = e => { SF.tutor = e.target.value; render(); };
   on('[data-rq]', el => { const [a, ...k] = el.dataset.rq.split(':'); reqSheet(a, k.join(':')); });
   on('[data-mu]', async el => { const [d, id] = el.dataset.mu.split(':');
-    const go = async note => { try{ await hub.api('makeup', {method:'POST', body: JSON.stringify({id, decision:d, note})}); await hub.pull(); closeSheet(); render(); toast(d === 'ok' ? 'Confirmed: it\'s in the tutor\'s calendar' : 'Declined: the tutor can book again'); }catch(e){ toast(e.message); } };
+    const go = async note => { try{ await hub.api('makeup', {method:'POST', body: JSON.stringify({id, decision:d, note})}); await hub.pull(); closeSheet(); render(); toast(d === 'ok' ? 'Confirmed' : 'Declined'); }catch(e){ toast(e.message); } };
     if(d === 'ok') return go('');
     openSheet(`<div class="hx"><h3>Decline the make-up</h3><button class="ib" data-close>✕</button></div><label class="f"><span>Why (the tutor sees this)</span><input class="in" id="muN" placeholder="e.g. The room is booked then"></label><button class="btn n full" id="muNo">Decline</button>`);
     $('muNo').onclick = () => go($('muN').value); });
@@ -1327,11 +1327,11 @@ function bind(){
       <label class="f"><span>Current password</span><input class="in" id="cp0" type="password" autocomplete="current-password"></label>
       <label class="f"><span>New password</span><input class="in" id="cp1" type="password" autocomplete="new-password"></label>
       <label class="f"><span>New password again</span><input class="in" id="cp2" type="password" autocomplete="new-password"></label>
-      <p class="note">At least 8 characters, with a number or a symbol, and not your name. Other devices stay signed in unless you sign them out below.</p><button class="btn n full" id="cpGo">Save</button>`); bind();
+      <p class="note">8+ characters, a number or symbol, not your name.</p><button class="btn n full" id="cpGo">Save</button>`); bind();
     $('cpGo').onclick = async () => { if($('cp1').value !== $('cp2').value) return toast('The new passwords don\'t match');
       try{ await hub.api('account', {method:'POST', body:JSON.stringify({action:'password', current:$('cp0').value, password:$('cp1').value})}); closeSheet(); toast('Password changed'); }catch(e){ toast(e.message); } }; };
   if($('emChange')) $('emChange').onclick = () => { openSheet(`<div class="hx"><h3>${me().email ? 'Change email' : 'Add email'}</h3><button class="ib" data-close>✕</button></div>
-      <label class="f"><span>Email</span><input class="in" id="em0" type="email" value="${esc(me().email || '')}"></label><p class="note">You can sign in with it as well as your username. Leave it empty to remove it.</p><button class="btn n full" id="emGo">Save</button>`); bind();
+      <label class="f"><span>Email</span><input class="in" id="em0" type="email" value="${esc(me().email || '')}"></label><p class="note">Also works for signing in. Empty removes it.</p><button class="btn n full" id="emGo">Save</button>`); bind();
     $('emGo').onclick = async () => { try{ const r = await hub.api('account', {method:'POST', body:JSON.stringify({action:'email', email:$('em0').value})}); const ss = hub.session(); ss.me = Object.assign({}, ss.me, {email:r.me.email}); localStorage.setItem('lhq_session', JSON.stringify(ss)); closeSheet(); render(); toast('Saved'); }catch(e){ toast(e.message); } }; };
   if($('acDev')) (async () => { try{ const r = await hub.api('account', {method:'POST', body:JSON.stringify({action:'devices'})}), D = r.devices;
       $('acDev').innerHTML = D.map(d => `<div class="it"><span class="t"><b>${esc(d.label)}</b><small>${d.me ? 'This device · now' : 'Last used ' + ago(new Date(d.last_used).getTime())}${d.keep ? ' · kept signed in' : ''}</small></span>${d.me ? '<span class="pst ok"><i>✓</i>This one</span>' : `<button class="btn sm" data-devout="${d.id}">Sign out</button>`}</div>`).join('')
@@ -1346,7 +1346,7 @@ function bind(){
   else if($('addPerson')) $('addPerson').onclick = () => {
     openSheet(`<div class="hx"><h3>${isDir() ? 'Add a person' : 'Add a tutor'}</h3><button class="ib" data-close>✕</button></div><p class="sp">They sign in by choosing their name and entering this PIN. They can change it afterwards.</p>
       <label class="f"><span>Full name</span><input class="in" id="np_name" autocomplete="off"></label>
-      ${isDir() ? `<label class="f"><span>Role</span></label><div class="seg" id="np_role"><button class="on" data-r="tutor">Tutor</button><button data-r="admin">Admin</button></div><p class="note" style="margin:-4px 0 12px">New admins start with the default permissions, with money off. Change anything on their page.</p>` : ''}
+      ${isDir() ? `<label class="f"><span>Role</span></label><div class="seg" id="np_role"><button class="on" data-r="tutor">Tutor</button><button data-r="admin">Admin</button></div><p class="note" style="margin:-4px 0 12px">Money access starts off.</p>` : ''}
       <label class="f"><span>First PIN (4 to 6 digits)</span><input class="in" id="np_pin" inputmode="numeric" maxlength="6"></label>
       <button class="btn n full" id="npGo">Add</button>`);
     bind();
@@ -1359,7 +1359,7 @@ function bind(){
     if($('pUnlock')) $('pUnlock').onclick = () => peopleCall({action:'unlock', id:pid}, `${first(P0.name)} is unlocked`);
     if($('pCode')) $('pCode').onclick = async () => { if(P0.status === 'active' && !confirm(`Make a new setup code for ${P0.name}? Their password keeps working until they use it.`)) return;
       try{ const r = await hub.api('people', {method:'POST', body:JSON.stringify({action:'code', id:pid})}); store.set('lhq_people', r.people); render(); codeSheet(Object.assign({name:P0.name, role:P0.role}, r)); }catch(e){ toast(e.message); } };
-    if($('pEmail')) $('pEmail').onclick = () => { openSheet(`<div class="hx"><h3>${esc(P0.name)} · email</h3><button class="ib" data-close>✕</button></div><label class="f"><span>Email</span><input class="in" id="pe0" type="email" value="${esc(P0.email || '')}"></label><p class="note">They can sign in with it as well as their username.</p><button class="btn n full" id="peGo">Save</button>`); bind();
+    if($('pEmail')) $('pEmail').onclick = () => { openSheet(`<div class="hx"><h3>${esc(P0.name)} · email</h3><button class="ib" data-close>✕</button></div><label class="f"><span>Email</span><input class="in" id="pe0" type="email" value="${esc(P0.email || '')}"></label><p class="note">Also works for signing in.</p><button class="btn n full" id="peGo">Save</button>`); bind();
       $('peGo').onclick = async () => { if(await peopleCall({action:'email', id:pid, email:$('pe0').value}, 'Saved')) closeSheet(); }; };
     if($('pOutAll')) $('pOutAll').onclick = () => { if(confirm(`Sign ${P0.name} out of every device? They sign in again with their password.`)) peopleCall({action:'outall', id:pid}, `${first(P0.name)} is signed out everywhere`); };
   }
@@ -1378,7 +1378,7 @@ function bind(){
     };
   }
   // settings sections
-  if($('tiRead')) $('tiRead').onclick = () => { const r = parseContacts($('tiPaste').value, tutorNames()); const n = Object.keys(r).length; if(!n){ toast('No email addresses found in the text'); return; } tiDraft = r; render(); toast(`${n} contact${n === 1 ? '' : 's'} filled in. Check them, then Save.`); };
+  if($('tiRead')) $('tiRead').onclick = () => { const r = parseContacts($('tiPaste').value, tutorNames()); const n = Object.keys(r).length; if(!n){ toast('No email addresses found in the text'); return; } tiDraft = r; render(); toast(`${n} filled in · check, then Save`); };
   if($('tiSave')) $('tiSave').onclick = () => { const names = [...new Set(tutorNames().concat(Object.keys(tiDraft || {})))].sort((a, b) => a.localeCompare(b)), info = {};
     names.forEach((n, i) => { const ph = document.querySelector(`[data-tiph="${i}"]`).value.trim(), em = document.querySelector(`[data-tiem="${i}"]`).value.trim(); if(ph || em) info[n] = {phone: ph, email: em}; });
     const bad = Object.entries(info).find(([, o]) => o.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(o.email)); if(bad){ toast(`Check ${bad[0]}'s email`); return; }
@@ -1450,7 +1450,7 @@ $('restoreFile').onchange = e => {
     if(!j || !j.data || !String(j.app || '').startsWith('LHQ')){ toast('That file isn\'t an LHQ backup'); return; }
     const byId = new Map(saved.map(d => [d.id, d])); let added = 0, newer = 0;
     (j.data.lhq_saved || []).forEach(d => { const cur = byId.get(d.id); if(!cur){ byId.set(d.id, d); added++; } else if((d.savedAt || 0) > (cur.savedAt || 0)){ byId.set(d.id, d); newer++; } });
-    if(!added && !newer){ toast('Nothing to add: everything in the backup is already here'); return; }
+    if(!added && !newer){ toast('Nothing to add'); return; }
     if(!confirm(`Add ${added} missing document${added === 1 ? '' : 's'}${newer ? ` and update ${newer} with a newer copy` : ''} from the backup?`)) return;
     store.set('lhq_saved', [...byId.values()].sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0)));
     toast(`Added from the backup. Uploading to LHQ Hub…`); render();

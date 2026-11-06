@@ -105,7 +105,7 @@ try {
     subjects: [{ name: "Mathematics", tutor: "Emmanuel Mkwamba", days: ["Tu", "Th"], start: "14:00", end: "15:00", perWeek: "2", sessions: "8" }] }) }] });
   check(!c2.error, "Admin makes a second card at the same time", JSON.stringify(c2).slice(0, 200));
   await Tt.evaluate(async () => { try { await TUT.refresh(); } catch (e) {} }); await go(Tt, "#teach", 2000);
-  check(/Clashes to sort/.test(await text(Tt)) && /Linga Shaba and Tadala Phiri both have Mathematics with Emmanuel Mkwamba Tue 14:00/.test(await text(Tt)), "the tutor sees the clash on their Home");
+  check(/Clashes to sort/.test(await text(Tt)) && /Tue 14:00 · Mathematics[\s\S]{0,40}Linga Shaba, Tadala Phiri/.test(await text(Tt)), "the tutor sees the clash on their Home");
   await Tt.locator('[data-tclx^="together:group|emmanuel mkwamba|Tu|"]').click(); await Tt.waitForTimeout(2000);
   check(!/Tue 14:00/.test((await text(Tt)).split("Clashes to sort")[1] || ""), "Teaching them together: Tuesday is no longer a clash");
   await Tt.locator('[data-tclmove^="group|emmanuel mkwamba|Th|"]').click(); await Tt.waitForTimeout(800);
