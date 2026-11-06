@@ -65,7 +65,7 @@ try {
     subjects: [{ name: "Mathematics", tutor: "Emmanuel Mkwamba", days: ["Tu", "Th"], start: "14:00", end: "15:00", perWeek: "2", sessions: "8" }] }, base) }] });
   check(!r1.error && !c1.error, "Admin records the payment and makes the tuition card", JSON.stringify([r1, c1]).slice(0, 200));
   await pull(D); await go(D, "", 1500); const homeAfter = await text(D, ".mcs");
-  const recv = t => { const m = /MKW ([\d.,]+)(k|M)?\s*received/.exec(t.replace(/\n/g, " ")); return m ? +m[1].replace(/,/g, "") * (m[2] === "M" ? 1e6 : m[2] === "k" ? 1e3 : 1) : NaN; };
+  const recv = t => { const m = /(?:Money this month|Money in)\s*MKW\s*([\d.,]+)(k|M)?/i.exec(t.replace(/\s+/g, " ")); return m ? +m[1].replace(/,/g, "") * (m[2] === "M" ? 1e6 : m[2] === "k" ? 1e3 : 1) : NaN; };
   check(recv(homeAfter) - (recv(homeBefore) || 0) === 120000, "the Director's Home shows the MKW 120,000 received", `before ${recv(homeBefore)} after ${recv(homeAfter)}`);
   await go(D, "#biz/owed", 1500);
   check(!(await text(D)).includes(st), "the paid invoice leaves Owed to LHQ");
