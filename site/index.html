@@ -363,7 +363,9 @@ document.addEventListener('click', e => { const b = e.target.closest && e.target
   const fb = e.target.closest && e.target.closest('[data-flt]'); if(fb){ e.preventDefault(); document.documentElement.classList.toggle('flt-open'); } });
 function render(){
   load(); parse();
-  document.documentElement.classList.toggle('lean', LEAN()); document.documentElement.classList.remove('lean-open');
+  document.documentElement.classList.toggle('lean', LEAN());
+  if(render.last !== route.page){ document.documentElement.classList.remove('flt-open'); render.last = route.page; }
+  if(render.lastH !== location.hash){ document.documentElement.classList.remove('lean-open'); render.lastH = location.hash; }
   if(me().role === 'tutor' && !['teach','settings','set'].includes(route.page)){ location.replace('#teach'); route = {page:'teach', args:[]}; }
   const sec = route.page === 'teach' && me().role === 'tutor' ? ({sra:'tsra', report:'trep', cal:'tcal', avail:'tcal'}[route.args[0]] || 'teach') : {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', teach:'teach', tutors:'tutors', bookings:'tutors', reqs:'tutors', sessions:'tutors', confirm:'tutors', clashes:'tutors', calendar:'calendar', more:'more'}[route.page] || route.page;
   LHQNav.section(sec);
