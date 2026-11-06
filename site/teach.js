@@ -235,6 +235,31 @@ window.TUT = (function(){
     (data.gone || []).forEach(g => out.push({kind:'gone', card:{id:g.card, student:g.st, number:g.number}, lines:(g.subs || []).map(x => x + ' · no longer yours')}));
     return out;
   }
+  /* a student (or parent) said a session wasn't right: the tutor answers first */
+  const disputesMine = () => (data && data.entries || []).filter(e => e && !e.x && e.ty === 's' && e.cf && e.cf.s === 'disputed' && e.cf.step === 'tutor' && SCHED.nk(e.tutor) === SCHED.nk(myName()));
+  const KIND = {late:'started', early:'ended', none:"didn't happen", other:''};
+  function answersBlock(){
+    const D = disputesMine(); if(!D.length) return '';
+    return `<div class="h2">Needs you <em>${D.length}</em></div><div class="card" style="border-left:3px solid var(--gold)">${D.map(e => { const c = e.cf, who = short(c.from || e.st);
+      const said = c.kind === 'late' ? `started ${c.t1 || 'late'}` : c.kind === 'early' ? `ended ${c.t2 || 'early'}` : c.kind === 'none' ? "didn't happen" : `“${c.note}”`;
+      return `<div class="it" style="flex-wrap:wrap"><span class="ico" style="color:var(--am)">${ic('alert')}</span><span class="t"><b>${esc(who)}: ${esc(said)}</b><small>${esc(e.sub)} · ${nice(e.d)} · you logged ${esc(e.t1 || '')}${c.note && c.kind !== 'other' ? ' · “' + esc(c.note) + '”' : ''}</small></span>
+        <span class="acts" style="width:100%;margin:8px 0 0 34px"><button class="btn sm n" data-tans="yes:${esc(e.id)}">Accept</button><button class="btn sm" data-tans="no:${esc(e.id)}">Keep mine</button></span></div>`; }).join('')}</div>`;
+  }
+  async function answer(id, accept, note){
+    try{ await hub.api('tutor', {method:'POST', body: JSON.stringify({action:'answer', id, accept, note: note || ''})}); closeSheet(); toast(accept ? 'Accepted' : 'Kept'); await fetchData(); }catch(e){ toast(e.message); }
+  }
+  /* the bell */
+  function bell(){
+    if(!data) return {need: [], info: []};
+    const need = [], info = [];
+    disputesMine().forEach(e => need.push({t:`${short(e.cf.from || e.st)}: not right`, s:`${e.sub} · ${nice(e.d)}`, href:'#teach'}));
+    notices().forEach(n => need.push({t:`${n.kind === 'new' ? 'New' : 'Changed'}: ${n.card.student}`, s:n.lines[0] || '', href:'#teach'}));
+    (data.clashes || []).filter(c => !c.res || c.res.s !== 'together').forEach(c => need.push({t:`Clash · ${SCHED.DAYN[c.day]} ${c.members[0].s}`, s:c.members.map(m => m.st).join(', '), href:'#teach'}));
+    (data.makeups || []).filter(m => m.status !== 'asked' && m.decidedAt && Date.now() - m.decidedAt < 7 * 864e5).forEach(m => info.push({t:`Make-up ${m.status === 'ok' ? 'confirmed' : 'declined'}`, s:`${m.st} · ${nice(m.d)} ${m.s}`, at:m.decidedAt, href:'#teach/makeups'}));
+    Object.values(data.reqs || {}).filter(v => v && v.at && Date.now() - v.at < 7 * 864e5).forEach(v => info.push({t:`${v.item}: ${v.s}`, s:v.note || '', at:v.at, href:'#teach'}));
+    (data.entries || []).filter(e => e && e.cf && e.cf.agreed && e.cf.at && Date.now() - e.cf.at < 7 * 864e5 && SCHED.nk(e.tutor) === SCHED.nk(myName())).forEach(e => info.push({t:`${short(e.st)} agreed`, s:`${e.sub} · ${nice(e.d)}`, at:e.cf.at, href:'#teach'}));
+    return {need, info};
+  }
   /* clashes on their cards: they have the final say */
   function clashesBlock(){
     const C = (data.clashes || []).filter(c => !c.res || c.res.s !== 'together'); if(!C.length) return '';
@@ -429,7 +454,7 @@ window.TUT = (function(){
       (ed ? '<p class="note" style="margin:-6px 0 12px">Move, remove or add cards.</p>'
         : rep ? `<a class="t-banner ok" href="#teach/report"><span><b>Today's report is in</b>Sent at ${hm(rep.sent)}. You can still log; changes show as edited.</span></a>`
         : `<a class="t-banner" href="#teach/report"><span><b>Daily report due before you leave</b>Reminder between 4 and 5 pm${G.length ? ` · ${G.length} thing${G.length > 1 ? 's' : ''} still to log` : ''}</span></a>`) +
-      (ed ? '' : noticesBlock() + clashesBlock()) + cardsBlock() + (ed ? '' : reqsBlock() + `
+      (ed ? '' : answersBlock() + noticesBlock() + clashesBlock()) + cardsBlock() + (ed ? '' : reqsBlock() + `
       <div class="h2">Logged today <em>${L.length}</em></div>${timeline(L)}
       ${G.length ? `<div class="h2">Still to log <em>${G.length}</em></div>${gapCard(G)}` : ''}
       <div class="card">${[['#teach/cal','clock','Calendar','Your week from your tuition cards · clashes · times you can\'t teach'],['#teach/students','users','My students','Sessions had and remaining, make-ups'],['#teach/sra','restore','SRA tracker','Give, collect and print · next 7 days · by student'],['#teach/classes','users','Classes',`${(data.classes || []).length} official class${(data.classes || []).length === 1 ? '' : 'es'}`]].concat(tutorRole() ? [] : [['#teach/report','list','Daily report', rep ? 'Sent today' : 'Due before you leave']]).map(([h, i, b, s]) => `<a class="it" href="${h}"><span class="ico">${ic(i,18)}</span><span class="t"><b>${b}</b><small>${s}</small></span><span class="chev">${ic('chev',16,2)}</span></a>`).join('')}</div>`);
@@ -797,6 +822,10 @@ window.TUT = (function(){
     on('[data-tavrm]', el => { const L = (data.avail || []).slice().sort((a, b) => DORDER.indexOf(a.d) - DORDER.indexOf(b.d) || a.s.localeCompare(b.s)); L.splice(+el.dataset.tavrm, 1); saveAvail(L); });
     on('[data-tavadd]', () => { const d = $('tavD').value, s = $('tavS').value, e = $('tavE').value, n = $('tavN').value.trim(); if(!s || !e || s >= e){ toast('The time ends before it starts'); return; }
       saveAvail((data.avail || []).concat((d === 'wk' ? ['Mo','Tu','We','Th','Fr'] : [d]).map(x => ({d:x, s, e, note:n})))); });
+    on('[data-tans]', el => { const [a, ...r] = el.dataset.tans.split(':'), id = r.join(':');
+      if(a === 'yes') return answer(id, true);
+      openSheet(`<div class="hx"><h3>Keep your times</h3><button class="ib" data-close>✕</button></div><label class="f"><span>Note (the student sees it)</span><input class="in" id="tansN" placeholder="e.g. We started at 14:00 with the past paper"></label><button class="btn n full" id="tansGo">Keep mine</button>`);
+      $('tansGo').onclick = () => answer(id, false, $('tansN').value); });
     on('[data-tclx]', el => { const [a, ...k] = el.dataset.tclx.split(':'), key = k.join(':');
       if(a === 'together') return clashDo(a, key);
       openSheet(`<div class="hx"><h3>Send the clash to LHQ</h3><button class="ib" data-close>✕</button></div><label class="f"><span>Anything LHQ should know (optional)</span><input class="in" id="tclN" placeholder="e.g. Tadala can only do Tuesdays"></label><button class="btn n full" id="tclGo">Send to LHQ</button>`);
@@ -866,5 +895,5 @@ window.TUT = (function(){
     if($('twSave')) $('twSave').onclick = saveWa;
   }
   const isTutor = () => me().role === 'tutor' || !!me().tutor;
-  return {page, bind, isTutor, refresh: fetchData, items, sras, sessions, gaps, pendingWa, dayLogs};
+  return {page, bind, bell, isTutor, refresh: fetchData, items, sras, sessions, gaps, pendingWa, dayLogs};
 })();

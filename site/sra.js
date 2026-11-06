@@ -4,7 +4,7 @@
    before ("give on"). SRAs come back at the first session after they are given and after their do-on day; one not handed in moves to the
    next session day and shows as late, it isn't counted as missed.
    Works on plain data so any page can use it: entries (tutors' logs) and roster items ({k, days, card period}). */
-window.SRA = (function(){
+(typeof window !== "undefined" ? window : globalThis).SRA = (function(){
   const STAGES = [{n: 0, l: 'Learning Day', d: 0}, {n: 1, l: 'Review 1', d: 1}, {n: 2, l: 'Review 2', d: 3}, {n: 3, l: 'Review 3', d: 7}, {n: 4, l: 'Review 4', d: 14}, {n: 5, l: 'Review 5', m: 1}];
   const DAYC = ['Su','Mo','Tu','We','Th','Fr','Sa'];
   const iso = dt => dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');

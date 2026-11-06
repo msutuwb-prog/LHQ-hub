@@ -300,6 +300,12 @@ export async function manage(me, b) {
       const email = String(b.email || "").trim() || null;
       if (email && await T.one("SELECT 1 FROM people WHERE lower(email) = lower($1) AND NOT del", [email])) no("Someone already signs in with that email.");
       const kids = role === "parent" ? (Array.isArray(b.children) ? b.children.map(String) : []) : [];
+      if (role === "parent" && Array.isArray(b.childNames)) for (const n of b.childNames.map(x => String(x || "").trim()).filter(Boolean)) {   // from a student's page: by name
+        let r = await T.one("SELECT id FROM students WHERE key = $1", [nk(n)]);
+        if (!r) { r = { id: newId("st") }; await T.q("INSERT INTO students (id, key, name) VALUES ($1, $2, $3)", [r.id, nk(n), n]); }
+        else await T.q("UPDATE students SET del = false WHERE id = $1", [r.id]);
+        if (!kids.includes(r.id)) kids.push(r.id);
+      }
       if (role === "parent" && !kids.length) no("Tick at least one child.");
       const id = newId("p"), username = await mkUsername(T, name);
       await T.q("INSERT INTO people (id, name, role, username, email, status, perms) VALUES ($1, $2, $3, $4, $5, 'setup', $6)",
@@ -319,6 +325,13 @@ export async function manage(me, b) {
     if (p.id === me.id) no("Change your own sign-in under My account.");
     if (!mayManage(me, p)) no(p.role === "director" ? "Nobody can change the Director's account." : "Only Wanangwa can change this person.", 403);
     const log = s => T.q("INSERT INTO activity (id, actor_id, action, area, entity, entity_id, summary) VALUES ($1, $2, $3, 'people', 'people', $4, $5)", [newId("ac"), me.id, "person." + a, p.id, s]);
+    if (a === "link" && p.role === "parent") {   // a parent's children: add one by name
+      const n = String(b.childName || "").trim(); if (!n) no("Which child?");
+      let r = await T.one("SELECT id FROM students WHERE key = $1", [nk(n)]);
+      if (!r) { r = { id: newId("st") }; await T.q("INSERT INTO students (id, key, name) VALUES ($1, $2, $3)", [r.id, nk(n), n]); }
+      await T.q("INSERT INTO guardians (id, parent_id, student_id) VALUES ($1, $2, $3) ON CONFLICT (parent_id, student_id) DO UPDATE SET del = false", [newId("gu"), p.id, r.id]);
+      await log(`Linked ${p.name} to ${n}`); return { ok: true };
+    }
     if (a === "code") { const r = await makeCode(T, me, p.id); await log(`New setup code for ${p.name}`); return Object.assign({ name: p.name, username: p.username }, r); }
     if (a === "unlock") { await T.q("UPDATE people SET fails = 0, locked_until = NULL WHERE id = $1", [p.id]); await log(`Unlocked ${p.name}`); return { ok: true }; }
     if (a === "outall") { await T.q("UPDATE people SET pv = pv + 1 WHERE id = $1", [p.id]); await T.q("UPDATE devices SET revoked_at = now() WHERE person_id = $1 AND revoked_at IS NULL", [p.id]); await log(`Signed ${p.name} out of every device`); return { ok: true }; }

@@ -34,6 +34,7 @@ if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash)
 <script src="cards.js"></script>
 <script src="sra.js"></script>
 <script src="teach.js"></script>
+<script src="family.js"></script>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0}
@@ -359,6 +360,34 @@ function parse(){
   route = {page: P[page] ? page : 'home', args: parts.slice(1)};
 }
 const LEAN = () => me().view !== 'full';
+const staffRole = () => ['director','admin'].includes(me().role);
+/* ---------- the bell, on every account: what needs you (counted) and news ---------- */
+const BELL_SEEN = 'lhq_bell_seen';
+function bellItems(){
+  const r = me().role;
+  if(r === 'student' || r === 'parent') return FAM.bell();
+  if(r === 'tutor') return TUT.bell();
+  const att = attRows(attention(HD.students()));
+  const need = att.map(x => x.grp ? {t:`${x.items.length} ${GL[x.grp] || 'items'}`, s:'', href:'#home'} : {t:x.x.s.name, s:x.x.sub, href:x.x.href});
+  const T = me().tutor && window.TUT ? TUT.bell() : {need: [], info: []};
+  return {need: T.need.concat(need), info: T.info.concat((window.BELLINFO || []))};
+}
+function bellCount(){
+  const b = document.getElementById('hnBell'); if(!b || !hub.session()) return;
+  let n = 0; try{ n = bellItems().need.length; }catch(e){}
+  b.hidden = false; const c = b.querySelector('.hn-bn'); c.hidden = !n; c.textContent = n > 99 ? '99+' : n;
+  b.onclick = bellOpen;
+}
+window.lhqBellRefresh = bellCount;
+async function bellOpen(){
+  const B = bellItems(), seen = +(localStorage.getItem(BELL_SEEN) || 0);
+  if(staffRole() && can('tutors')){ try{ const j = await hub.api('activity?from=' + encodeURIComponent(new Date(Date.now() - 3 * 864e5).toISOString())); window.BELLINFO = (j.rows || []).filter(x => x.who !== me().name).slice(0, 12).map(x => ({t:x.summary, s:x.who + ' · ' + ago(new Date(x.at).getTime()), at:new Date(x.at).getTime(), href:'#activity'})); B.info = B.info.concat(window.BELLINFO); }catch(e){} }
+  const row = (x, need) => `<a class="it" href="${esc(x.href || '#')}" data-close><span class="ico" style="color:var(${need ? '--am' : '--bl'})">${ic(need ? 'alert' : 'clock')}</span><span class="t"><b style="${!need && (x.at || 0) <= seen ? 'font-weight:600' : ''}">${esc(x.t)}</b>${x.s ? `<small>${esc(x.s)}</small>` : ''}</span><span class="chev">›</span></a>`;
+  openSheet(`<div class="hx"><h3>Bell</h3><button class="ib" data-close>✕</button></div>
+    <div class="h2">Needs you <em>${B.need.length}</em></div><div class="card">${B.need.slice(0, 30).map(x => row(x, true)).join('') || '<p class="empty">Nothing. ✓</p>'}</div>
+    <div class="h2">For your info</div><div class="card">${B.info.sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 20).map(x => row(x, false)).join('') || '<p class="empty">Nothing new.</p>'}</div>`);
+  try{ localStorage.setItem(BELL_SEEN, String(Date.now())); }catch(e){}
+}
 document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-leanmore]'); if(b){ e.preventDefault(); document.documentElement.classList.add('lean-open'); }
   const fb = e.target.closest && e.target.closest('[data-flt]'); if(fb){ e.preventDefault(); document.documentElement.classList.toggle('flt-open'); } });
 function render(){
@@ -367,7 +396,8 @@ function render(){
   if(render.last !== route.page){ document.documentElement.classList.remove('flt-open'); render.last = route.page; }
   if(render.lastH !== location.hash){ document.documentElement.classList.remove('lean-open'); render.lastH = location.hash; }
   if(me().role === 'tutor' && !['teach','settings','set'].includes(route.page)){ location.replace('#teach'); route = {page:'teach', args:[]}; }
-  const sec = route.page === 'teach' && me().role === 'tutor' ? ({sra:'tsra', report:'trep', cal:'tcal', avail:'tcal'}[route.args[0]] || 'teach') : {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', teach:'teach', tutors:'tutors', bookings:'tutors', reqs:'tutors', sessions:'tutors', confirm:'tutors', clashes:'tutors', calendar:'calendar', more:'more'}[route.page] || route.page;
+  if(['student','parent'].includes(me().role) && !['me','settings','set'].includes(route.page)){ location.replace('#me'); route = {page:'me', args:[]}; }
+  const sec = route.page === 'me' ? ({practice:'mprac', calendar:'mcal', progress:'mprog', sessions:'mprog', subject:'mprog', payments:'mpay', more:'more'}[route.args[0]] || 'me') : route.page === 'teach' && me().role === 'tutor' ? ({sra:'tsra', report:'trep', cal:'tcal', avail:'tcal'}[route.args[0]] || 'teach') : {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', teach:'teach', tutors:'tutors', bookings:'tutors', reqs:'tutors', sessions:'tutors', confirm:'tutors', clashes:'tutors', calendar:'calendar', more:'more'}[route.page] || route.page;
   LHQNav.section(sec);
   const m = $('main');
   m.className = 'main' + (['home','edithome','new','students','student','tutors','teach'].includes(route.page) ? ' narrow' : '');
@@ -392,7 +422,7 @@ function placeScroll(prevPage, tap){
   else if(!same) scrollTo(0, 0);
 }
 window.addEventListener('hashchange', () => { if(!/^#(new|makeups)/.test(location.hash) && !$('sheet').hidden){ $('sheet').hidden = true; $('shbg').hidden = true; } const prev = pageKey(), tap = byTap; byTap = false; const y = scrollY; render(); if(/^#(new|makeups)/.test(location.hash)) scrollTo(0, y); else placeScroll(prev, tap); });
-window.hubApply = render; window.hubReady = () => { render(); HD.refreshPeople().then(render); }; window.hubRemap = render; window.hubMe = render;
+window.hubApply = render; window.hubReady = () => { render(); if(staffRole() || me().role === 'tutor') HD.refreshPeople().then(render).catch(() => {}); }; window.hubRemap = render; window.hubMe = render;
 window.addEventListener('pageshow', e => { if(e.persisted) render(); });
 window.addEventListener('lhqinstall', () => { if(route.page === 'set') render(); });
 
@@ -402,7 +432,7 @@ function crumb(fbHref, fbLabel, within){
   const b = LHQNav.back(fbHref, fbLabel, within ? u => u.startsWith('index.html#' + within) : null);
   return b.href ? `<a class="crumb" href="${esc(b.href)}">${ic('back',16,2.2)} ${esc(b.label)}</a>` : '';
 }
-const PAGE_LABEL = {home:'Home', edithome:'Edit Home', students:'Students', docs:'Documents', biz:'Business', settings:'Settings', tutors:'Tutors', more:'More', perf:'Reports', reports:'Reports', rep:'Report', teach:'Teaching'};
+const PAGE_LABEL = {home:'Home', edithome:'Edit Home', students:'Students', docs:'Documents', biz:'Business', settings:'Settings', tutors:'Tutors', more:'More', me:'Home', perf:'Reports', reports:'Reports', rep:'Report', teach:'Teaching'};
 function pageLabel(){
   const h = document.querySelector('#main h1, #main .sec-h');
   if(route.page === 'biz' && route.args[0] && route.args[0] !== 'home'){ const h = document.querySelector('#main h1'); if(h) return h.textContent.trim(); }
@@ -463,7 +493,7 @@ function attention(list){
     const RQ = reqList(), ap = RQ.filter(r => !r.dec.s), buy = RQ.filter(r => r.dec.s === 'approved');
     if(isDir() && ap.length) out.push({w:-1, s:{name:`${ap.length} requisition${ap.length === 1 ? '' : 's'} to approve`}, href:'#reqs', ico:'box', col:'--am', sub:ap.slice(0, 3).map(r => `${r.item.item} · ${r.rep.tutor}`).join(' · '), btn:['Review', '#reqs']});
     if(can('spend') && buy.length) out.push({w:-1, s:{name:`${buy.length} approved requisition${buy.length === 1 ? '' : 's'} to buy`}, href:'#reqs', ico:'box', col:'--am', sub:buy.slice(0, 3).map(r => r.item.item).join(' · '), btn:['Review', '#reqs']});
-    disp.forEach(e => out.push({w:-2, g:'disp', s:{name:e.st}, href:'#confirm/' + encodeURIComponent(e.id), ico:'alert', col:'--rd', sub:`${e.sub} with ${e.tutor || 'tutor'} · ${nice(e.d)} · disputed: ${e.cf.note}`, tag:['Disputed','rd']}));
+    disp.filter(e => !e.cf.step || e.cf.step === 'lhq').forEach(e => out.push({w:-2, g:'disp', s:{name:e.st}, href:'#confirm/' + encodeURIComponent(e.id), ico:'alert', col:'--rd', sub:`${e.sub} with ${e.tutor || 'tutor'} · ${nice(e.d)} · disputed: ${e.cf.note}`, tag:['Disputed','rd']}));
   }
   return out.sort((a, b) => a.w - b.w);
 }
@@ -540,6 +570,7 @@ function attGroup(r){
   const L = r.items, open = attG[r.grp], names = [...new Set(L.map(x => x.s.name.replace(/ (hasn't seen|can't make) .*/, '')))];
   return `<button class="it" data-attg="${r.grp}"><span class="ico" style="color:var(${r.x.col})">${ic(r.x.ico)}</span><span class="t"><b>${L.length} ${GL[r.grp] || 'items'}</b><small>${esc(names.slice(0, 2).join(', '))}${names.length > 2 ? ` and ${names.length - 2} more` : ''}</small></span><span class="chev" style="${open ? 'transform:rotate(90deg)' : ''}">${ic('chev', 16, 2)}</span></button>${open ? L.map(x => attRow(x, true)).join('') : ''}`;
 }
+const PREVIEW_OR_DB = () => true;
 let attAll = false, attOpen = true; try{ attOpen = localStorage.getItem('lhq_attOpen') !== '0'; }catch(e){}
 
 P.home = () => {
@@ -597,9 +628,21 @@ P.student = (key, tab = 'overview') => {
   const s = HD.students().find(x => x.key === key);
   if(!s) return `${crumb('#students', 'Students')}<p class="empty">That student isn't here. They may have been renamed.</p>`;
   const myRows = can('tutors') ? sessionRows().filter(r => SCHED.nk(r.it.st) === SCHED.nk(s.name)) : [];
-  const tabs = [['overview','Overview']].concat(myRows.length ? [['sessions','Sessions']] : [], [['documents',`Documents (${s.docs.length})`],['details','Details']]);
+  const tabs = [['overview','Overview']].concat(myRows.length ? [['sessions','Sessions']] : [], (isDir() || can('tutors')) && PREVIEW_OR_DB() ? [['accounts','Accounts']] : [], [['documents',`Documents (${s.docs.length})`],['details','Details']]);
   let body = '';
   if(tab === 'overview') body = (window.PC ? PC.block('student', {s}, 'This period') : '') + stuOverview(s);
+  if(tab === 'accounts'){
+    const ppl = HD.people(), nkk = SCHED.nk, sp = ppl.find(p => p.role === 'student' && nkk(p.name) === nkk(s.name)), par = ppl.filter(p => p.role === 'parent' && (p.children || []).some(c => nkk(c) === nkk(s.name)));
+    const conf = (store.get('lhq_confirmer', {}) || {})[nkk(s.name)] === 'parent' ? 'parent' : 'student';
+    const st = p => !p ? 'No account' : p.status === 'active' ? 'Signed up' + (p.seen ? ' · last in ' + ago(p.seen) : '') : p.codeUntil ? 'Code given' : 'No sign-in yet';
+    const row = (p, who) => `<div class="it"><span class="ico">${ic(p && p.status === 'active' ? 'check' : 'user')}</span><span class="t"><b>${esc(p.name)}</b><small>${who} · ${esc(p.username || '')} · ${st(p)}</small></span><button class="btn sm" data-acode="${p.id}">Setup code</button></div>`;
+    body = `<div class="card">${sp ? row(sp, 'Student') : `<div class="it"><span class="ico">${ic('user')}</span><span class="t"><b>${esc(s.name)}</b><small>Student · no account</small></span><button class="btn sm n" data-aadd="student">Give an account</button></div>`}
+      ${par.map(p => row(p, 'Parent' + ((p.children || []).length > 1 ? ' · also ' + (p.children || []).filter(c => nkk(c) !== nkk(s.name)).map(first).join(', ') : ''))).join('')}
+      <button class="it" data-aadd="parent"><span class="ico">${ic('plus')}</span><span class="t"><b>Add a parent</b></span></button></div>
+      <div class="h2">Confirms sessions</div><div class="card">
+        <button class="it" data-aconf="student"><span class="cfm" style="${conf === 'student' ? 'background:var(--ok);border-color:var(--ok);color:#fff' : ''}">${conf === 'student' ? '✓' : ''}</span><span class="t"><b>${esc(first(s.name))}</b></span></button>
+        <button class="it" data-aconf="parent"><span class="cfm" style="${conf === 'parent' ? 'background:var(--ok);border-color:var(--ok);color:#fff' : ''}">${conf === 'parent' ? '✓' : ''}</span><span class="t"><b>The parent</b><small>For young children, or when a family asks</small></span></button></div>`;
+  }
   if(tab === 'sessions'){
     body = myRows.map(({it, T}) => `<div class="h2">${esc(it.sub)} <em>${esc(it.tutor || 'No tutor')}</em></div><div class="card pad">
       <div class="t-ses" style="grid-template-columns:repeat(4,1fr)"><div><b>${T.planned || '?'}</b><small>Planned</small></div><div><b>${T.had}</b><small>Had</small></div><div><b>${T.remaining}</b><small>Left</small></div><div><b>${T.owed}</b><small>Owed</small></div></div>${sBar(T)}
@@ -815,7 +858,7 @@ const CFL = {waiting:'Waiting', auto:'Auto-confirmed', confirmed:'Confirmed', di
 const cfMark = st => st === 'disputed' ? '<span class="cfm dp">!</span>' : st === 'waiting' ? '<span class="cfm wt"></span>' : st ? '<span class="cfm ok">✓</span>' : '';
 const cfLine = e => { const st = HD.cfState(e), cf = e.cf || {};
   return st === 'waiting' ? `Confirms itself in ${Math.max(1, Math.round(HD.cfLeft(e) / 36e5))} h` : st === 'auto' ? 'No reply in 48 h' : st === 'confirmed' ? `By ${cf.by}${cf.how ? ' · ' + cf.how : ''}`
-    : st === 'disputed' ? `${cf.from || 'The student'}: ${cf.note}` : st === 'settled' ? (cf.out === 'keep' ? 'The tutor\'s times stand' : `${cf.lost} min taken off`) + ` · by ${cf.by}` : ''; };
+    : st === 'disputed' ? `${cf.from || 'The student'}: ${{late:'started ' + (cf.t1 || 'late'), early:'ended ' + (cf.t2 || 'early'), none:"didn't happen"}[cf.kind] || cf.note}${cf.kind && cf.kind !== 'other' && cf.note ? ' · ' + cf.note : ''}${cf.tutorNote ? ' · ' + (e.tutor || 'tutor') + ': ' + cf.tutorNote : ''}` : st === 'settled' ? (cf.out === 'keep' ? 'The tutor\'s times stand' : `${cf.lost} min taken off`) + ` · by ${cf.by}` : ''; };
 /* ---------- More (Lean): the places that aren't in the bar ---------- */
 P.more = () => `<div class="ph"><div class="tt"><h1>More</h1></div></div><div class="card">${LHQNav.moreItems().map(([k, l, h]) => `<a class="it" href="${h}"><span class="ico">${LHQNav.ic(k, 20)}</span><span class="t"><b>${l}</b></span><span class="chev">›</span></a>`).join('')}</div>`;
 
@@ -834,11 +877,12 @@ P.sessions = (only = '') => {
   const R = sessionRows(), qq = SF.q.trim().toLowerCase();
   const rows = R.filter(r => (!SF.tutor || r.it.tutor === SF.tutor) && (!qq || [r.it.st, r.it.sub, r.it.tutor].some(x => String(x).toLowerCase().includes(qq))) && (only !== 'behind' || r.T.behind));
   const tutors = [...new Set(R.map(r => r.it.tutor).filter(Boolean))].sort();
-  const C = HD.sessionsToConfirm(), disp = C.filter(e => HD.cfState(e) === 'disputed'), wait = C.filter(e => HD.cfState(e) === 'waiting');
+  const C = HD.sessionsToConfirm(), dispAll = C.filter(e => HD.cfState(e) === 'disputed'), disp = dispAll.filter(e => !e.cf.step || e.cf.step === 'lhq'), between = dispAll.filter(e => e.cf.step === 'tutor' || e.cf.step === 'student'), wait = C.filter(e => HD.cfState(e) === 'waiting');
   const row = e => { const st = HD.cfState(e); return `<button class="it" data-cf="${esc(e.id)}">${cfMark(st)}<span class="t"><b>${esc(e.st)} · ${esc(e.sub)}</b><small>${nice(e.d)}${e.t1 ? ' ' + esc(e.t1) + '–' + esc(e.t2 || '') : ''} · ${esc(e.tutor || '')} · ${CFL[st]} · ${esc(cfLine(e))}</small></span><span class="chev">›</span></button>`; };
   return `${crumb('#tutors', 'Tutors', 'sessions')}
   <div class="ph"><div class="tt"><h1>Sessions</h1><p>Confirms itself 48 h after it's logged</p></div></div>
   ${disp.length ? `<div class="h2">Disputed · to settle <em>${disp.length}</em></div><div class="card">${disp.map(row).join('')}</div>` : ''}
+  ${between.length ? `<div class="h2">Being sorted out <em>${between.length}</em></div><div class="card">${between.map(e => `<button class="it" data-cf="${esc(e.id)}">${cfMark('waiting')}<span class="t"><b>${esc(e.st)} · ${esc(e.sub)}</b><small>${nice(e.d)} · ${e.cf.step === 'tutor' ? 'with ' + esc(e.tutor || 'the tutor') : 'back with ' + esc(first(e.cf.from || e.st))}</small></span><span class="chev">›</span></button>`).join('')}</div>` : ''}
   <div class="actf"><label class="f" style="margin:0;flex:2;min-width:200px"><input class="in" id="sfQ" type="search" placeholder="Find a student, subject or tutor" value="${esc(SF.q)}" autocomplete="off"></label>
     <label class="f" style="margin:0;flex:1;min-width:170px"><select class="in" id="sfT" aria-label="Tutor"><option value="">All tutors</option>${tutors.map(n => `<option ${SF.tutor === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label></div>
   <div class="seg"><a class="${only !== 'behind' ? 'on' : ''}" href="#sessions">Everyone</a><a class="${only === 'behind' ? 'on' : ''}" href="#sessions/behind">Behind</a></div>
@@ -903,7 +947,7 @@ function confirmSheet(id, mode){
   if(st === 'disputed') body = `<div class="h2" style="margin-top:4px">Settle it</div>
     <div class="t-opts"><button type="button" role="radio" aria-checked="true" class="t-opt on" data-cfout="keep"><span class="t-ind c"></span><span class="tx">The tutor's times stand<small>The whole session counts</small></span></button>
     <button type="button" role="radio" aria-checked="false" class="t-opt" data-cfout="lost"><span class="t-ind c"></span><span class="tx">Take minutes off<small>Only the minutes taught count</small></span></button></div>
-    <label class="f" id="cfLostF" style="margin-top:10px"><span>Minutes to take off</span><input class="in" id="cfLost" inputmode="numeric" value="${cf.lost || ''}"></label>
+    <label class="f" id="cfLostF" style="margin-top:10px"><span>Minutes to take off</span><input class="in" id="cfLost" inputmode="numeric" value="${cf.lost || (cf.kind === 'late' && cf.t1 && e.t1 ? Math.max(0, SCHED.mins(cf.t1) - SCHED.mins(e.t1)) : cf.kind === 'early' && cf.t2 && e.t2 ? Math.max(0, SCHED.mins(e.t2) - SCHED.mins(cf.t2)) : '') || ''}"></label>
     <label class="f"><span>Note to both</span><input class="in" id="cfNote" placeholder="e.g. Spoke to both and agreed"></label>
     <button class="btn n full" data-cfdo="settle">Settle</button>`;
   openSheet(head + body);
@@ -1061,6 +1105,7 @@ P.biz = (tab, period, cat) => (!tab || tab === 'home' ? crumb(null, null, 'biz')
 P.perf = () => { setTimeout(() => location.replace('#rep/business'), 0); return ''; };
 P.reports = () => PERF.page() + (isDir() || me().role === 'admin' ? `<div class="card" style="margin-top:14px"><a class="it" href="#activity"><span class="t"><b>Activity</b><small>Everything done in the Hub, by whom</small></span><span class="chev">›</span></a></div>` : '');
 P.teach = (sub, a1, a2) => TUT.page(sub, a1, a2);
+P.me = (sub, a1, a2) => FAM.page(sub, a1, a2);
 P.rep = (kind, arg) => PERF.page(kind, arg);
 
 /* ================= settings ================= */
@@ -1068,7 +1113,7 @@ const SETS = [
   ['Account', [['account','user','My account']]],
   ['LHQ', [['people','users','People & access', () => isDir() || can('tutors')],['company','bank','Company & bank details', isDir],['payments','cash','Payments & due dates', isDir],['tutorinfo','users','Tutors\' contacts', () => isDir() || can('tutors') || can('msgs')]]],
   ['Documents', [['numbering','hash','Numbering', () => can('numbering')],['messages','msg','Messages', () => can('msgs')],['lists','list','Lists', () => can('msgs')]]],
-  ['Enrolment & sending', [['enrol','link','Student checklist', () => me().role !== 'tutor'],['sending','wa','Email & WhatsApp', () => me().role !== 'tutor']]],
+  ['Enrolment & sending', [['enrol','link','Student checklist', () => staffRole()],['sending','wa','Email & WhatsApp', () => staffRole()]]],
   ['Data', [['records.html','layout','Shared records', () => isDir()],['backup','box','Backup & restore', () => can('backup')],['deleted','bin','Recently deleted', () => can('restore')],['demo','restore','Demo data (preview)', () => isDir() && PREVIEW]]],
 ];
 const setVis = ids => SETS.flatMap(([, items]) => items).filter(x => ids.includes(x[0]) && (!x[3] || x[3]()));
@@ -1323,6 +1368,8 @@ function bind(){
   if(['perf','rep','reports'].includes(route.page)) PERF.bind();
   if(window.PC) PC.bind();
   if(route.page === 'teach') TUT.bind();
+  if(route.page === 'me') FAM.bind();
+  bellCount();
   on('[data-go]', (el, e) => { if(!e.target.closest('a')) location.href = el.dataset.go; });
   document.querySelectorAll('[data-go][tabindex]').forEach(el => el.onkeydown = e => { if(e.key === 'Enter' && e.target === el) location.href = el.dataset.go; });
   on('[data-cf]', el => confirmSheet(el.dataset.cf));
@@ -1346,6 +1393,18 @@ function bind(){
   if($('actWho')) $('actWho').onchange = () => { AF.who = $('actWho').value; actLoad(); };
   if($('cfQ')) $('cfQ').oninput = () => { cfQuery = $('cfQ').value; const pos = $('cfQ').selectionStart; render(); const q = $('cfQ'); if(q){ q.focus(); q.setSelectionRange(pos, pos); } };
   if($('attAll')) $('attAll').onclick = () => { attAll = true; render(); };
+  document.querySelectorAll('[data-acode]').forEach(el => el.onclick = async () => { try{ const r = await hub.api('people', {method:'POST', body: JSON.stringify({action:'code', id: el.dataset.acode})}); store.set('lhq_people', r.people); codeSheet(r); }catch(e){ toast(e.message); } });
+  document.querySelectorAll('[data-aconf]').forEach(el => el.onclick = async () => { const s0 = HD.students().find(x => x.key === route.args[0]) || {}; try{ await hub.api('confirmer', {method:'POST', body: JSON.stringify({key: s0.name, name: s0.name, who: el.dataset.aconf})}); await hub.pull(); render(); toast('Saved'); }catch(e){ toast(e.message); } });
+  document.querySelectorAll('[data-aadd]').forEach(el => el.onclick = () => { const s0 = HD.students().find(x => x.key === route.args[0]) || {}, role = el.dataset.aadd;
+    const go = async (name, email) => { try{ const r = await hub.api('people', {method:'POST', body: JSON.stringify(Object.assign({action:'add', name, role, email}, role === 'parent' ? {childNames:[s0.name]} : {}))}); store.set('lhq_people', r.people); render(); codeSheet(Object.assign({name:r.name, role:r.role}, r), true); }catch(e){ toast(e.message); } };
+    if(role === 'student') return go(s0.name, '');
+    const others = HD.people().filter(p => p.role === 'parent');
+    openSheet(`<div class="hx"><h3>Add a parent</h3><button class="ib" data-close>✕</button></div>
+      <label class="f"><span>Full name</span><input class="in" id="apN" value="${esc(s0.parent || '')}" placeholder="e.g. Grace Phiri"></label><label class="f"><span>Email (optional)</span><input class="in" id="apE" type="email"></label>
+      <button class="btn n full" id="apAdd">Add and get a setup code</button>
+      ${others.length ? `<div class="h2">Or an existing parent</div><div class="card">${others.slice(0, 30).map(p => `<button class="it" data-alink="${p.id}"><span class="t"><b>${esc(p.name)}</b><small>${esc((p.children || []).join(', '))}</small></span></button>`).join('')}</div>` : ''}`);
+    $('apAdd').onclick = () => go($('apN').value.trim(), $('apE').value.trim());
+    document.querySelectorAll('[data-alink]').forEach(b => b.onclick = async () => { try{ const r = await hub.api('people', {method:'POST', body: JSON.stringify({action:'link', id: b.dataset.alink, childName: s0.name})}); store.set('lhq_people', r.people); closeSheet(); render(); toast('Linked'); }catch(e){ toast(e.message); } }); });
   document.querySelectorAll('[data-view]').forEach(el => el.onclick = async () => { const v = el.dataset.view, s0 = hub.session();
     if(s0 && s0.me){ s0.me.view = v; localStorage.setItem('lhq_session', JSON.stringify(s0)); } LHQNav.section(route.page); render();
     try{ await hub.api('people', {method:'POST', body: JSON.stringify({action:'view', view:v})}); toast(v === 'lean' ? 'Lean' : 'Full'); }catch(e){ toast('Saved on this device'); } });
