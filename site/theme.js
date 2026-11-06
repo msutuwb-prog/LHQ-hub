@@ -2,7 +2,17 @@
    Loads in <head> so the right colours show before the page paints. */
 (function(){
   const KEY = 'lhq_theme';
-  const get = () => { try{ return localStorage.getItem(KEY) || 'light'; }catch(e){ return 'light'; } };
+  /* the choice: light, dark or auto (match the device); what shows: light or dark */
+  const choice = () => { try{ const v = localStorage.getItem(KEY); return v === 'dark' || v === 'auto' ? v : 'light'; }catch(e){ return 'light'; } };
+  const mq = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
+  const get = () => choice() === 'auto' ? (mq && mq.matches ? 'dark' : 'light') : choice();
+  function set(v){ try{ localStorage.setItem(KEY, v); }catch(e){} apply(get()); window.dispatchEvent(new CustomEvent('lhqtheme', {detail:get()})); }
+  if(mq) (mq.addEventListener ? mq.addEventListener('change', () => { if(choice() === 'auto') apply(get()); }) : mq.addListener(() => { if(choice() === 'auto') apply(get()); }));
+  /* text size on this device: standard or large */
+  const TKEY = 'lhq_text';
+  const text = () => { try{ return localStorage.getItem(TKEY) === 'l' ? 'l' : 's'; }catch(e){ return 's'; } };
+  function setText(v){ try{ localStorage.setItem(TKEY, v); }catch(e){} document.documentElement.classList.toggle('tx-l', v === 'l'); }
+  document.documentElement.classList.toggle('tx-l', text() === 'l');
   const logo = () => document.documentElement.dataset.theme === 'dark' ? 'logo-white.png' : 'logo.png';
   function apply(t){
     document.documentElement.dataset.theme = t;
@@ -15,15 +25,15 @@
       ? '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>'
       : '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 019.5 4 8 8 0 1020 14.5z"/></svg>';
   }
-  function toggle(){ const t = get() === 'dark' ? 'light' : 'dark'; try{ localStorage.setItem(KEY, t); }catch(e){} apply(t); window.dispatchEvent(new CustomEvent('lhqtheme', {detail:t})); }
+  function toggle(){ set(get() === 'dark' ? 'light' : 'dark'); }
   document.documentElement.dataset.theme = get();
   document.addEventListener('DOMContentLoaded', () => {
     apply(get());
     document.addEventListener('click', e => { if(e.target.closest && e.target.closest('.theme-btn')) toggle(); });
   });
   /* another tab changed it */
-  window.addEventListener('storage', e => { if(e.key === KEY) apply(get()); });
-  window.lhqTheme = {get, toggle, apply, logo};
+  window.addEventListener('storage', e => { if(e.key === KEY) apply(get()); if(e.key === TKEY) setText(text()); });
+  window.lhqTheme = {get, choice, set, toggle, apply, logo, text, setText};
   /* The PDF and image maker is large, so pages load first and fetch it a moment later
      (or straight away when PDF, Print or Share is tapped). */
   let pdfP = null;

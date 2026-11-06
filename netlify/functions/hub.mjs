@@ -128,7 +128,7 @@ function unsign(token) {
 }
 const hashPin = (pin, salt) => crypto.scryptSync(String(pin), salt, 32).toString("hex");
 const pinOk = pin => /^\d{4,6}$/.test(String(pin || ""));
-const pub = p => Object.assign({ id: p.id, name: p.name, role: p.role, admin: staff(p), tutor: !!p.tutor, perms: isDirector(p) ? PERMS.slice() : (p.perms || []), active: p.active !== false, home: p.home || null, cards: p.cards || {}, view: p.view === "full" ? "full" : "lean", seen: p.seen || 0 },
+const pub = p => Object.assign({ id: p.id, name: p.name, role: p.role, admin: staff(p), tutor: !!p.tutor, perms: isDirector(p) ? PERMS.slice() : (p.perms || []), active: p.active !== false, home: p.home || null, cards: p.cards || {}, view: p.view === "full" ? "full" : "lean", nav: Array.isArray(p.nav) ? p.nav : null, seen: p.seen || 0 },
   p.auth === "password" ? { auth: "password", username: p.username, email: p.email, status: p.status, hasPw: p.hasPw, locked: !!p.locked, codeUntil: p.codeUntil || null, children: p.children || undefined } : { auth: "pin" });
 
 async function getPeople() {
@@ -848,6 +848,11 @@ async function managePeople(req, me) {
   }
   if (b.action === "view") {   // what each person sees: lean (the default) or full
     const p = find(me.id); p.view = b.view === "full" ? "full" : "lean";
+    await putPeople(list); return json({ ok: true, me: pub(p) });
+  }
+  if (b.action === "nav") {   // what each person keeps in the bar and sidebar (after Home): up to 3 places, or null for the default
+    const p = find(me.id), OK = ["students", "docs", "business", "reports", "calendar", "tutors", "activity", "teach", "settings"];
+    p.nav = Array.isArray(b.nav) ? [...new Set(b.nav.filter(x => OK.includes(x)))].slice(0, 3) : null;
     await putPeople(list); return json({ ok: true, me: pub(p) });
   }
   if (b.action === "home") {   // each person's own Home cards

@@ -1137,7 +1137,7 @@ P.rep = (kind, arg) => PERF.page(kind, arg);
 
 /* ================= settings ================= */
 const SETS = [
-  ['Account', [['account','user','My account']]],
+  ['Account', [['account','user','My account'],['appearance','layout','Appearance']]],
   ['LHQ', [['people','users','People & access', () => isDir() || can('tutors')],['company','bank','Company & bank details', isDir],['payments','cash','Payments & due dates', isDir],['hours','clock','Opening hours', isDir],['tutorinfo','users','Tutors\' contacts', () => isDir() || can('tutors') || can('msgs')]]],
   ['Documents', [['numbering','hash','Numbering', () => can('numbering')],['messages','msg','Messages', () => can('msgs')],['lists','list','Lists', () => can('msgs')]]],
   ['Enrolment & sending', [['enrol','link','Student checklist', () => staffRole()],['sending','wa','Email & WhatsApp', () => staffRole()]]],
@@ -1146,7 +1146,7 @@ const SETS = [
 const setVis = ids => SETS.flatMap(([, items]) => items).filter(x => ids.includes(x[0]) && (!x[3] || x[3]()));
 const DETAILS = ['company','payments','hours','numbering','messages','sending','tutorinfo','enrol'], DATA = ['records.html','backup','deleted','demo'];
 /* Lean: 5 places. Things set once sit inside LHQ details; shared records, backups and the bin inside Data */
-const LEAN_SETS = () => [['Account', [['account','user','My account']]],
+const LEAN_SETS = () => [['Account', [['account','user','My account'],['appearance','layout','Appearance']]],
   ['LHQ', setVis(['people']).concat(setVis(DETAILS).length ? [['details','bank','LHQ details']] : [], setVis(['lists']))],
   ['Data', setVis(DATA).length ? [['data','box','Data']] : []]];
 const allowed = id => SETS.some(([, items]) => items.some(x => x[0] === id && (!x[3] || x[3]()))) || (id === 'details' && setVis(DETAILS).length > 0) || (id === 'data' && setVis(DATA).length > 0);
@@ -1174,14 +1174,8 @@ S.hours = () => { const H = Object.assign({}, SCHED.OPEN, settingsKV().openHours
 S.details = () => `<h2 class="sec-h">LHQ details</h2>${setList(DETAILS)}`;
 S.data = () => `<h2 class="sec-h">Data</h2>${setList(DATA)}`;
 S.account = () => { const m = me(), L = LHQNav.layout();
-  return `<h2 class="sec-h">My account</h2><p class="sec-p">How you sign in, and how LHQ Hub looks on this device.</p>
+  return `<h2 class="sec-h">My account</h2><p class="sec-p">Who you are and how you sign in.</p>
   <div class="card pad"><dl class="kv"><dt>Name</dt><dd>${esc(m.name || '')}</dd><dt>Role</dt><dd>${roleText(m)}</dd><dt>This device</dt><dd id="acStatus"></dd></dl></div>
-  <div class="card pad"><div class="cap">What you see</div>
-    <div class="seg"><button class="${LEAN() ? 'on' : ''}" data-view="lean">Lean</button><button class="${LEAN() ? '' : 'on'}" data-view="full">Full</button></div>
-    <p class="note" style="margin:0">${LEAN() ? 'The main places, main fields. Everything else under More.' : 'Everything in view.'}</p></div>
-  <div class="card pad"><div class="cap">Navigation on this device</div>
-    <div class="seg"><button class="${L === 'bottom' ? 'on' : ''}" data-layout="bottom">Bottom bar</button><button class="${L === 'side' ? 'on' : ''}" data-layout="side">Sidebar</button></div>
-    <p class="note" style="margin:0">Phones always use the bottom bar.</p></div>
   <div class="card pad"><div class="cap">LHQ Hub on this device</div>
     ${window.lhqInstalled && lhqInstalled() ? '<p class="note" style="margin:0">Installed. Works offline too.</p>'
     : `<p class="note" style="margin:0 0 10px">Opens from your home screen, also offline.</p>${window.lhqInstall ? `<button class="btn n" id="instGo">Install LHQ Hub</button>` : '<p class="note" style="margin:0"><b>iPhone or iPad:</b> Safari › Share › Add to Home Screen. <b>Android:</b> Chrome menu ⋮ › Install app (or Add to Home screen).</p>'}`}</div>
@@ -1192,6 +1186,31 @@ S.account = () => { const m = me(), L = LHQNav.layout();
     ${isDir() ? `<div class="card pad"><div class="cap">If you forget your password</div><p class="note" style="margin:0">Nobody else can reset the Director's password. On the sign-in screen tap Forgot password › I'm the Director, and use the setup code (the first 8 characters of LHQ_SECRET in Netlify). Keep it somewhere safe.</p></div>` : ''}` : `<div class="card pad"><div class="cap">Change my PIN</div><div class="r3"><label class="f"><span>Current PIN</span><input class="in" id="pin0" type="password" inputmode="numeric" maxlength="6"></label><label class="f"><span>New PIN</span><input class="in" id="pin1" type="password" inputmode="numeric" maxlength="6"></label><label class="f"><span>New PIN again</span><input class="in" id="pin2" type="password" inputmode="numeric" maxlength="6"></label></div><button class="btn n" id="pinGo">Change PIN</button></div>
   ${isDir() ? `<div class="card pad"><div class="cap">If you forget your PIN</div><p class="note" style="margin:0">As Director, nobody else can reset your PIN. Tap "Forgot your PIN?" when signing in and use the setup code (the first 8 characters of LHQ_SECRET in Netlify). Keep it somewhere safe.</p></div>` : ''}`}
   <div class="card pad"><div class="cap">Sign out</div><p class="note" style="margin:0 0 10px">Clears this device. Everything stays online.</p><button class="btn rd" id="outGo">${ic('out',16)} Sign out of this device</button></div>`; };
+
+/* Appearance: how the Hub looks. Theme, text size and bar or sidebar are per device; Lean or Full, the menu and Home cards follow the person */
+S.appearance = () => { const L = LHQNav.layout(), th = lhqTheme.choice(), tx = lhqTheme.text(), staffNav = !['tutor','student','parent'].includes(me().role);
+  const seg = (attr, cur, opts) => `<div class="seg" style="margin-bottom:${attr === 'data-layout' || attr === 'data-view' ? 6 : 14}px">${opts.map(([v, l]) => `<button class="${cur === v ? 'on' : ''}" ${attr}="${v}">${l}</button>`).join('')}</div>`;
+  let menu = '';
+  if(staffNav){
+    const P = LHQNav.pool(), C = LHQNav.chosenKeys(), custom = Array.isArray(me().nav);
+    const tick = on => `<span class="cbx" style="${on ? 'background:var(--accent);border-color:var(--accent);color:var(--onaccent)' : ''}">${on ? '✓' : ''}</span>`;
+    const row = (k, l, i) => { const on = i >= 0; return `<div class="it" style="padding:8px 0"><button class="tk" data-navk="${k}" style="flex:1;min-width:0">${tick(on)}<span class="ico" style="color:var(--brand)">${LHQNav.ic(k, 18)}</span>${esc(l)}</button>${on ? `<button class="btn sm" data-navmv="${i}:-1" ${i === 0 ? 'disabled' : ''} aria-label="Move up">↑</button><button class="btn sm" data-navmv="${i}:1" ${i === C.length - 1 ? 'disabled' : ''} aria-label="Move down">↓</button>` : ''}</div>`; };
+    menu = `<div class="card pad"><div class="cap">Bar and sidebar</div>
+      <div class="it" style="padding:8px 0;opacity:.6"><span class="tk" style="cursor:default">${tick(true)}<span class="ico">${LHQNav.ic('home', 18)}</span>Home</span></div>
+      ${C.map((k, i) => row(k, P.find(x => x[0] === k)[1], i)).join('')}${P.filter(x => !C.includes(x[0])).map(([k, l]) => row(k, l, -1)).join('')}
+      <p class="note" style="margin:8px 0 0">Home and 3 of your choice. The rest are under More.${custom ? ' <button class="btn sm" data-navreset style="margin-left:6px">Reset</button>' : ''}</p></div>`;
+  }
+  return `<h2 class="sec-h" style="margin-bottom:14px">Appearance</h2>
+  <div class="h2">This device</div>
+  <div class="card pad"><div class="cap">Theme</div>${seg('data-thm', th, [['light','Light'],['dark','Dark'],['auto','Auto']])}
+    <div class="cap">Text size</div>${seg('data-txt', tx, [['s','Standard'],['l','Large']])}
+    <div class="x-ph"><div class="cap">Menu</div>${seg('data-layout', L, [['bottom','Bottom bar'],['side','Sidebar']])}</div></div>
+  <div class="h2">Everywhere you sign in</div>
+  <div class="card pad"><div class="cap">What you see</div>${seg('data-view', LEAN() ? 'lean' : 'full', [['lean','Lean'],['full','Full']])}
+    <p class="note" style="margin:0">${LEAN() ? 'Main places and fields. The rest under More.' : 'Everything in view.'}</p></div>
+  ${menu}
+  ${staffNav ? `<div class="card"><a class="it" href="#edithome"><span class="ico">${ic('edit', 18)}</span><span class="t"><b>Home cards</b><small>${myCards().length} on Home</small></span><span class="chev">›</span></a></div>` : ''}`;
+};
 
 const PWD = () => (me() || {}).auth === 'password';
 const pStatus = p => p.active === false || p.status === 'off' ? '<span class="pst"><i></i>Off</span>' : p.locked ? '<span class="pst rd"><i>!</i>Locked</span>'
@@ -1459,6 +1478,14 @@ function bind(){
     if(key !== route.args[0]) location.hash = stuLink(key, 'details'); else render();
   };
   // account
+  on('[data-thm]', el => { lhqTheme.set(el.dataset.thm); render(); });
+  on('[data-txt]', el => { lhqTheme.setText(el.dataset.txt); render(); });
+  const saveNav = async nav => { const s0 = hub.session(); if(s0 && s0.me){ s0.me.nav = nav; localStorage.setItem('lhq_session', JSON.stringify(s0)); } render();
+    try{ await hub.api('people', {method:'POST', body: JSON.stringify({action:'nav', nav})}); }catch(e){ toast('Saved on this device'); } };
+  on('[data-navk]', el => { const k = el.dataset.navk, C = LHQNav.chosenKeys().slice(), i = C.indexOf(k);
+    if(i >= 0) C.splice(i, 1); else { if(C.length >= 3) return toast('3 at most. Untick one first.'); C.push(k); } saveNav(C); });
+  on('[data-navmv]', el => { const [i, d] = el.dataset.navmv.split(':').map(Number), C = LHQNav.chosenKeys().slice(); [C[i], C[i + d]] = [C[i + d], C[i]]; saveNav(C); });
+  on('[data-navreset]', () => saveNav(null));
   on('[data-layout]', el => { LHQNav.setLayout(el.dataset.layout); render(); toast(el.dataset.layout === 'side' ? 'Sidebar on this device' : 'Bottom bar on this device'); });
   if($('acStatus')) $('acStatus').innerHTML = `<span class="tag ${localStorage.getItem('lhq_syncDirty') === 'true' ? 'am">Saving changes' : 'ok">Everything saved online'}</span>`;
   if($('pinGo')) $('pinGo').onclick = async () => {
@@ -1578,7 +1605,7 @@ async function checkServices(){
 }
 /* backup: one file with every document and setting */
 async function doBackup(){
-  const data = {}; const SKIP = ['lhq_code','lhq_lastBackup','lhq_bkSnooze','lhq_session','lhq_syncBase','lhq_syncKv','lhq_syncRev','lhq_syncDirty','lhq_people','lhq_draft','lhq_layout','lhq_theme','lhq_attOpen'];
+  const data = {}; const SKIP = ['lhq_code','lhq_lastBackup','lhq_bkSnooze','lhq_session','lhq_syncBase','lhq_syncKv','lhq_syncRev','lhq_syncDirty','lhq_people','lhq_draft','lhq_layout','lhq_theme','lhq_text','lhq_attOpen'];
   for(let i = 0; i < localStorage.length; i++){ const k = localStorage.key(i); if(k && k.startsWith('lhq_') && !SKIP.includes(k)){ try{ data[k] = JSON.parse(localStorage.getItem(k)); }catch(e){} } }
   const name = `LHQ-backup_${today()}.json`, text = JSON.stringify({app:'LHQ Quotes & Invoices', version:2, exportedAt:new Date().toISOString(), data});
   try{

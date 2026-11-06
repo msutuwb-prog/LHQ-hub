@@ -15,32 +15,38 @@
     if(m.role === 'student') return [['me','Home','index.html#me'],['mprac','Practice','index.html#me/practice'],['mcal','Calendar','index.html#me/calendar'],['mprog','Progress','index.html#me/progress'],['more','More','index.html#me/more']];
     if(m.role === 'parent') return [['me','Home','index.html#me'],['mprog','Sessions','index.html#me/sessions'],['mpay','Payments','index.html#me/payments'],['mcal','Calendar','index.html#me/calendar'],['more','More','index.html#me/more']];
     if(m.role === 'tutor') return [['teach','Home','index.html#teach'],['tcal','Calendar','index.html#teach/cal'],['tsra','SRAs','index.html#teach/sra'],['trep','Report','index.html#teach/report'],['settings','Settings','index.html#settings']];
-    if(lean()){ const L = [['home','Home','index.html#home'],['students','Students','index.html#students'],['docs','Documents','index.html#docs']];
-      L.push(bizOK() ? ['business','Business','index.html#biz'] : ['reports','Reports','index.html#reports']); L.push(['more','More','index.html#more']); return L; }
-    const L = ALL.filter(x => x[0] !== 'business' || bizOK()); if(m.tutor) L.splice(1, 0, ['teach','Teaching','index.html#teach']); return L; };
-  /* Lean (the default): 5 places and More. Full: everything listed. Each person chooses in Settings › My account. */
+    return [HOME].concat(chosen(), moreItems().length ? [['more','More','index.html#more']] : []); };
+  /* Lean (the default) or Full: each person chooses in Settings › Appearance. */
   const lean = () => who().view !== 'full';
-  /* what's under More in Lean, for staff */
-  const moreItems = () => { const m = who(), L = [];
+  /* every place a member of staff can open from the menu, in menu order */
+  const HOME = ['home','Home','index.html#home'];
+  const pool = () => { const m = who(), L = [];
     if(m.tutor) L.push(['teach','Teaching','index.html#teach']);
-    L.push(['calendar','Calendar','index.html#calendar'], ['tutors','Tutors','index.html#tutors']);
-    if(bizOK()) L.push(['reports','Reports','index.html#reports']);
+    L.push(['students','Students','index.html#students'], ['docs','Documents','index.html#docs']);
+    if(bizOK()) L.push(['business','Business','index.html#biz']);
+    L.push(['reports','Reports','index.html#reports'], ['calendar','Calendar','index.html#calendar'], ['tutors','Tutors','index.html#tutors']);
     if(m.role === 'director' || m.role === 'admin') L.push(['activity','Activity','index.html#activity']);
     L.push(['settings','Settings','index.html#settings']); return L; };
-  /* the sidebar has room for Activity (Director and Admin); on a phone it's reached from Reports */
-  const sideItems = () => { const L = items(), m = who(); if(m.role !== 'tutor' && lean()) return L; if(m.role === 'director' || m.role === 'admin'){ const i = L.findIndex(x => x[0] === 'reports'); L.splice(i < 0 ? L.length - 1 : i + 1, 0, ['calendar','Calendar','index.html#calendar'], ['activity','Activity','index.html#activity']); } return L; };
+  const DEF = () => ['students', 'docs', bizOK() ? 'business' : 'reports'];
+  /* the 3 places after Home in the bar and sidebar: each person's choice, or the default */
+  const chosenKeys = () => { const P = pool().map(x => x[0]), n = who().nav; const L = (Array.isArray(n) ? n : DEF()).filter(k => P.includes(k)).slice(0, 3); return L; };
+  const chosen = () => { const P = pool(); return chosenKeys().map(k => P.find(x => x[0] === k)); };
+  /* the rest, under More */
+  const moreItems = () => { const c = chosenKeys(); return pool().filter(x => !c.includes(x[0])); };
+  /* the sidebar has room: in Full it lists every place, in Lean the same as the bar */
+  const sideItems = () => { const m = who(); if(['tutor','student','parent'].includes(m.role)) return items(); return lean() ? items() : [HOME].concat(chosen(), moreItems()); };
   function layout(){ try{ return localStorage.getItem(KEY) === 'side' ? 'side' : 'bottom'; }catch(e){ return 'bottom'; } }
   function setLayout(v){ try{ localStorage.setItem(KEY, v); }catch(e){} apply(); }
   function apply(){ document.body.classList.toggle('hn-L-side', layout() === 'side'); document.body.classList.toggle('hn-L-bottom', layout() !== 'side'); }
   let current = '';
-  const onKey = () => { const L = items(); if(L.some(x => x[0] === current) || ['tutor','student','parent'].includes(who().role)) return current; if(!lean()) return current === 'tutors' ? 'home' : current; return moreItems().some(x => x[0] === current) ? 'more' : current; };
+  const onKey = L => { if(L.some(x => x[0] === current) || ['tutor','student','parent'].includes(who().role)) return current; return moreItems().some(x => x[0] === current) ? 'more' : current; };
   function draw(){
     const logo = window.lhqTheme ? lhqTheme.logo() : 'logo.png';
     const side = document.getElementById('hnSide'), bar = document.getElementById('hnBar');
     if(side) side.innerHTML = `<a class="hn-logo" href="index.html#${{tutor:'teach', student:'me', parent:'me'}[who().role] || 'home'}"><img class="lhq-logo" src="${logo}" alt="LHQ Learning Solutions"></a>
       ${['tutor','student','parent'].includes(who().role) ? '' : `<a class="hn-new" href="index.html#new">${ic('plus',18,2.4)}<span>New</span></a>`}
-      ${sideItems().map(([k,l,h]) => `<a class="hn-i ${onKey()===k?'on':''}" href="${h}">${ic(l === 'Home' ? 'home' : k,20)}<span>${l}</span></a>`).join('')}`;
-    if(bar) bar.innerHTML = items().map(([k,l,h]) => `<a class="${onKey()===k?'on':''}" href="${h}">${ic(l === 'Home' ? 'home' : k,22)}${l}</a>`).join('');
+      ${(SL => SL.map(([k,l,h]) => `<a class="hn-i ${onKey(SL)===k?'on':''}" href="${h}">${ic(l === 'Home' ? 'home' : k,20)}<span>${l}</span></a>`).join(''))(sideItems())}`;
+    const BL = items(); if(bar) bar.innerHTML = BL.map(([k,l,h]) => `<a class="${onKey(BL)===k?'on':''}" href="${h}">${ic(l === 'Home' ? 'home' : k,22)}${l}</a>`).join('');
   }
   function mount(section){
     current = section;
@@ -74,5 +80,5 @@
   }
   /* a section opened from the menu starts a fresh trail, so it shows no back link */
   document.addEventListener('click', e => { if(e.target.closest && e.target.closest('#hnSide a, #hnBar a, .hn-top .hn-logo')){ try{ sessionStorage.setItem(TK, '[]'); }catch(err){} } }, true);
-  window.LHQNav = {mount, layout, setLayout, lean, moreItems, section: s => { current = s; draw(); }, ic, visit, back, trail};
+  window.LHQNav = {mount, layout, setLayout, lean, moreItems, pool, chosenKeys, DEF, section: s => { current = s; draw(); }, ic, visit, back, trail};
 })();
