@@ -107,7 +107,7 @@ window.TUT = (function(){
     write(CK, data); render();
     try{ await hub.api('tutor', {method:'POST', body: JSON.stringify({action:'entries', entries: list})}); return true; }
     catch(e){ if(!offline(e)){ toast(e.message); return false; }
-      const q = read(QK, []); q.push({t:'e', entries: list}); write(QK, q); if(!quiet) toast('Saved on this device. It goes to LHQ when you are back online.'); return true; }
+      const q = read(QK, []); q.push({t:'e', entries: list}); write(QK, q); if(!quiet) toast('Saved · sends when online'); return true; }
   }
 
   /* roster: one item per student + subject, from the newest tuition card */
@@ -238,9 +238,9 @@ window.TUT = (function(){
   /* clashes on their cards: they have the final say */
   function clashesBlock(){
     const C = (data.clashes || []).filter(c => !c.res || c.res.s !== 'together'); if(!C.length) return '';
-    const KL = {group:'Same subject at the same time', tutor:'Two subjects at the same time', student:'The student has two subjects at once'};
-    const row = c => `<div class="it" style="align-items:flex-start;flex-wrap:wrap"><span class="t" style="min-width:200px"><b style="white-space:normal">${esc(c.text)}</b><small>${KL[c.kind]}${c.kind === 'group' ? ': are you teaching them together?' : ''}</small>${c.res && c.res.s === 'admin' ? `<small>Sent to LHQ${c.res.note ? ': “' + esc(c.res.note) + '”' : ''}</small>` : ''}</span>
-      <span class="acts" style="margin-top:6px">${c.kind === 'group' ? `<button class="btn sm n" data-tclx="together:${esc(c.key)}">Teaching them together</button>` : ''}<button class="btn sm${c.kind === 'group' ? '' : ' n'}" data-tclmove="${esc(c.key)}">Move a session</button>${c.res ? '' : `<button class="btn sm" data-tclx="admin:${esc(c.key)}">Send to LHQ</button>`}</span></div>`;
+    const KL = {group:'Together?', tutor:'Double-booked', student:'Student double-booked'};
+    const row = c => `<div class="it" style="align-items:flex-start;flex-wrap:wrap"><span class="t" style="min-width:200px"><b style="white-space:normal">${SCHED.DAYN[c.day]} ${c.members[0].s} · ${esc(c.kind === 'group' ? c.sub : c.kind === 'student' ? c.st : 'two subjects')}</b><small>${KL[c.kind]} · ${c.members.map(m => esc(c.kind === 'group' ? m.st : c.kind === 'student' ? m.sub : `${m.st} (${m.sub})`)).join(', ')}</small>${c.res && c.res.s === 'admin' ? `<small>With LHQ</small>` : ''}</span>
+      <span class="acts" style="margin-top:6px">${c.kind === 'group' ? `<button class="btn sm n" data-tclx="together:${esc(c.key)}">Together</button>` : ''}<button class="btn sm${c.kind === 'group' ? '' : ' n'}" data-tclmove="${esc(c.key)}">Move</button>${c.res ? '' : `<button class="btn sm" data-tclx="admin:${esc(c.key)}">Send to LHQ</button>`}</span></div>`;
     return `<div class="h2">Clashes to sort <em>${C.length}</em></div><div class="card">${C.slice(0, 4).map(row).join('')}${C.length > 4 ? `<details><summary class="it" style="cursor:pointer"><span class="t"><b>${C.length - 4} more</b></span></summary>${C.slice(4).map(row).join('')}</details>` : ''}</div>`;
   }
   async function clashDo(a, key, note){
@@ -251,7 +251,7 @@ window.TUT = (function(){
     return `<div class="h2">New on your list <em>${N.length}</em></div><div class="card">${N.map(n => `<div class="it" style="align-items:flex-start;flex-wrap:wrap">
       <span class="t" style="min-width:200px"><b>${n.kind === 'new' ? 'New student' : n.kind === 'changed' ? 'Times changed' : 'Taken off your list'}: ${esc(n.card.student || '')}</b>
       ${n.lines.map(l => `<small>${esc(l)}</small>`).join('')}${(n.clash || []).map(x => `<small style="color:var(--rd);font-weight:700">! ${esc(x.text)}</small>`).join('')}
-      ${n.kind !== 'gone' && (data.acks || {})[n.card.id] && data.acks[n.card.id].s === 'cant' ? `<small>You said: “${esc(data.acks[n.card.id].note)}” · LHQ has been told</small>` : ''}</span>
+      ${n.kind !== 'gone' && (data.acks || {})[n.card.id] && data.acks[n.card.id].s === 'cant' ? `<small>“${esc(data.acks[n.card.id].note)}” · sent to LHQ</small>` : ''}</span>
       <span class="acts" style="margin-top:6px">${n.kind === 'gone' ? `<button class="btn sm n" data-tack="gone:${esc(n.card.id)}">OK</button>`
         : `<button class="btn sm n" data-tack="ok:${esc(n.card.id)}">Got it</button><button class="btn sm" data-tcant="${esc(n.card.id)}">Can't make this time</button>`}</span></div>`).join('')}</div>`;
   }
@@ -308,13 +308,13 @@ window.TUT = (function(){
     return backHome() + head('Calendar', `Your sessions from your tuition cards${nCl ? ` · <b style="color:var(--rd)">${nCl} clash${nCl === 1 ? '' : 'es'}</b>` : ''}`, `<div class="acts"><a class="btn" href="#teach/avail">Times I can't teach</a></div>`) + seg + nav + body +
       `<div class="h2">On your phone</div><div class="card pad"><p style="margin:0 0 8px">Add your LHQ sessions to Google Calendar or your iPhone, next to your own appointments. They update when a card changes (your phone checks every few hours, so check the Hub for anything changed today).</p>
       <div class="acts"><a class="btn n" href="${'webcal://' + location.host + (data.calLink || '')}">Add to my calendar</a><button class="btn" data-tcallink>Copy the link</button></div>
-      <p class="note" style="margin:8px 0 0">Google Calendar on a computer: Other calendars › + › From URL, and paste the link. iPhone: Settings › Calendar › Accounts › Add Account › Other › Add Subscribed Calendar. Keep the link to yourself.</p></div>`;
+      <p class="note" style="margin:8px 0 0">Google: Other calendars › From URL. iPhone: Settings › Calendar › Accounts › Add Subscribed Calendar. Keep it private.</p></div>`;
   }
   const halfHours = v => { let o = ''; for(let m = 6 * 60; m <= 21 * 60; m += 30){ const t = SCHED.hhmm(m); o += `<option${t === v ? ' selected' : ''}>${t}</option>`; } return o; };
   function availPage(){
     const L = (data.avail || []).slice().sort((a, b) => DORDER.indexOf(a.d) - DORDER.indexOf(b.d) || a.s.localeCompare(b.s));
-    return back('#teach/cal', 'Calendar') + head("Times I can't teach", 'LHQ checks these before giving you a new student or changing a time.') +
-      `<div class="card">${L.map((u, i) => `<div class="it"><span class="t"><b>${DN[u.d]} ${u.s}–${u.e}</b><small>${esc(u.note || '')}</small></span><button class="btn sm" data-tavrm="${i}">Remove</button></div>`).join('') || '<p class="empty">None yet: LHQ assumes you can teach any time during opening hours.</p>'}</div>
+    return back('#teach/cal', 'Calendar') + head("Times I can't teach", 'LHQ checks these before adding a session.') +
+      `<div class="card">${L.map((u, i) => `<div class="it"><span class="t"><b>${DN[u.d]} ${u.s}–${u.e}</b><small>${esc(u.note || '')}</small></span><button class="btn sm" data-tavrm="${i}">Remove</button></div>`).join('') || '<p class="empty">None · any time in opening hours.</p>'}</div>
       <div class="h2">Add a time</div><div class="card pad"><div class="r2"><label class="f"><span>Day</span><select class="in" id="tavD">${DORDER.map(k => `<option value="${k}">${DN[k]}</option>`).join('')}<option value="wk">Mon–Fri</option></select></label><label class="f"><span>Note (optional)</span><input class="in" id="tavN" placeholder="e.g. at school"></label></div>
       <div class="r2"><label class="f"><span>From</span><select class="in" id="tavS">${halfHours('08:00')}</select></label><label class="f"><span>To</span><select class="in" id="tavE">${halfHours('13:00')}</select></label></div>
       <button class="btn n full" data-tavadd>Add</button></div>`;
@@ -327,7 +327,7 @@ window.TUT = (function(){
     const I = items().map(it => ({it, S: sessions(it)})).filter(x => x.S.owed > 0), M = (data.makeups || []).slice().sort((a, b) => (a.d + a.s).localeCompare(b.d + b.s));
     const open = M.filter(m => m.status !== 'no' && m.d >= today()), past = M.filter(m => m.status === 'no' || m.d < today()).slice(-10).reverse();
     const row = m => `<div class="it" style="align-items:flex-start"><span class="cal-t">${m.s}<small>${m.e}</small></span><span class="t"><b>${esc(m.st)} · ${esc(m.sub)}</b><small>${WEEKDAY[HD.parseISO(m.d).getDay()]} ${nice(m.d)} · ${MUL[m.status]}${m.note ? ' · ' + esc(m.note) : ''}${m.why ? ' · ' + esc(m.why) : ''}</small></span>${m.status === 'asked' ? `<button class="btn sm" data-tmucancel="${esc(m.id)}">Take back</button>` : m.status === 'no' ? `<button class="btn sm" data-tmubook="${esc(m.k)}">Book again</button>` : ''}</div>`;
-    return backHome() + head('Make-ups', 'Book a time for each session owed. LHQ confirms it, then it shows in your calendar.') +
+    return backHome() + head('Make-ups', 'Sessions owed') +
       `<div class="h2">Owed <em>${I.reduce((a, x) => a + x.S.owed, 0)}</em></div><div class="card">${I.map(({it, S}) => `<div class="it"><span class="t"><b>${esc(it.st)} · ${esc(it.sub)}</b><small>${S.owed} owed${(data.makeups || []).filter(m => m.k === it.k && m.status !== 'no' && m.d >= today()).length ? ' · ' + (data.makeups || []).filter(m => m.k === it.k && m.status !== 'no' && m.d >= today()).length + ' booked' : ''}</small></span><button class="btn sm n" data-tmubook="${esc(it.k)}">Book</button></div>`).join('') || '<p class="empty">No make-ups owed. ✓</p>'}</div>
       ${open.length ? `<div class="h2">Booked <em>${open.length}</em></div><div class="card">${open.map(row).join('')}</div>` : ''}
       ${past.length ? `<div class="h2">Earlier and declined</div><div class="card">${past.map(row).join('')}</div>` : ''}`;
@@ -355,11 +355,11 @@ window.TUT = (function(){
   /* requisitions from the daily report, with LHQ's decision */
   function reqsBlock(){
     const R = Object.entries(data.reqs || {}).filter(([, v]) => v && v.at > Date.now() - 14 * 864e5).sort((a, b) => b[1].at - a[1].at);
-    return R.length ? `<div class="h2">Your requisitions</div><div class="card">${R.map(([, v]) => `<div class="it"><span class="t"><b>${esc(v.item)}${v.qty && v.qty !== '1' ? ' × ' + esc(v.qty) : ''}</b><small>${{approved:'✓ Approved · LHQ will get it', declined:'Declined', bought:'✓ Bought'}[v.s] || v.s}${v.note ? ' · ' + esc(v.note) : ''}</small></span></div>`).join('')}</div>` : '';
+    return R.length ? `<div class="h2">Your requisitions</div><div class="card">${R.map(([, v]) => `<div class="it"><span class="t"><b>${esc(v.item)}${v.qty && v.qty !== '1' ? ' × ' + esc(v.qty) : ''}</b><small>${{approved:'✓ Approved', declined:'Declined', bought:'✓ Bought'}[v.s] || v.s}${v.note ? ' · ' + esc(v.note) : ''}</small></span></div>`).join('')}</div>` : '';
   }
 
   function page(sub, a1, a2, a3){
-    if(!data){ fetchData(); return head(homeName(), 'Getting your students…') + (err ? `<p class="empty">${err === 'offline' ? 'No connection. Your students appear once you are online.' : esc(err)}</p>` : ''); }
+    if(!data){ fetchData(); return head(homeName(), 'Getting your students…') + (err ? `<p class="empty">${err === 'offline' ? 'Offline · your students load when you are online.' : esc(err)}</p>` : ''); }
     data.reports = data.reports || [];
     if(!window.cardTopicNames) ensureLibs().then(() => { if(!form) render(); });
     if(Date.now() - (data.at || 0) > 60000 && !form) fetchData();
@@ -426,7 +426,7 @@ window.TUT = (function(){
     const t = today(), rep = todayRep(), G = gaps(), L = dayLogs(t), ed = editing === 'teach', q = read(QK, []).length;
     const acts = ed ? `<div class="acts"><button class="btn n" type="button" data-tedit="">Done</button></div>` : `<div class="acts"><button class="btn" type="button" data-tedit="teach" title="Edit cards" aria-label="Edit cards">${PEN()}</button>${logBtn()}</div>`;
     return head(homeName(), `${WEEKDAY[HD.parseISO(t).getDay()]} ${nice(t)}${q ? ` · ${q} save${q === 1 ? '' : 's'} waiting to send` : ''}`, acts) +
-      (ed ? '<p class="note" style="margin:-6px 0 12px">Move or remove cards, or add one from the list below. Tap Done when finished.</p>'
+      (ed ? '<p class="note" style="margin:-6px 0 12px">Move, remove or add cards.</p>'
         : rep ? `<a class="t-banner ok" href="#teach/report"><span><b>Today's report is in</b>Sent at ${hm(rep.sent)}. You can still log; changes show as edited.</span></a>`
         : `<a class="t-banner" href="#teach/report"><span><b>Daily report due before you leave</b>Reminder between 4 and 5 pm${G.length ? ` · ${G.length} thing${G.length > 1 ? 's' : ''} still to log` : ''}</span></a>`) +
       (ed ? '' : noticesBlock() + clashesBlock()) + cardsBlock() + (ed ? '' : reqsBlock() + `
@@ -440,7 +440,7 @@ window.TUT = (function(){
   function students(){
     const I = items();
     return backHome() + head('My students', `${new Set(I.map(i => stuOf(i.k))).size} student${new Set(I.map(i => stuOf(i.k))).size === 1 ? '' : 's'} on your tuition cards`, `<div class="acts">${logBtn()}</div>`) +
-      (I.length ? `<div class="card">${I.map(it => { const S = sessions(it); return `<a class="it" href="#teach/student/${encodeURIComponent(it.k)}" style="align-items:flex-start"><span class="t"><b>${esc(it.st)}</b><small>${esc(it.sub)} · ${S.had} of ${S.planned || '?'} had · ${S.remaining} left${S.owed ? ` · ${S.owed} make-up${S.owed > 1 ? 's' : ''} owed` : ''}</small>${bar(S)}</span>${S.behind ? `<span class="tag am">${S.behind} behind</span>` : '<span class="tag ok">On track</span>'}</a>`; }).join('')}</div><p class="note">The dark mark on each bar is where the student should be by today.</p>`
+      (I.length ? `<div class="card">${I.map(it => { const S = sessions(it); return `<a class="it" href="#teach/student/${encodeURIComponent(it.k)}" style="align-items:flex-start"><span class="t"><b>${esc(it.st)}</b><small>${esc(it.sub)} · ${S.had} of ${S.planned || '?'} had · ${S.remaining} left${S.owed ? ` · ${S.owed} make-up${S.owed > 1 ? 's' : ''} owed` : ''}</small>${bar(S)}</span>${S.behind ? `<span class="tag am">${S.behind} behind</span>` : '<span class="tag ok">On track</span>'}</a>`; }).join('')}</div><p class="note">Dark mark: where they should be today.</p>`
         : '<p class="empty">No students yet. They appear when LHQ puts you on a tuition card.</p>');
   }
   const SECS = {ses:'Sessions and make-ups', sra:'SRA scores by review', wa:'Weekly assessments', logs:'Recent logs', topics:'Topics finished', time:'Timetable'};
@@ -457,7 +457,7 @@ window.TUT = (function(){
         <div class="t-kv"><span>Missed · student absent</span><b>${S.absent}</b><span>Missed · cancelled</span><b>${S.cancelled}</b><span>Make-ups had</span><b>${S.made}</b><span>Make-ups owed</span><b>${S.owed}</b></div></div>`,
       sra: () => `<div class="card pad" style="margin:0"><div class="cap">SRA scores by review <small style="text-transform:none;letter-spacing:0">· %</small></div>
         ${byT.size ? `<div class="t-sgrid"><span></span>${['LD','R1','R2','R3','R4','R5'].map(h => `<span class="h">${h}</span>`).join('')}${[...byT.entries()].map(([t, X]) => `<span class="t">${esc(t)}</span>${[0,1,2,3,4,5].map(i => cell(X.find(x => x.stage === i))).join('')}`).join('')}</div>
-        <p class="note">A score lower than the review before it on the same topic usually means the topic is being forgotten.</p>` : '<p class="empty" style="margin:0">No topics finished yet.</p>'}</div>`,
+        <p class="note">Lower than the last review: the topic is fading.</p>` : '<p class="empty" style="margin:0">No topics finished yet.</p>'}</div>`,
       wa: () => `<div class="card pad" style="margin:0"><div class="cap">Weekly assessments</div>${W.length ? `<div style="display:flex;align-items:flex-end;gap:8px;height:90px">${W.map((e, i) => { const p = Math.round(e.sc / e.mx * 100); return `<div style="flex:1;text-align:center;font-size:11.5px;font-weight:800;color:var(--muted)" title="${nice(e.d)}"><div style="height:${Math.max(4, p * .7)}px;background:${i === W.length - 1 ? 'var(--gold)' : 'var(--bl-bg)'};border-radius:6px 6px 2px 2px;margin-bottom:4px"></div>${p}%</div>`; }).join('')}</div>` : '<p class="empty" style="margin:0">No marks yet.</p>'}</div>`,
       logs: () => { const E = live().filter(e => e.k === k && ['s','r','w'].includes(e.ty)).sort((a, b) => (b.d || '').localeCompare(a.d || '') || (b.at || 0) - (a.at || 0)).slice(0, 8);
         return `<div class="card pad" style="margin:0"><div class="cap">Recent logs</div>${E.map(e => `<div class="it"><span class="t"><b>${nice(e.d)} · ${e.ty === 's' ? 'Session · ' + (ATTL[e.a] || e.a) : e.ty === 'r' ? 'SRA ' + (e.h === 'm' ? 'not handed in' : 'marks ' + (e.sc ?? '') + '/' + (e.mx ?? '')) : 'Weekly assessment' + (e.sc != null && e.sc !== '' ? ' ' + e.sc + '/' + e.mx : ' given')}</b><small>${esc(e.ty === 's' ? [(e.tp || []).join(', '), cfText([e])].filter(Boolean).join(' · ') : e.ty === 'r' ? e.tk + ' · ' + SRA.label(e.rv) : (e.tp || []).join(', '))}</small></span></div>`).join('') || '<p class="empty" style="margin:0">Nothing logged yet.</p>'}</div>`; },
@@ -466,7 +466,7 @@ window.TUT = (function(){
     const box = (x, i) => ed ? `<div class="t-sec ed"><div class="t-secctl"><b>${SECS[x]}</b><button type="button" data-tsmv="${i}|-1" ${i ? '' : 'disabled'} aria-label="Move up">↑</button><button type="button" data-tsmv="${i}|1" ${i < on.length - 1 ? '' : 'disabled'} aria-label="Move down">↓</button><button type="button" class="rm" data-tsrm="${x}" aria-label="Remove ${SECS[x]}">×</button></div>${SEC[x]()}</div>` : `<div class="t-sec">${SEC[x]()}</div>`;
     const off = Object.keys(SECS).filter(x => !on.includes(x));
     const acts = ed ? `<div class="acts"><button class="btn n" type="button" data-tedit="">Done</button></div>` : `<div class="acts"><button class="btn" type="button" data-tedit="tstudent" title="Edit sections" aria-label="Edit sections">${PEN()}</button>${logBtn(k)}</div>`;
-    return back('#teach/students', 'My students') + head(esc(it.st), `${esc(it.sub)}${it.lv ? ' · ' + esc(it.lv) : ''}`, acts) + (ed ? '<p class="note" style="margin:-6px 0 12px">Changes apply to every student\'s page.</p>' : '') + on.map(box).join('') +
+    return back('#teach/students', 'My students') + head(esc(it.st), `${esc(it.sub)}${it.lv ? ' · ' + esc(it.lv) : ''}`, acts) + (ed ? '<p class="note" style="margin:-6px 0 12px">Applies to every student.</p>' : '') + on.map(box).join('') +
       (ed && off.length ? `<div class="h2">Add a section <em>${off.length}</em></div><div class="card">${off.map(x => `<div class="it"><span class="t"><b>${SECS[x]}</b></span><button class="btn sm" type="button" data-tsadd="${x}">${ic('plus',14,2.4)} Add</button></div>`).join('')}</div>` : '');
   }
 
@@ -520,7 +520,7 @@ window.TUT = (function(){
     const f = form, I = items(), C = data.classes || [], M = f.keys.map(itemOf).filter(Boolean), pickWho = !f.edit;
     const whoSel = `<select class="in" data-twho aria-label="Who">${f.key === 'pick' ? '<option value="pick">Choose…</option>' : ''}${C.length ? `<optgroup label="Classes">${C.map(c => `<option value="class:${c.id}" ${f.key === 'class:' + c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</optgroup>` : ''}<optgroup label="Students">${I.map(it => `<option value="${esc(it.k)}" ${f.key === it.k ? 'selected' : ''}>${esc(it.st)} · ${esc(it.sub)}</option>`).join('')}</optgroup><option value="group" ${f.key === 'group' ? 'selected' : ''}>Several students (not a class)</option></select>`;
     const lockedNow = f.edit && Object.values(f.ids || {}).some(id => { const e = live().find(x => x.id === id); const st = e && HD.cfState(e); return st && st !== 'waiting'; });
-    return backHome() + head(f.edit ? 'Edit session' : 'Log a session', f.edit ? nice(f.d) : 'Fill in what happened. Ticks and circles only.') + (lockedNow ? `<div class="card pad" style="border-left:3px solid var(--am)"><b>Confirmed</b><p class="note" style="margin:4px 0 0">The times and attendance can't change now. You can still add topics. If something is wrong, ask LHQ.</p></div>` : '') + `
+    return backHome() + head(f.edit ? 'Edit session' : 'Log a session', f.edit ? nice(f.d) : 'Fill in what happened. Ticks and circles only.') + (lockedNow ? `<div class="card pad" style="border-left:3px solid var(--am)"><b>Confirmed</b><p class="note" style="margin:4px 0 0">Times and attendance are locked. Topics can change.</p></div>` : '') + `
       <div class="card pad"><label class="f" style="margin:0"><span>Who</span>${pickWho ? whoSel : `<input class="in" value="${esc(f.cls ? (C.find(c => c.id === f.cls) || {}).name || 'Class' : M.map(m => m.st + ' · ' + m.sub).join(', '))}" readonly>`}</label>
         ${f.key === 'group' && pickWho ? `<div class="t-opts" style="margin-top:10px">${I.map(it => tick('keys:' + it.k, f.keys.includes(it.k), esc(it.st), esc(it.sub))).join('')}</div>` : ''}</div>
       ${M.length ? `
@@ -530,7 +530,7 @@ window.TUT = (function(){
         <div class="r2" style="margin-top:10px"><label class="f" style="margin:0"><span>Started</span><input class="in" type="time" data-tin="t1" value="${esc(f.t1)}"></label><label class="f" style="margin:0"><span>Finished</span><input class="in" type="time" data-tin="t2" value="${esc(f.t2)}"></label></div></div>
       <div class="card pad"><div class="cap">Attendance</div><div class="t-att"><span></span>${ATT.map(a => `<span class="hd">${a[1]}</span>`).join('')}
         ${M.map(m => `<span class="nm">${esc(short(m.st))}</span>${ATT.map(([v, l]) => `<button type="button" role="radio" aria-label="${esc(short(m.st))} ${l}" aria-checked="${f.att[m.k] === v}" class="${f.att[m.k] === v ? 'on' : ''}" data-tset="att.${esc(m.k)}" data-v="${v}"><span class="t-ind c"></span></button>`).join('')}`).join('')}</div>
-        ${M.some(m => !taught(f.att[m.k])) ? '<p class="note">A make-up is owed for an absence or a cancellation.</p>' : ''}</div>
+        ${M.some(m => !taught(f.att[m.k])) ? '<p class="note">Absent or cancelled: a make-up is owed.</p>' : ''}</div>
       ${M.some(m => taught(f.att[m.k])) ? `
       <div class="card pad"><div class="cap">Topics covered</div>${topicPicker(f, 'tp', 'open', 'q', 'Choose topics')}
         ${f.tp.map(t => `<div class="t-pk"><div class="row"><span>${esc(t)}</span><button class="t-x" type="button" aria-label="Remove ${esc(t)}" data-ttog="tp:${esc(t)}">×</button></div><div style="margin-top:8px">${tick('fin:' + t, f.fin.includes(t), 'Finished this topic', f.fin.includes(t) ? 'Starts its SRAs: today, then 1, 3, 7, 14 days and a month' : '')}</div></div>`).join('')}</div>
@@ -585,12 +585,12 @@ window.TUT = (function(){
     return backHome() + head(f.edit ? 'Edit SRA marks' : 'SRA marks', 'For an SRA that has been handed in') + `
       <div class="card pad"><label class="f"><span>Student</span><select class="in" data-tmk aria-label="Student" ${f.edit ? 'disabled' : ''}><option value="">Choose…</option>${I.map(i => `<option value="${esc(i.k)}" ${f.k === i.k ? 'selected' : ''}>${esc(i.st)} · ${esc(i.sub)}</option>`).join('')}</select></label>
       ${f.k ? `<div class="cap">Which SRA</div><div class="t-opts">${out.map(x => `<button type="button" role="radio" aria-checked="${f.sra === ref(x)}" class="t-opt${f.sra === ref(x) ? ' on' : ''}" data-tset="sra" data-v="${esc(ref(x))}"><span class="t-ind c"></span><span class="tx">${esc(x.topic)} · ${x.label}<small>Given ${x.given ? nice(x.given.d) : '?'} · due back ${x.due === today() ? 'today' : nice(x.due)}${x.status === 'late' ? ' · late' : ''}</small></span></button>`).join('')}
-        <button type="button" role="radio" aria-checked="${f.sra === 'man'}" class="t-opt${f.sra === 'man' ? ' on' : ''}" data-tset="sra" data-v="man"><span class="t-ind c"></span><span class="tx">Not in the list<small>Choose the topic and review yourself · LHQ will check it</small></span></button></div>
+        <button type="button" role="radio" aria-checked="${f.sra === 'man'}" class="t-opt${f.sra === 'man' ? ' on' : ''}" data-tset="sra" data-v="man"><span class="t-ind c"></span><span class="tx">Not in the list<small>Choose topic and review · LHQ checks</small></span></button></div>
         ${f.sra === 'man' ? `<div class="r2" style="margin-top:10px"><label class="f" style="margin:0"><span>Topic</span>${(tks => tks.length ? `<select class="in" data-tin="tk"><option value="">Choose…</option>${tks.map(t => `<option ${f.tk === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>` : `<input class="in" data-tin="tk" value="${esc(f.tk || '')}" placeholder="Type the topic" autocomplete="off">`)([...new Set((it ? it.topics : []).concat(L.filter(x => x.k === f.k).map(x => x.topic)))])}</label>
           <label class="f" style="margin:0"><span>Review</span><select class="in" data-tin="rv"><option value="">Choose…</option>${SRA.STAGES.map(s => `<option value="${s.n}" ${f.rv === String(s.n) ? 'selected' : ''}>${s.l}</option>`).join('')}</select></label></div>` : ''}` : ''}</div>
       ${f.sra ? `<div class="card pad"><div class="cap">Marks</div><div class="t-score"><input class="in" inputmode="decimal" data-tin="sc" data-tpc="mpc" value="${esc(f.sc)}" aria-label="Marks"><span>/</span><input class="in" inputmode="decimal" data-tin="mx" data-tpc="mpc" value="${esc(f.mx)}" aria-label="Out of"><b id="mpc">${pct(f.sc, f.mx)}</b></div>
         <label class="f" style="margin:14px 0 0"><span>Handed in on</span><input class="in" type="date" data-tin="d" value="${f.d}" max="${today()}"></label>
-        <p class="note">Change the date when you're entering marks for an earlier SRA.</p></div>
+        <p class="note">Change the date for an earlier SRA.</p></div>
         <button class="btn n full" type="button" id="tmSave">${f.edit ? 'Save changes' : 'Save marks'}</button>${f.edit ? '<button class="btn rd full" type="button" id="tmDel" style="margin-top:8px">Delete this log</button>' : ''}` : ''}`;
   }
   function saveMarks(){
@@ -648,11 +648,11 @@ window.TUT = (function(){
         keys.map(k => { const it = itemOf(k); if(!it) return ''; const X = L.filter(x => x.k === k), byT = new Map(); X.forEach(x => { if(!byT.has(x.topic)) byT.set(x.topic, []); byT.get(x.topic).push(x); });
           return `<div class="h2">${esc(it.st)} <em>${esc(it.sub)}</em></div><div class="card">${[...byT.entries()].map(([tp, R]) => `<div class="it" style="display:block"><b style="display:block">${esc(tp)}</b><small style="color:var(--muted);font-size:12.5px">Learning Day ${nice(R[0].learnt)}</small>
             <div class="t-chips6">${R.sort((a, b) => a.stage - b.stage).map(x => `<button type="button" class="tag ${TAG[x.status][0]}" data-tsdet="${esc(ref(x))}" aria-label="${x.label}"><span>${x.stage ? 'R' + x.stage : 'LD'}</span>${TAG[x.status][1](x)}</button>`).join('')}</div></div>`).join('') || '<p class="empty">No topics finished yet.</p>'}</div>`; }).join('') +
-        '<p class="note">LD = Learning Day SRA, R1–R5 = reviews 1–5. Green: handed in with its score · blue: out or due back · amber: give today or late · red: missed · grey: coming up. Tap one for its dates.</p>';
+        '<p class="note">LD Learning Day · R1–R5 reviews · green in · blue out · amber today or late · red missed · grey to come</p>';
     } else if(tab === 'week'){
       body = Array.from({length: 7}, (_, i) => addDays(t, i)).map((d, i) => { const g = L.filter(x => x.giveOn === d && ['upcoming','give'].includes(x.status)), late = i === 0 ? L.filter(x => x.status === 'overdue') : [];
         return `<div class="h2">${i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : WEEKDAY[HD.parseISO(d).getDay()].slice(0, 3) + ' ' + nice(d)} <em>${g.length + late.length}</em></div><div class="card">${late.concat(g).map(x => `<div class="it"><span class="t"><b>${esc(short(x.st))} · ${esc(x.topic)}</b><small>${esc(x.sub)} · ${x.label}${x.giveOn !== x.doOn ? ` · give ${nice(x.giveOn)}, do on ${nice(x.doOn)}` : ` · do on ${nice(x.doOn)}`}</small></span>${x.status === 'overdue' ? `<button class="btn sm" type="button" data-tgive="${ref(x)}">Given</button>` : i === 0 ? `<button class="btn sm" type="button" data-tgive="${ref(x)}">Given</button>` : `<button class="btn sm" type="button" data-tgive="${ref(x)}" data-early="1">Give early</button>`}</div>`).join('') || '<p class="empty">None.</p>'}</div>`; }).join('') +
-        '<p class="note">"Give on" is the last session before the review day. Given early, an SRA keeps its do-on day and comes back at the first session after it.</p>';
+        '<p class="note">Given early, an SRA keeps its do-on day.</p>';
     } else {
       const O = L.filter(x => x.status === 'given');
       body = `<div class="h2">Give today <em>${T.give.length}</em></div><div class="card">${T.give.map(x => `<div class="it"><span class="t"><b>${esc(short(x.st))} · ${esc(x.topic)}</b><small>${x.label} · do on ${nice(x.doOn)}${x.status === 'overdue' ? ` · <span style="color:var(--rd);font-weight:800">was for ${nice(x.giveOn)}</span>` : ''}</small></span><button class="btn sm" type="button" data-tgive="${ref(x)}">Given</button></div>`).join('') || '<p class="empty">Nothing to hand out today.</p>'}
@@ -660,7 +660,7 @@ window.TUT = (function(){
         <div class="h2">To collect <em>${T.collect.length}</em></div><div class="card">${T.collect.map(x => `<div class="it"><span class="t"><b>${esc(short(x.st))} · ${esc(x.topic)}</b><small>${x.label} · given ${nice(x.given.d)}${x.moved ? ` · <span style="color:var(--am);font-weight:800">not handed in ${nice(x.moved)}, due again today</span>` : x.status === 'late' ? ' · <span style="color:var(--am);font-weight:800">late</span>' : ''}</small></span><button class="btn sm" type="button" data-tin="${ref(x)}">Handed in?</button></div>`).join('') || '<p class="empty">Nothing due back today.</p>'}</div>
         <div class="h2">Print for ${T.printDay === addDays(t, 1) ? 'tomorrow' : nice(T.printDay)} <em>${(n => n + (n === 1 ? ' copy' : ' copies'))(T.print.reduce((a, g) => a + g.students.length, 0))}</em></div>
         <div class="card">${T.print.map(g => `<div class="it"><span class="t"><b>${esc(g.topic)} · ${g.label}</b><small>${esc(g.sub)} · for ${g.students.map(s => esc(s.st.split(' ')[0])).join(', ')} · the sheet says "Do on ${nice(g.students[0].doOn)}"</small></span><span class="tag bl">× ${g.students.length}</span></div>`).join('') || '<p class="empty">Nothing to print yet.</p>'}</div>
-        <p class="note" style="margin:-6px 2px 14px">Printing is manual for now. One-tap printing comes when the SRA files are uploaded.</p>
+        <p class="note" style="margin:-6px 2px 14px">Printing is manual for now.</p>
         <div class="h2">Out with students <em>${O.length}</em></div><div class="card">${O.map(x => `<div class="it"><span class="t"><b>${esc(short(x.st))} · ${esc(x.topic)}</b><small>${x.label} · given ${nice(x.given.d)} · due back ${nice(x.due)}</small></span></div>`).join('') || '<p class="empty">None.</p>'}</div>`;
     }
     return (tutorRole() ? '' : backHome()) + head('SRA tracker', 'When each SRA is given, done and collected', `<div class="acts">${logBtn()}</div>`) + tabs + body;
@@ -678,7 +678,7 @@ window.TUT = (function(){
       <div class="cap">Marks</div><div class="t-score"><input class="in" id="thSc" inputmode="decimal" aria-label="Marks"><span>/</span><input class="in" id="thMx" inputmode="decimal" value="10" aria-label="Out of"><b id="thPc"></b></div>
       <button class="btn n full" type="button" id="thGo" style="margin-top:14px">Handed in · save marks</button>
       <button class="btn full" type="button" id="thNo" style="margin-top:8px">Not handed in · due ${nice(nxt)}</button>
-      <p class="note">Not handed in moves it to the next session day and shows it as late. It isn't counted as missed.</p>`);
+      <p class="note">Not handed in: moves to the next session, marked late.</p>`);
     const up = () => $('thPc').textContent = pct($('thSc').value, $('thMx').value); $('thSc').oninput = up; $('thMx').oninput = up;
     const base = {ty:'r', v:2, k:x.k, st:x.st, sub:x.sub, d:today(), tk:x.topic, rv:x.stage};
     $('thGo').onclick = () => { const sc = $('thSc').value.trim(), mx = $('thMx').value.trim(); if(!pct(sc, mx)){ toast('Check the marks'); return; }
@@ -720,7 +720,7 @@ window.TUT = (function(){
     data.reports = (data.reports || []).filter(r => r.d !== t).concat(local); write(CK, data); rform = null;
     try{ const r = await hub.api('tutor', {method:'POST', body: JSON.stringify({action:'report', report})}); data.reports = data.reports.filter(x => x.d !== t).concat(r.report); write(CK, data); toast('Report sent to LHQ'); }
     catch(e){ if(!offline(e)){ data.reports = data.reports.filter(x => x !== local); write(CK, data); toast(e.message); render(); return; }
-      const q = read(QK, []).filter(x => !(x.t === 'r' && x.report.d === t)); q.push({t:'r', report}); write(QK, q); toast('Saved on this device. It goes to LHQ when you are back online.'); }
+      const q = read(QK, []).filter(x => !(x.t === 'r' && x.report.d === t)); q.push({t:'r', report}); write(QK, q); toast('Saved · sends when online'); }
     render(); scrollTo(0, 0);
   }
 
@@ -729,7 +729,7 @@ window.TUT = (function(){
     const C = data.classes || [];
     return backHome() + head('Classes', 'Official classes that don’t change. Everything else is one-to-one.', `<div class="acts"><button class="btn n" data-tclsnew>${ic('plus',16,2.4)} New class</button></div>`) +
       `<div class="card">${C.map(c => `<a class="it" href="#teach/class/${c.id}"><span class="t"><b>${esc(c.name)}</b><small>${esc(c.sub)} · ${c.stu.length} students · ${esc(c.mode)}</small></span><span class="chev">${ic('chev',16,2)}</span></a>`).join('') || '<p class="empty">No classes. Create one when the same students are taught a topic together, in person or online.</p>'}</div>
-      <p class="note">Finishing a topic in a class starts its SRAs for every student who was there.</p>`;
+      <p class="note">Finishing a topic starts SRAs for everyone present.</p>`;
   }
   function classPage(id){
     const c = (data.classes || []).find(x => x.id === id); if(!c) return back('#teach/classes', 'Classes') + '<p class="empty">Class not found.</p>';
