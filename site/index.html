@@ -141,6 +141,14 @@ textarea.in{min-height:200px;line-height:1.45;resize:vertical}
 
 /* home cards */
 .mcs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:22px}
+/* Lean: compact Home cards (a number and one line), three across */
+html.lean:not(.lean-open) .lm{display:none!important}
+.lean-more{display:none;width:100%;border:1px dashed var(--line);background:none;border-radius:12px;padding:12px 14px;font:inherit;font-weight:700;color:var(--brand);margin:0 0 12px;cursor:pointer}
+html.lean .lean-more{display:block}html.lean.lean-open .lean-more{display:none}
+html.lean:not(.flt-open) .flt{display:none!important}
+.flt-btn{display:none}html.lean .flt-btn{display:inline-flex}
+html.lean .main.narrow .mcs,html.lean .mcs{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
+html.lean .mc{min-height:0}html.lean .mc .bar,html.lean .mc .tr{display:none}html.lean .mc .s ~ .s{display:none}html.lean .mc .bad ~ .s{display:none}
 @media (min-width:1100px){.main.narrow .mcs{grid-template-columns:repeat(2,minmax(0,1fr))}}
 .mc{text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px 16px;display:flex;flex-direction:column;gap:3px;position:relative;min-height:132px;color:var(--ink);text-decoration:none}
 .mc[data-go]{cursor:pointer}.mc[data-go]:hover{border-color:var(--muted)}
@@ -329,7 +337,7 @@ const ic = (n, s = 20, w = 1.8) => `<svg viewBox="0 0 24 24" width="${s}" height
 const inits = n => String(n||'?').split(/\s+/).filter(Boolean).slice(0,2).map(x => x[0]).join('').toUpperCase();
 function toast(m){ const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 3200); }
 window.hubToast = toast;
-function openSheet(html){ $('sheet').innerHTML = html; $('sheet').hidden = false; $('shbg').hidden = false; $('sheet').querySelectorAll('[data-close]').forEach(b => b.onclick = closeSheet); const f = $('sheet').querySelector('input'); if(f && innerWidth > 700) setTimeout(() => f.focus(), 50); }
+function openSheet(html){ document.documentElement.classList.remove('lean-open'); $('sheet').innerHTML = html; $('sheet').hidden = false; $('shbg').hidden = false; $('sheet').querySelectorAll('[data-close]').forEach(b => b.onclick = closeSheet); const f = $('sheet').querySelector('input'); if(f && innerWidth > 700) setTimeout(() => f.focus(), 50); }
 function closeSheet(){ $('sheet').hidden = true; $('shbg').hidden = true; if(/^#(new|makeups)/.test(location.hash)) history.replaceState(null, '', '#home'); }
 $('shbg').onclick = closeSheet;
 document.addEventListener('keydown', e => { if(e.key === 'Escape' && !$('sheet').hidden) closeSheet(); });
@@ -350,10 +358,16 @@ function parse(){
   const page = parts[0] || 'home';
   route = {page: P[page] ? page : 'home', args: parts.slice(1)};
 }
+const LEAN = () => me().view !== 'full';
+document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-leanmore]'); if(b){ e.preventDefault(); document.documentElement.classList.add('lean-open'); }
+  const fb = e.target.closest && e.target.closest('[data-flt]'); if(fb){ e.preventDefault(); document.documentElement.classList.toggle('flt-open'); } });
 function render(){
   load(); parse();
+  document.documentElement.classList.toggle('lean', LEAN());
+  if(render.last !== route.page){ document.documentElement.classList.remove('flt-open'); render.last = route.page; }
+  if(render.lastH !== location.hash){ document.documentElement.classList.remove('lean-open'); render.lastH = location.hash; }
   if(me().role === 'tutor' && !['teach','settings','set'].includes(route.page)){ location.replace('#teach'); route = {page:'teach', args:[]}; }
-  const sec = route.page === 'teach' && me().role === 'tutor' ? ({sra:'tsra', report:'trep', cal:'tcal', avail:'tcal'}[route.args[0]] || 'teach') : {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', teach:'teach', tutors:'home', bookings:'home', reqs:'home', sessions:'home', confirm:'home', clashes:'home', calendar:'calendar'}[route.page] || route.page;
+  const sec = route.page === 'teach' && me().role === 'tutor' ? ({sra:'tsra', report:'trep', cal:'tcal', avail:'tcal'}[route.args[0]] || 'teach') : {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', teach:'teach', tutors:'tutors', bookings:'tutors', reqs:'tutors', sessions:'tutors', confirm:'tutors', clashes:'tutors', calendar:'calendar', more:'more'}[route.page] || route.page;
   LHQNav.section(sec);
   const m = $('main');
   m.className = 'main' + (['home','edithome','new','students','student','tutors','teach'].includes(route.page) ? ' narrow' : '');
@@ -388,7 +402,7 @@ function crumb(fbHref, fbLabel, within){
   const b = LHQNav.back(fbHref, fbLabel, within ? u => u.startsWith('index.html#' + within) : null);
   return b.href ? `<a class="crumb" href="${esc(b.href)}">${ic('back',16,2.2)} ${esc(b.label)}</a>` : '';
 }
-const PAGE_LABEL = {home:'Home', edithome:'Edit Home', students:'Students', docs:'Documents', biz:'Business', settings:'Settings', tutors:'Tutors teaching now', perf:'Reports', reports:'Reports', rep:'Report', teach:'Teaching'};
+const PAGE_LABEL = {home:'Home', edithome:'Edit Home', students:'Students', docs:'Documents', biz:'Business', settings:'Settings', tutors:'Tutors', more:'More', perf:'Reports', reports:'Reports', rep:'Report', teach:'Teaching'};
 function pageLabel(){
   const h = document.querySelector('#main h1, #main .sec-h');
   if(route.page === 'biz' && route.args[0] && route.args[0] !== 'home'){ const h = document.querySelector('#main h1'); if(h) return h.textContent.trim(); }
@@ -410,20 +424,20 @@ function attention(list){
     const c = s.cur;
     if(c){
       const end = c.inv.periodEnd;
-      if(c.st.over) out.push({w:0, s, href:openLink(c.inv), ico:'alert', col:'--rd', sub:`${c.inv.number} · ${c.st.text}`, tag:['Overdue','rd']});
-      else if(c.st.grace) out.push({w:1, s, href:openLink(c.inv), ico:'clock', col:'--am', sub:`${c.inv.number} · ${c.st.text}`, tag:['Grace','am']});
-      if((c.st.paidUp || c.st.firstPaid) && !c.card && !(end && end < t) && can('cards')) out.push({w:2, s, href:openLink(c.inv), ico:'card', col:'--am', sub:`${c.inv.number} ${c.st.paidUp ? 'paid' : '1st instalment paid'} · no tuition card yet`, btn:['Make card', cardLink(s)]});
-      if(c.card && (c.card.subjects||[]).some(x => !x.tutor)) out.push({w:2, s, href:openLink(c.card), ico:'user', col:'--am', sub:`${c.card.number} · a subject has no tutor`, tag:['No tutor','am']});
-      if(c.card && end && end >= t && dayDiff(t, end) <= 7 && !s.openQuote && can('quotes')) out.push({w:3, s, href:stuLink(s.key), ico:'clock', col:'--am', sub:`Tuition period ends ${nice(end)}`, btn:['Renew', D('renew=' + c.inv.id)]});
+      if(c.st.over) out.push({w:0, g:'over', s, href:openLink(c.inv), ico:'alert', col:'--rd', sub:`${c.inv.number} · ${c.st.text}`, tag:['Overdue','rd']});
+      else if(c.st.grace) out.push({w:1, g:'grace', s, href:openLink(c.inv), ico:'clock', col:'--am', sub:`${c.inv.number} · ${c.st.text}`, tag:['Grace','am']});
+      if((c.st.paidUp || c.st.firstPaid) && !c.card && !(end && end < t) && can('cards')) out.push({w:2, g:'nocard', s, href:openLink(c.inv), ico:'card', col:'--am', sub:`${c.inv.number} ${c.st.paidUp ? 'paid' : '1st instalment paid'} · no tuition card yet`, btn:['Make card', cardLink(s)]});
+      if(c.card && (c.card.subjects||[]).some(x => !x.tutor)) out.push({w:2, g:'notutor', s, href:openLink(c.card), ico:'user', col:'--am', sub:`${c.card.number} · a subject has no tutor`, tag:['No tutor','am']});
+      if(c.card && end && end >= t && dayDiff(t, end) <= 7 && !s.openQuote && can('quotes')) out.push({w:3, g:'end', s, href:stuLink(s.key), ico:'clock', col:'--am', sub:`Tuition period ends ${nice(end)}`, btn:['Renew', D('renew=' + c.inv.id)]});
     }
     // a period that ended with make-up sessions still owed: carry them to the next period, or refund
     s.periods.forEach(p => { const cd = p.card;
       if(!cd || cd.mu || !p.inv.periodEnd || p.inv.periodEnd >= t || dayDiff(p.inv.periodEnd, t) > 60 || !can('cards')) return;
       const n = HD.makeups(cd).reduce((a, x) => a + x.owed, 0);
-      if(n) out.push({w:1, s, href:openLink(cd), ico:'clock', col:'--am', sub:`${cd.number} · period ended with ${n} make-up session${n === 1 ? '' : 's'} owed`, btn:['Decide', '#makeups/' + cd.id]});
+      if(n) out.push({w:1, g:'muend', s, href:openLink(cd), ico:'clock', col:'--am', sub:`${cd.number} · period ended with ${n} make-up session${n === 1 ? '' : 's'} owed`, btn:['Decide', '#makeups/' + cd.id]});
     });
     const q = s.openQuote;
-    if(q && q.date && dayDiff(q.date, t) >= 7) out.push({w:4, s, href:openLink(q), ico:'quote', col:'--muted', sub:`${q.number} sent ${dayDiff(q.date, t)} days ago · no invoice yet`, btn: can('quotes') ? ['Invoice', D('conv=invoice:' + q.id)] : null});
+    if(q && q.date && dayDiff(q.date, t) >= 7) out.push({w:4, g:'quote', s, href:openLink(q), ico:'quote', col:'--muted', sub:`${q.number} sent ${dayDiff(q.date, t)} days ago · no invoice yet`, btn: can('quotes') ? ['Invoice', D('conv=invoice:' + q.id)] : null});
   });
   if(can('tutors')){
     const disp = HD.sessionsToConfirm().filter(e => HD.cfState(e) === 'disputed');
@@ -431,17 +445,17 @@ function attention(list){
       const ack = store.get('lhq_cardack', {}) || {}, from = ack._from || 0, now = Date.now(), info = settingsKV().tutorInfo || {};
       saved.filter(d => typeOf(d) === 'card' && (d.periodEnd || '') >= t).forEach(c => [...new Set((c.subjects || []).map(x => x.tutor).filter(Boolean))].forEach(tn => {
         const a = ack[c.id + '|' + SCHED.nk(tn)], sig = SCHED.sigFor(c, tn), upd = c.updatedAt || c.savedAt || 0;
-        if(a && a.s === 'cant' && a.sig === sig) out.push({w:-2, s:{name:`${tn} can't make ${c.student}'s times`}, href:openLink(c), ico:'alert', col:'--rd', sub:`${c.number} · “${a.note}” · change the card and they'll be asked again`, tag:['Change times','rd']});
+        if(a && a.s === 'cant' && a.sig === sig) out.push({w:-2, g:'cant', s:{name:`${tn} can't make ${c.student}'s times`}, href:openLink(c), ico:'alert', col:'--rd', sub:`${c.number} · “${a.note}” · change the card and they'll be asked again`, tag:['Change times','rd']});
         else if((!a || a.sig !== sig) && upd > from && now - upd > 24 * 3600e3){ const ph = (info[tn] || {}).phone || '';
           const msg = `Hi ${first(tn)}, ${c.student} is on your LHQ list: ${SCHED.linesFor(c, tn).join('; ')}. Please open LHQ Hub and tap Got it (or Can't make this time): ${location.origin}/#teach`;
-          out.push({w:-1, s:{name:`${tn} hasn't seen ${c.student}'s card`}, href:openLink(c), ico:'clock', col:'--am', sub:`${c.number} · sent ${Math.floor((now - upd) / 36e5)} h ago`, btn:['Nudge', `https://wa.me/${ph ? waNum(ph) : ''}?text=${encodeURIComponent(msg)}`]}); }
+          out.push({w:-1, g:'seen', s:{name:`${tn} hasn't seen ${c.student}'s card`}, href:openLink(c), ico:'clock', col:'--am', sub:`${c.number} · sent ${Math.floor((now - upd) / 36e5)} h ago`, btn:['Nudge', `https://wa.me/${ph ? waNum(ph) : ''}?text=${encodeURIComponent(msg)}`]}); }
       }));
     }
     const CR = store.get('lhq_clashes', {}) || {}, OC = openClashes(), sentC = OC.filter(c => CR[c.key] && CR[c.key].s === 'admin');
     if(sentC.length) out.push({w:-2, s:{name:`${sentC.length} clash${sentC.length === 1 ? '' : 'es'} sent to LHQ`}, href:'#clashes', ico:'alert', col:'--rd', sub:sentC.slice(0, 2).map(c => SCHED.clashText(c)).join(' · '), btn:['Sort', '#clashes']});
     const TF = Object.values(store.get('lhq_moves', {}) || {}).filter(m => m && !m.told);
     TF.forEach(m => { const sp = HD.students().find(x => SCHED.nk(x.name) === SCHED.nk(m.st)), msg = tellMsg(m);
-      out.push({w:-1, s:{name:`Tell the family: ${m.st}`}, href:'#clashes', ico:'msg', col:'--am', sub:`${m.sub} moves from ${SCHED.DAYN[m.from.day]} ${m.from.s} to ${SCHED.DAYN[m.to.day]} ${m.to.s} · moved by ${m.by}`, btn:['WhatsApp', `https://wa.me/${sp && sp.phone ? waNum(sp.phone) : ''}?text=${encodeURIComponent(msg)}`]}); });
+      out.push({w:-1, g:'tell', s:{name:`Tell the family: ${m.st}`}, href:'#clashes', ico:'msg', col:'--am', sub:`${m.sub} moves from ${SCHED.DAYN[m.from.day]} ${m.from.s} to ${SCHED.DAYN[m.to.day]} ${m.to.s} · moved by ${m.by}`, btn:['WhatsApp', `https://wa.me/${sp && sp.phone ? waNum(sp.phone) : ''}?text=${encodeURIComponent(msg)}`]}); });
     const behind = sessionRows().filter(r => r.T.behind >= 2);
     if(behind.length) out.push({w:-1, s:{name:`${behind.length} student${behind.length === 1 ? '' : 's'} behind on sessions`}, href:'#sessions/behind', ico:'clock', col:'--am', sub:behind.slice(0, 3).map(r => `${r.it.st} · ${r.it.sub} ${r.T.behind} behind`).join(' · '), btn:['See', '#sessions/behind']});
     const MU = Object.values(store.get('lhq_makeups', {}) || {}).filter(m => m && m.status === 'asked');
@@ -449,7 +463,7 @@ function attention(list){
     const RQ = reqList(), ap = RQ.filter(r => !r.dec.s), buy = RQ.filter(r => r.dec.s === 'approved');
     if(isDir() && ap.length) out.push({w:-1, s:{name:`${ap.length} requisition${ap.length === 1 ? '' : 's'} to approve`}, href:'#reqs', ico:'box', col:'--am', sub:ap.slice(0, 3).map(r => `${r.item.item} · ${r.rep.tutor}`).join(' · '), btn:['Review', '#reqs']});
     if(can('spend') && buy.length) out.push({w:-1, s:{name:`${buy.length} approved requisition${buy.length === 1 ? '' : 's'} to buy`}, href:'#reqs', ico:'box', col:'--am', sub:buy.slice(0, 3).map(r => r.item.item).join(' · '), btn:['Review', '#reqs']});
-    disp.forEach(e => out.push({w:-2, s:{name:e.st}, href:'#confirm/' + encodeURIComponent(e.id), ico:'alert', col:'--rd', sub:`${e.sub} with ${e.tutor || 'tutor'} · ${nice(e.d)} · disputed: ${e.cf.note}`, tag:['Disputed','rd']}));
+    disp.forEach(e => out.push({w:-2, g:'disp', s:{name:e.st}, href:'#confirm/' + encodeURIComponent(e.id), ico:'alert', col:'--rd', sub:`${e.sub} with ${e.tutor || 'tutor'} · ${nice(e.d)} · disputed: ${e.cf.note}`, tag:['Disputed','rd']}));
   }
   return out.sort((a, b) => a.w - b.w);
 }
@@ -503,17 +517,33 @@ const CARDS = {
   spend:{t:'Spending this month', ic:'box', need:'spend', d:'What has been spent this month, against the budget', href:'#biz/spending', html:() => BIZ.cardSpend()},
   tpay:{t:'Tutor pay this month', ic:'cash', need:'tpay', step2:true, d:'Pay so far from logged sessions, and what is left after paying tutors'},
 };
-const DEFAULT_HOME = () => can('money') ? ['money','students','enrol','tutors'] : ['students','enrol','renew','tutors'];
+const DEFAULT_HOME = () => LEAN() ? (can('money') ? ['money','owed','students'] : ['students','enrol','renew']) : can('money') ? ['money','students','enrol','tutors'] : ['students','enrol','renew','tutors'];
 function myCards(){ const h = me().home; return (Array.isArray(h) ? h : DEFAULT_HOME()).filter(k => CARDS[k] && !CARDS[k].step2 && (!CARDS[k].need || can(CARDS[k].need))); }
 async function saveHome(cards){
   const s = hub.session(); if(s && s.me){ s.me.home = cards; localStorage.setItem('lhq_session', JSON.stringify(s)); }
   render();
   try{ await hub.api('people', {method:'POST', body:JSON.stringify({action:'home', cards})}); }catch(e){ toast('Couldn\'t save your Home online. It will look like this on this device.'); }
 }
+/* Needs attention: the same kind of task more than once becomes one line (tap it to see each) */
+const GL = {over:'invoices overdue', grace:'payments in their grace period', nocard:'paid without a tuition card', notutor:'cards with a subject without a tutor', end:'periods end this week', muend:'periods ended with make-ups owed',
+  quote:'quotes waiting over a week', cant:"cards a tutor can't make", seen:"cards tutors haven't seen", tell:'families to tell about a move', disp:'disputed sessions'};
+let attG = {};
+function attRows(att){
+  const out = [], done = {};
+  att.forEach(x => { const L = x.g ? att.filter(y => y.g === x.g) : [x];
+    if(L.length < 2) return out.push({x});
+    if(!done[x.g]){ done[x.g] = 1; out.push({grp:x.g, items:L, x}); } });
+  return out;
+}
+const attRow = (x, sub) => `<div class="it" data-go="${x.href}" style="cursor:pointer${sub ? ';padding-left:42px' : ''}"><span class="ico" style="color:var(${x.col})">${ic(x.ico)}</span><span class="t"><b>${esc(x.s.name)}</b><small>${esc(x.sub)}</small></span>${x.btn ? `<a class="btn sm" href="${x.btn[1]}">${x.btn[0]}</a>` : ''}</div>`;
+function attGroup(r){
+  const L = r.items, open = attG[r.grp], names = [...new Set(L.map(x => x.s.name.replace(/ (hasn't seen|can't make) .*/, '')))];
+  return `<button class="it" data-attg="${r.grp}"><span class="ico" style="color:var(${r.x.col})">${ic(r.x.ico)}</span><span class="t"><b>${L.length} ${GL[r.grp] || 'items'}</b><small>${esc(names.slice(0, 2).join(', '))}${names.length > 2 ? ` and ${names.length - 2} more` : ''}</small></span><span class="chev" style="${open ? 'transform:rotate(90deg)' : ''}">${ic('chev', 16, 2)}</span></button>${open ? L.map(x => attRow(x, true)).join('') : ''}`;
+}
 let attAll = false, attOpen = true; try{ attOpen = localStorage.getItem('lhq_attOpen') !== '0'; }catch(e){}
 
 P.home = () => {
-  const list = HD.students(), att = attention(list), m = metrics(list), cards = myCards();
+  const list = HD.students(), att = attention(list), AR = attRows(att), m = metrics(list), cards = myCards();
   const h = new Date().getHours(), greet = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening', d = new Date();
   const recent = saved.slice().sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0)).slice(0, 6);
   const draft = store.get('lhq_draft', null);
@@ -523,8 +553,8 @@ P.home = () => {
   ${cards.length ? `<div class="mcs">${cards.map(k => { const c = CARDS[k]; return `<div class="mc" data-go="${typeof c.href === 'function' ? c.href() : c.href}" role="link" tabindex="0" aria-label="${esc(c.t)}"><span class="l">${ic(c.ic,15,2)}${c.t}</span>${c.html(m)}</div>`; }).join('')}</div>` : ''}
   ${draftRow}
   ${PREVIEW && isDir() && !saved.length ? `<div class="card pad" style="border-color:var(--gold)"><div class="cap">Preview</div><p class="note" style="margin:0 0 10px">This preview has its own storage and is empty. Load six months of demo data to try every page.</p><a class="btn n" href="#set/demo">Demo data</a></div>` : ''}
-  <div class="h2">Needs attention <span class="acts" style="align-items:center"><em>${att.length || ''}</em><button class="btn sm" id="attTog">${attOpen ? 'Hide' : 'Show'}</button></span></div>
-  ${attOpen ? `<div class="card">${att.slice(0, attAll ? 999 : 15).map(x => `<div class="it" data-go="${x.href}" style="cursor:pointer"><span class="ico" style="color:var(${x.col})">${ic(x.ico)}</span><span class="t"><b>${esc(x.s.name)}</b><small>${esc(x.sub)}</small></span>${x.tag ? `<span class="tag ${x.tag[1]}">${x.tag[0]}</span>` : x.btn ? `<a class="btn sm" href="${x.btn[1]}">${x.btn[0]}</a>` : ''}</div>`).join('') || '<p class="empty">Nothing needs attention. Overdue payments, paid invoices without a card, subjects without a tutor and periods ending this week show here.</p>'}${att.length > 15 && !attAll ? `<button class="it" id="attAll" style="justify-content:center"><b>Show all ${att.length}</b></button>` : ''}</div>`
+  <div class="h2">Needs attention <span class="acts" style="align-items:center"><em>${AR.length || ''}</em><button class="btn sm" id="attTog">${attOpen ? 'Hide' : 'Show'}</button></span></div>
+  ${attOpen ? `<div class="card">${AR.slice(0, attAll ? 999 : 15).map(r => r.grp ? attGroup(r) : attRow(r.x)).join('') || '<p class="empty">Nothing needs attention. ✓</p>'}${AR.length > 15 && !attAll ? `<button class="it" id="attAll" style="justify-content:center"><b>Show all ${AR.length}</b></button>` : ''}</div>`
     : `<p class="note" style="margin:-2px 2px 18px">${att.length} item${att.length === 1 ? '' : 's'} hidden. Needs attention always stays on Home so nothing is missed.</p>`}
   <div class="h2">Recent <a class="btn sm" href="#docs">All documents</a></div>
   <div class="card">${recent.map(x => docRow(x, {when:true})).join('') || '<p class="empty">Nothing saved yet. Tap New to start with a quote.</p>'}</div>`;
@@ -549,7 +579,7 @@ P.students = (f = 'all') => {
   return `${crumb(null, null, 'students')}<div class="ph"><div class="tt"><h1>Students</h1><p>${list.length} student${list.length === 1 ? '' : 's'}</p></div>${can('students') || can('quotes') ? `<button class="btn" id="addStu">${ic('plus',16,2.2)} Add student</button>` : ''}</div>
   ${window.PC ? PC.block('students', {}, 'At a glance') : ''}
   <label class="search">${ic('search',18)}<input id="sq" type="search" placeholder="Search name, parent or number" value="${esc(sQ)}" autocomplete="off"></label>
-  <div class="chips">${Object.entries(S_F).filter(([k]) => !S_HIDE.includes(k) || k === f).map(([k, [l, fn]]) => `<a class="chip ${f === k ? 'on' : ''}" href="#students/${k}">${l}<i>${list.filter(fn).length}</i></a>`).join('')}</div>
+  ${f === 'all' ? `<button class="btn sm flt-btn" data-flt style="margin:0 0 10px">${ic('list',14)} Filter</button>` : ''}<div class="chips ${f === 'all' ? 'flt' : ''}">${Object.entries(S_F).filter(([k]) => !S_HIDE.includes(k) || k === f).map(([k, [l, fn]]) => `<a class="chip ${f === k ? 'on' : ''}" href="#students/${k}">${l}<i>${list.filter(fn).length}</i></a>`).join('')}</div>
   <div class="card" id="slist">${studentRows(list, f)}</div>`;
 };
 function studentRows(list, f){
@@ -786,6 +816,9 @@ const cfMark = st => st === 'disputed' ? '<span class="cfm dp">!</span>' : st ==
 const cfLine = e => { const st = HD.cfState(e), cf = e.cf || {};
   return st === 'waiting' ? `Confirms itself in ${Math.max(1, Math.round(HD.cfLeft(e) / 36e5))} h` : st === 'auto' ? 'No reply in 48 h' : st === 'confirmed' ? `By ${cf.by}${cf.how ? ' · ' + cf.how : ''}`
     : st === 'disputed' ? `${cf.from || 'The student'}: ${cf.note}` : st === 'settled' ? (cf.out === 'keep' ? 'The tutor\'s times stand' : `${cf.lost} min taken off`) + ` · by ${cf.by}` : ''; };
+/* ---------- More (Lean): the places that aren't in the bar ---------- */
+P.more = () => `<div class="ph"><div class="tt"><h1>More</h1></div></div><div class="card">${LHQNav.moreItems().map(([k, l, h]) => `<a class="it" href="${h}"><span class="ico">${LHQNav.ic(k, 20)}</span><span class="t"><b>${l}</b></span><span class="chev">›</span></a>`).join('')}</div>`;
+
 /* ---------- sessions: tutors log, students confirm (Stage 2), LHQ oversees and settles disputes ---------- */
 const SF = {tutor:'', q:''};
 function sessionRows(){
@@ -911,9 +944,9 @@ P.activity = () => {
   const areas = (ACT.areas.length ? ACT.areas : Object.keys(AREAL)).filter(a => AREAL[a]);
   return `${crumb('#home', 'Home', 'activity')}
   <div class="ph"><div class="tt"><h1>Activity</h1><p>Who did what</p></div></div>
-  <div class="actf"><div class="seg">${[['today','Today'],['week','This week'],['month','This month'],['all','All']].map(([k, l]) => `<button class="${AF.when === k ? 'on' : ''}" data-actw="${k}">${l}</button>`).join('')}</div>
+  <button class="btn sm flt-btn" data-flt style="margin:0 0 10px">${ic('list',14)} Filter</button><div class="actf ${AF.when === 'week' && !AF.who ? 'flt' : ''}"><div class="seg">${[['today','Today'],['week','This week'],['month','This month'],['all','All']].map(([k, l]) => `<button class="${AF.when === k ? 'on' : ''}" data-actw="${k}">${l}</button>`).join('')}</div>
     <label class="f" style="margin:0;min-width:200px;flex:1;max-width:300px"><select class="in" id="actWho" aria-label="Person"><option value="">Everyone</option>${ACT.people.map(n => `<option ${AF.who === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label></div>
-  <div class="tks">${areas.map(a => `<button class="tk${AF.areas.has(a) ? ' on' : ''}" data-acta="${a}" aria-pressed="${AF.areas.has(a)}"><span class="cbx">${AF.areas.has(a) ? '✓' : ''}</span>${AREAL[a]}</button>`).join('')}${AF.areas.size ? '<button class="btn sm" data-acta="">Clear</button>' : ''}</div>
+  <div class="tks ${AF.areas.size ? '' : 'flt'}">${areas.map(a => `<button class="tk${AF.areas.has(a) ? ' on' : ''}" data-acta="${a}" aria-pressed="${AF.areas.has(a)}"><span class="cbx">${AF.areas.has(a) ? '✓' : ''}</span>${AREAL[a]}</button>`).join('')}${AF.areas.size ? '<button class="btn sm" data-acta="">Clear</button>' : ''}</div>
   ${ACT.err ? `<p class="note">${esc(ACT.err)}</p>` : ''}
   ${Object.entries(days).map(([d, L]) => `<div class="h2">${dl(d)} <em>${L.length}</em></div><div class="card">${L.map(x => { const h = actHref(x); return `<${h ? `a href="${h}"` : 'div'} class="it"><span class="av">${esc(inits(x.who || '?'))}</span><span class="t"><b>${esc(x.who || 'LHQ Hub')}${x.role ? ` <span style="color:var(--muted);font-weight:600">· ${esc({director:'Director', admin:'Admin', tutor:'Tutor', student:'Student', parent:'Parent'}[x.role] || x.role)}</span>` : ''}</b><small>${esc(x.summary)}</small><small style="font-size:12px">${AREAL[x.area] || x.area} · ${hm(x.created_at)}</small></span>${h ? '<span class="chev">›</span>' : ''}</${h ? 'a' : 'div'}>`; }).join('')}</div>`).join('') || (ACT.busy ? '<p class="note">Loading…</p>' : '<div class="card"><p class="empty">Nothing in this period.</p></div>')}
   ${ACT.more ? '<button class="btn" data-actmore>Show earlier</button>' : ''}`;
@@ -1011,7 +1044,11 @@ P.tutors = (show = '') => {
   const ppl = HD.people(), pid = n => (ppl.find(p => p.name.toLowerCase() === n.toLowerCase()) || {}).id;
   const row = ({s, card, x}) => `<a class="it" href="${openLink(card)}"><span class="t"><b>${esc(s.name)}</b><small>${esc([x.name, (x.days || []).join(' '), x.start ? x.start + '–' + (x.end || '') : ''].filter(Boolean).join(' · '))}</small></span><span class="chev">${ic('chev',16,2)}</span></a>`;
   return `${crumb('#home', 'Home', 'tutors')}
-  <div class="ph"><div class="tt"><h1>Tutors teaching now</h1><p>${list.length} tutor${list.length === 1 ? '' : 's'} on current tuition cards${none.length ? ` · ${none.length} subject${none.length === 1 ? '' : 's'} without a tutor` : ''}</p></div>${can('tutors') ? `<div class="acts"><a class="btn" href="#calendar">${ic('clock',15)} Calendar</a><a class="btn" href="#bookings">Make-ups</a><a class="btn" href="#reqs">Requisitions</a><a class="btn" href="#sessions">${ic('clock',15)} Sessions${(n => n ? ' · ' + n + ' disputed' : '')(HD.sessionsToConfirm().filter(e => HD.cfState(e) === 'disputed').length)}</a><a class="btn" href="#clashes">Clashes${(n => n ? ' · ' + n : '')(openClashes().length)}</a></div>` : ''}</div>
+  <div class="ph"><div class="tt"><h1>Tutors</h1><p>${list.length} teaching${none.length ? ` · ${none.length} without a tutor` : ''}</p></div>${can('tutors') && !LEAN() ? `<div class="acts"><a class="btn" href="#calendar">${ic('clock',15)} Calendar</a><a class="btn" href="#bookings">Make-ups</a><a class="btn" href="#reqs">Requisitions</a><a class="btn" href="#sessions">${ic('clock',15)} Sessions</a><a class="btn" href="#clashes">Clashes</a></div>` : ''}</div>
+  ${can('tutors') ? (() => { const dsp = HD.sessionsToConfirm().filter(e => HD.cfState(e) === 'disputed').length, beh = sessionRows().filter(r => r.T.behind >= 2).length, cl = openClashes().length,
+      mu = Object.values(store.get('lhq_makeups', {}) || {}).filter(m => m && m.status === 'asked').length, rq = reqList().filter(r => !r.dec.s || r.dec.s === 'approved').length;
+      const r = (h, t, s) => `<a class="it" href="${h}"><span class="t"><b>${t}</b><small>${s}</small></span><span class="chev">›</span></a>`;
+      return LEAN() ? `<div class="card">${r('#sessions', 'Sessions', [beh ? beh + ' behind' : 'On track', dsp ? dsp + ' disputed' : ''].filter(Boolean).join(' · '))}${r('#clashes', 'Clashes', cl ? String(cl) : 'None')}${r('#bookings', 'Make-ups', mu ? mu + ' to confirm' : 'None waiting')}${r('#reqs', 'Requisitions', rq ? rq + ' open' : 'None open')}</div><div class="h2">Teaching</div>` : ''; })() : ''}
   ${window.PC ? PC.block('tutors', {}, 'At a glance') : ''}
   ${none.length ? `<div class="h2" id="none">No tutor yet <em>${none.length}</em></div><div class="card" style="border-color:var(--gold)">${none.map(row).join('')}</div>` : ''}
   ${list.map(([n, items]) => { const st = new Set(items.map(i => i.s.key)).size, open = show === encodeURIComponent(n) || show === n;
@@ -1034,12 +1071,20 @@ const SETS = [
   ['Enrolment & sending', [['enrol','link','Student checklist', () => me().role !== 'tutor'],['sending','wa','Email & WhatsApp', () => me().role !== 'tutor']]],
   ['Data', [['records.html','layout','Shared records', () => isDir()],['backup','box','Backup & restore', () => can('backup')],['deleted','bin','Recently deleted', () => can('restore')],['demo','restore','Demo data (preview)', () => isDir() && PREVIEW]]],
 ];
-const allowed = id => SETS.some(([, items]) => items.some(x => x[0] === id && (!x[3] || x[3]())));
+const setVis = ids => SETS.flatMap(([, items]) => items).filter(x => ids.includes(x[0]) && (!x[3] || x[3]()));
+const DETAILS = ['company','payments','numbering','messages','sending','tutorinfo','enrol'], DATA = ['records.html','backup','deleted','demo'];
+/* Lean: 5 places. Things set once sit inside LHQ details; shared records, backups and the bin inside Data */
+const LEAN_SETS = () => [['Account', [['account','user','My account']]],
+  ['LHQ', setVis(['people']).concat(setVis(DETAILS).length ? [['details','bank','LHQ details']] : [], setVis(['lists']))],
+  ['Data', setVis(DATA).length ? [['data','box','Data']] : []]];
+const allowed = id => SETS.some(([, items]) => items.some(x => x[0] === id && (!x[3] || x[3]()))) || (id === 'details' && setVis(DETAILS).length > 0) || (id === 'data' && setVis(DATA).length > 0);
+const setList = ids => `<div class="card">${setVis(ids).map(([k, i, l]) => `<a class="it" href="${k.endsWith('.html') ? k : '#set/' + k}"><span class="ico">${ic(i, 18)}</span><span class="t"><b>${l}</b></span><span class="chev">›</span></a>`).join('')}</div>`;
 P.settings = () => setWrap(innerWidth >= 900 ? 'account' : null);   // wide screens: open the first section instead of an empty page
 P.set = id => setWrap(allowed(id) ? id : null);
 P.person = id => setWrap('people', id);
 function setWrap(id, person){
-  const navH = SETS.map(([g, items]) => { const vis = items.filter(x => !x[3] || x[3]()); return vis.length ? `<div class="g">${g}</div>${vis.map(([k, i, l]) => `<a class="${id === k ? 'on' : ''}" href="${k.endsWith('.html') ? k : '#set/' + k}">${ic(i,18)}${l}</a>`).join('')}` : ''; }).join('');
+  const onId = LEAN() ? (DETAILS.includes(id) ? 'details' : DATA.includes(id) ? 'data' : id) : id;
+  const navH = (LEAN() ? LEAN_SETS() : SETS).map(([g, items]) => { const vis = items.filter(x => !x[3] || x[3]()); return vis.length ? `<div class="g">${g}</div>${vis.map(([k, i, l]) => `<a class="${onId === k ? 'on' : ''}" href="${k.endsWith('.html') ? k : '#set/' + k}">${ic(i,18)}${l}</a>`).join('')}` : ''; }).join('');
   const page = id ? (person ? personPage(person) : S[id]()) : '<h2 class="sec-h">Settings</h2><p class="sec-p">Choose a section.</p>';
   return `${id ? '' : `<div class="ph"><div class="tt"><h1>Settings</h1><p>${esc(me().name || '')} · ${roleText(me())}</p></div></div>`}
   <div class="sw ${id ? 'page' : 'index'}"><nav class="snav">${navH}</nav><div class="spage">${id ? crumb(person ? '#set/people' : '#settings', person ? 'People & access' : 'Settings', person ? 'person/' : 'set/' + id) : ''}${page}</div></div>`;
@@ -1049,9 +1094,14 @@ const settingsKV = () => withDefaults(store.get('lhq_settings', {}));
 function saveSettings(fields){ const s = Object.assign({}, store.get('lhq_settings', {}), fields); store.set('lhq_settings', s); toast('Saved'); }
 const fieldRow = (id, l, v, attrs = '') => `<label class="f"><span>${l}</span><input class="in" id="${id}" value="${esc(v)}" ${attrs}></label>`;
 
+S.details = () => `<h2 class="sec-h">LHQ details</h2>${setList(DETAILS)}`;
+S.data = () => `<h2 class="sec-h">Data</h2>${setList(DATA)}`;
 S.account = () => { const m = me(), L = LHQNav.layout();
   return `<h2 class="sec-h">My account</h2><p class="sec-p">How you sign in, and how LHQ Hub looks on this device.</p>
   <div class="card pad"><dl class="kv"><dt>Name</dt><dd>${esc(m.name || '')}</dd><dt>Role</dt><dd>${roleText(m)}</dd><dt>This device</dt><dd id="acStatus"></dd></dl></div>
+  <div class="card pad"><div class="cap">What you see</div>
+    <div class="seg"><button class="${LEAN() ? 'on' : ''}" data-view="lean">Lean</button><button class="${LEAN() ? '' : 'on'}" data-view="full">Full</button></div>
+    <p class="note" style="margin:0">${LEAN() ? 'The main places, main fields. Everything else under More.' : 'Everything in view.'}</p></div>
   <div class="card pad"><div class="cap">Navigation on this device</div>
     <div class="seg"><button class="${L === 'bottom' ? 'on' : ''}" data-layout="bottom">Bottom bar</button><button class="${L === 'side' ? 'on' : ''}" data-layout="side">Sidebar</button></div>
     <p class="note" style="margin:0">Phones always use the bottom bar.</p></div>
@@ -1296,6 +1346,10 @@ function bind(){
   if($('actWho')) $('actWho').onchange = () => { AF.who = $('actWho').value; actLoad(); };
   if($('cfQ')) $('cfQ').oninput = () => { cfQuery = $('cfQ').value; const pos = $('cfQ').selectionStart; render(); const q = $('cfQ'); if(q){ q.focus(); q.setSelectionRange(pos, pos); } };
   if($('attAll')) $('attAll').onclick = () => { attAll = true; render(); };
+  document.querySelectorAll('[data-view]').forEach(el => el.onclick = async () => { const v = el.dataset.view, s0 = hub.session();
+    if(s0 && s0.me){ s0.me.view = v; localStorage.setItem('lhq_session', JSON.stringify(s0)); } LHQNav.section(route.page); render();
+    try{ await hub.api('people', {method:'POST', body: JSON.stringify({action:'view', view:v})}); toast(v === 'lean' ? 'Lean' : 'Full'); }catch(e){ toast('Saved on this device'); } });
+  document.querySelectorAll('[data-attg]').forEach(el => el.onclick = () => { attG[el.dataset.attg] = !attG[el.dataset.attg]; render(); });
   if($('attTog')) $('attTog').onclick = () => { attOpen = !attOpen; try{ localStorage.setItem('lhq_attOpen', attOpen ? '1' : '0'); }catch(e){} render(); };
   on('[data-mv]', el => { const [i, d] = el.dataset.mv.split(':').map(Number), a = myCards(); [a[i], a[i + d]] = [a[i + d], a[i]]; saveHome(a); });
   on('[data-rm]', el => { const a = myCards(); a.splice(+el.dataset.rm, 1); saveHome(a); });

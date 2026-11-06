@@ -24,6 +24,7 @@ const signInWithCode = async (p, code, password) => {
     localStorage.setItem("lhq_session", JSON.stringify(s)); return !!s.token;
   }, [code, password]);
 };
+const VIEW = process.env.E2E_VIEW === "full" ? "full" : "lean";
 const iso = d => d.toISOString().slice(0, 10), today = iso(new Date()), addD = n => iso(new Date(Date.now() + n * 864e5));
 const money = n => "MKW " + Math.round(n).toLocaleString("en-US");
 
@@ -44,6 +45,8 @@ try {
   const A = await device(412), Tt = await device(412);
   check(await signInWithCode(A, ad.code, "Office#2026x"), "Admin chooses a password with the setup code");
   check(await signInWithCode(Tt, tu.code, "Tutor#2026xy"), "Tutor chooses a password with the setup code");
+  if (VIEW === "full") for (const p of [D, A, Tt]) await p.evaluate(async () => { const r = await hub.api("people", { method: "POST", body: JSON.stringify({ action: "view", view: "full" }) }); const s = hub.session(); s.me = Object.assign(s.me, { view: "full" }); localStorage.setItem("lhq_session", JSON.stringify(s)); return r; });
+  check((await D.evaluate(() => (hub.session().me || {}).view || "lean")) === VIEW, `everyone sees the ${VIEW} view`);
   await go(A, "", 2000); check((await text(A)).includes("Good"), "Admin's Hub opens on Home");
   await go(Tt, "", 2500); check(Tt.url().includes("#teach"), "the tutor's Hub opens on Teaching");
 

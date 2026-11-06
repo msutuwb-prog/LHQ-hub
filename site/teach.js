@@ -535,12 +535,13 @@ window.TUT = (function(){
       <div class="card pad"><div class="cap">Topics covered</div>${topicPicker(f, 'tp', 'open', 'q', 'Choose topics')}
         ${f.tp.map(t => `<div class="t-pk"><div class="row"><span>${esc(t)}</span><button class="t-x" type="button" aria-label="Remove ${esc(t)}" data-ttog="tp:${esc(t)}">×</button></div><div style="margin-top:8px">${tick('fin:' + t, f.fin.includes(t), 'Finished this topic', f.fin.includes(t) ? 'Starts its SRAs: today, then 1, 3, 7, 14 days and a month' : '')}</div></div>`).join('')}</div>
       <div class="card pad"><div class="cap">SRAs handed out <small style="text-transform:none;letter-spacing:0">· from the SRA tracker</small></div>${sraGroups(f)}</div>
-      <div class="card pad"><div class="cap">Guide</div><div class="t-opts">${tick('gb', f.gb, 'Guide handed before the session')}${tick('ga', f.ga, 'Guide handed after the session')}</div></div>
-      <div class="card pad"><div class="cap">Weekly assessment</div>${tick('wa', f.wa, 'Weekly assessment given', f.wa ? 'Enter the marks later: + Log › Weekly assessment marks' : '')}
+      <div class="card pad lm"><div class="cap">Guide</div><div class="t-opts">${tick('gb', f.gb, 'Guide handed before the session')}${tick('ga', f.ga, 'Guide handed after the session')}</div></div>
+      <div class="card pad lm"><div class="cap">Weekly assessment</div>${tick('wa', f.wa, 'Weekly assessment given', f.wa ? 'Enter the marks later: + Log › Weekly assessment marks' : '')}
         ${f.wa ? `<div style="margin-top:12px"><label class="f" style="margin-bottom:6px"><span>Topics tested (optional now)</span></label>${topicPicker(f, 'waTp', 'waOpen', 'wq', 'Choose topics')}${f.waTp.length ? `<p class="note">${f.waTp.map(esc).join(', ')}</p>` : ''}
           <label class="f" style="margin:12px 0 0"><span>Marked out of (optional now)</span><input class="in" inputmode="decimal" data-tin="waMx" value="${esc(f.waMx)}" placeholder="e.g. 40"></label></div>` : ''}</div>` : ''}
-      <div class="card pad"><label class="f"><span>Note for LHQ (optional)</span><textarea class="in" data-tin="nt" rows="2" style="min-height:0;height:72px">${esc(f.nt)}</textarea></label>
+      <div class="card pad lm"><label class="f"><span>Note for LHQ (optional)</span><textarea class="in" data-tin="nt" rows="2" style="min-height:0;height:72px">${esc(f.nt)}</textarea></label>
         <label class="f" style="margin:0"><span>Line for the parent (optional)</span><textarea class="in" data-tin="n" rows="2" maxlength="140" style="min-height:0;height:72px" placeholder="e.g. Much more confident with mole calculations this week.">${esc(f.n)}</textarea></label></div>
+      <button class="lean-more" type="button" data-leanmore>+ More: guide, assessment, notes</button>
       <button class="btn n full" type="button" id="tSave">${f.edit ? 'Save changes' : 'Save log'}</button>${f.edit ? '<button class="btn rd full" type="button" id="tDel" style="margin-top:8px">Delete this log</button>' : ''}` : ''}`;
   }
   function saveLog(){
