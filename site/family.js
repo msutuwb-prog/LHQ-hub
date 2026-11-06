@@ -34,6 +34,14 @@ window.FAM = (function(){
 .f-cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}.f-cal span{font-size:11px;color:var(--muted);font-weight:700}
 .f-cal a{border:1px solid var(--line2);background:var(--surface);border-radius:10px;padding:6px 0 5px;font-weight:700;font-size:13px;min-height:42px;display:flex;flex-direction:column;align-items:center;gap:3px;text-decoration:none;color:var(--ink)}
 .f-cal a.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}.f-cal a.mute{opacity:.4}
+.f-rs{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 14px;margin-bottom:12px}
+.f-rs .hd b{font-size:15.5px}.f-rs .hd small{color:var(--muted);font-size:12.5px;margin-left:6px}
+.f-q{margin:10px 0 0}.f-ql{font-size:12.5px;font-weight:700;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between}
+.f-row{display:flex;gap:8px}.f-row button{flex:1;min-height:40px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);font:inherit;font-weight:800;color:var(--muted);cursor:pointer;padding:6px 4px}
+.f-row button.on{background:var(--accent);border-color:var(--accent);color:var(--onaccent)}
+.f-got{display:flex;gap:14px;flex-wrap:wrap}.f-got button{display:inline-flex;align-items:center;gap:7px;border:0;background:none;padding:6px 2px;font:inherit;font-weight:700;font-size:13.5px;color:var(--ink);cursor:pointer}
+.f-cfr{display:flex;align-items:center;gap:10px;background:var(--am-bg);border-radius:12px;padding:8px 10px;margin:4px 0 2px}.f-cfr span{flex:1;font-size:13px;font-weight:700}
+.f-wk{border-color:var(--gold)}.f-wk .tg{font-size:10.5px;font-weight:800;color:var(--am);text-transform:uppercase;letter-spacing:.07em}
 .f-cal i{width:5px;height:5px;border-radius:50%;background:var(--bl);display:inline-block;margin:0 1px}.f-cal i.g{background:var(--gold)}`; document.head.appendChild(st); }
 
   async function fetchData(){
@@ -70,7 +78,7 @@ window.FAM = (function(){
   function home(){
     const k = kid(); if(!k) return emptyNoKids();
     const t = T(), today = k.week.filter(s => s.date === t), sraIn = k.sras.filter(x => x.due === t || x.status === 'late');
-    const need = k.toConfirm.map(confirmRow).concat(k.answers.map(answerRow), isParent() ? [] : sraIn.map(x => `<a class="it" href="#me/practice"><span class="f-mk am">!</span><span class="t"><b>${esc(x.topic)} ${x.stage ? 'R' + x.stage : 'LD'}</b><small>${esc(sub(x.sub))} · hand in ${x.due === t ? 'today' : 'late'}</small></span><span class="chev">›</span></a>`));
+    const need = (repDue(k) ? [`<a class="it" href="#me/report"><span class="f-mk am">!</span><span class="t"><b>Today's report</b><small>${esc(k.report.ses.map(x => sub(x.sub)).join(', '))} · 2 min</small></span><span class="chev">›</span></a>`] : []).concat(k.toConfirm.map(confirmRow)).concat(k.answers.map(answerRow), isParent() ? [] : sraIn.map(x => `<a class="it" href="#me/practice"><span class="f-mk am">!</span><span class="t"><b>${esc(x.topic)} ${x.stage ? 'R' + x.stage : 'LD'}</b><small>${esc(sub(x.sub))} · hand in ${x.due === t ? 'today' : 'late'}</small></span><span class="chev">›</span></a>`));
     const pay = isParent() ? owedLine() : '';
     return `<div class="ph"><div class="tt"><h1>Hi ${esc(firstN(me().name))}</h1><p>${isParent() && kids().length === 1 ? esc(firstN(k.name)) + ' · ' : ''}${day(t)}</p></div></div>${kidChips()}
       ${need.length ? `<div class="h2">Needs you <em>${need.length}</em></div><div class="card" style="border-left:3px solid var(--gold)">${need.join('')}</div>` : ''}
@@ -139,6 +147,36 @@ window.FAM = (function(){
   }
   const emptyNoKids = () => `<div class="ph"><div class="tt"><h1>Hi ${esc(firstN(me().name))}</h1></div></div>${!data ? `<p class="empty">${err === 'offline' ? 'Offline.' : err ? esc(err) : 'Loading…'}</p>` : '<p class="empty">Your account isn\'t linked to a student yet. Ask LHQ.</p>'}`;
 
+  /* ---------- today's report (students) ---------- */
+  const RS = {};   // answers being filled in, by date
+  const hmNow = () => { const d = new Date(); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
+  /* it opens once the day's first session has ended */
+  const repOpen = k => !!(k && k.report && (k.report.sent || hmNow() >= (k.report.ses[0].e || '00:00')));
+  const repDue = k => !isParent() && repOpen(k) && !k.report.sent;
+  const seed = rep => { const s0 = rep.sent || {}, ses = {}; rep.ses.forEach(x => { const a = (s0.ses || {})[x.sub] || {}; ses[x.sub] = {rate: a.rate || 0, prep: a.prep || '', conf: a.conf || 0, gb: !!a.gb, na: !!a.na, sra: !!a.sra}; });
+    return {ses, wk: s0.wk ? s0.wk.a : '', note: s0.note || '', edit: false}; };
+  const repReady = (rep, st) => rep.ses.every(x => { const a = st.ses[x.sub]; return a.rate && a.prep && a.conf; }) && (!rep.wk || st.wk);
+  function report(){
+    const k = kid(), rep = k && k.report, back = `<a class="crumb" href="#me">‹ Home</a>`;
+    if(isParent() || !rep) return back + '<p class="empty">No sessions today.</p>';
+    const st = RS[rep.date] || (RS[rep.date] = seed(rep));
+    if(rep.sent && !st.edit) return `${back}<div style="text-align:center;padding:40px 10px"><span class="f-mk ok" style="width:60px;height:60px;font-size:28px;margin:0 auto 12px">✓</span><h1 style="margin:0;color:var(--brand)">Sent</h1>
+      <p class="note">Today's report · ${day(rep.date)}</p><button class="btn" data-frchg style="margin-top:10px">Change it</button></div>`;
+    const E = encodeURIComponent, dots = (s, f, v) => `<div class="f-row">${[1, 2, 3, 4, 5].map(n => `<button class="${v === n ? 'on' : ''}" data-fr="${E(s)}|${f}|${n}">${n}</button>`).join('')}</div>`;
+    const ses = rep.ses.map(x => { const a = st.ses[x.sub], tn = firstN(x.tutor) || 'Your tutor', cf = k.toConfirm.find(e => e.d === rep.date && e.sub === x.sub);
+      return `<div class="f-rs"><div class="hd"><b>${esc(sub(x.sub))}</b><small>${esc(x.s)}–${esc(x.e)} · ${esc(tn)}</small></div>
+        ${cf ? `<div class="f-cfr"><span>Happened as logged?</span><button class="f-ok" data-fcf="yes:${esc(cf.id)}" aria-label="Yes">✓</button><button class="f-no" data-fcf="no:${esc(cf.id)}" aria-label="Not right">✕</button></div>` : ''}
+        <div class="f-q"><div class="f-ql">The session</div>${dots(x.sub, 'rate', a.rate)}</div>
+        <div class="f-q"><div class="f-ql">${esc(tn)} was prepared</div><div class="f-row">${['Yes','Partly','No'].map(o => `<button class="${a.prep === o ? 'on' : ''}" data-fr="${E(x.sub)}|prep|${o}">${o}</button>`).join('')}</div></div>
+        <div class="f-q"><div class="f-ql">How sure you are of today's topic</div>${dots(x.sub, 'conf', a.conf)}</div>
+        <div class="f-q"><div class="f-ql">You got</div><div class="f-got">${[['gb','Guide before'],['na','Notes after'],['sra','SRA']].map(([g, l]) => `<button data-frg="${E(x.sub)}|${g}"><span class="f-tick ${a[g] ? 'on' : ''}">✓</span>${l}</button>`).join('')}</div></div></div>`; }).join('');
+    const ok = repReady(rep, st);
+    return `${back}<div class="ph"><div class="tt"><h1>Today's report</h1><p>${day(rep.date)} · 1 = poor, 5 = great</p></div></div>${ses}
+      ${rep.wk ? `<div class="f-rs f-wk"><div class="tg">This week</div><div style="font-weight:700;margin:4px 0 8px">${esc(rep.wk.q)}</div><div class="f-row">${rep.wk.o.map(o => `<button class="${st.wk === o ? 'on' : ''}" data-fwk="${esc(o)}">${esc(o)}</button>`).join('')}</div></div>` : ''}
+      <div class="f-q" style="margin-bottom:12px"><div class="f-ql">Anything else <span>LHQ only</span></div><textarea class="in" id="frNote" rows="3" placeholder="Optional" style="min-height:70px">${esc(st.note)}</textarea></div>
+      <button class="btn n full" id="frSend" ${ok ? '' : 'disabled'}>Send</button><p class="note" style="text-align:center">Your tutors never see your answers.</p>`;
+  }
+
   function page(sub0, a1, a2){
     if(!data || Date.now() - (data.at || 0) > 60000) fetchData();
     if(!data) return emptyNoKids();
@@ -148,6 +186,7 @@ window.FAM = (function(){
     if(sub0 === 'subject') return subject(decodeURIComponent(a1 || ''));
     if(sub0 === 'payments' && isParent()) return payments();
     if(sub0 === 'more') return more();
+    if(sub0 === 'report') return report();
     return home();
   }
 
@@ -177,6 +216,16 @@ window.FAM = (function(){
     document.querySelectorAll('[data-fdone]').forEach(b => b.onclick = async () => { const on = !b.classList.contains('on'); b.classList.toggle('on', on);
       try{ await hub.api('family', {method:'POST', body: JSON.stringify({action:'done', id: b.dataset.fdone, done: on})}); const x = kids().flatMap(k => k.sras).find(s => s.id === b.dataset.fdone); if(x) x.done = on; write(CK, data); toast(on ? 'Done' : 'Not done'); }
       catch(e){ b.classList.toggle('on', !on); toast(e.message); } });
+    /* today's report */
+    const R0 = () => { const k = kid(); return k && k.report && RS[k.report.date]; };
+    document.querySelectorAll('[data-fr]').forEach(b => b.onclick = () => { const [s0, f, v] = b.dataset.fr.split('|'), st = R0(); if(!st) return; st.ses[decodeURIComponent(s0)][f] = f === 'prep' ? v : +v; render(); });
+    document.querySelectorAll('[data-frg]').forEach(b => b.onclick = () => { const [s0, g] = b.dataset.frg.split('|'), st = R0(), a = st && st.ses[decodeURIComponent(s0)]; if(!a) return; a[g] = !a[g]; render(); });
+    document.querySelectorAll('[data-fwk]').forEach(b => b.onclick = () => { const st = R0(); if(st){ st.wk = b.dataset.fwk; render(); } });
+    if($('frNote')) $('frNote').oninput = e => { const st = R0(); if(st) st.note = e.target.value; };
+    document.querySelectorAll('[data-frchg]').forEach(b => b.onclick = () => { const st = R0(); if(st){ st.edit = true; render(); } });
+    if($('frSend')) $('frSend').onclick = async () => { const k = kid(), st = R0(); if(!st) return; $('frSend').disabled = true;
+      const j = await post({action:'report', ses: st.ses, wk: st.wk, note: st.note}, 'Sent');
+      if(j){ st.edit = false; } else $('frSend').disabled = false; };
     document.querySelectorAll('[data-fhelp]').forEach(b => b.onclick = () => openSheet(`<div class="hx"><h3>Sessions</h3><button class="ib" data-close>✕</button></div><p style="line-height:1.7"><b>7/16</b>: had of planned this period.<br>The bar's dark mark: where you should be by today.<br><b>!</b> behind · <b>✓</b> on track · <b>owed</b>: make-ups due.</p>`));
   }
   /* the bell: what needs this person, and news */
@@ -187,6 +236,7 @@ window.FAM = (function(){
       const who = kids().length > 1 ? firstN(k.name) + ' · ' : '';
       k.toConfirm.forEach(e => need.push({t:`${who}${sub(e.sub)} · ${day(e.d).split(' ')[0]} ${e.t1}`, s:'Confirm', href:'#me'}));
       k.answers.forEach(e => need.push({t:`${who}${firstN(e.tutor)} answered`, s:`${sub(e.sub)} · ${day(e.d)}`, href:'#me'}));
+      if(repDue(k)) need.push({t:"Today's report", s: k.report.ses.map(x => sub(x.sub)).join(', ') + ' · 2 min', href:'#me/report'});
       if(!isParent()) k.sras.filter(x => x.due === t || x.status === 'late').forEach(x => need.push({t:`${x.topic} ${x.stage ? 'R' + x.stage : 'LD'}`, s:'Hand in ' + (x.due === t ? 'today' : 'late'), href:'#me/practice'}));
       k.changes.forEach(c => info.push({t:`${who}${sub(c.sub)} → ${DAYN[c.to.day]} ${c.to.s}`, s:'was ' + DAYN[c.from.day] + ' ' + c.from.s, at:c.at, href:'#me'}));
       k.makeups.forEach(m => info.push({t:`${who}Make-up: ${sub(m.sub)} ${day(m.d)} ${m.s}`, s:'Confirmed', at:0, href:'#me/calendar'}));

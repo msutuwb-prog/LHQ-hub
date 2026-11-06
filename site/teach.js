@@ -82,7 +82,7 @@ window.TUT = (function(){
     if(loading) return loading;
     loading = (async () => {
       await flush();
-      try{ const j = await hub.api('tutor'); data = {cards: j.cards || [], entries: j.entries || [], classes: j.classes || [], reports: j.reports || [], avail: j.avail || [], acks: j.acks || {}, gone: j.gone || [], ackFrom: j.ackFrom || 0, calLink: j.calLink || '', makeups: j.makeups || [], reqs: j.reqs || {}, clashes: j.clashes || [], at: Date.now()}; write(CK, data); err = ''; }
+      try{ const j = await hub.api('tutor'); data = {cards: j.cards || [], entries: j.entries || [], classes: j.classes || [], reports: j.reports || [], avail: j.avail || [], acks: j.acks || {}, gone: j.gone || [], ackFrom: j.ackFrom || 0, calLink: j.calLink || '', makeups: j.makeups || [], reqs: j.reqs || {}, clashes: j.clashes || [], says: j.says || null, at: Date.now()}; write(CK, data); err = ''; }
       catch(e){ err = navigator.onLine ? e.message : 'offline'; }
       loading = null; if(!form) render();
     })();
@@ -261,6 +261,14 @@ window.TUT = (function(){
     return {need, info};
   }
   /* clashes on their cards: they have the final say */
+  /* what students say: averages from students' daily reports, beside LHQ's, after 4 weeks; never single answers */
+  function saysBlock(){
+    const S0 = data.says; if(!S0 || (!S0.mine && !S0.opens && !S0.few)) return '';
+    if(!S0.mine) return `<div class="h2">What students say</div><div class="card"><div class="it"><span class="ico">${ic('clock', 18)}</span><span class="t"><b>${S0.few ? 'Shows once 5 answers are in' : 'Shows from ' + nice(S0.opens)}</b><small>Averages only. Never single answers.</small></span></div></div>`;
+    const M = S0.mine, A = S0.lhq || {}, f = (l, v, a, unit, gap) => `<div class="kpi"><small>${l}</small><b>${v}${unit}</b><span class="${v < a - gap ? 'dn' : v > a ? 'up' : 'fl'}">LHQ ${a}${unit}</span></div>`;
+    return `<div class="h2">What students say <em>4 weeks</em></div><div class="kpis">${f('Sessions', M.rate, A.rate, '', .3)}${f('Prepared', M.prep, A.prep, '%', 10)}${f('Guides before', M.gb, A.gb, '%', 10)}${f('Topic', M.conf, A.conf, '', .3)}</div>
+      <p class="note" style="margin:-8px 2px 14px">Averages of all your students, out of 5 where shown. Never single answers.</p>`;
+  }
   function clashesBlock(){
     const C = (data.clashes || []).filter(c => !c.res || c.res.s !== 'together'); if(!C.length) return '';
     const KL = {group:'Together?', tutor:'Double-booked', student:'Student double-booked'};
@@ -454,7 +462,7 @@ window.TUT = (function(){
       (ed ? '<p class="note" style="margin:-6px 0 12px">Move, remove or add cards.</p>'
         : rep ? `<a class="t-banner ok" href="#teach/report"><span><b>Today's report is in</b>Sent at ${hm(rep.sent)}. You can still log; changes show as edited.</span></a>`
         : `<a class="t-banner" href="#teach/report"><span><b>Daily report due before you leave</b>Reminder between 4 and 5 pm${G.length ? ` · ${G.length} thing${G.length > 1 ? 's' : ''} still to log` : ''}</span></a>`) +
-      (ed ? '' : answersBlock() + noticesBlock() + clashesBlock()) + cardsBlock() + (ed ? '' : reqsBlock() + `
+      (ed ? '' : answersBlock() + noticesBlock() + clashesBlock()) + cardsBlock() + (ed ? '' : saysBlock() + reqsBlock() + `
       <div class="h2">Logged today <em>${L.length}</em></div>${timeline(L)}
       ${G.length ? `<div class="h2">Still to log <em>${G.length}</em></div>${gapCard(G)}` : ''}
       <div class="card">${[['#teach/cal','clock','Calendar','Your week from your tuition cards · clashes · times you can\'t teach'],['#teach/students','users','My students','Sessions had and remaining, make-ups'],['#teach/sra','restore','SRA tracker','Give, collect and print · next 7 days · by student'],['#teach/classes','users','Classes',`${(data.classes || []).length} official class${(data.classes || []).length === 1 ? '' : 'es'}`]].concat(tutorRole() ? [] : [['#teach/report','list','Daily report', rep ? 'Sent today' : 'Due before you leave']]).map(([h, i, b, s]) => `<a class="it" href="${h}"><span class="ico">${ic(i,18)}</span><span class="t"><b>${b}</b><small>${s}</small></span><span class="chev">${ic('chev',16,2)}</span></a>`).join('')}</div>`);

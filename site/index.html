@@ -26,6 +26,7 @@ if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash)
 <script src="defaults.js"></script>
 <script src="hubdata.js"></script>
 <script src="schedule.js"></script>
+<script src="sreport.js"></script>
 <script src="nav.js"></script>
 <script src="schools.js"></script>
 <script src="business.js"></script>
@@ -94,6 +95,11 @@ a.it:hover .t b,button.it:hover .t b{text-decoration:underline;text-underline-of
 .av{width:32px;height:32px;border-radius:50%;background:var(--bl-bg);color:var(--bl);display:grid;place-items:center;font-weight:800;font-size:12.5px;flex:none}
 .kv{display:grid;grid-template-columns:120px 1fr;gap:8px 10px;font-size:13.5px;margin:4px 0}
 .kv dd .tag{margin-left:8px;vertical-align:1px}
+table.says{width:100%;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums;min-width:560px}
+table.says th{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;text-align:right;padding:12px 8px 6px;font-weight:800}
+table.says td{padding:10px 8px;border-top:1px solid var(--line2);text-align:right}
+table.says th:first-child,table.says td:first-child{text-align:left;font-weight:700;padding-left:0}
+table.says td.lo{color:var(--am);font-weight:800}table.says tr.all td{color:var(--muted)}
 .kv dt{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding-top:2px}.kv dd{margin:0;font-weight:700;min-width:0;overflow-wrap:anywhere}
 .note{font-size:12.5px;color:var(--muted);margin:8px 0 0}
 .empty{color:var(--muted);font-size:13.5px;margin:12px 0}
@@ -422,7 +428,7 @@ function render(){
   if(render.lastH !== location.hash){ document.documentElement.classList.remove('lean-open'); render.lastH = location.hash; }
   if(me().role === 'tutor' && !['teach','settings','set'].includes(route.page)){ location.replace('#teach'); route = {page:'teach', args:[]}; }
   if(['student','parent'].includes(me().role) && !['me','settings','set'].includes(route.page)){ location.replace('#me'); route = {page:'me', args:[]}; }
-  const sec = route.page === 'me' ? ({practice:'mprac', calendar:'mcal', progress:'mprog', sessions:'mprog', subject:'mprog', payments:'mpay', more:'more'}[route.args[0]] || 'me') : route.page === 'teach' && me().role === 'tutor' ? ({sra:'tsra', report:'trep', cal:'tcal', avail:'tcal'}[route.args[0]] || 'teach') : {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', teach:'teach', tutors:'tutors', bookings:'tutors', reqs:'tutors', sessions:'tutors', confirm:'tutors', clashes:'tutors', calendar:'calendar', more:'more'}[route.page] || route.page;
+  const sec = route.page === 'me' ? ({practice:'mprac', calendar:'mcal', progress:'mprog', sessions:'mprog', subject:'mprog', payments:'mpay', more:'more'}[route.args[0]] || 'me') : route.page === 'teach' && me().role === 'tutor' ? ({sra:'tsra', report:'trep', cal:'tcal', avail:'tcal'}[route.args[0]] || 'teach') : {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', teach:'teach', tutors:'tutors', bookings:'tutors', reqs:'tutors', sessions:'tutors', confirm:'tutors', clashes:'tutors', calendar:'calendar', says:'tutors', more:'more'}[route.page] || route.page;
   LHQNav.section(sec);
   const m = $('main');
   m.className = 'main' + (['edithome','new','tutors','teach'].includes(route.page) ? ' narrow' : '');
@@ -518,6 +524,20 @@ function attention(list){
     const RQ = reqList(), ap = RQ.filter(r => !r.dec.s), buy = RQ.filter(r => r.dec.s === 'approved');
     if(isDir() && ap.length) out.push({w:-1, s:{name:`${ap.length} requisition${ap.length === 1 ? '' : 's'} to approve`}, href:'#reqs', ico:'box', col:'--am', sub:ap.slice(0, 3).map(r => `${r.item.item} · ${r.rep.tutor}`).join(' · '), btn:['Review', '#reqs']});
     if(can('spend') && buy.length) out.push({w:-1, s:{name:`${buy.length} approved requisition${buy.length === 1 ? '' : 's'} to buy`}, href:'#reqs', ico:'box', col:'--am', sub:buy.slice(0, 3).map(r => r.item.item).join(' · '), btn:['Review', '#reqs']});
+    /* students' daily reports (only for those who may read them) */
+    const SR = store.get('lhq_sreports', null);
+    if(SR && window.SREP){ const nm = k => (HD.students().find(x => x.key === k) || {name:k}).name;
+      SREP.flags(SR, t).forEach(f => {
+        if(f.kind === 'prep') out.push({w:-1, g:'rprep', s:{name:`${f.tutor} · not prepared ${f.n} times`}, href:'#says', ico:'alert', col:'--rd', sub:`Last 30 days · ${f.names.map(k => first(nm(k))).join(', ')}`});
+        if(f.kind === 'guide') out.push({w:0, g:'rguide', s:{name:`${f.tutor} · no guide before, ${f.n} times`}, href:stuLink(f.st, 'reports'), ico:'list', col:'--am', sub:`${nm(f.st)} · this week`});
+        if(f.kind === 'week') out.push({w:0, g:'rweek', s:{name:`${nm(f.st)}: ${f.a}`}, href:stuLink(f.st, 'reports'), ico:'msg', col:'--am', sub:f.q});
+        if(f.kind === 'note') out.push({w:0, g:'rnote', s:{name:`${nm(f.st)} wrote to LHQ`}, href:stuLink(f.st, 'reports'), ico:'msg', col:'--am', sub:`“${f.note}”`});
+      });
+      const from = SREP.first(SR), cards = saved.filter(d => typeOf(d) === 'card');
+      if(from) HD.people().filter(p => p.role === 'student' && p.status === 'active').forEach(p => { const key = SCHED.nk(p.name), mine = SR[key] || {};
+        const days = [...new Set(SCHED.sessions(cards, SREP.addDays(t, -21), SREP.addDays(t, -1), {student: p.name}).map(e => e.date))].filter(d => d >= from).sort().slice(-3);
+        if(days.length === 3 && days.every(d => !mine[d])) out.push({w:0, g:'rmiss', s:{name:`${p.name} hasn't reported`}, href:stuLink(key, 'reports'), ico:'clock', col:'--am', sub:'Last 3 session days'}); });
+    }
     disp.filter(e => !e.cf.step || e.cf.step === 'lhq').forEach(e => out.push({w:-2, g:'disp', s:{name:'Settle: ' + e.st}, href:'#confirm/' + encodeURIComponent(e.id), ico:'alert', col:'--rd', sub:`${e.sub} with ${e.tutor || 'tutor'} · ${nice(e.d)} · ${cfLine(e)}`, tag:['Disputed','rd']}));
   }
   return out.sort((a, b) => a.w - b.w);
@@ -582,7 +602,8 @@ async function saveHome(cards){
 }
 /* Needs attention: the same kind of task more than once becomes one line (tap it to see each) */
 const GL = {over:'invoices overdue', grace:'payments in their grace period', nocard:'paid without a tuition card', notutor:'cards with a subject without a tutor', end:'periods end this week', muend:'periods ended with make-ups owed',
-  quote:'quotes waiting over a week', cant:"cards a tutor can't make", seen:"cards tutors haven't seen", tell:'families to tell about a move', disp:'disputed sessions'};
+  quote:'quotes waiting over a week', cant:"cards a tutor can't make", seen:"cards tutors haven't seen", tell:'families to tell about a move', disp:'disputed sessions',
+  rprep:'tutors not prepared', rguide:'guides missing', rweek:'answers to look at', rnote:'notes from students', rmiss:"students who haven't reported"};
 let attG = {};
 function attRows(att){
   const out = [], done = {};
@@ -655,7 +676,7 @@ P.student = (key, tab = 'overview') => {
   const s = HD.students().find(x => x.key === key);
   if(!s) return `${crumb('#students', 'Students')}<p class="empty">That student isn't here. They may have been renamed.</p>`;
   const myRows = can('tutors') ? sessionRows().filter(r => SCHED.nk(r.it.st) === SCHED.nk(s.name)) : [];
-  const tabs = [['overview','Overview']].concat(myRows.length ? [['sessions','Sessions']] : [], (isDir() || can('tutors')) && PREVIEW_OR_DB() ? [['accounts','Accounts']] : [], [['documents',`Doc<span class="x-ph">ument</span>s<i>${s.docs.length}</i>`],['details','Details']]);
+  const tabs = [['overview','Overview']].concat(myRows.length ? [['sessions','Sessions']] : [], (isDir() || can('tutors')) && PREVIEW_OR_DB() ? [['accounts','Accounts']] : [], store.get('lhq_sreports', null) ? [['reports','Reports']] : [], [['documents',`Doc<span class="x-ph">ument</span>s<i>${s.docs.length}</i>`],['details','Details']]);
   let body = '';
   if(tab === 'overview') body = (window.PC ? PC.block('student', {s}, 'This period') : '') + stuOverview(s);
   if(tab === 'accounts'){
@@ -676,6 +697,12 @@ P.student = (key, tab = 'overview') => {
       ${it.cap && T.planned < it.cap ? `<p class="note" style="margin:8px 0 0;color:var(--am);font-weight:700">The card's days only fit ${T.planned} of the ${it.cap} sessions paid for: add a day or a make-up.</p>` : ''}
       <p class="note" style="margin:8px 0 0">${nice(it.pa)} – ${nice(it.b)}${it.cap ? ` · ${it.cap} sessions on the card` : ''} · ${T.confirmed} confirmed${T.waiting ? ` · ${T.waiting} waiting` : ''}${T.disputed ? ` · ${T.disputed} disputed` : ''}${T.lost ? ` · ${T.lost} min taken off` : ''} · ${T.behind ? `<b style="color:var(--am)">${T.behind} behind</b>` : 'on track'}</p></div>
       <div class="card">${T.entries.slice().reverse().map(e => { const st = HD.cfState(e); return `<button class="it" ${st ? `data-cf="${esc(e.id)}"` : ''}>${st ? cfMark(st) : '<span class="cfm" style="border:2px solid var(--line)"></span>'}<span class="t"><b>${nice(e.d)}${e.t1 ? ' · ' + esc(e.t1) + '–' + esc(e.t2 || '') : ''}${e.mk ? ' · make-up' : ''}</b><small>${esc({attended:'On time', present:'Present', late:'Late', absent:'Absent · owed', cancelled:'Cancelled · owed'}[e.a] || e.a || '')}${st ? ' · ' + CFL[st] : ''}${(e.tp || []).length ? ' · ' + esc(e.tp.join(', ')) : ''} · ${esc(e.tutor || '')}</small></span></button>`; }).join('') || '<p class="empty">No sessions logged yet.</p>'}</div>`).join('');
+  }
+  if(tab === 'reports'){
+    const R = (store.get('lhq_sreports', {}) || {})[s.key] || {}, days = Object.keys(R).sort().reverse().slice(0, 30);
+    body = days.map(d => { const r = R[d] || {}, q = r.wk && SREP.qOf(r.wk.k);
+      return `<div class="h2">${nice(d)}</div><div class="card">${Object.entries(r.ses || {}).map(([sb, a]) => `<div class="it"><span class="t"><b>${esc(sb)}${a.tutor ? ' · ' + esc(a.tutor) : ''}</b><small>Session ${a.rate} · Prepared ${esc(a.prep)} · Topic ${a.conf} · Got ${[a.gb && 'guide', a.na && 'notes', a.sra && 'SRA'].filter(Boolean).join(', ') || 'nothing'}</small></span></div>`).join('')}
+        ${q ? `<div class="it"><span class="t"><b>${esc(r.wk.a)}</b><small>${esc(q.q)}</small></span></div>` : ''}${r.note ? `<div class="it"><span class="t"><b>“${esc(r.note)}”</b><small>To LHQ</small></span></div>` : ''}</div>`; }).join('') || '<p class="empty">No reports yet.</p>';
   }
   if(tab === 'documents'){
     body = `<div class="card">${s.docs.map(d => docRow(d, {noName:true})).join('') || '<p class="empty">No documents yet.</p>'}</div>
@@ -1115,16 +1142,29 @@ P.tutors = (show = '') => {
   const ppl = HD.people(), pid = n => (ppl.find(p => p.name.toLowerCase() === n.toLowerCase()) || {}).id;
   const row = ({s, card, x}) => `<a class="it" href="${openLink(card)}"><span class="t"><b>${esc(s.name)}</b><small>${esc([x.name, (x.days || []).join(' '), x.start ? x.start + '–' + (x.end || '') : ''].filter(Boolean).join(' · '))}</small></span><span class="chev">${ic('chev',16,2)}</span></a>`;
   return `${crumb('#home', 'Home', 'tutors')}
-  <div class="ph"><div class="tt"><h1>Tutors</h1><p>${list.length} teaching${none.length ? ` · ${none.length} without a tutor` : ''}</p></div>${can('tutors') && !LEAN() ? `<div class="acts"><a class="btn" href="#calendar">${ic('clock',15)} Calendar</a><a class="btn" href="#bookings">Make-ups</a><a class="btn" href="#reqs">Requisitions</a><a class="btn" href="#sessions">${ic('clock',15)} Sessions</a><a class="btn" href="#clashes">Clashes</a></div>` : ''}</div>
+  <div class="ph"><div class="tt"><h1>Tutors</h1><p>${list.length} teaching${none.length ? ` · ${none.length} without a tutor` : ''}</p></div>${can('tutors') && !LEAN() ? `<div class="acts"><a class="btn" href="#calendar">${ic('clock',15)} Calendar</a><a class="btn" href="#bookings">Make-ups</a>${store.get('lhq_sreports', null) ? '<a class="btn" href="#says">What students say</a>' : ''}<a class="btn" href="#reqs">Requisitions</a><a class="btn" href="#sessions">${ic('clock',15)} Sessions</a><a class="btn" href="#clashes">Clashes</a></div>` : ''}</div>
   ${can('tutors') ? (() => { const dsp = HD.sessionsToConfirm().filter(e => HD.cfState(e) === 'disputed').length, beh = sessionRows().filter(r => r.T.behind >= 2).length, cl = openClashes().length,
       mu = Object.values(store.get('lhq_makeups', {}) || {}).filter(m => m && m.status === 'asked').length, rq = reqList().filter(r => !r.dec.s || r.dec.s === 'approved').length;
       const r = (h, t, s) => `<a class="it" href="${h}"><span class="t"><b>${t}</b><small>${s}</small></span><span class="chev">›</span></a>`;
-      return LEAN() ? `<div class="card">${r('#sessions', 'Sessions', [beh ? beh + ' behind' : 'On track', dsp ? dsp + ' disputed' : ''].filter(Boolean).join(' · '))}${r('#clashes', 'Clashes', cl ? String(cl) : 'None')}${r('#bookings', 'Make-ups', mu ? mu + ' to confirm' : 'None waiting')}${r('#reqs', 'Requisitions', rq ? rq + ' open' : 'None open')}</div><div class="h2">Teaching</div>` : ''; })() : ''}
+      return LEAN() ? `<div class="card">${store.get('lhq_sreports', null) ? r('#says', 'What students say', 'Last 4 weeks') : ''}${r('#sessions', 'Sessions', [beh ? beh + ' behind' : 'On track', dsp ? dsp + ' disputed' : ''].filter(Boolean).join(' · '))}${r('#clashes', 'Clashes', cl ? String(cl) : 'None')}${r('#bookings', 'Make-ups', mu ? mu + ' to confirm' : 'None waiting')}${r('#reqs', 'Requisitions', rq ? rq + ' open' : 'None open')}</div><div class="h2">Teaching</div>` : ''; })() : ''}
   ${window.PC ? PC.block('tutors', {}, 'At a glance') : ''}
   ${none.length ? `<div class="h2" id="none">No tutor yet <em>${none.length}</em></div><div class="card" style="border-color:var(--gold)">${none.map(row).join('')}</div>` : ''}
   ${list.map(([n, items]) => { const st = new Set(items.map(i => i.s.key)).size, open = show === encodeURIComponent(n) || show === n;
     return `<div class="card"><a class="it" href="#tutors/${encodeURIComponent(open ? '' : n)}"><span class="av">${inits(n)}</span><span class="t"><b>${esc(n)}</b><small>${st} student${st === 1 ? '' : 's'} · ${esc([...new Set(items.map(i => i.x.name))].join(', '))}</small></span><span class="chev">${ic(open ? 'back' : 'chev',16,2)}</span></a>
       ${open ? items.map(row).join('') + (pid(n) && (isDir() || can('tutors')) ? `<a class="btn sm" style="margin:4px 0 12px" href="#person/${pid(n)}">${ic('user',14)} ${esc(first(n))}'s account</a>` : '') : ''}</div>`; }).join('') || '<p class="empty">No current tuition cards have tutors yet.</p>'}`;
+};
+
+/* ================= what students say (from their daily reports; LHQ only) ================= */
+P.says = () => {
+  const SR = store.get('lhq_sreports', null);
+  if(!SR) return `${crumb('#tutors', 'Tutors', 'says')}<p class="empty">Only LHQ sees this.</p>`;
+  const B = SREP.byTutor(SR, today()), A = B.all, W = SREP.weekAnswers(SR, today()), T = Object.entries(B.tutors).sort((a, b) => a[0].localeCompare(b[0]));
+  const lo = (v, a, gap) => A && v < a - gap ? ' class="lo"' : '';
+  const row = (n, x, me) => `<tr${me ? ' class="all"' : ''}><td>${esc(n)}</td><td${me ? '' : lo(x.rate, A.rate, .3)}>${x.rate}</td><td${me ? '' : lo(x.prep, A.prep, 10)}>${x.prep}%</td><td${me ? '' : lo(x.gb, A.gb, 10)}>${x.gb}%</td><td${me ? '' : lo(x.na, A.na, 10)}>${x.na}%</td><td${me ? '' : lo(x.sra, A.sra, 10)}>${x.sra}%</td><td${me ? '' : lo(x.conf, A.conf, .3)}>${x.conf}</td><td>${x.n}</td></tr>`;
+  return `${crumb('#tutors', 'Tutors', 'says')}<div class="ph"><div class="tt"><h1>What students say</h1><p>${nice(B.from)} – ${nice(B.to)}</p></div></div>
+  ${A ? `<div class="card"><div class="bz-scroll"><table class="says"><tr><th>Tutor</th><th>Session</th><th>Prepared</th><th>Guides</th><th>Notes</th><th>SRAs</th><th>Topic</th><th>Answers</th></tr>${T.map(([n, x]) => row(n, x)).join('')}${row('LHQ', A, true)}</table></div></div>
+    <p class="note" style="margin:-6px 2px 16px">Session and Topic out of 5. Amber: well below LHQ.</p>` : '<p class="empty">No reports in the last 4 weeks.</p>'}
+  <div class="h2">This week <em>${esc(W.q.q)}</em></div><div class="card">${W.q.o.map(o => `<div class="it"><span class="t"><b>${esc(o)}</b></span><b${W.q.bad.includes(o) && W.counts[o] ? ' style="color:var(--am)"' : ''}>${W.counts[o]}</b></div>`).join('')}</div>`;
 };
 
 /* ================= business (business.js) ================= */
