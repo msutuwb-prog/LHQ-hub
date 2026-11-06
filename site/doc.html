@@ -29,6 +29,10 @@
 <script src="codec.js"></script>
 <script src="schools.js"></script>
 <style>
+/* Lean (the default view): the main fields; the rest behind + More */
+html.lean:not(.lean-open) .lm{display:none!important}
+.lean-more{display:none;width:100%;border:1px dashed var(--line);background:none;border-radius:12px;padding:12px 14px;font:inherit;font-weight:700;color:var(--brand);margin:0 0 14px;cursor:pointer}
+html.lean .lean-more{display:block}
 :root{
   --navy:#073763; --onnavy:#fff; --gold:#f4b223; --ink:#14213d; --muted:#6b7585; --line:#e4e7ec; --line2:#eef0f3; --line3:#c3cad5;
   --bg:#f5f6f8; --panel:#ffffff; --surface2:#fafbfc; --field:#f6f8fb; --danger:#b42318; --ok:#1f7a4d;
@@ -532,6 +536,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
 .cc-ov{position:fixed;inset:0;z-index:90;background:rgba(10,18,30,.45);display:grid;place-items:center;padding:16px}.cc-box{background:var(--surface,#fff);color:var(--ink,#14213d);border-radius:18px;padding:18px;max-width:520px;width:100%;max-height:85vh;overflow:auto;box-shadow:0 18px 40px rgba(0,0,0,.25)}
 </style>
 <script src="testbar.js"></script>
+<script>(function(){ try{ const m = (JSON.parse(localStorage.getItem('lhq_session') || 'null') || {}).me || {}; document.documentElement.classList.toggle('lean', m.view !== 'full'); }catch(e){ document.documentElement.classList.add('lean'); } })();</script>
 </head>
 <body data-view="edit">
 
@@ -573,11 +578,11 @@ body[data-mode=view] .dp-aside{grid-area:aside}
         <button type="button" data-t="receipt">Receipt</button>
         <button type="button" data-t="card">Card</button>
       </div>
-      <div class="grid2">
+      <div class="grid2 lm">
         <label><span id="numLabel">Quote number</span><input id="f_number" autocomplete="off"></label>
         <div class="fld"><span class="lbl" id="dateLabel">Date</span><button type="button" class="date-btn" data-cal="date" id="btnDate" aria-haspopup="dialog" aria-expanded="false"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span></span></button></div>
       </div>
-      <div class="fld" id="dueRow"><span class="lbl" id="dueLabel">Valid until</span>
+      <div class="fld lm" id="dueRow"><span class="lbl" id="dueLabel">Valid until</span>
         <div class="due-wrap">
           <div class="chips" id="dueChips" role="group" aria-label="Quick dates">
             <button type="button" data-days="0">Today</button><button type="button" data-days="7">7 days</button><button type="button" data-days="14">14 days</button><button type="button" data-days="30">30 days</button>
@@ -585,27 +590,27 @@ body[data-mode=view] .dp-aside{grid-area:aside}
           <button type="button" class="date-btn" data-cal="due" id="btnDue" aria-haspopup="dialog" aria-expanded="false"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span></span></button>
         </div>
       </div>
-      <label id="refRow"><span id="refLabel">Quote reference</span><input id="f_ref" autocomplete="off" placeholder="e.g. Q-1038"></label>
+      <label class="lm" id="refRow"><span id="refLabel">Quote reference</span><input id="f_ref" autocomplete="off" placeholder="e.g. Q-1038"></label>
       <label id="nameRow"><span>Parent / guardian name</span><input id="f_name" placeholder="e.g. Mr Mathandalizwe" autocomplete="off"></label>
       <div class="grid-student">
         <label><span>Student name</span><input id="f_student" placeholder="e.g. Thando Mathandalizwe" autocomplete="off" list="studentNames"><datalist id="studentNames"></datalist></label>
         <div class="fld"><span class="lbl">Year &amp; level</span><button type="button" class="picker-btn" data-pickfield="level" id="btnLevel" aria-haspopup="listbox" aria-expanded="false"><span class="pb-dot"></span><span class="pb-text"></span><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>
       </div>
       <div class="grid2" id="contactRow">
-        <label><span>Email</span><input id="f_email" type="email" inputmode="email" autocomplete="off" placeholder="parent@example.com"></label>
+        <label class="lm"><span>Email</span><input id="f_email" type="email" inputmode="email" autocomplete="off" placeholder="parent@example.com"></label>
         <label><span>WhatsApp number</span><input id="f_phone" type="tel" inputmode="tel" autocomplete="off" placeholder="0991 234 567"></label>
       </div>
       <div class="known" id="knownBar" hidden><span id="knownText"></span><button type="button" class="small navy" id="btnKnownFill">Fill in</button><button type="button" class="small" id="btnKnownNo">No</button></div>
-      <label id="addrRow"><span>Address</span><input id="f_address" autocomplete="off"></label>
-      <label id="forRow"><span>Being payment for</span><input id="f_for" placeholder="e.g. Thando's Tuition"></label>
+      <label class="lm" id="addrRow"><span>Address</span><input id="f_address" autocomplete="off"></label>
+      <label class="lm" id="forRow"><span>Being payment for</span><input id="f_for" placeholder="e.g. Thando's Tuition"></label>
       <div class="fld"><span class="lbl">Tuition period</span><button type="button" class="date-btn" data-cal="period" id="btnPeriod" aria-haspopup="dialog" aria-expanded="false"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span></span></button></div>
-      <p class="hint" id="waHint">The WhatsApp number is only used for sending. It doesn't print on the document.</p>
+      <p class="hint lm" id="waHint">The WhatsApp number is only used for sending. It doesn't print on the document.</p>
     </div>
 
     <div class="panel" id="cardPanel" hidden>
       <h2>Tuition card</h2>
       <div class="intake" id="intakeBox" hidden><b>From the student's checklist</b><p id="intakeText"></p><small>Only you see this. It isn't printed on the card.</small></div>
-      <div class="grid2">
+      <div class="grid2 lm">
         <div class="fld"><span class="lbl">School (optional)</span><button type="button" class="picker-btn" data-pickfield="school" id="btnSchool" aria-haspopup="listbox" aria-expanded="false"><span class="pb-dot"></span><span class="pb-text"></span><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>
         <label><span>Exam series (optional)</span><input id="f_exam" autocomplete="off" placeholder="e.g. May/June 2027"></label>
       </div>
@@ -615,8 +620,8 @@ body[data-mode=view] .dp-aside{grid-area:aside}
         </div>
         <input id="f_where" autocomplete="off" placeholder="Or type the place" aria-label="Where">
       </div>
-      <label><span>Notes for all tutors (optional)</span><textarea id="f_cardNote" rows="3" placeholder="e.g. Prefers worked examples first. Has a Physics mock on 9 Nov."></textarea></label>
-      <p class="hint">Only for tutors: the card shows no fees, payments or parent contact details.</p>
+      <label class="lm"><span>Notes for all tutors (optional)</span><textarea id="f_cardNote" rows="3" placeholder="e.g. Prefers worked examples first. Has a Physics mock on 9 Nov."></textarea></label>
+      <p class="hint lm">Only for tutors: the card shows no fees, payments or parent contact details.</p>
     </div>
 
     <div class="panel" id="cardSubjPanel" hidden>
@@ -630,7 +635,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
       <h2>Subjects</h2>
       <div id="itemsBody" class="items"></div>
       <button type="button" class="small" style="margin-top:10px" id="btnAddItem">+ Add subject</button>
-      <div class="disc">
+      <div class="disc lm">
         <span class="lbl">Discount</span>
         <div class="disc-row">
           <div class="seg mini" id="discSeg" role="group" aria-label="Discount type">
@@ -640,7 +645,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
           <input id="f_discReason" placeholder="Reason, e.g. Sibling" aria-label="Discount reason (prints on the document)">
         </div>
       </div>
-      <div class="fld" id="planRow" style="margin-top:14px;margin-bottom:0"><span class="lbl">Payment</span>
+      <div class="fld lm" id="planRow" style="margin-top:14px;margin-bottom:0"><span class="lbl">Payment</span>
         <div class="seg seg2" id="planSeg" role="group" aria-label="Payment" style="max-width:380px;margin-bottom:10px">
           <button type="button" data-p="" class="on">Pay in full</button><button type="button" data-p="half">50/50 plan</button>
         </div>
@@ -650,12 +655,12 @@ body[data-mode=view] .dp-aside{grid-area:aside}
         </div>
         <p class="hint" id="planHint" hidden style="margin:-4px 0 0"></p>
       </div>
-      <label class="chk" id="instLineRow" hidden><input type="checkbox" id="f_instLine" checked> Offer two instalments (50 / 50) on this quote</label>
-      <label id="paidRow" style="margin-top:12px"><span>Amount already paid (MKW)</span><input id="f_paid" inputmode="decimal" placeholder="0"></label>
+      <label class="chk lm" id="instLineRow" hidden><input type="checkbox" id="f_instLine" checked> Offer two instalments (50 / 50) on this quote</label>
+      <label class="lm" id="paidRow" style="margin-top:12px"><span>Amount already paid (MKW)</span><input id="f_paid" inputmode="decimal" placeholder="0"></label>
       <div class="sums" id="sums"></div>
     </div>
 
-    <div class="panel" id="incPanel">
+    <div class="panel lm" id="incPanel">
       <h2>Every LHQ Enrollment Includes</h2>
       <div class="inc-chips" id="incChips" role="group" aria-label="Items to include"></div>
       <p class="hint" id="incHint"></p>
@@ -666,16 +671,17 @@ body[data-mode=view] .dp-aside{grid-area:aside}
       <div class="pay-pick" id="payPick" role="group" aria-label="How much was paid"></div>
       <div class="grid2">
         <label><span>Amount received (MKW)</span><input id="f_received" inputmode="decimal" placeholder="0"></label>
-        <label><span>Paid before this (MKW)</span><input id="f_prevPaid" inputmode="decimal" placeholder="0"></label>
+        <label class="lm"><span>Paid before this (MKW)</span><input id="f_prevPaid" inputmode="decimal" placeholder="0"></label>
       </div>
       <div class="grid2">
         <div class="fld"><span class="lbl">Payment method</span><button type="button" class="picker-btn" data-pickfield="method" id="btnMethod" aria-haspopup="listbox" aria-expanded="false"><span class="pb-dot"></span><span class="pb-text"></span><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>
-        <label><span>Payment reference</span><input id="f_payRef" autocomplete="off" placeholder="Bank or mobile money ref."></label>
+        <label class="lm"><span>Payment reference</span><input id="f_payRef" autocomplete="off" placeholder="Bank or mobile money ref."></label>
       </div>
       <p class="hint pay-note" id="payNote"></p>
-      <label><span>Received by (prints above the signature line)</span><input id="f_receivedBy" autocomplete="off" placeholder="Staff member's name"></label>
+      <label class="lm"><span>Received by (prints above the signature line)</span><input id="f_receivedBy" autocomplete="off" placeholder="Staff member's name"></label>
     </div>
 
+    <button type="button" class="lean-more" id="leanMore">+ More</button>
     <div class="panel" hidden>
       <h2>Saved</h2>
       <ul class="saved" id="savedList"></ul>
@@ -2454,5 +2460,12 @@ initBackup(); fillStudentList();
 if(location.hash.startsWith('#import=')) cardImportFromHash().then(()=>{ history.replaceState(null, '', location.pathname + '#draft'); setMode('edit'); });
 else route();
 </script>
+<script>(function(){ const b = document.getElementById('leanMore'); if(!b) return;
+  const set = open => { document.documentElement.classList.toggle('lean-open', open); b.textContent = open ? '− Fewer fields' : '+ More'; };
+  b.onclick = () => set(!document.documentElement.classList.contains('lean-open'));
+  /* a check that fails on a folded field opens everything, so nothing is hidden when it matters */
+  document.addEventListener('invalid', () => set(true), true);
+  window.leanOpen = () => set(true);
+})();</script>
 </body>
 </html>

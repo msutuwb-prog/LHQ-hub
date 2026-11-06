@@ -49,7 +49,7 @@ const mkUsername = async (T, name) => {
 /* ---------- the people list for the current Hub's code (old shape <-> rows) ---------- */
 export function toOld(r) {
   return { id: r.id, name: r.name, role: r.role, perms: r.perms || [], tutor: r.role === "tutor" || !!r.also_tutor, active: r.status !== "off" && !r.del,
-    home: (r.prefs || {}).home || null, cards: (r.prefs || {}).cards || {}, seen: r.last_seen ? new Date(r.last_seen).getTime() : 0, pv: r.pv || 1,
+    home: (r.prefs || {}).home || null, cards: (r.prefs || {}).cards || {}, view: (r.prefs || {}).view || null, seen: r.last_seen ? new Date(r.last_seen).getTime() : 0, pv: r.pv || 1,
     admin: r.role === "director" || r.role === "admin", username: r.username || "", email: r.email || "", status: r.status, hasPw: !!r.pw_hash,
     locked: !!(r.locked_until && new Date(r.locked_until) > new Date()), salt: r.pin_salt, hash: r.pin_hash, auth: "password" };
 }
@@ -60,7 +60,7 @@ export async function savePeople(list) {
     const rows = await T.q("SELECT * FROM people WHERE NOT del"), byId = new Map(rows.map(r => [r.id, r])), keep = new Set();
     for (const p of list) {
       keep.add(p.id);
-      const r = byId.get(p.id), prefs = Object.assign({}, r ? r.prefs : {}, { home: p.home || null, cards: p.cards || {} });
+      const r = byId.get(p.id), prefs = Object.assign({}, r ? r.prefs : {}, { home: p.home || null, cards: p.cards || {} }, p.view ? { view: p.view } : {});
       const status = p.active === false ? "off" : (r && r.status !== "off" ? r.status : (r && r.pw_hash ? "active" : p.hash ? "pin" : "setup"));
       const set = { name: p.name, role: p.role, perms: JSON.stringify(p.role === "admin" ? (p.perms || []) : []), also_tutor: p.role !== "tutor" && !!p.tutor,
         prefs: JSON.stringify(prefs), status, pv: p.pv || 1, last_seen: p.seen ? new Date(p.seen).toISOString() : null };

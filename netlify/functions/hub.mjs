@@ -128,7 +128,7 @@ function unsign(token) {
 }
 const hashPin = (pin, salt) => crypto.scryptSync(String(pin), salt, 32).toString("hex");
 const pinOk = pin => /^\d{4,6}$/.test(String(pin || ""));
-const pub = p => Object.assign({ id: p.id, name: p.name, role: p.role, admin: staff(p), tutor: !!p.tutor, perms: isDirector(p) ? PERMS.slice() : (p.perms || []), active: p.active !== false, home: p.home || null, cards: p.cards || {}, seen: p.seen || 0 },
+const pub = p => Object.assign({ id: p.id, name: p.name, role: p.role, admin: staff(p), tutor: !!p.tutor, perms: isDirector(p) ? PERMS.slice() : (p.perms || []), active: p.active !== false, home: p.home || null, cards: p.cards || {}, view: p.view === "full" ? "full" : "lean", seen: p.seen || 0 },
   p.auth === "password" ? { auth: "password", username: p.username, email: p.email, status: p.status, hasPw: p.hasPw, locked: !!p.locked, codeUntil: p.codeUntil || null, children: p.children || undefined } : { auth: "pin" });
 
 async function getPeople() {
@@ -745,6 +745,10 @@ async function managePeople(req, me) {
     if (!pinOk(b.pin)) return fail("Choose a PIN of 4 to 6 digits.");
     p.salt = crypto.randomBytes(16).toString("hex"); p.hash = hashPin(b.pin, p.salt); p.pv = (p.pv || 1) + 1;
     await putPeople(list); return json({ ok: true, token: newToken(p), people: list.map(pub) });
+  }
+  if (b.action === "view") {   // what each person sees: lean (the default) or full
+    const p = find(me.id); p.view = b.view === "full" ? "full" : "lean";
+    await putPeople(list); return json({ ok: true, me: pub(p) });
   }
   if (b.action === "home") {   // each person's own Home cards
     const p = find(me.id); p.home = Array.isArray(b.cards) ? b.cards.filter(x => typeof x === "string").slice(0, 6) : null;
