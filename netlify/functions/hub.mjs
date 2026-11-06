@@ -514,13 +514,14 @@ const mwToday = () => new Date(Date.now() + 2 * 3600e3).toISOString().slice(0, 1
 async function clashState() {
   const S = await sched(), cards = (await readAll("doc/")).filter(d => d && d.type === "card");
   const [res, moves, avail] = await Promise.all(["lhq_clashes", "lhq_moves", "lhq_avail"].map(k => store().get("kv/" + k, { type: "json" })));
-  return { S, cards, res: res || {}, moves: moves || {}, avail: avail || {}, list: S.weekClashes(cards, mwToday()) };
+  const set = (await store().get("kv/lhq_settings", { type: "json" })) || {};
+  return { S, cards, res: res || {}, moves: moves || {}, avail: avail || {}, open: set.openHours || null, list: S.weekClashes(cards, mwToday()) };
 }
 const involves = (c, name) => c.members.some(m => nk(m.tutor) === nk(name));
 function moveOptions(S, st, m) {
   const card = st.cards.find(c => c.id === m.card), x = card && (card.subjects || []).find(y => nk(y.name) === nk(m.sub) && nk(y.tutor) === nk(m.tutor));
   if (!x) return null;
-  const n0 = S.planned(card, x), len = m.b - m.a, free = S.freeTimes(card, x.name, st.cards, st.avail, { len });
+  const n0 = S.planned(card, x), len = m.b - m.a, free = S.freeTimes(card, x.name, st.cards, st.avail, { len, open: st.open });
   const days = free.filter(f => f.day === m.day || !(x.days || []).includes(f.day)).map(f => {
     const nd = f.day === m.day ? x.days : x.days.map(z => z === m.day ? f.day : z);
     return { day: f.day, name: f.name, slots: f.slots.filter(t => !(f.day === m.day && t === m.s)), planned: S.planned(card, x, nd) };

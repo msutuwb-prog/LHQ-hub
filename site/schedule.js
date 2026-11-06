@@ -91,7 +91,7 @@
     };
     const out = [];
     ['Mo','Tu','We','Th','Fr','Sa','Su'].forEach(day => {
-      const [o1, o2] = OPEN[day].map(mins), B = busy(day), slots = [];
+      const H = (o.open || OPEN)[day]; if(!H || !H[0]) return; const [o1, o2] = H.map(mins), B = busy(day), slots = [];
       for(let a = o1; a + len <= o2; a += 30) if(!B.some(([p, q]) => overlap(a, a + len, p, q))) slots.push(hhmm(a));
       if(slots.length) out.push({day, name:DAYN[day], slots});
     });

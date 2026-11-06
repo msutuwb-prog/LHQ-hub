@@ -108,7 +108,7 @@ window.FAM = (function(){
         ${Array.from({length: nDays}, (_, i) => { const d = iso(i + 1), E = by[d] || []; return `<a class="${d === sel ? 'on' : ''}" href="#me/calendar/${y}-${String(m).padStart(2, '0')}/${d}">${i + 1}<span>${E.filter(e => e.k === 's').slice(0, 3).map(() => '<i></i>').join('')}${E.some(e => e.k === 'g') ? '<i class="g"></i>' : ''}</span></a>`; }).join('')}</div></div>
       <div class="h2">${day(sel)}</div><div class="card">${L.map(e => e.k === 's' ? `<div class="it"><span class="cal-t">${esc(e.s.s)}<small>${esc(e.s.e)}</small></span><span class="t"><b>${esc(sub(e.s.sub))}${e.s.mu ? ' · make-up' : ''}</b><small>${esc(e.s.tutor)}</small></span></div>`
         : `<div class="it"><span class="f-mk am">!</span><span class="t"><b>${esc(e.x.topic)} ${e.x.stage ? 'R' + e.x.stage : 'LD'}</b><small>${esc(sub(e.x.sub))} · ${e.x.doOn === sel ? 'do' : 'hand in'}</small></span></div>`).join('') || '<p class="empty">Nothing.</p>'}</div>
-      <p class="note">Sessions for the next two weeks.</p>`;
+`;
   }
   function progress(){
     const k = kid(); if(!k) return emptyNoKids();

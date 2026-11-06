@@ -381,7 +381,7 @@ function bellCount(){
 window.lhqBellRefresh = bellCount;
 async function bellOpen(){
   const B = bellItems(), seen = +(localStorage.getItem(BELL_SEEN) || 0);
-  if(staffRole() && can('tutors')){ try{ const j = await hub.api('activity?from=' + encodeURIComponent(new Date(Date.now() - 3 * 864e5).toISOString())); window.BELLINFO = (j.rows || []).filter(x => x.who !== me().name).slice(0, 12).map(x => ({t:x.summary, s:x.who + ' · ' + ago(new Date(x.at).getTime()), at:new Date(x.at).getTime(), href:'#activity'})); B.info = B.info.concat(window.BELLINFO); }catch(e){} }
+  if(staffRole() && can('tutors')){ try{ const j = await hub.api('activity?from=' + encodeURIComponent(new Date(Date.now() - 3 * 864e5).toISOString())); window.BELLINFO = (j.rows || []).filter(x => x.who !== me().name).slice(0, 12).map(x => ({t:x.summary, s:x.who + ' · ' + ago(new Date(x.created_at).getTime()), at:new Date(x.created_at).getTime(), href:'#activity'})); B.info = B.info.concat(window.BELLINFO); }catch(e){} }
   const row = (x, need) => `<a class="it" href="${esc(x.href || '#')}" data-close><span class="ico" style="color:var(${need ? '--am' : '--bl'})">${ic(need ? 'alert' : 'clock')}</span><span class="t"><b style="${!need && (x.at || 0) <= seen ? 'font-weight:600' : ''}">${esc(x.t)}</b>${x.s ? `<small>${esc(x.s)}</small>` : ''}</span><span class="chev">›</span></a>`;
   openSheet(`<div class="hx"><h3>Bell</h3><button class="ib" data-close>✕</button></div>
     <div class="h2">Needs you <em>${B.need.length}</em></div><div class="card">${B.need.slice(0, 30).map(x => row(x, true)).join('') || '<p class="empty">Nothing. ✓</p>'}</div>
@@ -493,7 +493,7 @@ function attention(list){
     const RQ = reqList(), ap = RQ.filter(r => !r.dec.s), buy = RQ.filter(r => r.dec.s === 'approved');
     if(isDir() && ap.length) out.push({w:-1, s:{name:`${ap.length} requisition${ap.length === 1 ? '' : 's'} to approve`}, href:'#reqs', ico:'box', col:'--am', sub:ap.slice(0, 3).map(r => `${r.item.item} · ${r.rep.tutor}`).join(' · '), btn:['Review', '#reqs']});
     if(can('spend') && buy.length) out.push({w:-1, s:{name:`${buy.length} approved requisition${buy.length === 1 ? '' : 's'} to buy`}, href:'#reqs', ico:'box', col:'--am', sub:buy.slice(0, 3).map(r => r.item.item).join(' · '), btn:['Review', '#reqs']});
-    disp.filter(e => !e.cf.step || e.cf.step === 'lhq').forEach(e => out.push({w:-2, g:'disp', s:{name:e.st}, href:'#confirm/' + encodeURIComponent(e.id), ico:'alert', col:'--rd', sub:`${e.sub} with ${e.tutor || 'tutor'} · ${nice(e.d)} · disputed: ${e.cf.note}`, tag:['Disputed','rd']}));
+    disp.filter(e => !e.cf.step || e.cf.step === 'lhq').forEach(e => out.push({w:-2, g:'disp', s:{name:'Settle: ' + e.st}, href:'#confirm/' + encodeURIComponent(e.id), ico:'alert', col:'--rd', sub:`${e.sub} with ${e.tutor || 'tutor'} · ${nice(e.d)} · ${cfLine(e)}`, tag:['Disputed','rd']}));
   }
   return out.sort((a, b) => a.w - b.w);
 }
@@ -640,8 +640,8 @@ P.student = (key, tab = 'overview') => {
       ${par.map(p => row(p, 'Parent' + ((p.children || []).length > 1 ? ' · also ' + (p.children || []).filter(c => nkk(c) !== nkk(s.name)).map(first).join(', ') : ''))).join('')}
       <button class="it" data-aadd="parent"><span class="ico">${ic('plus')}</span><span class="t"><b>Add a parent</b></span></button></div>
       <div class="h2">Confirms sessions</div><div class="card">
-        <button class="it" data-aconf="student"><span class="cfm" style="${conf === 'student' ? 'background:var(--ok);border-color:var(--ok);color:#fff' : ''}">${conf === 'student' ? '✓' : ''}</span><span class="t"><b>${esc(first(s.name))}</b></span></button>
-        <button class="it" data-aconf="parent"><span class="cfm" style="${conf === 'parent' ? 'background:var(--ok);border-color:var(--ok);color:#fff' : ''}">${conf === 'parent' ? '✓' : ''}</span><span class="t"><b>The parent</b><small>For young children, or when a family asks</small></span></button></div>`;
+        <button class="it" data-aconf="student"><span class="cfm" style="${conf === 'student' ? 'background:var(--ok);border-color:var(--ok);color:#fff' : 'border:2px solid var(--line)'}">${conf === 'student' ? '✓' : ''}</span><span class="t"><b>${esc(first(s.name))}</b></span></button>
+        <button class="it" data-aconf="parent"><span class="cfm" style="${conf === 'parent' ? 'background:var(--ok);border-color:var(--ok);color:#fff' : 'border:2px solid var(--line)'}">${conf === 'parent' ? '✓' : ''}</span><span class="t"><b>The parent</b><small>For young children, or when a family asks</small></span></button></div>`;
   }
   if(tab === 'sessions'){
     body = myRows.map(({it, T}) => `<div class="h2">${esc(it.sub)} <em>${esc(it.tutor || 'No tutor')}</em></div><div class="card pad">
@@ -1111,13 +1111,13 @@ P.rep = (kind, arg) => PERF.page(kind, arg);
 /* ================= settings ================= */
 const SETS = [
   ['Account', [['account','user','My account']]],
-  ['LHQ', [['people','users','People & access', () => isDir() || can('tutors')],['company','bank','Company & bank details', isDir],['payments','cash','Payments & due dates', isDir],['tutorinfo','users','Tutors\' contacts', () => isDir() || can('tutors') || can('msgs')]]],
+  ['LHQ', [['people','users','People & access', () => isDir() || can('tutors')],['company','bank','Company & bank details', isDir],['payments','cash','Payments & due dates', isDir],['hours','clock','Opening hours', isDir],['tutorinfo','users','Tutors\' contacts', () => isDir() || can('tutors') || can('msgs')]]],
   ['Documents', [['numbering','hash','Numbering', () => can('numbering')],['messages','msg','Messages', () => can('msgs')],['lists','list','Lists', () => can('msgs')]]],
   ['Enrolment & sending', [['enrol','link','Student checklist', () => staffRole()],['sending','wa','Email & WhatsApp', () => staffRole()]]],
   ['Data', [['records.html','layout','Shared records', () => isDir()],['backup','box','Backup & restore', () => can('backup')],['deleted','bin','Recently deleted', () => can('restore')],['demo','restore','Demo data (preview)', () => isDir() && PREVIEW]]],
 ];
 const setVis = ids => SETS.flatMap(([, items]) => items).filter(x => ids.includes(x[0]) && (!x[3] || x[3]()));
-const DETAILS = ['company','payments','numbering','messages','sending','tutorinfo','enrol'], DATA = ['records.html','backup','deleted','demo'];
+const DETAILS = ['company','payments','hours','numbering','messages','sending','tutorinfo','enrol'], DATA = ['records.html','backup','deleted','demo'];
 /* Lean: 5 places. Things set once sit inside LHQ details; shared records, backups and the bin inside Data */
 const LEAN_SETS = () => [['Account', [['account','user','My account']]],
   ['LHQ', setVis(['people']).concat(setVis(DETAILS).length ? [['details','bank','LHQ details']] : [], setVis(['lists']))],
@@ -1139,6 +1139,11 @@ const settingsKV = () => withDefaults(store.get('lhq_settings', {}));
 function saveSettings(fields){ const s = Object.assign({}, store.get('lhq_settings', {}), fields); store.set('lhq_settings', s); toast('Saved'); }
 const fieldRow = (id, l, v, attrs = '') => `<label class="f"><span>${l}</span><input class="in" id="${id}" value="${esc(v)}" ${attrs}></label>`;
 
+S.hours = () => { const H = Object.assign({}, SCHED.OPEN, settingsKV().openHours || {}), D = [['Mo','Monday'],['Tu','Tuesday'],['We','Wednesday'],['Th','Thursday'],['Fr','Friday'],['Sa','Saturday'],['Su','Sunday']];
+  const T = []; for(let m = 6 * 60; m <= 21 * 60; m += 30) T.push(SCHED.hhmm(m));
+  const sel = (id, v) => `<select class="in" id="${id}" style="padding:8px">${['', ...T].map(t => `<option value="${t}" ${t === (v || '') ? 'selected' : ''}>${t || 'Closed'}</option>`).join('')}</select>`;
+  return `<h2 class="sec-h">Opening hours</h2><div class="card pad">${D.map(([d, n]) => `<div class="r2" style="align-items:center;grid-template-columns:110px 1fr 1fr;margin-bottom:8px"><b>${n}</b>${sel('oh' + d + 'a', (H[d] || [])[0])}${sel('oh' + d + 'b', (H[d] || [])[1])}</div>`).join('')}
+    <button class="btn n" id="ohSave">Save</button></div><p class="note">Used for free times when moving a session.</p>`; };
 S.details = () => `<h2 class="sec-h">LHQ details</h2>${setList(DETAILS)}`;
 S.data = () => `<h2 class="sec-h">Data</h2>${setList(DATA)}`;
 S.account = () => { const m = me(), L = LHQNav.layout();
@@ -1405,6 +1410,7 @@ function bind(){
       ${others.length ? `<div class="h2">Or an existing parent</div><div class="card">${others.slice(0, 30).map(p => `<button class="it" data-alink="${p.id}"><span class="t"><b>${esc(p.name)}</b><small>${esc((p.children || []).join(', '))}</small></span></button>`).join('')}</div>` : ''}`);
     $('apAdd').onclick = () => go($('apN').value.trim(), $('apE').value.trim());
     document.querySelectorAll('[data-alink]').forEach(b => b.onclick = async () => { try{ const r = await hub.api('people', {method:'POST', body: JSON.stringify({action:'link', id: b.dataset.alink, childName: s0.name})}); store.set('lhq_people', r.people); closeSheet(); render(); toast('Linked'); }catch(e){ toast(e.message); } }); });
+  if($('ohSave')) $('ohSave').onclick = () => { const o = {}; ['Mo','Tu','We','Th','Fr','Sa','Su'].forEach(d => { const a = $('oh' + d + 'a').value, b = $('oh' + d + 'b').value; o[d] = a && b && a < b ? [a, b] : null; }); saveSettings({openHours: o}); };
   document.querySelectorAll('[data-view]').forEach(el => el.onclick = async () => { const v = el.dataset.view, s0 = hub.session();
     if(s0 && s0.me){ s0.me.view = v; localStorage.setItem('lhq_session', JSON.stringify(s0)); } LHQNav.section(route.page); render();
     try{ await hub.api('people', {method:'POST', body: JSON.stringify({action:'view', view:v})}); toast(v === 'lean' ? 'Lean' : 'Full'); }catch(e){ toast('Saved on this device'); } });
