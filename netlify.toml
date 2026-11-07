@@ -1,6 +1,8 @@
 [build]
   publish = "site"
   functions = "netlify/functions"
+  # Save credits: the live Hub (main) always builds; a test copy builds only when the latest commit says [preview]
+  ignore = '''if [ "$CONTEXT" = "production" ]; then exit 1; fi; if git log -1 --pretty=%B | grep -q "\[preview\]"; then exit 1; fi; exit 0'''
 
 [functions]
   node_bundler = "esbuild"

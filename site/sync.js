@@ -515,7 +515,8 @@
   const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
   window.addEventListener('DOMContentLoaded', () => {
     if(location.protocol === 'file:') return;           // opened as a file: works on this device only, as before
-    setInterval(check, 60000);
+    // check in every 2 minutes, only while the Hub is on screen (a tab left in the background costs nothing); and at once on coming back
+    setInterval(() => { if(document.visibilityState === 'visible') check(); }, 120000);
     document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') check(); });
     window.addEventListener('online', () => { if(!session()) return; status('saving'); schedulePush(1000); setTimeout(() => { if(get(DIRTY, false)) push(); }, 5000); });
     window.addEventListener('offline', () => { if(session()) status('offline'); });
