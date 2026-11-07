@@ -457,7 +457,7 @@ async function syncActivity(me, writes, kvIn, kvOld, merged) {
       for (const x of ch.slice(0, 10)) await act(me, "students", old[x] ? "student.edit" : "student.add", `${old[x] ? "Updated the details of" : "Added student"} ${(now[x] || {}).name || x}`, "students", x);
     } else if (k === "lhq_settings") {
       const ch = Object.keys(Object.assign({}, old, now)).filter(f => canon(old[f]) !== canon(now[f]));
-      if (ch.length) await act(me, "settings", "settings.edit", `Changed ${ch.map(f => ({ levels: "Year & level", spendCats: "spending categories", heardFrom: "how families hear about LHQ", methods: "payment methods", tutors: "tutors on cards", tutorInfo: "tutors' contacts" }[f] || f)).join(", ")}`, "settings", k);
+      if (ch.length) await act(me, "settings", "settings.edit", `Changed ${ch.map(f => ({ levels: "Year & level", spendCats: "spending categories", heardFrom: "how families hear about LHQ", methods: "payment methods", tutors: "tutors on cards", tutorInfo: "tutors' contacts", openHours: "opening hours" }[f] || String(f).replace(/([A-Z])/g, " $1").toLowerCase())).join(", ")}`, "settings", k);
     } else if (k === "lhq_templates") { if (canon(old) !== canon(now)) await act(me, "settings", "messages.edit", "Changed the message wording", "settings", k); }
     else if (k === "lhq_budget") { if (canon(old) !== canon(now)) await act(me, "budgets", "budget.edit", "Changed the budgets", "settings", k); }
     else if (k === "lhq_logs") {
@@ -637,7 +637,11 @@ async function familyData(me) {
       const q = SP.weekQ(t);
       if (uniq.length) report = { date: t, ses: uniq, sent: mineR[t] || null, wk: wkDone ? null : { k: q.k, q: q.q, o: q.o } };
     }
-    return Object.assign({}, kid, { confirmer, canConfirm, subjects, sessions, toConfirm, answers, sras, week, changes, makeups, pay, report });
+    /* marks: weekly assessments and SRA scores, as percentages, for the charts on Progress */
+    const pcOf = e => Number(e.mx) > 0 && e.sc != null && e.sc !== "" && !isNaN(Number(e.sc)) ? Math.max(0, Math.min(100, Math.round(Number(e.sc) / Number(e.mx) * 100))) : null;
+    const marks = { w: ent.filter(e => e.ty === "w" && !e.abs && pcOf(e) != null).map(e => ({ sub: e.sub, d: e.d, p: pcOf(e) })),
+      r: ent.filter(e => e.ty === "r" && e.tk && pcOf(e) != null).map(e => ({ sub: e.sub, tk: e.tk, rv: Number(e.rv) || 0, p: pcOf(e), d: e.d })) };
+    return Object.assign({}, kid, { confirmer, canConfirm, subjects, sessions, toConfirm, answers, sras, week, changes, makeups, pay, report, marks });
   }) };
 }
 async function familyGet(me) {

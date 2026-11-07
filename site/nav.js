@@ -41,6 +41,7 @@
   let current = '';
   const onKey = L => { if(L.some(x => x[0] === current) || ['tutor','student','parent'].includes(who().role)) return current; return moreItems().some(x => x[0] === current) ? 'more' : current; };
   function draw(){
+    { const sb = document.getElementById('hnSearch'); if(sb) sb.hidden = !who().role || ['student','parent'].includes(who().role); }
     const logo = window.lhqTheme ? lhqTheme.logo() : 'logo.png';
     const side = document.getElementById('hnSide'), bar = document.getElementById('hnBar');
     if(side) side.innerHTML = `<a class="hn-logo" href="index.html#${{tutor:'teach', student:'me', parent:'me'}[who().role] || 'home'}"><img class="lhq-logo" src="${logo}" alt="LHQ Learning Solutions"></a>
@@ -52,7 +53,7 @@
     current = section;
     if(!document.getElementById('hnTop')){
       const logo = window.lhqTheme ? lhqTheme.logo() : 'logo.png';
-      document.body.insertAdjacentHTML('afterbegin', `<header class="topbar hn-top" id="hnTop"><a class="hn-logo" href="index.html#${{tutor:'teach', student:'me', parent:'me'}[who().role] || 'home'}"><img class="lhq-logo" src="${logo}" alt="LHQ Learning Solutions"></a><div class="actions"><button class="hn-bellb" id="hnBell" type="button" aria-label="Bell" hidden><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span class="hn-bn" hidden></span></button><button class="theme-btn" type="button"></button></div></header><aside class="hn-side" id="hnSide"></aside>`);
+      document.body.insertAdjacentHTML('afterbegin', `<header class="topbar hn-top" id="hnTop"><a class="hn-logo" href="index.html#${{tutor:'teach', student:'me', parent:'me'}[who().role] || 'home'}"><img class="lhq-logo" src="${logo}" alt="LHQ Learning Solutions"></a><div class="actions"><button class="hn-bellb" id="hnSearch" type="button" aria-label="Search" title="Search (/ or Ctrl+K)" ${['student','parent'].includes(who().role) ? 'hidden' : ''} onclick="window.LHQSearch && LHQSearch.open(window.LHQSearchScope ? LHQSearchScope() : '')"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button><button class="hn-bellb" id="hnBell" type="button" aria-label="Bell" hidden><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span class="hn-bn" hidden></span></button><button class="theme-btn" type="button"></button></div></header><aside class="hn-side" id="hnSide"></aside>`);
       document.body.insertAdjacentHTML('beforeend', '<nav class="hn-bar" id="hnBar" aria-label="Sections"></nav>');
     }
     apply(); draw();

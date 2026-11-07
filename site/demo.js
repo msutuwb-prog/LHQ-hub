@@ -210,7 +210,7 @@
         if(!sub.tutor) return;
         const key = norm(card.student) + '|' + norm(sub.name), topics = topicsOf(sub.list);
         const start = Math.max(new Date(card.periodStart).getTime(), T - 28 * DAY), end = Math.min(new Date(card.periodEnd).getTime() + DAY, T);
-        let ti = Math.floor(rnd() * 3), n = 0;
+        let ti = Math.floor(rnd() * 3), n = 0, wn = 0; const wb = 42 + Math.floor(rnd() * 30), wt = rnd() < .7 ? 3 : -2;
         for(let t = start; t < end; t += DAY){
           const d = new Date(t); if(!sub.days.some(x => DN[x] === d.getDay())) continue;
           n++;
@@ -218,6 +218,9 @@
           const e = {id:eid, k:key, st:card.student, sub:sub.name, d:iso(d), ty:'s', a, tp: a === 'absent' ? [] : [topics[ti % topics.length]], at:t + 18 * 3600e3, tutor:sub.tutor};
           if(a !== 'absent' && n % 4 === 0){ e.mx = 20; e.sc = 9 + Math.floor(rnd() * 12); }
           logs[eid] = e;
+          // a weekly assessment about every third session, drifting up (most students) or down
+          if(a !== 'absent' && n % 3 === 0){ const wid = 'dw' + (++uid).toString(36), p0 = Math.max(15, Math.min(98, wb + wn * wt + Math.round(rnd() * 10 - 5)));
+            logs[wid] = {id:wid, k:key, st:card.student, sub:sub.name, d:iso(d), ty:'w', tp:[topics[ti % topics.length]], mx:50, sc:Math.round(p0 / 2), wid:'w' + wid, md:iso(d), at:t + 18 * 3600e3, tutor:sub.tutor}; wn++; }
           if(a !== 'absent' && n % 2 === 0){
             // topic finished: SRA reviews 1, 3, 7 and 14 days later
             const topic = topics[ti % topics.length];

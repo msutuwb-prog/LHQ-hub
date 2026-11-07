@@ -27,6 +27,8 @@ if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash)
 <script src="hubdata.js"></script>
 <script src="schedule.js"></script>
 <script src="sreport.js"></script>
+<script src="search.js"></script>
+<script src="marks.js"></script>
 <script src="nav.js"></script>
 <script src="schools.js"></script>
 <script src="business.js"></script>
@@ -95,6 +97,29 @@ a.it:hover .t b,button.it:hover .t b{text-decoration:underline;text-underline-of
 .av{width:32px;height:32px;border-radius:50%;background:var(--bl-bg);color:var(--bl);display:grid;place-items:center;font-weight:800;font-size:12.5px;flex:none}
 .kv{display:grid;grid-template-columns:120px 1fr;gap:8px 10px;font-size:13.5px;margin:4px 0}
 .kv dd .tag{margin-left:8px;vertical-align:1px}
+/* Activity */
+.ac-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.ac-sel{width:auto;flex:1;min-width:120px;max-width:240px}
+.ac-tks .tk .cbx{border-color:var(--c,var(--line))}.ac-tks .tk.on .cbx{background:var(--c,var(--accent));border-color:var(--c,var(--accent));color:#fff}
+.ac-r{align-items:flex-start}
+.ac-i{--pu:#6d4fc4;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;flex:none;color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent);margin-top:1px}
+.ac-tks{--pu:#6d4fc4}
+.ac-tm{color:var(--muted);font-size:12px;white-space:nowrap;margin-left:auto;padding:2px 0 0 8px}
+.ac-st{display:flex;flex-wrap:wrap;gap:2px 6px;font-size:12px;color:var(--muted);margin:3px 0 1px}
+.ac-st span{white-space:nowrap}.ac-st span:not(:last-child):after{content:" →"}.it .t .ac-st b,.ac-st b{display:inline;color:var(--ink);font-weight:700}
+.ac-r .t b{white-space:normal}
+.ac-f{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px}
+.ac-f div{background:var(--bg);border-radius:10px;padding:8px 10px}
+.ac-f small{display:block;font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.ac-f b{font-size:19px;color:var(--brand);font-variant-numeric:tabular-nums}
+.ac-ph{display:none}
+.ac-who{width:100%;background:none;border:0;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.ac-who.on .t b{color:var(--brand);text-decoration:underline}
+.ac-c{margin-left:auto;color:var(--muted)}
+.ac-cols>div:last-child{display:none}
+@container (min-width:860px){.ac-cols>div:last-child{display:block}#actWho{display:none}}
+@media (min-width:700px){#actKind{display:none}}
+@media (max-width:699px){.ac-tks{display:none}.ac-ph{display:grid;grid-template-columns:repeat(3,1fr);margin-bottom:12px}.ac-bar .seg{flex:1 1 100%}.ac-bar .seg button{flex:1}}
 table.says{width:100%;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums;min-width:560px}
 table.says th{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;text-align:right;padding:12px 8px 6px;font-weight:800}
 table.says td{padding:10px 8px;border-top:1px solid var(--line2);text-align:right}
@@ -662,7 +687,7 @@ P.students = (f = 'all') => {
   const list = HD.students(); if(!S_F[f]) f = 'all';
   return `${crumb(null, null, 'students')}<div class="ph"><div class="tt"><h1>Students</h1><p>${list.length} student${list.length === 1 ? '' : 's'}</p></div>${can('students') || can('quotes') ? `<button class="btn" id="addStu">${ic('plus',16,2.2)} Add student</button>` : ''}</div>
   ${window.PC ? PC.block('students', {}, 'At a glance') : ''}
-  <label class="search">${ic('search',18)}<input id="sq" type="search" placeholder="Search name, parent or number" value="${esc(sQ)}" autocomplete="off"></label>
+
   ${f === 'all' ? `<button class="btn sm flt-btn" data-flt style="margin:0 0 10px">${ic('list',14)} Filter</button>` : ''}<div class="chips ${f === 'all' ? 'flt' : ''}">${Object.entries(S_F).filter(([k]) => !S_HIDE.includes(k) || k === f).map(([k, [l, fn]]) => `<a class="chip ${f === k ? 'on' : ''}" href="#students/${k}">${l}<i>${list.filter(fn).length}</i></a>`).join('')}</div>
   <div class="card one" id="slist">${studentRows(list, f)}</div>`;
 };
@@ -682,7 +707,7 @@ P.student = (key, tab = 'overview') => {
   const s = HD.students().find(x => x.key === key);
   if(!s) return `${crumb('#students', 'Students')}<p class="empty">That student isn't here. They may have been renamed.</p>`;
   const myRows = can('tutors') ? sessionRows().filter(r => SCHED.nk(r.it.st) === SCHED.nk(s.name)) : [];
-  const tabs = [['overview','Overview']].concat(myRows.length ? [['sessions','Sessions']] : [], (isDir() || can('tutors')) && PREVIEW_OR_DB() ? [['accounts','Accounts']] : [], store.get('lhq_sreports', null) ? [['reports','Reports']] : [], [['documents',`Doc<span class="x-ph">ument</span>s<i>${s.docs.length}</i>`],['details','Details']]);
+  const tabs = [['overview','Overview']].concat(myRows.length ? [['sessions','Sessions']] : [], (isDir() || can('tutors')) && PREVIEW_OR_DB() ? [['accounts','Accounts']] : [], [['marks','Marks']], store.get('lhq_sreports', null) ? [['reports','Reports']] : [], [['documents',`Doc<span class="x-ph">ument</span>s<i>${s.docs.length}</i>`],['details','Details']]);
   let body = '';
   if(tab === 'overview') body = (window.PC ? PC.block('student', {s}, 'This period') : '') + stuOverview(s);
   if(tab === 'accounts'){
@@ -703,6 +728,13 @@ P.student = (key, tab = 'overview') => {
       ${it.cap && T.planned < it.cap ? `<p class="note" style="margin:8px 0 0;color:var(--am);font-weight:700">The card's days only fit ${T.planned} of the ${it.cap} sessions paid for: add a day or a make-up.</p>` : ''}
       <p class="note" style="margin:8px 0 0">${nice(it.pa)} – ${nice(it.b)}${it.cap ? ` · ${it.cap} sessions on the card` : ''} · ${T.confirmed} confirmed${T.waiting ? ` · ${T.waiting} waiting` : ''}${T.disputed ? ` · ${T.disputed} disputed` : ''}${T.lost ? ` · ${T.lost} min taken off` : ''} · ${T.behind ? `<b style="color:var(--am)">${T.behind} behind</b>` : 'on track'}</p></div>
       <div class="card">${T.entries.slice().reverse().map(e => { const st = HD.cfState(e); return `<button class="it" ${st ? `data-cf="${esc(e.id)}"` : ''}>${st ? cfMark(st) : '<span class="cfm" style="border:2px solid var(--line)"></span>'}<span class="t"><b>${nice(e.d)}${e.t1 ? ' · ' + esc(e.t1) + '–' + esc(e.t2 || '') : ''}${e.mk ? ' · make-up' : ''}</b><small>${esc({attended:'On time', present:'Present', late:'Late', absent:'Absent · owed', cancelled:'Cancelled · owed'}[e.a] || e.a || '')}${st ? ' · ' + CFL[st] : ''}${(e.tp || []).length ? ' · ' + esc(e.tp.join(', ')) : ''} · ${esc(e.tutor || '')}</small></span></button>`; }).join('') || '<p class="empty">No sessions logged yet.</p>'}</div>`).join('');
+  }
+  if(tab === 'marks'){
+    const E = Object.values((store.get('lhq_logs', {e:{}}) || {}).e || {}).filter(e => e && String(e.k || '').split('|')[0] === s.key);
+    const B = MARKS.bySubject(MARKS.fromEntries(E));
+    body = B.length ? `<div class="mk-cards" style="${MARKS.cols(B.length)}">${B.map(x => `<div class="card pad"><div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><b>${esc(x.sub)}</b>${x.last != null ? `<span class="mk-big">${x.last}%${MARKS.change(x.diff)}</span>` : ''}</div><p class="note" style="margin:0 0 4px">Weekly assessments</p>${MARKS.line(x, 340, 160)}</div>`).join('')}</div>
+      <div class="h2">SRAs <em>% at each review</em></div><div class="mk-cards" style="${MARKS.cols(B.length)}">${B.map(x => `<div class="card pad"><b style="display:block;margin-bottom:6px">${esc(x.sub)}</b>${MARKS.grid(x)}</div>`).join('')}</div>`
+      : '<p class="empty">No marks yet. They appear as tutors enter weekly assessment and SRA marks.</p>';
   }
   if(tab === 'reports'){
     const R = (store.get('lhq_sreports', {}) || {})[s.key] || {}, days = Object.keys(R).sort().reverse().slice(0, 30);
@@ -896,7 +928,7 @@ P.docs = (type = 'all', f = '') => {
     ${can('quotes') || can('receipts') || can('cards') ? `<a class="btn n" href="#new${type !== 'all' ? '/' + type : ''}">${ic('plus',16,2.4)} New${type !== 'all' ? ' ' + (type === 'card' ? 'card' : WORD[type].toLowerCase()) : ''}</a>` : ''}</div>
   <div class="tabs">${Object.entries(T).map(([k, l]) => `<a class="${type === k ? 'on' : ''}" href="#docs${k === 'all' ? '' : '/' + k}">${l} <span style="opacity:.6">${k === 'all' ? saved.length : saved.filter(d => typeOf(d) === k).length}</span></a>`).join('')}</div>
   ${F ? `<div class="fbar">${ic('list',16)}<span>${esc(T[type])}: <b>${esc(F.label)}</b> · ${fr.length}${filterTotal(type, fr)}</span><a href="#docs${type === 'all' ? '' : '/' + type}">Show all</a></div>` : ''}
-  <label class="search">${ic('search',18)}<input id="dq" type="search" placeholder="Search number or student" value="${esc(dQ)}" autocomplete="off"></label>
+
   <div class="card" id="dlist">${docRows(type, f)}</div>`;
 };
 function docList(type, f){
@@ -1040,20 +1072,62 @@ async function actLoad(more){
   ACT.busy = false; if(route.page === 'activity') render();
 }
 const actHref = x => x.entity === 'documents' && x.action !== 'doc.delete' ? D('d=' + x.entity_id) : x.entity === 'logs' && x.area === 'sessions' ? '#confirm/' + encodeURIComponent(x.entity_id) : x.area === 'money' ? '#biz/spending' : x.entity === 'students' && x.entity_id ? stuLink(x.entity_id) : x.area === 'settings' ? '#set/lists' : x.area === 'people' ? '#set/people' : x.action === 'doc.delete' ? '#set/deleted' : '';
+/* what each kind looks like: icon and colour; account events fold into one row */
+const AKIND = {money:['cash','--ok'], budgets:['bank','--ok'], pay:['card','--ok'], documents:['invoice','--bl'], sessions:['clock','--am'], teaching:['list','--pu'], students:['users','--brand'], people:['key','--muted'], settings:['layout','--muted']};
+const QUIET = a => a === 'password' || a === 'person.code';
+const STEP = x => ({'session.dispute':'✕ not right', 'session.keep':'kept the times', 'session.accept':'accepted', 'session.settle':'settled', 'session.confirm':'✓ confirmed'})[x.action] || (x.action === 'session.reply' ? (/LHQ/.test(x.summary) ? 'sent to LHQ' : 'OK') : x.summary);
+/* one day's rows become stories: a dispute is one row with its steps; session logs, confirmations and account events are one row each */
+function actStories(L){
+  const out = [], used = new Set(), hmS = s => new Date(s).toTimeString().slice(0, 5);
+  const span = G => { const a = hmS(G[G.length - 1].created_at), b = hmS(G[0].created_at); return a === b ? a : a + '–' + b; };
+  const by = (G, f) => { const m = new Map(); G.forEach(x => { const k = f(x); m.set(k, (m.get(k) || 0) + (x.n || 1)); }); return [...m.entries()].sort((p, q) => q[1] - p[1]); };
+  const list = E => E.slice(0, 3).map(([k, n]) => `${k} ${n}`).join(' · ') + (E.length > 3 ? ` · +${E.length - 3}` : '');
+  const logs = L.filter(x => x.action === 'log.add' && /^Logged \d+ session/.test(x.summary)).map(x => Object.assign(x, {n: +x.summary.match(/^Logged (\d+)/)[1]}));
+  const conf = L.filter(x => x.action === 'session.confirm'), quiet = L.filter(x => QUIET(x.action));
+  const story = {}; L.filter(x => /^session\.(dispute|keep|accept|reply|settle)$/.test(x.action)).forEach(x => (story[x.entity_id] = story[x.entity_id] || []).push(x));
+  L.forEach(x => {
+    if(used.has(x)) return;
+    if(logs.includes(x)){ logs.forEach(y => used.add(y)); const n = logs.reduce((a, y) => a + y.n, 0), T = by(logs, y => y.who);
+      out.push({x, area:'teaching', head:`${n} session${n === 1 ? '' : 's'} logged`, sub: T.length > 1 ? list(T) : '', who: T.length === 1 ? T[0][0] : `${T.length} tutors`, tm:span(logs), href:'#calendar'}); return; }
+    if(conf.includes(x)){ conf.forEach(y => used.add(y)); const T = by(conf, y => y.who);
+      out.push({x, area:'sessions', head:`${conf.length} session${conf.length === 1 ? '' : 's'} confirmed`, sub: T.length > 1 ? list(T) : '', who: T.length === 1 ? T[0][0] : `${T.length} people`, tm:span(conf), href:'#sessions'}); return; }
+    if(quiet.includes(x)){ quiet.forEach(y => used.add(y)); out.push({x, area:'people', head:`${quiet.length} account event${quiet.length === 1 ? '' : 's'}`, sub:[...new Set(quiet.map(y => y.action === 'person.code' ? 'setup codes' : 'passwords'))].join(' and ') + ' · ' + [...new Set(quiet.map(y => first(y.who || '')))].slice(0, 4).join(', '), who:'', tm:span(quiet), href:'#set/people', quiet:true}); return; }
+    const G = x.entity_id && story[x.entity_id];
+    if(G && G.length > 1){ G.forEach(y => used.add(y)); const last = G[0], d0 = G.find(y => y.action === 'session.dispute') || last, m = d0.summary.match(/(?:Said|Settled|Sent|Kept their times on|Accepted) (.+?)'s (.+?) with ([^:]+?)(?: wasn't right| to LHQ|:|$)/);
+      out.push({x:last, area:'sessions', head: last.action === 'session.settle' ? 'Disputed session settled' + (/(\d+) min/.test(last.summary) ? ` · ${last.summary.match(/(\d+) min/)[1]} min off` : '') : 'Disputed session', sub: m ? `${m[1]} · ${m[2]} · ${m[3]}` : '',
+        steps: G.slice().reverse().map(y => [first(y.who || ''), STEP(y)]), who:'', tm:span(G), href:actHref(last)}); return; }
+    used.add(x); out.push({x, area:x.area, head:x.summary, sub:'', who:x.who ? `${x.who}${x.role ? ' · ' + ({director:'Director', admin:'Admin', tutor:'Tutor', student:'Student', parent:'Parent', bdo:'BDO'}[x.role] || x.role) : ''}` : '', tm:hmS(x.created_at), href:actHref(x)});
+  });
+  return out;
+}
 P.activity = () => {
   if(!isDir() && me().role !== 'admin') return `${crumb('#home', 'Home')}<p class="empty">Activity is for the Director and Admin.</p>`;
   setTimeout(() => actLoad(), 0);
   const days = {}; ACT.rows.forEach(x => { const d = x.created_at.slice(0, 10); (days[d] = days[d] || []).push(x); });
-  const t = new Date(), tk = t.toISOString().slice(0, 10), hm = s => new Date(s).toTimeString().slice(0, 5), dl = d => d === tk ? 'Today' : nice(d);
+  const tk = HD.isoOf(new Date()), dl = d => d === tk ? 'Today' : d === HD.addDays(tk, -1) ? 'Yesterday' : nice(d);
   const areas = (ACT.areas.length ? ACT.areas : Object.keys(AREAL)).filter(a => AREAL[a]);
+  const one = AF.areas.size === 1 ? [...AF.areas][0] : '';
+  const row = s => { const k = AKIND[s.area] || ['list', '--muted'], tag = s.href ? `a href="${s.href}"` : 'div';
+    return `<${tag} class="it ac-r"><span class="ac-i" style="--c:var(${k[1]})">${ic(k[0], 16, 2)}</span><span class="t"><b>${esc(s.head)}</b>${s.sub ? `<small>${esc(s.sub)}</small>` : ''}${s.steps ? `<span class="ac-st">${s.steps.map(([w, v]) => `<span><b>${esc(w)}</b> ${esc(v)}</span>`).join('')}</span>` : ''}${s.who ? `<small>${esc(s.who)}</small>` : ''}</span><span class="ac-tm">${s.tm}</span></${tag.split(' ')[0]}>`; };
+  const feed = Object.entries(days).map(([d, L]) => { const S0 = actStories(L); return `<div class="h2">${dl(d)} <em>${S0.length}</em></div><div class="card">${S0.map(row).join('')}</div>`; }).join('')
+    || (ACT.busy ? '<p class="note">Loading…</p>' : '<div class="card"><p class="empty">Nothing in this period.</p></div>');
+  /* in numbers, and who was active, for the period shown */
+  const R = ACT.rows, cnt = f => R.filter(f).length;
+  const logged = R.filter(x => x.action === 'log.add').reduce((a, x) => a + (+((x.summary.match(/^Logged (\d+) session/) || [])[1] || 0)), 0);
+  const figs = [['Money', cnt(x => x.area === 'money' && /recorded/.test(x.action))], ['Documents', cnt(x => x.area === 'documents' && !/delete/.test(x.action))], ['Logged', logged], ['Confirmed', cnt(x => x.action === 'session.confirm')], ['Disputes', cnt(x => x.action === 'session.dispute')], ['Accounts', cnt(x => x.action === 'person.add')]];
+  const whoC = {}; R.forEach(x => { if(x.who) whoC[x.who] = (whoC[x.who] || 0) + 1; });
+  const W = Object.entries(whoC).sort((p, q) => q[1] - p[1]).slice(0, 8);
+  const side = `<div><div class="h2">In numbers</div><div class="card ac-f">${figs.map(([l, n]) => `<div><small>${l}</small><b>${n}</b></div>`).join('')}</div>
+    <div class="h2">Who was active ${AF.who ? '<button class="btn sm" data-actwho="">Everyone</button>' : ''}</div><div class="card">${W.map(([n, c]) => `<button class="it ac-who${AF.who === n ? ' on' : ''}" data-actwho="${esc(n)}"><span class="av">${esc(inits(n))}</span><span class="t"><b>${esc(n)}</b></span><b class="ac-c">${c}</b></button>`).join('') || '<p class="empty">No one yet.</p>'}</div></div>`;
   return `${crumb('#home', 'Home', 'activity')}
-  <div class="ph"><div class="tt"><h1>Activity</h1><p>Who did what</p></div></div>
-  <button class="btn sm flt-btn" data-flt style="margin:0 0 10px">${ic('list',14)} Filter</button><div class="actf ${AF.when === 'week' && !AF.who ? 'flt' : ''}"><div class="seg">${[['today','Today'],['week','This week'],['month','This month'],['all','All']].map(([k, l]) => `<button class="${AF.when === k ? 'on' : ''}" data-actw="${k}">${l}</button>`).join('')}</div>
-    <label class="f" style="margin:0;min-width:200px;flex:1;max-width:300px"><select class="in" id="actWho" aria-label="Person"><option value="">Everyone</option>${ACT.people.map(n => `<option ${AF.who === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label></div>
-  <div class="tks ${AF.areas.size ? '' : 'flt'}">${areas.map(a => `<button class="tk${AF.areas.has(a) ? ' on' : ''}" data-acta="${a}" aria-pressed="${AF.areas.has(a)}"><span class="cbx">${AF.areas.has(a) ? '✓' : ''}</span>${AREAL[a]}</button>`).join('')}${AF.areas.size ? '<button class="btn sm" data-acta="">Clear</button>' : ''}</div>
+  <div class="ph"><div class="tt"><h1>Activity</h1></div></div>
+  <div class="ac-bar"><div class="seg">${[['today','Today'],['week','Week'],['month','Month'],['all','All']].map(([k, l]) => `<button class="${AF.when === k ? 'on' : ''}" data-actw="${k}">${l}</button>`).join('')}</div>
+    <select class="in ac-sel" id="actKind" aria-label="Kind"><option value="">All kinds</option>${areas.map(a => `<option value="${a}" ${one === a ? 'selected' : ''}>${AREAL[a]}</option>`).join('')}</select>
+    <select class="in ac-sel" id="actWho" aria-label="Person"><option value="">Everyone</option>${ACT.people.map(n => `<option ${AF.who === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></div>
+  <div class="tks ac-tks"><button class="tk${AF.areas.size ? '' : ' on'}" data-acta=""><span class="cbx">${AF.areas.size ? '' : '✓'}</span>All</button>${areas.map(a => `<button class="tk${AF.areas.has(a) ? ' on' : ''}" data-acta="${a}" aria-pressed="${AF.areas.has(a)}" style="--c:var(${(AKIND[a] || [])[1] || '--muted'})"><span class="cbx">${AF.areas.has(a) ? '✓' : ''}</span>${AREAL[a]}</button>`).join('')}</div>
   ${ACT.err ? `<p class="note">${esc(ACT.err)}</p>` : ''}
-  ${Object.entries(days).map(([d, L]) => `<div class="h2">${dl(d)} <em>${L.length}</em></div><div class="card">${L.map(x => { const h = actHref(x); return `<${h ? `a href="${h}"` : 'div'} class="it"><span class="av">${esc(inits(x.who || '?'))}</span><span class="t"><b>${esc(x.who || 'LHQ Hub')}${x.role ? ` <span style="color:var(--muted);font-weight:600">· ${esc({director:'Director', admin:'Admin', tutor:'Tutor', student:'Student', parent:'Parent'}[x.role] || x.role)}</span>` : ''}</b><small>${esc(x.summary)}</small><small style="font-size:12px">${AREAL[x.area] || x.area} · ${hm(x.created_at)}</small></span>${h ? '<span class="chev">›</span>' : ''}</${h ? 'a' : 'div'}>`; }).join('')}</div>`).join('') || (ACT.busy ? '<p class="note">Loading…</p>' : '<div class="card"><p class="empty">Nothing in this period.</p></div>')}
-  ${ACT.more ? '<button class="btn" data-actmore>Show earlier</button>' : ''}`;
+  <div class="ac-ph card ac-f">${figs.slice(0, 3).map(([l, n]) => `<div><small>${l}</small><b>${n}</b></div>`).join('')}</div>
+  <div class="hcols ac-cols"><div>${feed}${ACT.more ? '<button class="btn" data-actmore>Show earlier</button>' : ''}</div>${side}</div>`;
 };
 
 /* ---------- the all-tutors calendar (Director and Admin): every session on the current cards, clashes in red ---------- */
@@ -1158,6 +1232,40 @@ P.tutors = (show = '') => {
   ${list.map(([n, items]) => { const st = new Set(items.map(i => i.s.key)).size, open = show === encodeURIComponent(n) || show === n;
     return `<div class="card"><a class="it" href="#tutors/${encodeURIComponent(open ? '' : n)}"><span class="av">${inits(n)}</span><span class="t"><b>${esc(n)}</b><small>${st} student${st === 1 ? '' : 's'} · ${esc([...new Set(items.map(i => i.x.name))].join(', '))}</small></span><span class="chev">${ic(open ? 'back' : 'chev',16,2)}</span></a>
       ${open ? items.map(row).join('') + (pid(n) && (isDir() || can('tutors')) ? `<a class="btn sm" style="margin:4px 0 12px" href="#person/${pid(n)}">${ic('user',14)} ${esc(first(n))}'s account</a>` : '') : ''}</div>`; }).join('') || '<p class="empty">No current tuition cards have tutors yet.</p>'}`;
+};
+
+/* ================= search: everything this person can open, for the search box in the top bar ================= */
+window.LHQSearchScope = () => ({students:'Students', student:'Students', docs:'Documents', tutors:'People', set:'Pages'})[route.page] || '';
+const SKW = {account:'password sign in devices sign out', appearance:'theme dark light auto text size bar sidebar menu lean full', people:'staff access accounts setup code tutors admin',
+  company:'bank address logo contact', payments:'due dates instalments', hours:'opening hours times saturday sunday', numbering:'numbers prefix', messages:'whatsapp email wording templates',
+  lists:'subjects schools year levels spending categories', enrol:'checklist', sending:'whatsapp email', backup:'export download restore', deleted:'bin trash restore', demo:'sample data'};
+LHQSearch.provider = () => {
+  const m = me(); if(!m || !m.role) return [];
+  const I = n => ic(n, 16, 2), G = [];
+  const setPages = () => SETS.flatMap(([, items]) => items).filter(x => !x[3] || x[3]()).map(([id, i, l]) => ({t:l, s:'Settings', k:SKW[id] || '', href: id.includes('.html') ? id : '#set/' + id, ic:I(i)}));
+  if(m.role === 'tutor'){
+    const seen = new Set(), its = (window.TUT && TUT.items ? TUT.items() : []).filter(it => !seen.has(it.k) && seen.add(it.k));
+    G.push({g:'Students', items: its.map(it => ({t:it.st, s:it.sub, href:'#teach/student/' + encodeURIComponent(it.k), ic:`<b style="font-size:11px">${esc(inits(it.st))}</b>`}))});
+    G.push({g:'Pages', items: [['#teach','Home','today'],['#teach/cal','Calendar','timetable week clashes'],['#teach/students','My students','sessions'],['#teach/sra','SRA tracker','spaced repetition print'],['#teach/report','Daily report','end of day'],['#teach/makeups','Make-ups','book'],['#teach/classes','Classes','groups'],['#teach/avail',"Times you can't teach",'availability away']]
+      .map(([h, t, k]) => ({t, k, href:h, ic:I('layout')})).concat(setPages())});
+    G.push({g:'Actions', items: [['#teach/log','Log a session','attendance topics'],['#teach/marks','Enter marks','sra weekly assessment scores']].map(([h, t, k]) => ({t, k, href:h, ic:I('plus')}))});
+    return G;
+  }
+  if(!staffRole()) return [];
+  G.push({g:'Students', items: HD.students().map(x => ({t:x.name, s:[x.level, x.school].filter(Boolean).join(' · '), k:Object.values(x).filter(v => typeof v === 'string').join(' ') + ' ' + subjectsOf(x), href:stuLink(x.key), ic:`<b style="font-size:11px">${esc(inits(x.name))}</b>`}))});
+  G.push({g:'Documents', items: saved.map(d => { const t = typeOf(d), amt = t === 'receipt' ? num(d.received) : d.total != null ? d.total : HD.total(d);
+    return {t:`${d.number || WORD[t]} · ${d.student || d.name || '(no name)'}`, s:[WORD[t], t === 'card' ? '' : mk(amt), nice(d.date)].filter(Boolean).join(' · '), k:`${(d.number || '').replace(/-/g, ' ')} ${amt || ''} ${String(amt || '').replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`, href:openLink(d), ic:I(t)}; })});
+  const ppl = (HD.people ? HD.people() : []).filter(p => p.role !== 'student' && p.role !== 'parent');
+  if(ppl.length) G.push({g:'People', items: ppl.map(p => ({t:p.name, s:({director:'Director', admin:'Admin', tutor:'Tutor', bdo:'BDO'})[p.role] || p.role, k:p.username || '', href: p.role === 'tutor' || p.tutor ? '#tutors/' + encodeURIComponent(p.name) : allowed('people') ? '#set/people' : '#tutors', ic:`<b style="font-size:11px">${esc(inits(p.name))}</b>`}))});
+  const pages = LHQNav.pool().map(([k, l, h]) => ({t:l, href:h.replace('index.html', ''), ic:I({students:'users', docs:'quote', business:'cash', reports:'rep', calendar:'clock', tutors:'users', activity:'list', teach:'list', settings:'layout'}[k] || 'layout')}));
+  pages.push({t:'Sessions', k:'confirm dispute settle attendance', href:'#sessions', ic:I('clock')}, {t:'Make-ups', k:'bookings', href:'#bookings', ic:I('clock')}, {t:'Clashes', k:'double booked', href:'#clashes', ic:I('alert')});
+  if(store.get('lhq_sreports', null)) pages.push({t:'What students say', k:'daily reports ratings', href:'#says', ic:I('msg')});
+  G.push({g:'Pages', items: pages.concat(setPages())});
+  const A = [['quote','New quote','quotes','quote'],['invoice','New invoice','quotes','invoice'],['receipt','Record a payment','receipts','receipt'],['card','New tuition card','cards','card']].filter(x => can(x[2])).map(([t, l, , i]) => ({t:l, k:'new ' + t + (t === 'receipt' ? ' receipt payment received' : ''), href:'#new/' + t, ic:I(i)}));
+  if(can('spend')) A.push({t:'Record spending', k:'expense spend money out', href:'#biz/spending', ic:I('cash')});
+  if(m.tutor) A.push({t:'Log a session', k:'teaching', href:'#teach/log', ic:I('plus')});
+  G.push({g:'Actions', items: A});
+  return G;
 };
 
 /* ================= what students say (from their daily reports; LHQ only) ================= */
@@ -1488,6 +1596,8 @@ function bind(){
   on('[data-acta]', el => { const a = el.dataset.acta; if(!a) AF.areas.clear(); else AF.areas.has(a) ? AF.areas.delete(a) : AF.areas.add(a); actLoad(); });
   on('[data-actmore]', () => actLoad(true));
   if($('actWho')) $('actWho').onchange = () => { AF.who = $('actWho').value; actLoad(); };
+  if($('actKind')) $('actKind').onchange = () => { AF.areas.clear(); if($('actKind').value) AF.areas.add($('actKind').value); actLoad(); };
+  on('[data-actwho]', el => { AF.who = AF.who === el.dataset.actwho ? '' : el.dataset.actwho; actLoad(); });
   if($('cfQ')) $('cfQ').oninput = () => { cfQuery = $('cfQ').value; const pos = $('cfQ').selectionStart; render(); const q = $('cfQ'); if(q){ q.focus(); q.setSelectionRange(pos, pos); } };
   if($('attAll')) $('attAll').onclick = () => { attAll = true; render(); };
   document.querySelectorAll('[data-acode]').forEach(el => el.onclick = async () => { try{ const r = await hub.api('people', {method:'POST', body: JSON.stringify({action:'code', id: el.dataset.acode})}); store.set('lhq_people', r.people); codeSheet(r); }catch(e){ toast(e.message); } });
