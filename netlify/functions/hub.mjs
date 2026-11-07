@@ -429,7 +429,10 @@ async function activityList(req, me) {
     WHERE NOT a.del AND a.area = ANY($1) AND a.created_at >= $2::timestamptz AND ($3 = '' OR coalesce(p.name, a.data->>'who') = $3) AND ($4 = '' OR a.created_at < $4::timestamptz)
     ORDER BY a.created_at DESC, a.id LIMIT 300`, [areas, from, who, before]);
   const people = (await q(`SELECT DISTINCT coalesce(p.name, a.data->>'who') AS n FROM activity a LEFT JOIN people p ON p.id = a.actor_id WHERE a.area = ANY($1) AND NOT a.del ORDER BY 1`, [areas])).map(r => r.n).filter(Boolean);
-  return json({ rows, people, areas });
+  // who did how much in the period (all of them, not only the rows sent), for Who was active
+  const counts = (await q(`SELECT coalesce(p.name, a.data->>'who') AS who, p.role, count(*)::int AS n FROM activity a LEFT JOIN people p ON p.id = a.actor_id
+    WHERE NOT a.del AND a.area = ANY($1) AND a.created_at >= $2::timestamptz GROUP BY 1, 2 ORDER BY n DESC LIMIT 2000`, [areas, from])).filter(r => r.who);
+  return json({ rows, people, areas, counts });
 }
 
 /* what a save did, in words: documents, money, students, lists, logs imported */

@@ -116,6 +116,11 @@ a.it:hover .t b,button.it:hover .t b{text-decoration:underline;text-underline-of
 .ac-who{width:100%;background:none;border:0;text-align:left;font:inherit;color:inherit;cursor:pointer}
 .ac-who.on .t b{color:var(--brand);text-decoration:underline}
 .ac-c{margin-left:auto;color:var(--muted)}
+.ac-g{display:flex;width:100%;margin-bottom:8px}.ac-g button{flex:1;padding:7px 4px;font-size:12.5px;display:flex;flex-direction:column;align-items:center;line-height:1.2}.ac-g button small{font-size:11px;opacity:.75;font-weight:700}
+.ac-q{display:flex;gap:14px;margin:0 2px 8px}
+.ac-sel-p{display:flex;align-items:center;gap:10px;padding:10px 14px;margin-bottom:12px;border-left:3px solid var(--gold)}.ac-sel-p .t{flex:1;min-width:0}.ac-sel-p .t b{display:block}.ac-sel-p .t small{color:var(--muted)}
+.ac-pp{display:flex;align-items:center;gap:10px;width:100%;padding:12px 14px;margin-bottom:12px;text-align:left;font:inherit;color:inherit;cursor:pointer}.ac-pp .t{flex:1}.ac-pp .t b{display:block}.ac-pp .t small{color:var(--muted)}
+@container (min-width:860px){.ac-pp{display:none}}
 .ac-cols>div:last-child{display:none}
 @container (min-width:860px){.ac-cols>div:last-child{display:block}#actWho{display:none}}
 @media (min-width:700px){#actKind{display:none}}
@@ -1058,8 +1063,8 @@ function confirmSheet(id, mode){
 }
 
 /* ---------- Activity: everything done in the Hub, by whom (Director and Admin) ---------- */
-const ACT = {key:'', rows:[], people:[], areas:[], busy:false, err:'', more:false};
-const AF = {when:'week', areas:new Set(), who:''};
+const ACT = {key:'', rows:[], people:[], areas:[], counts:[], busy:false, err:'', more:false};
+const AF = {when:'week', areas:new Set(), who:'', grp:'tutor', quiet:false};
 const AREAL = {documents:'Documents', money:'Money', budgets:'Budgets', students:'Students', teaching:'Teaching', sessions:'Sessions', people:'People', settings:'Settings', pay:'Pay'};
 function actFrom(){ const d = new Date(); d.setHours(0, 0, 0, 0); if(AF.when === 'week') d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); if(AF.when === 'month') d.setDate(1); if(AF.when === 'all') return '2000-01-01'; return d.toISOString(); }
 async function actLoad(more){
@@ -1067,11 +1072,49 @@ async function actLoad(more){
   if(!more && ACT.key === key) return; ACT.busy = true; ACT.key = key; if(!more){ ACT.rows = []; } render();
   try{ const before = more && ACT.rows.length ? ACT.rows[ACT.rows.length - 1].created_at : '';
     const j = await hub.api(`activity?from=${encodeURIComponent(actFrom())}&area=${[...AF.areas].join(',')}&who=${encodeURIComponent(AF.who)}${before ? '&before=' + encodeURIComponent(before) : ''}`);
-    ACT.rows = more ? ACT.rows.concat(j.rows || []) : (j.rows || []); ACT.people = j.people || []; ACT.areas = j.areas || []; ACT.more = (j.rows || []).length === 300; ACT.err = j.off ? 'Activity starts once the Hub uses the database.' : '';
+    ACT.rows = more ? ACT.rows.concat(j.rows || []) : (j.rows || []); ACT.people = j.people || []; ACT.areas = j.areas || []; ACT.counts = j.counts || []; ACT.more = (j.rows || []).length === 300; ACT.err = j.off ? 'Activity starts once the Hub uses the database.' : '';
   }catch(e){ ACT.err = e.message; }
   ACT.busy = false; if(route.page === 'activity') render();
 }
 const actHref = x => x.entity === 'documents' && x.action !== 'doc.delete' ? D('d=' + x.entity_id) : x.entity === 'logs' && x.area === 'sessions' ? '#confirm/' + encodeURIComponent(x.entity_id) : x.area === 'money' ? '#biz/spending' : x.entity === 'students' && x.entity_id ? stuLink(x.entity_id) : x.area === 'settings' ? '#set/lists' : x.area === 'people' ? '#set/people' : x.action === 'doc.delete' ? '#set/deleted' : '';
+/* Who was active: people by role (staff, tutors, students, parents), how much each did in the period, and who did nothing */
+const ROLEG = r => ['tutor','student','parent'].includes(r) ? r : 'staff';
+const GRPL = {staff:'Staff', tutor:'Tutors', student:'Students', parent:'Parents'};
+const ROLEL = r => ({director:'Director', admin:'Admin', tutor:'Tutor', student:'Student', parent:'Parent', bdo:'BDO'})[r] || '';
+const WHENL = () => ({today:'today', week:'this week', month:'this month', all:'so far'})[AF.when];
+function actPeople(){
+  const P = (HD.people ? HD.people() : []).filter(p => p.status !== 'off' && p.status !== 'removed');
+  const roleOf = n => { const c = ACT.counts.find(x => x.who === n); return (c && c.role) || (P.find(p => p.name === n) || {}).role || ''; };
+  const act = ACT.counts.map(c => ({name:c.who, role:c.role || roleOf(c.who), n:c.n}));
+  const seen = new Set(act.map(x => x.name));
+  const quiet = P.filter(p => !seen.has(p.name) && p.status !== 'off').map(p => ({name:p.name, role:p.role, n:0, setup: p.status === 'setup' || p.status === 'pin'}));
+  const G = {}; Object.keys(GRPL).forEach(g => G[g] = {act: act.filter(x => ROLEG(x.role) === g), quiet: quiet.filter(x => ROLEG(x.role) === g)});
+  return G;
+}
+/* the link to someone's own page, when there is one */
+const personHref = x => { const r = ROLEG(x.role);
+  if(r === 'tutor') return '#tutors/' + encodeURIComponent(x.name);
+  if(r === 'student'){ const s0 = HD.students().find(s => same(s.name, x.name)); return s0 ? stuLink(s0.key) : ''; }
+  return r === 'staff' && allowed('people') ? '#set/people' : ''; };
+const pRow = (x, big) => `<button class="it ac-who${AF.who === x.name ? ' on' : ''}" data-actwho="${esc(x.name)}"><span class="av">${esc(inits(x.name))}</span><span class="t"><b>${esc(x.name)}</b>${big || x.setup ? `<small>${esc([big ? ROLEL(x.role) : '', x.setup ? 'Not signed in yet' : ''].filter(Boolean).join(' · '))}</small>` : ''}</span><b class="ac-c">${x.n || ''}</b></button>`;
+function actPeoplePanel(full){
+  const G = actPeople(), g = G[AF.grp] ? AF.grp : 'tutor', L = AF.quiet ? G[g].quiet : G[g].act;
+  const head = `<div class="seg ac-g">${Object.keys(GRPL).map(k => `<button class="${k === g ? 'on' : ''}" data-actg="${k}">${GRPL[k]}<small>${G[k].act.length}</small></button>`).join('')}</div>
+    <div class="ac-q"><button class="tk${AF.quiet ? '' : ' on'}" data-actq="0"><span class="cbx">${AF.quiet ? '' : '✓'}</span>Active ${G[g].act.length}</button><button class="tk${AF.quiet ? ' on' : ''}" data-actq="1"><span class="cbx">${AF.quiet ? '✓' : ''}</span>Not active ${G[g].quiet.length}</button></div>`;
+  const list = (full ? L : L.slice(0, 5)).map(x => pRow(x, full)).join('') || `<p class="empty" style="padding:10px 0">${AF.quiet ? `Everyone was active ${WHENL()}.` : `No one ${WHENL()}.`}</p>`;
+  return {head, list, more: !full && L.length > 5 ? L.length : 0};
+}
+function actPeopleSheet(){
+  const draw = () => { const P0 = actPeoplePanel(true), q = (($('acpQ') || {}).value || '').toLowerCase();
+    $('acpL').innerHTML = P0.list; $('acpH').innerHTML = P0.head;
+    if(q) $('acpL').querySelectorAll('.ac-who').forEach(b => b.hidden = !b.dataset.actwho.toLowerCase().includes(q));
+    $('sheet').querySelectorAll('[data-actg]').forEach(b => b.onclick = () => { AF.grp = b.dataset.actg; draw(); });
+    $('sheet').querySelectorAll('[data-actq]').forEach(b => b.onclick = () => { AF.quiet = b.dataset.actq === '1'; draw(); });
+    $('sheet').querySelectorAll('[data-actwho]').forEach(b => b.onclick = () => { AF.who = b.dataset.actwho; closeSheet(); actLoad(); }); };
+  openSheet(`<div class="hx"><h3>People · ${WHENL()}</h3><button class="ib" data-close>✕</button></div><div id="acpH"></div><label class="f" style="margin:8px 0"><input class="in" id="acpQ" type="search" placeholder="Find a name" autocomplete="off"></label><div class="card" id="acpL"></div>`);
+  draw(); $('acpQ').oninput = draw;
+}
+
 /* what each kind looks like: icon and colour; account events fold into one row */
 const AKIND = {money:['cash','--ok'], budgets:['bank','--ok'], pay:['card','--ok'], documents:['invoice','--bl'], sessions:['clock','--am'], teaching:['list','--pu'], students:['users','--brand'], people:['key','--muted'], settings:['layout','--muted']};
 const QUIET = a => a === 'password' || a === 'person.code';
@@ -1103,7 +1146,7 @@ function actStories(L){
 P.activity = () => {
   if(!isDir() && me().role !== 'admin') return `${crumb('#home', 'Home')}<p class="empty">Activity is for the Director and Admin.</p>`;
   setTimeout(() => actLoad(), 0);
-  const days = {}; ACT.rows.forEach(x => { const d = x.created_at.slice(0, 10); (days[d] = days[d] || []).push(x); });
+  const days = {}; ACT.rows.forEach(x => { const d = HD.isoOf(new Date(x.created_at)); (days[d] = days[d] || []).push(x); });   // the day here, not in UTC
   const tk = HD.isoOf(new Date()), dl = d => d === tk ? 'Today' : d === HD.addDays(tk, -1) ? 'Yesterday' : nice(d);
   const areas = (ACT.areas.length ? ACT.areas : Object.keys(AREAL)).filter(a => AREAL[a]);
   const one = AF.areas.size === 1 ? [...AF.areas][0] : '';
@@ -1115,18 +1158,22 @@ P.activity = () => {
   const R = ACT.rows, cnt = f => R.filter(f).length;
   const logged = R.filter(x => x.action === 'log.add').reduce((a, x) => a + (+((x.summary.match(/^Logged (\d+) session/) || [])[1] || 0)), 0);
   const figs = [['Money', cnt(x => x.area === 'money' && /recorded/.test(x.action))], ['Documents', cnt(x => x.area === 'documents' && !/delete/.test(x.action))], ['Logged', logged], ['Confirmed', cnt(x => x.action === 'session.confirm')], ['Disputes', cnt(x => x.action === 'session.dispute')], ['Accounts', cnt(x => x.action === 'person.add')]];
-  const whoC = {}; R.forEach(x => { if(x.who) whoC[x.who] = (whoC[x.who] || 0) + 1; });
-  const W = Object.entries(whoC).sort((p, q) => q[1] - p[1]).slice(0, 8);
+  const PP = actPeoplePanel(false), G0 = actPeople(), nAct = Object.values(G0).reduce((a, g) => a + g.act.length, 0), nQ = Object.values(G0).reduce((a, g) => a + g.quiet.length, 0);
   const side = `<div><div class="h2">In numbers</div><div class="card ac-f">${figs.map(([l, n]) => `<div><small>${l}</small><b>${n}</b></div>`).join('')}</div>
-    <div class="h2">Who was active ${AF.who ? '<button class="btn sm" data-actwho="">Everyone</button>' : ''}</div><div class="card">${W.map(([n, c]) => `<button class="it ac-who${AF.who === n ? ' on' : ''}" data-actwho="${esc(n)}"><span class="av">${esc(inits(n))}</span><span class="t"><b>${esc(n)}</b></span><b class="ac-c">${c}</b></button>`).join('') || '<p class="empty">No one yet.</p>'}</div></div>`;
+    <div class="h2">Who was active</div>${PP.head}<div class="card">${PP.list}${PP.more ? `<button class="btn sm" data-actall style="margin:8px 0 10px">All ${PP.more}</button>` : ''}</div></div>`;
+  /* who is shown: their role, how much, their page */
+  const selP = AF.who && (() => { const c = ACT.counts.find(x => x.who === AF.who) || {}, x = {name: AF.who, role: c.role || ((HD.people ? HD.people() : []).find(p => p.name === AF.who) || {}).role, n: c.n || 0}, h = personHref(x);
+    return `<div class="card ac-sel-p"><span class="av">${esc(inits(x.name))}</span><span class="t"><b>${esc(x.name)}</b><small>${[ROLEL(x.role), `${x.n} action${x.n === 1 ? '' : 's'} ${WHENL()}`].filter(Boolean).join(' · ')}</small></span>${h ? `<a class="btn sm" href="${h}">Their page</a>` : ''}<button class="ib" data-actwho="" aria-label="Show everyone">✕</button></div>`; })();
+  const pplRow = `<button class="card ac-pp" data-actall><span class="t"><b>People</b><small>${nAct} active · ${nQ} not active ${WHENL()}</small></span><span class="chev">›</span></button>`;
   return `${crumb('#home', 'Home', 'activity')}
   <div class="ph"><div class="tt"><h1>Activity</h1></div></div>
   <div class="ac-bar"><div class="seg">${[['today','Today'],['week','Week'],['month','Month'],['all','All']].map(([k, l]) => `<button class="${AF.when === k ? 'on' : ''}" data-actw="${k}">${l}</button>`).join('')}</div>
     <select class="in ac-sel" id="actKind" aria-label="Kind"><option value="">All kinds</option>${areas.map(a => `<option value="${a}" ${one === a ? 'selected' : ''}>${AREAL[a]}</option>`).join('')}</select>
-    <select class="in ac-sel" id="actWho" aria-label="Person"><option value="">Everyone</option>${ACT.people.map(n => `<option ${AF.who === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></div>
+    <select class="in ac-sel" id="actWho" aria-label="Person"><option value="">Everyone</option>${(G => Object.keys(GRPL).filter(k => G[k].act.length).map(k => `<optgroup label="${GRPL[k]}">${G[k].act.map(x => `<option value="${esc(x.name)}" ${AF.who === x.name ? 'selected' : ''}>${esc(x.name)} (${x.n})</option>`).join('')}</optgroup>`).join(''))(actPeople())}</select></div>
   <div class="tks ac-tks"><button class="tk${AF.areas.size ? '' : ' on'}" data-acta=""><span class="cbx">${AF.areas.size ? '' : '✓'}</span>All</button>${areas.map(a => `<button class="tk${AF.areas.has(a) ? ' on' : ''}" data-acta="${a}" aria-pressed="${AF.areas.has(a)}" style="--c:var(${(AKIND[a] || [])[1] || '--muted'})"><span class="cbx">${AF.areas.has(a) ? '✓' : ''}</span>${AREAL[a]}</button>`).join('')}</div>
   ${ACT.err ? `<p class="note">${esc(ACT.err)}</p>` : ''}
   <div class="ac-ph card ac-f">${figs.slice(0, 3).map(([l, n]) => `<div><small>${l}</small><b>${n}</b></div>`).join('')}</div>
+  ${selP || pplRow}
   <div class="hcols ac-cols"><div>${feed}${ACT.more ? '<button class="btn" data-actmore>Show earlier</button>' : ''}</div>${side}</div>`;
 };
 
@@ -1598,6 +1645,9 @@ function bind(){
   if($('actWho')) $('actWho').onchange = () => { AF.who = $('actWho').value; actLoad(); };
   if($('actKind')) $('actKind').onchange = () => { AF.areas.clear(); if($('actKind').value) AF.areas.add($('actKind').value); actLoad(); };
   on('[data-actwho]', el => { AF.who = AF.who === el.dataset.actwho ? '' : el.dataset.actwho; actLoad(); });
+  on('[data-actg]', el => { AF.grp = el.dataset.actg; render(); });
+  on('[data-actq]', el => { AF.quiet = el.dataset.actq === '1'; render(); });
+  on('[data-actall]', () => actPeopleSheet());
   if($('cfQ')) $('cfQ').oninput = () => { cfQuery = $('cfQ').value; const pos = $('cfQ').selectionStart; render(); const q = $('cfQ'); if(q){ q.focus(); q.setSelectionRange(pos, pos); } };
   if($('attAll')) $('attAll').onclick = () => { attAll = true; render(); };
   document.querySelectorAll('[data-acode]').forEach(el => el.onclick = async () => { try{ const r = await hub.api('people', {method:'POST', body: JSON.stringify({action:'code', id: el.dataset.acode})}); store.set('lhq_people', r.people); codeSheet(r); }catch(e){ toast(e.message); } });
