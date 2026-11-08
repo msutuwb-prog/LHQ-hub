@@ -450,7 +450,7 @@ async function bellOpen(){
   const B = bellItems(), seen = +(localStorage.getItem(BELL_SEEN) || 0);
   if(staffRole() && can('tutors')){ try{ const j = await hub.api('activity?from=' + encodeURIComponent(new Date(Date.now() - 3 * 864e5).toISOString())); window.BELLINFO = (j.rows || []).filter(x => x.who !== me().name).slice(0, 12).map(x => ({t:x.summary, s:x.who + ' · ' + ago(new Date(x.created_at).getTime()), at:new Date(x.created_at).getTime(), href:'#activity'})); B.info = B.info.concat(window.BELLINFO); }catch(e){} }
   const row = (x, need) => `<a class="it" href="${esc(x.href || '#')}" data-close><span class="ico" style="color:var(${need ? '--am' : '--bl'})">${ic(need ? 'alert' : 'clock')}</span><span class="t"><b style="${!need && (x.at || 0) <= seen ? 'font-weight:600' : ''}">${esc(x.t)}</b>${x.s ? `<small>${esc(x.s)}</small>` : ''}</span><span class="chev">›</span></a>`;
-  openSheet(`<div class="hx"><h3>Bell</h3><button class="ib" data-close>✕</button></div>
+  openSheet(`<div class="hx"><h3>Notifications</h3><button class="ib" data-close>✕</button></div>
     <div class="h2">Needs you <em>${B.need.length}</em></div><div class="card">${B.need.slice(0, 30).map(x => row(x, true)).join('') || '<p class="empty">Nothing. ✓</p>'}</div>
     <div class="h2">For your info</div><div class="card">${B.info.sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 20).map(x => row(x, false)).join('') || '<p class="empty">Nothing new.</p>'}</div>`);
   try{ localStorage.setItem(BELL_SEEN, String(Date.now())); }catch(e){}
