@@ -223,11 +223,11 @@
             logs[wid] = {id:wid, k:key, st:card.student, sub:sub.name, d:iso(d), ty:'w', tp:[topics[ti % topics.length]], mx:50, sc:Math.round(p0 / 2), wid:'w' + wid, md:iso(d), at:t + 18 * 3600e3, tutor:sub.tutor}; wn++; }
           if(a !== 'absent' && n % 2 === 0){
             // topic finished: SRA reviews 1, 3, 7 and 14 days later
-            const topic = topics[ti % topics.length];
+            const topic = topics[ti % topics.length]; e.fin = [topic];   // its Learning Day: the SRA schedule starts here
             [1, 3, 7, 14].forEach((g, ri) => {
               const rt = t + g * DAY; if(rt >= T) return;
               const h = rnd() < .78 ? 'o' : rnd() < .6 ? 'l' : 'm', rid = 'dr' + (++uid).toString(36);
-              const r = {id:rid, k:key, st:card.student, sub:sub.name, d:iso(new Date(rt)), ty:'r', tk:topic, rv:ri + 1, h, at:rt + 17 * 3600e3, tutor:sub.tutor};
+              const r = {id:rid, k:key, st:card.student, sub:sub.name, d:iso(new Date(rt)), ty:'r', v:2, tk:topic, rv:ri + 1, h, at:rt + 17 * 3600e3, tutor:sub.tutor};
               if(h !== 'm'){ r.mx = 10; r.sc = 4 + Math.floor(rnd() * 7); }
               logs[rid] = r;
             });

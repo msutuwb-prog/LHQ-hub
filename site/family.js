@@ -28,6 +28,10 @@ window.FAM = (function(){
 .f-av{width:22px;height:22px;border-radius:50%;background:var(--bl-bg);color:var(--bl);display:grid;place-items:center;font-size:11px;font-weight:800}
 .f-tick{flex:none;width:26px;height:26px;border-radius:50%;border:2px solid var(--line);display:grid;place-items:center;background:none;padding:0;font-weight:900;color:transparent;cursor:pointer}
 .f-tick.on{background:var(--ok);border-color:var(--ok);color:#fff}
+.f-pk{display:flex;align-items:center;gap:14px;padding:12px 14px;color:var(--ink);text-decoration:none}.f-pk .t{flex:1;min-width:0}.f-pk .t b{display:block}.f-pk .t small{color:var(--muted);font-size:12.5px}.f-ring{flex:none}
+.f-day{width:40px;flex:none;text-align:center;line-height:1.1}.f-day small{display:block;font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase}.f-day b{font-size:18px;color:var(--brand)}
+.f-sm{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12.5px;color:var(--muted);font-weight:700}.f-sm .in{width:58px;min-height:34px;padding:4px 8px;text-align:center}
+.f-self{font-size:11.5px;font-weight:800;color:var(--am)}.f-all{width:100%;border:0;background:none;color:var(--brand);font:inherit;font-weight:800;cursor:pointer;text-align:left}
 .f-four{display:grid;grid-template-columns:repeat(4,1fr);text-align:center;gap:4px}.f-four b{display:block;font-size:20px;color:var(--brand)}.f-four small{color:var(--muted);font-size:12px}
 .f-opt{display:flex;gap:10px;align-items:center;width:100%;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:11px 12px;margin:6px 0;font:inherit;font-weight:700;color:var(--ink);cursor:pointer}
 .f-opt.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
@@ -78,13 +82,14 @@ window.FAM = (function(){
   function home(){
     const k = kid(); if(!k) return emptyNoKids();
     const t = T(), today = k.week.filter(s => s.date === t), sraIn = k.sras.filter(x => x.due === t || x.status === 'late');
-    const need = (repDue(k) ? [`<a class="it" href="#me/report"><span class="f-mk am">!</span><span class="t"><b>Today's report</b><small>${esc(k.report.ses.map(x => sub(x.sub)).join(', '))} · 2 min</small></span><span class="chev">›</span></a>`] : []).concat(k.toConfirm.map(confirmRow)).concat(k.answers.map(answerRow), isParent() ? [] : sraIn.map(x => `<a class="it" href="#me/practice"><span class="f-mk am">!</span><span class="t"><b>${esc(x.topic)} ${x.stage ? 'R' + x.stage : 'LD'}</b><small>${esc(sub(x.sub))} · hand in ${x.due === t ? 'today' : 'late'}</small></span><span class="chev">›</span></a>`));
+    const need = (repDue(k) ? [`<a class="it" href="#me/report"><span class="f-mk am">!</span><span class="t"><b>Today's report</b><small>${esc(k.report.ses.map(x => sub(x.sub)).join(', '))} · 2 min</small></span><span class="chev">›</span></a>`] : []).concat(k.toConfirm.map(confirmRow)).concat(k.answers.map(answerRow), isParent() ? [] : sraIn.map(x => `<a class="it" href="#me/practice"><span class="f-mk am">!</span><span class="t"><b>${esc(x.topic)} ${x.stage ? 'R' + x.stage : 'LD'}</b><small>${esc(sub(x.sub))} · hand in ${x.due === t ? 'today' : 'late'}</small></span><span class="chev">›</span></a>`),
+      isParent() ? [] : packOf(k).filter(x => x.doOn === t && !x.done).map(x => `<a class="it" href="#me/practice/pack"><span class="f-mk am">!</span><span class="t"><b>${esc(x.topic)} R${x.stage} today</b><small>${esc(sub(x.sub))} · take-home pack</small></span><span class="chev">›</span></a>`));
     const pay = isParent() ? owedLine() : '';
     return `<div class="ph"><div class="tt"><h1>Hi ${esc(firstN(me().name))}</h1><p>${isParent() && kids().length === 1 ? esc(firstN(k.name)) + ' · ' : ''}${day(t)}</p></div></div>${kidChips()}
       ${need.length ? `<div class="h2">Needs you <em>${need.length}</em></div><div class="card" style="border-left:3px solid var(--gold)">${need.join('')}</div>` : ''}
       <div class="h2">Today</div><div class="card">${today.map(s => `<a class="it" href="#me/calendar"><span class="cal-t">${esc(s.s)}<small>${esc(s.e)}</small></span><span class="t"><b>${esc(sub(s.sub))}</b><small>${esc(s.tutor)}</small></span><span class="chev">›</span></a>`).join('') || '<p class="empty">No sessions today.</p>'}</div>
       ${k.changes.length ? `<div class="h2">Changes</div><div class="card">${k.changes.slice(0, 3).map(c => `<div class="it"><span class="f-mk bl">i</span><span class="t"><b>${esc(sub(c.sub))} → ${DAYN[c.to.day]} ${esc(c.to.s)}</b><small>was ${DAYN[c.from.day]} ${esc(c.from.s)}</small></span></div>`).join('')}</div>` : ''}
-      <div class="h2">Sessions</div><div class="card">${k.subjects.map(sesRow).join('') || '<p class="empty">No tuition this period.</p>'}</div>${pay}`;
+      ${packCard(k, true)}<div class="h2">Sessions</div><div class="card">${k.subjects.map(sesRow).join('') || '<p class="empty">No tuition this period.</p>'}</div>${pay}`;
   }
   function owedLine(){
     const all = kids().flatMap(k => k.pay || []), owed = all.filter(p => p.type === 'invoice' && p.balance > 0.5), seen = new Set(), U = owed.filter(p => !seen.has(p.id) && seen.add(p.id));
@@ -96,11 +101,39 @@ window.FAM = (function(){
     const k = kid(); if(!k) return emptyNoKids();
     const t = T(), L = k.sras;
     const doT = L.filter(x => x.doOn === t), inT = L.filter(x => x.due === t || x.status === 'late'), out = L.filter(x => x.status === 'given' && x.doOn !== t);
-    const row = x => `<div class="it">${isParent() ? `<span class="f-mk ${x.done ? 'ok' : ''}">${x.done ? '✓' : ''}</span>` : `<button class="f-tick ${x.done ? 'on' : ''}" data-fdone="${esc(x.id)}" aria-label="Done">✓</button>`}<span class="t"><b>${esc(x.topic)} ${x.stage ? 'R' + x.stage : 'LD'}</b><small>${esc(sub(x.sub))}${x.due ? ' · hand in ' + (x.due === t ? 'today' : day(x.due)) : ''}</small></span></div>`;
-    return `<div class="ph"><div class="tt"><h1>Practice</h1></div></div>${kidChips()}
+    const row = x => `<div class="it">${isParent() ? `<span class="f-mk ${x.done ? 'ok' : ''}">${x.done ? '✓' : ''}</span>` : `<button class="f-tick ${x.done ? 'on' : ''}" data-fdone="${esc(x.id)}" aria-label="Done">✓</button>`}<span class="t"><b>${esc(x.topic)} ${x.stage ? 'R' + x.stage : 'LD'}</b><small>${esc(sub(x.sub))}${x.pack ? ' · take-home pack' : x.due ? ' · hand in ' + (x.due === t ? 'today' : day(x.due)) : ''}</small></span></div>`;
+    return `<div class="ph"><div class="tt"><h1>Practice</h1></div></div>${kidChips()}${packCard(k)}
       <div class="h2">Do today</div><div class="card">${doT.map(row).join('') || '<p class="empty">Nothing today. ✓</p>'}</div>
       ${inT.length ? `<div class="h2">Hand in</div><div class="card">${inT.map(x => `<div class="it"><span class="f-mk am">!</span><span class="t"><b>${esc(x.topic)} ${x.stage ? 'R' + x.stage : 'LD'}</b><small>${esc(sub(x.sub))} · ${x.status === 'late' ? 'late' : 'today'}</small></span></div>`).join('')}</div>` : ''}
       ${out.length ? `<div class="h2">You have</div><div class="card">${out.map(row).join('')}</div>` : ''}`;
+  }
+  /* ---------- the take-home pack: review sheets after the last session, by date ---------- */
+  const ring = (n, N, sz = 60) => { const r = sz / 2 - 6, c = 2 * Math.PI * r, a = N ? c * n / N : 0;
+    return `<svg class="f-ring" width="${sz}" height="${sz}" viewBox="0 0 ${sz} ${sz}" aria-hidden="true"><circle cx="${sz/2}" cy="${sz/2}" r="${r}" fill="none" stroke="var(--line)" stroke-width="7"/><circle cx="${sz/2}" cy="${sz/2}" r="${r}" fill="none" stroke="var(--ok)" stroke-width="7" stroke-linecap="round" stroke-dasharray="${a} ${c}" transform="rotate(-90 ${sz/2} ${sz/2})"/><text x="50%" y="55%" text-anchor="middle" font-size="${sz > 56 ? 14 : 12.5}" font-weight="800" fill="var(--ink)">${n}/${N}</text></svg>`; };
+  const packOf = k => (k.sras || []).filter(x => x.pack).sort((a, b) => a.doOn.localeCompare(b.doOn) || a.sub.localeCompare(b.sub));
+  function packCard(k, small){
+    const P = packOf(k); if(!P.length) return '';
+    const t = T(), n = P.filter(x => x.done).length, nx = P.find(x => !x.done && x.doOn >= t) || P.find(x => !x.done);
+    return `<a class="card f-pk" href="#me/practice/pack">${ring(n, P.length, small ? 52 : 60)}<span class="t"><b>Take-home pack</b><small>${nx ? `Next: ${esc(nx.topic)} R${nx.stage} · ${nx.doOn === t ? 'today' : day(nx.doOn)}` : 'All done ✓'}</small></span><span class="chev">›</span></a>`;
+  }
+  let packAll = false;
+  function takeHome(){
+    const k = kid(); if(!k) return emptyNoKids();
+    const t = T(), P = packOf(k), n = P.filter(x => x.done).length;
+    if(!P.length) return `<div class="ph"><div class="tt"><h1>Take-home pack</h1></div></div>${kidChips()}<div class="card"><p class="empty">No take-home pack.</p></div>`;
+    const subs = [...new Set(P.map(x => x.sub))];
+    const row = x => `<div class="it" style="align-items:flex-start"><span class="f-day"><small>${DAYN[['Su','Mo','Tu','We','Th','Fr','Sa'][HD.parseISO(x.doOn).getDay()]].slice(0, 3)}</small><b>${HD.parseISO(x.doOn).getDate()}</b></span>
+      <span class="t"><b>${esc(x.topic)} · R${x.stage}</b><small>${esc(sub(x.sub))}${x.from ? ` · moved from ${day(x.from)}` : ''}${x.status === 'in' && x.score ? ` · ${x.score.sc}/${x.score.mx} from your tutor` : ''}</small>
+      ${(x.done || x.doOn <= t) && x.status !== 'in' ? (isParent() ? (x.self ? `<small>${x.self.sc}/${x.self.mx} <span class="f-self">self-marked</span></small>` : '')
+        : `<span class="f-sm"><span>Mark</span><input class="in" inputmode="decimal" value="${x.self ? esc(x.self.sc) : ''}" placeholder="–" data-fself="${esc(x.id)}" aria-label="Your mark"><span>/ ${x.self ? x.self.mx : 10}</span>${x.self ? '<span class="f-self">self-marked</span>' : ''}</span>`) : ''}</span>
+      ${isParent() ? `<span class="f-mk ${x.done ? 'ok' : ''}">${x.done ? '✓' : ''}</span>` : `<button class="f-tick ${x.done ? 'on' : ''}" data-fdone="${esc(x.id)}" aria-label="Done">✓</button>`}</div>`;
+    const today = P.filter(x => x.doOn === t), next = P.filter(x => x.doOn > t), past = P.filter(x => x.doOn < t);
+    return `<div class="ph"><div class="tt"><h1>Take-home pack</h1></div></div>${kidChips()}
+      <div class="card f-pk">${ring(n, P.length)}<span class="t"><b>${n} of ${P.length} done</b><small>Last one ${day(P[P.length - 1].doOn)} · ${subs.map(x => esc(sub(x))).join(', ')}</small></span></div>
+      ${today.length ? `<div class="h2">Today</div><div class="card">${today.map(row).join('')}</div>` : ''}
+      ${next.length ? `<div class="h2">Next <em>${next.length}</em></div><div class="card">${(packAll ? next : next.slice(0, 4)).map(row).join('')}${next.length > 4 && !packAll ? `<button class="it f-all" data-fpkall>All ${next.length}</button>` : ''}</div>` : ''}
+      ${past.length ? `<div class="h2">Earlier <em>${past.filter(x => x.done).length} of ${past.length} done</em></div><div class="card">${past.slice().reverse().map(row).join('')}</div>` : ''}
+      <p class="note">${isParent() ? 'Sheets go home after the last session. Self-marked scores are kept out of averages.' : 'Do each sheet on its day. Missed one? Do it the next day. Your own marks show as self-marked.'}</p>`;
   }
   function calendar(ym){
     const k = kid(); if(!k) return emptyNoKids();
@@ -185,7 +218,7 @@ window.FAM = (function(){
   function page(sub0, a1, a2){
     if(!data || Date.now() - (data.at || 0) > 60000) fetchData();
     if(!data) return emptyNoKids();
-    if(sub0 === 'practice') return practice();
+    if(sub0 === 'practice') return a1 === 'pack' ? takeHome() : practice();
     if(sub0 === 'calendar') return calendar(a1);
     if(sub0 === 'progress' || sub0 === 'sessions') return progress();
     if(sub0 === 'subject') return subject(decodeURIComponent(a1 || ''));
@@ -219,8 +252,12 @@ window.FAM = (function(){
     document.querySelectorAll('[data-frep]').forEach(b => b.onclick = () => { const [a, ...r] = b.dataset.frep.split(':');
       post({action:'reply', id: r.join(':'), ok: a === 'ok'}, a === 'ok' ? 'Done' : 'Sent to LHQ'); });
     document.querySelectorAll('[data-fdone]').forEach(b => b.onclick = async () => { const on = !b.classList.contains('on'); b.classList.toggle('on', on);
-      try{ await hub.api('family', {method:'POST', body: JSON.stringify({action:'done', id: b.dataset.fdone, done: on})}); const x = kids().flatMap(k => k.sras).find(s => s.id === b.dataset.fdone); if(x) x.done = on; write(CK, data); toast(on ? 'Done' : 'Not done'); }
+      try{ await hub.api('family', {method:'POST', body: JSON.stringify({action:'done', id: b.dataset.fdone, done: on})}); const x = kids().flatMap(k => k.sras).find(s => s.id === b.dataset.fdone); if(x) x.done = on; write(CK, data); toast(on ? 'Done' : 'Not done'); if(x && x.pack) render(); }
       catch(e){ b.classList.toggle('on', !on); toast(e.message); } });
+    document.querySelectorAll('[data-fpkall]').forEach(b => b.onclick = () => { packAll = true; render(); });
+    document.querySelectorAll('[data-fself]').forEach(inp => inp.onchange = async () => { const id = inp.dataset.fself, v = inp.value.trim();
+      const j = await post({action:'selfmark', id, sc: v}, v ? 'Mark saved · self-marked' : 'Mark removed');
+      if(j && v){ const x = kids().flatMap(k => k.sras).find(s => s.id === id); if(x && !x.done) await hub.api('family', {method:'POST', body: JSON.stringify({action:'done', id, done: true})}).then(fetchData).catch(() => {}); } });
     /* today's report */
     const R0 = () => { const k = kid(); return k && k.report && RS[k.report.date]; };
     document.querySelectorAll('[data-fr]').forEach(b => b.onclick = () => { const [s0, f, v] = b.dataset.fr.split('|'), st = R0(); if(!st) return; st.ses[decodeURIComponent(s0)][f] = f === 'prep' ? v : +v; render(); });
@@ -243,6 +280,7 @@ window.FAM = (function(){
       k.answers.forEach(e => need.push({t:`${who}${firstN(e.tutor)} answered`, s:`${sub(e.sub)} · ${day(e.d)}`, href:'#me'}));
       if(repDue(k)) need.push({t:"Today's report", s: k.report.ses.map(x => sub(x.sub)).join(', ') + ' · 2 min', href:'#me/report'});
       if(!isParent()) k.sras.filter(x => x.due === t || x.status === 'late').forEach(x => need.push({t:`${x.topic} ${x.stage ? 'R' + x.stage : 'LD'}`, s:'Hand in ' + (x.due === t ? 'today' : 'late'), href:'#me/practice'}));
+      if(!isParent()) packOf(k).filter(x => x.doOn === t && !x.done).forEach(x => need.push({t:`${x.topic} R${x.stage} today`, s:'Take-home pack', href:'#me/practice/pack'}));
       k.changes.forEach(c => info.push({t:`${who}${sub(c.sub)} → ${DAYN[c.to.day]} ${c.to.s}`, s:'was ' + DAYN[c.from.day] + ' ' + c.from.s, at:c.at, href:'#me'}));
       k.makeups.forEach(m => info.push({t:`${who}Make-up: ${sub(m.sub)} ${day(m.d)} ${m.s}`, s:'Confirmed', at:0, href:'#me/calendar'}));
       k.sessions.filter(e => e.cf && e.cf.agreed).slice(0, 3).forEach(e => info.push({t:`${who}${sub(e.sub)} · ${day(e.d)}`, s:'Sorted with ' + firstN(e.tutor), at:0, href:'#me/subject/' + encodeURIComponent(e.k)}));

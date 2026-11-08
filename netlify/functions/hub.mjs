@@ -623,8 +623,12 @@ async function familyData(me) {
     const canConfirm = me.role === confirmer;
     const toConfirm = canConfirm ? sessions.filter(e => e.st === "waiting") : [];
     const answers = canConfirm ? sessions.filter(e => e.st === "disputed" && e.cf && e.cf.step === "student") : [];
-    const sras = SR.build(its.map(it => ({ k: it.k, days: it.days, a: it.pa, b: it.b, st: it.st, sub: it.sub })), ent, t)
-      .filter(x => x.given && x.status !== "in").map(x => ({ id: [x.k, x.topic, x.stage].join("|"), sub: x.sub, topic: x.topic, label: x.label, stage: x.stage, doOn: x.doOn, due: x.due, status: x.status, done: !!(done || {})[[x.k, x.topic, x.stage].join("|")] }));
+    /* SRAs given and not yet handed in, and the take-home pack from its hand-over day (the pack's sheets stay listed, done or not, until a week after the last one) */
+    const sraIts = S.items(cards, t, 45).filter(it => nk(it.st) === kid.key);
+    const sras = SR.build(sraIts.map(it => ({ k: it.k, days: it.days, a: it.pa, b: it.b, st: it.st, sub: it.sub, periods: it.periods })), ent, t)
+      .filter(x => x.pack ? x.pack.on <= t && SR.add(x.doOn, 7) >= t : x.given && x.status !== "in").map(x => { const id = [x.k, x.topic, x.stage].join("|"), dn = (done || {})[id];
+        return Object.assign({ id, sub: x.sub, topic: x.topic, label: x.label, stage: x.stage, doOn: x.doOn, due: x.due, status: x.status, done: !!dn || x.status === "in" },
+          x.pack ? { pack: { on: x.pack.on, out: !!x.pack.out, from: x.from || null }, self: dn && dn.sc != null ? { sc: dn.sc, mx: dn.mx || 10 } : null, score: x.score } : {}); });
     const week = S.sessions(cards, t, S.addDays(t, 13), { student: kid.name }).map(e => ({ date: e.date, s: e.s, e: e.e, sub: e.sub, tutor: e.tutor, where: e.where }));
     const changes = Object.values(moves || {}).filter(m => m && nk(m.st) === kid.key && Date.now() - m.at < 30 * 864e5).sort((a, b) => b.at - a.at).map(m => ({ sub: m.sub, from: m.from, to: m.to, at: m.at, by: m.by }));
     const makeups = Object.values(mus || {}).filter(m => m && nk(m.st) === kid.key && m.status === "ok" && m.d >= t).map(m => ({ d: m.d, s: m.s, e: m.e, sub: m.sub, tutor: m.tutor }));
@@ -649,7 +653,9 @@ async function familyData(me) {
     /* marks: weekly assessments and SRA scores, as percentages, for the charts on Progress */
     const pcOf = e => Number(e.mx) > 0 && e.sc != null && e.sc !== "" && !isNaN(Number(e.sc)) ? Math.max(0, Math.min(100, Math.round(Number(e.sc) / Number(e.mx) * 100))) : null;
     const marks = { w: ent.filter(e => e.ty === "w" && !e.abs && pcOf(e) != null).map(e => ({ sub: e.sub, d: e.d, p: pcOf(e) })),
-      r: ent.filter(e => e.ty === "r" && e.tk && pcOf(e) != null).map(e => ({ sub: e.sub, tk: e.tk, rv: Number(e.rv) || 0, p: pcOf(e), d: e.d })) };
+      r: ent.filter(e => e.ty === "r" && e.tk && pcOf(e) != null).map(e => ({ sub: e.sub, tk: e.tk, rv: Number(e.rv) || 0, p: pcOf(e), d: e.d }))
+        .concat(sras.filter(x => x.pack && x.status !== "in" && x.self).map(x => ({ sub: x.sub, tk: x.topic, rv: x.stage, p: pcOf(x.self), d: x.doOn, self: 1 })).filter(x => x.p != null)),
+      p: sras.filter(x => x.pack && x.status !== "in" && !x.self).map(x => ({ sub: x.sub, tk: x.topic, rv: x.stage, d: x.doOn })) };
     return Object.assign({}, kid, { confirmer, canConfirm, subjects, sessions, toConfirm, answers, sras, week, changes, makeups, pay, report, marks });
   }) };
 }
@@ -664,7 +670,18 @@ async function familyPost(req, me) {
   if (b.action === "done") {   // the student ticks an SRA done (their tutor's Handed in is what counts)
     if (me.role !== "student") return fail("Only the student ticks SRAs done.", 403);
     const id = String(b.id || ""); if (!kids.some(k => id.split("|")[0] === k.key)) return fail("That SRA isn't yours.", 403);
-    await writeKv("lhq_sradone", old => { const o = Object.assign({}, old); if (b.done) o[id] = { at: now }; else delete o[id]; return o; });
+    await writeKv("lhq_sradone", old => { const o = Object.assign({}, old); if (b.done) o[id] = Object.assign({}, o[id], { at: now }); else delete o[id]; return o; });
+    return json({ ok: true });
+  }
+  if (b.action === "selfmark") {   // a take-home sheet marked by the student with the pack's answer sheet: kept, labelled self-marked, never in averages
+    if (me.role !== "student") return fail("Only the student marks their own sheets.", 403);
+    const fd = await familyData(me), x = fd.kids.flatMap(k => k.sras).find(y => y.id === String(b.id || ""));
+    if (!x || !x.pack) return fail("Only take-home sheets can be self-marked.", 403);
+    const mx = Number(b.mx) > 0 && Number(b.mx) <= 200 ? Number(b.mx) : 10, blank = b.sc === "" || b.sc == null, sc = Number(b.sc);
+    if (!blank && (!isFinite(sc) || sc < 0 || sc > mx)) return fail(`Give a mark from 0 to ${mx}.`);
+    await writeKv("lhq_sradone", old => { const o = Object.assign({}, old), was = o[x.id] || {};
+      if (blank) { const { sc: _s, mx: _m, self: _f, ...rest } = was; o[x.id] = Object.assign(rest, { at: rest.at || now }); }
+      else o[x.id] = Object.assign({}, was, { at: was.at || now, sc, mx, self: now }); return o; });
     return json({ ok: true });
   }
   if (b.action === "report") {   // the student's daily report: three answers a session, what they got, this week's question, a note for LHQ
@@ -1056,10 +1073,12 @@ async function tutorPost(req, me) {
     const before = await store().get("kv/lhq_logs", { type: "json" });
     await writeKv("lhq_logs", old => mergeLogs(old, { e: add }));
     const fresh = Object.values(add).filter(e => !((before && before.e) || {})[e.id]), edits = Object.keys(add).length - fresh.length;
-    const TY = { s: "session", g: "SRA given", r: "SRA marked", w: "assessment mark" }, cnt = {};
+    const TY = { s: "session", g: "SRA given", r: "SRA marked", w: "assessment mark", p: "take-home pack" }, cnt = {};
     fresh.forEach(e => { const t = TY[e.ty] || "line"; cnt[t] = (cnt[t] || 0) + 1; });
     const sess = fresh.filter(e => e.ty === "s"), first = sess[0] || fresh[0];
-    if (fresh.length === 1 && first) await act(me, "teaching", "log.add", `Logged a ${TY[first.ty] || "line"} · ${first.st} · ${first.sub} · ${dayL(first.d)}`, "logs", first.id);
+    const outs = fresh.filter(e => e.ty === "p");
+    if (outs.length && outs.length === fresh.length) await act(me, "teaching", "pack.out", `Handed over ${outs.length === 1 ? "a take-home pack" : outs.length + " take-home packs"} · ${[...new Set(outs.map(e => e.st + " · " + e.sub))].slice(0, 4).join(", ")}`, "logs", outs[0].id);
+    else if (fresh.length === 1 && first) await act(me, "teaching", "log.add", `Logged a ${TY[first.ty] || "line"} · ${first.st} · ${first.sub} · ${dayL(first.d)}`, "logs", first.id);
     else if (fresh.length) await act(me, "teaching", "log.add", `Logged ${Object.entries(cnt).map(([t, n]) => n + " " + t + (n === 1 ? "" : "s")).join(", ")}${sess.length ? " · " + [...new Set(sess.map(e => e.st))].slice(0, 4).join(", ") : ""}`, "logs", first.id);
     if (edits) await act(me, "teaching", "log.edit", `Changed ${edits} logged line${edits === 1 ? "" : "s"}`, "logs", null);
     return json({ ok: true, saved: Object.values(add) });

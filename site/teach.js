@@ -117,8 +117,9 @@ window.TUT = (function(){
     data.cards.slice().sort((a, b) => (a.periodStart || a.date || '').localeCompare(b.periodStart || b.date || '')).forEach(c => (c.subjects || []).forEach(x => {
       const k = nk(c.student) + '|' + nk(x.name), was = by.get(k);
       let topics = []; try{ if(window.cardTopicNames) topics = cardTopicNames(cardFixPicks(JSON.parse(JSON.stringify(x)))); }catch(e){}
+      const periods = (was ? was.periods : []).concat(c.periodStart && c.periodEnd ? [{a: c.periodStart, b: c.periodEnd, days: x.days || []}] : []);
       by.set(k, {k, st: c.student, sub: x.name, lv: c.level, days: x.days || [], times: x.times || {}, start: x.start || '', end: x.end || '', where: c.where || '',
-        a: was ? was.a : (c.periodStart || ''), b: c.periodEnd || '', pa: c.periodStart || '', cap: parseFloat(x.sessions) || 0, card: c, x, topics: topics.length ? topics : (was ? was.topics : [])});
+        a: was ? was.a : (c.periodStart || ''), b: c.periodEnd || '', pa: c.periodStart || '', cap: parseFloat(x.sessions) || 0, card: c, x, topics: topics.length ? topics : (was ? was.topics : []), periods});
     }));
     return [...by.values()].sort((a, b) => a.st.localeCompare(b.st) || a.sub.localeCompare(b.sub));
   }
@@ -192,6 +193,7 @@ window.TUT = (function(){
     (data.classes || []).forEach(c => { const M = due.filter(it => c.stu.includes(stuOf(it.k)) && nk(it.sub) === nk(c.sub)); if(M.length >= 2){ M.forEach(m => inCls.add(m.k)); g.push({href:'#teach/log/' + encodeURIComponent('class:' + c.id), b:`${tStart(M[0], dow) || ''} ${c.name} · session not logged`.trim(), s:c.sub}); } });
     due.filter(it => !inCls.has(it.k)).forEach(it => g.push({href:'#teach/log/' + encodeURIComponent(it.k), b:`${tStart(it, dow) || ''} ${short(it.st)} · session not logged`.trim(), s:it.sub}));
     SRA.today(sras(), t).collect.forEach(x => g.push({href:'#teach/marks/' + ref(x), b:`${short(x.st)} · ${x.topic} ${x.label}`, s: x.status === 'late' ? 'Late · marks not entered' : 'SRA due back today · marks not entered'}));
+    SRA.packs(sras(), t, 0).filter(p => !p.out && p.on <= t && p.on >= addDays(t, -3)).forEach(p => g.push({href:'#teach/sra/pack', b:`${short(p.st)} · take-home pack`, s:`${p.sub} · ${p.sheets.length} sheet${p.sheets.length === 1 ? '' : 's'} · ${p.on === t ? 'last session today' : 'last session ' + nice(p.on)} · not ticked as handed over`}));
     pendingWa().filter(w => w.d < t).forEach(w => g.push({href:'#teach/wa/' + encodeURIComponent(w.id), b:`${w.name} · weekly assessment`, s:`Given ${nice(w.d)} · marks not entered`}));
     return g;
   }
@@ -615,10 +617,10 @@ window.TUT = (function(){
         mform = {edit: e.id, k: e.k, sra: e.man ? 'man' : [e.k, e.tk, e.rv].map(encodeURIComponent).join('/'), tk: e.tk, rv: String(e.rv), h: e.h || 'o', sc: e.sc ?? '', mx: e.mx ?? '10', d: e.d}; }
       else { const x = v && !v.startsWith('stu:') ? unref(v) : null, k0 = v.startsWith('stu:') ? v.slice(4) : ''; mform = {k: x ? x.k : k0, sra: x ? ref(x) : '', tk: '', rv: '', h: 'o', sc: '', mx: '10', d: today()}; }
     }
-    const f = mform, out = L.filter(x => x.k === f.k && ['given','collect','late'].includes(x.status) || (f.edit && ref(x) === f.sra && x.k === f.k)), it = itemOf(f.k);
+    const f = mform, out = L.filter(x => x.k === f.k && ['given','collect','late','home'].includes(x.status) || (f.edit && ref(x) === f.sra && x.k === f.k)), it = itemOf(f.k);
     return backHome() + head(f.edit ? 'Edit SRA marks' : 'SRA marks', 'For an SRA that has been handed in') + `
       <div class="card pad"><label class="f"><span>Student</span><select class="in" data-tmk aria-label="Student" ${f.edit ? 'disabled' : ''}><option value="">Choose…</option>${I.map(i => `<option value="${esc(i.k)}" ${f.k === i.k ? 'selected' : ''}>${esc(i.st)} · ${esc(i.sub)}</option>`).join('')}</select></label>
-      ${f.k ? `<div class="cap">Which SRA</div><div class="t-opts">${out.map(x => `<button type="button" role="radio" aria-checked="${f.sra === ref(x)}" class="t-opt${f.sra === ref(x) ? ' on' : ''}" data-tset="sra" data-v="${esc(ref(x))}"><span class="t-ind c"></span><span class="tx">${esc(x.topic)} · ${x.label}<small>Given ${x.given ? nice(x.given.d) : '?'} · due back ${x.due === today() ? 'today' : nice(x.due)}${x.status === 'late' ? ' · late' : ''}</small></span></button>`).join('')}
+      ${f.k ? `<div class="cap">Which SRA</div><div class="t-opts">${out.map(x => `<button type="button" role="radio" aria-checked="${f.sra === ref(x)}" class="t-opt${f.sra === ref(x) ? ' on' : ''}" data-tset="sra" data-v="${esc(ref(x))}"><span class="t-ind c"></span><span class="tx">${esc(x.topic)} · ${x.label}<small>${x.status === 'home' ? `Take-home pack · do on ${nice(x.doOn)}` : `Given ${x.given ? nice(x.given.d) : '?'} · due back ${x.due === today() ? 'today' : nice(x.due)}${x.status === 'late' ? ' · late' : ''}`}</small></span></button>`).join('')}
         <button type="button" role="radio" aria-checked="${f.sra === 'man'}" class="t-opt${f.sra === 'man' ? ' on' : ''}" data-tset="sra" data-v="man"><span class="t-ind c"></span><span class="tx">Not in the list<small>Choose topic and review · LHQ checks</small></span></button></div>
         ${f.sra === 'man' ? `<div class="r2" style="margin-top:10px"><label class="f" style="margin:0"><span>Topic</span>${(tks => tks.length ? `<select class="in" data-tin="tk"><option value="">Choose…</option>${tks.map(t => `<option ${f.tk === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>` : `<input class="in" data-tin="tk" value="${esc(f.tk || '')}" placeholder="Type the topic" autocomplete="off">`)([...new Set((it ? it.topics : []).concat(L.filter(x => x.k === f.k).map(x => x.topic)))])}</label>
           <label class="f" style="margin:0"><span>Review</span><select class="in" data-tin="rv"><option value="">Choose…</option>${SRA.STAGES.map(s => `<option value="${s.n}" ${f.rv === String(s.n) ? 'selected' : ''}>${s.l}</option>`).join('')}</select></label></div>` : ''}` : ''}</div>
@@ -672,17 +674,19 @@ window.TUT = (function(){
   /* ---------- the SRA tracker ---------- */
   function sraPage(tab){
     const L = sras().filter(x => !x.paused), t = today(), T = SRA.today(L, t);
-    const tabs = `<div class="t-segw" role="tablist">${[['today','Today'],['week','Next 7 days'],['students','By student']].map(([k, l]) => `<a role="tab" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" href="#teach/sra/${k}">${l}</a>`).join('')}</div>`;
+    const tabs = `<div class="t-segw" role="tablist">${[['today','Today'],['week','7 days'],['students','By student'],['pack','Take-home']].map(([k, l]) => `<a role="tab" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" href="#teach/sra/${k}">${l}</a>`).join('')}</div>`;
     let body = '';
     if(tab === 'students'){
       const f = read('lhq_teach_sraw', ''), C = data.classes || [], I = items();
       const keys = f.startsWith('class:') ? (() => { const c = C.find(x => x.id === f.slice(6)); return c ? I.filter(it => c.stu.includes(stuOf(it.k)) && nk(it.sub) === nk(c.sub)).map(it => it.k) : []; })() : f ? [f] : I.map(it => it.k);
-      const TAG = {in:['ok', x => Math.round(x.score.sc / x.score.mx * 100) + '%'], collect:['bl', () => 'due back'], late:['am', () => 'late'], given:['bl', x => 'back ' + HD.parseISO(x.due).getDate()], give:['am', () => 'today'], overdue:['rd', () => 'missed'], upcoming:['gr', x => nice(x.giveOn).replace(/ \d{4}$/, '')], after:['gr', () => 'next period']};
+      const TAG = {in:['ok', x => Math.round(x.score.sc / x.score.mx * 100) + '%'], collect:['bl', () => 'due back'], late:['am', () => 'late'], given:['bl', x => 'back ' + HD.parseISO(x.due).getDate()], give:['am', () => 'today'], overdue:['rd', () => 'missed'], upcoming:['gr', x => nice(x.giveOn).replace(/ \d{4}$/, '')], after:['gr', () => 'next period'], pack:['gr', () => 'pack'], home:['bl', () => 'at home']};
       body = `<div class="card pad"><label class="f" style="margin:0"><span>Show</span><select class="in" data-tsraw aria-label="Show"><option value="">All students</option>${C.map(c => `<option value="class:${c.id}" ${f === 'class:' + c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}${I.map(it => `<option value="${esc(it.k)}" ${f === it.k ? 'selected' : ''}>${esc(it.st)} · ${esc(it.sub)}</option>`).join('')}</select></label></div>` +
         keys.map(k => { const it = itemOf(k); if(!it) return ''; const X = L.filter(x => x.k === k), byT = new Map(); X.forEach(x => { if(!byT.has(x.topic)) byT.set(x.topic, []); byT.get(x.topic).push(x); });
           return `<div class="h2">${esc(it.st)} <em>${esc(it.sub)}</em></div><div class="card">${[...byT.entries()].map(([tp, R]) => `<div class="it" style="display:block"><b style="display:block">${esc(tp)}</b><small style="color:var(--muted);font-size:12.5px">Learning Day ${nice(R[0].learnt)}</small>
             <div class="t-chips6">${R.sort((a, b) => a.stage - b.stage).map(x => `<button type="button" class="tag ${TAG[x.status][0]}" data-tsdet="${esc(ref(x))}" aria-label="${x.label}"><span>${x.stage ? 'R' + x.stage : 'LD'}</span>${TAG[x.status][1](x)}</button>`).join('')}</div></div>`).join('') || '<p class="empty">No topics finished yet.</p>'}</div>`; }).join('') +
         '<p class="note">LD Learning Day · R1–R5 reviews · green in · blue out · amber today or late · red missed · grey to come</p>';
+    } else if(tab === 'pack'){
+      body = packTab();
     } else if(tab === 'week'){
       body = Array.from({length: 7}, (_, i) => addDays(t, i)).map((d, i) => { const g = L.filter(x => x.giveOn === d && ['upcoming','give'].includes(x.status)), late = i === 0 ? L.filter(x => x.status === 'overdue') : [];
         return `<div class="h2">${i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : WEEKDAY[HD.parseISO(d).getDay()].slice(0, 3) + ' ' + nice(d)} <em>${g.length + late.length}</em></div><div class="card">${late.concat(g).map(x => `<div class="it"><span class="t"><b>${esc(short(x.st))} · ${esc(x.topic)}</b><small>${esc(x.sub)} · ${x.label}${x.giveOn !== x.doOn ? ` · give ${nice(x.giveOn)}, do on ${nice(x.doOn)}` : ` · do on ${nice(x.doOn)}`}</small></span>${x.status === 'overdue' ? `<button class="btn sm" type="button" data-tgive="${ref(x)}">Given</button>` : i === 0 ? `<button class="btn sm" type="button" data-tgive="${ref(x)}">Given</button>` : `<button class="btn sm" type="button" data-tgive="${ref(x)}" data-early="1">Give early</button>`}</div>`).join('') || '<p class="empty">None.</p>'}</div>`; }).join('') +
@@ -699,11 +703,52 @@ window.TUT = (function(){
     }
     return (tutorRole() ? '' : backHome()) + head('SRA tracker', 'When each SRA is given, done and collected', `<div class="acts">${logBtn()}</div>`) + tabs + body;
   }
+  /* ---------- the take-home pack: reviews after a student's last session, printed and handed over at that session ---------- */
+  const packKey = p => encodeURIComponent(p.k + '|' + p.on);
+  const packOf = key => { const [st, sub, on] = decodeURIComponent(key).split('|'); return SRA.packs(sras(), today(), 400).find(p => p.k === st + '|' + sub && p.on === on); };
+  const outEntry = p => live().find(e => e.ty === 'p' && e.k === p.k && e.on === p.on);
+  function packTab(){
+    const t = today(), P = SRA.packs(sras(), t), sd = data.sradone || {};
+    const soon = P.filter(p => !p.out && p.on >= t), late = P.filter(p => !p.out && p.on < t), done = P.filter(p => p.out);
+    const sheet = x => `<div class="it"><span class="t"><b>${esc(x.topic)} · R${x.stage}</b><small>Do on ${WEEKDAY[HD.parseISO(x.doOn).getDay()].slice(0, 3)} ${nice(x.doOn)}${x.from ? ` · <span style="color:var(--am);font-weight:700">moved from ${nice(x.from)}</span>` : ''}</small></span></div>`;
+    const card = p => { const id = packKey(p), said = p.sheets.filter(x => sd[[x.k, x.topic, x.stage].join('|')] || x.status === 'in').length;
+      return `<div class="card pad"><div class="it" style="padding-top:0"><span class="t"><b>${esc(p.st)}</b><small>${esc(p.sub)} · last session ${p.on === t ? 'today' : WEEKDAY[HD.parseISO(p.on).getDay()].slice(0, 3) + ' ' + nice(p.on)}</small></span><b style="color:var(--brand)">${p.sheets.length} sheet${p.sheets.length === 1 ? '' : 's'}</b></div>
+        ${p.out ? `<p class="note" style="margin:0 0 8px">Handed over ${nice(p.out.d)} · ${said ? `${firstN(p.st)} says ${said} of ${p.sheets.length} done` : 'none ticked done yet'}</p>` : `<div class="cap" style="margin-top:6px">Print · 1 copy each</div>${p.sheets.map(sheet).join('')}`}
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0">${p.out ? '' : `<button class="btn sm" type="button" data-tpkprint="${id}">Print list for ${esc(firstN(p.st))}</button>`}</div>
+        <button type="button" role="checkbox" aria-checked="${!!p.out}" class="t-opt${p.out ? ' on' : ''}" data-tpkout="${id}"><span class="t-ind"></span><span class="tx">Pack handed over<small>${p.out ? 'Recorded ' + nice(p.out.d) + (p.out.by && nk(p.out.by) !== nk(me().name) ? ' by ' + esc(p.out.by) : '') : `Tick when ${esc(firstN(p.st))} has it`}</small></span></button></div>`; };
+    return (late.length ? `<div class="h2">Not ticked yet <em>${late.length}</em></div>${late.map(card).join('')}` : '') +
+      `<div class="h2">${soon.some(p => p.on === t) ? 'Last session today and coming up' : 'Last sessions in the next 7 days'} <em>${soon.length}</em></div>${soon.map(card).join('') || '<div class="card"><p class="empty">No student finishes in the next 7 days.</p></div>'}` +
+      (done.length ? `<div class="h2">Handed over <em>${done.length}</em></div>${done.map(card).join('')}` : '') +
+      '<p class="note">Reviews after a student\'s last session go home on paper, at most 2 a day. They never count as missed or late.</p>';
+  }
+  const firstN = n => String(n || '').trim().split(/\s+/)[0];
+  /* the A4 list that goes on top of the sheets: shown over the Hub with Print and Close (no pop-up, so it works on phones and installed apps) */
+  function printPack(p){
+    const WD = d => WEEKDAY[HD.parseISO(d).getDay()].slice(0, 3) + ' ' + nice(d);
+    let el = document.getElementById('pkPrint');
+    if(!el){ el = document.createElement('div'); el.id = 'pkPrint'; document.body.appendChild(el);
+      const css = document.createElement('style'); css.textContent = `#pkPrint{position:fixed;inset:0;z-index:10000;background:#e3e7ee;overflow:auto;color:#14213d;font:14px/1.5 "Segoe UI",system-ui,sans-serif}#pkPrint[hidden]{display:none}
+#pkPrint .bar{position:sticky;top:0;display:flex;gap:8px;justify-content:flex-end;padding:10px 16px;background:#e3e7ee}#pkPrint .bar button{font:inherit;font-weight:800;border-radius:10px;padding:9px 16px;cursor:pointer;border:1px solid #c5ccd6;background:#fff;color:#073763}#pkPrint .bar .p{background:#073763;color:#fff;border-color:#073763}
+#pkPrint .pg{max-width:794px;margin:0 auto 24px;background:#fff;padding:44px 52px;box-shadow:0 8px 24px rgba(0,0,0,.15)}#pkPrint .hd{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid #073763;padding-bottom:12px;margin-bottom:16px;gap:16px}
+#pkPrint .lg{font-weight:900;font-size:26px;color:#073763}#pkPrint .lg i{color:#f4b223;font-style:normal}#pkPrint .lg small{display:block;font-size:9px;letter-spacing:.12em;color:#6b7585}#pkPrint h1{margin:0;font-size:22px;color:#073763;text-align:right}
+#pkPrint .sub{text-align:right;color:#3d4a63;font-weight:700}#pkPrint .sub small{display:block;color:#6b7585;font-weight:600;font-size:12.5px}#pkPrint table{width:100%;border-collapse:collapse}#pkPrint th{text-align:left;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#6b7585;border-bottom:1.5px solid #14213d;padding:6px}
+#pkPrint td{border-bottom:1px solid #d5dae2;padding:9px 6px}#pkPrint td.bx span{display:inline-block;width:18px;height:18px;border:1.5px solid #14213d;border-radius:4px}#pkPrint .how{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:18px;font-size:12.5px}
+#pkPrint .how div{border:1px solid #d5dae2;border-radius:8px;padding:10px 12px}#pkPrint .how b{display:block;color:#073763}
+@media (max-width:700px){#pkPrint .pg{padding:22px 16px;margin:0 10px 16px}#pkPrint .how{grid-template-columns:1fr}#pkPrint .hd{flex-direction:column}#pkPrint h1,#pkPrint .sub{text-align:left}}
+@media print{body>*:not(#pkPrint){display:none!important}#pkPrint{position:static;background:#fff;overflow:visible}#pkPrint .bar{display:none}#pkPrint .pg{box-shadow:none;margin:0;max-width:none}}`; document.head.appendChild(css); }
+    el.innerHTML = `<div class="bar"><button type="button" data-pkx>Close</button><button type="button" class="p" data-pkp>Print</button></div><div class="pg"><div class="hd"><div class="lg">LHQ<i>.</i><small>LEARNING SOLUTIONS</small></div><div><h1>Your take-home pack</h1><div class="sub">${esc(p.st)} · ${esc(p.sub)}<small>From ${esc(me().name)} · ${WD(p.on)} ${p.on.slice(0, 4)}</small></div></div></div>
+<p style="margin:0 0 14px;color:#3d4a63">Do each sheet on its day, not before. Tick it in LHQ Hub when it's done, and mark it if the answers are in the pack.</p>
+<table><tr><th>Do on</th><th>Topic</th><th>Review</th><th>Done</th><th>Mark</th></tr>${p.sheets.map(x => `<tr><td><b>${WD(x.doOn)}</b></td><td>${esc(x.topic)}</td><td>Review ${x.stage}</td><td class="bx"><span></span></td><td style="color:#6b7585">____ / ____</td></tr>`).join('')}</table>
+<div class="how"><div><b>Missed a day?</b>Do it the next day.</div><div><b>In LHQ Hub</b>Practice › Take-home shows each day's sheet.</div><div><b>Coming back?</b>Bring the sheets to your first session.</div></div></div>`;
+    el.hidden = false; document.documentElement.classList.add('gs-open');
+    const close = () => { el.hidden = true; document.documentElement.classList.remove('gs-open'); window.removeEventListener('hashchange', close); };
+    el.querySelector('[data-pkx]').onclick = close; el.querySelector('[data-pkp]').onclick = () => window.print(); window.addEventListener('hashchange', close);
+  }
   function sraSheet(x){
-    const ST = {in:'Handed in', collect:'Due back today', late:'Late', given:'Out with the student', give:'Give today', overdue:'Missed · not handed out yet', upcoming:'Coming up', after:'After this tuition period · waits for the next one'};
+    const ST = {in:'Handed in', collect:'Due back today', late:'Late', given:'Out with the student', give:'Give today', overdue:'Missed · not handed out yet', upcoming:'Coming up', after:'After this tuition period · waits for the next one', pack:'In the take-home pack', home:'At home · in the take-home pack'};
     openSheet(`<div class="hx"><h3>${esc(short(x.st))} · ${esc(x.topic)} · ${x.label}</h3><button class="ib" data-close>✕</button></div>
       <div class="t-kv" style="margin-bottom:14px"><span>Learning Day</span><b>${nice(x.learnt)}</b><span>Do on</span><b>${nice(x.doOn)}</b><span>Give on</span><b>${nice(x.giveOn)}${x.giveOn !== x.doOn ? ' (no session that day)' : ''}</b><span>Status</span><b>${ST[x.status]}</b>${x.given ? `<span>Given</span><b>${nice(x.given.d)}</b><span>Due back</span><b>${nice(x.due)}</b>` : ''}${x.score ? `<span>Score</span><b>${x.score.sc}/${x.score.mx} · ${pct(x.score.sc, x.score.mx)}</b>` : ''}</div>
-      ${['give','overdue'].includes(x.status) ? `<button class="btn n full" type="button" data-tgive="${ref(x)}">Mark as given today</button>` : x.status === 'upcoming' ? `<button class="btn n full" type="button" data-tgive="${ref(x)}" data-early="1">Give early, today</button>` : ['collect','late','given'].includes(x.status) ? `<button class="btn n full" type="button" data-tin="${ref(x)}">Handed in? Enter marks</button>` : ''}`);
+      ${['give','overdue'].includes(x.status) ? `<button class="btn n full" type="button" data-tgive="${ref(x)}">Mark as given today</button>` : x.status === 'upcoming' ? `<button class="btn n full" type="button" data-tgive="${ref(x)}" data-early="1">Give early, today</button>` : ['collect','late','given'].includes(x.status) ? `<button class="btn n full" type="button" data-tin="${ref(x)}">Handed in? Enter marks</button>` : x.status === 'home' ? `<a class="btn n full" href="#teach/marks/${ref(x)}">Brought back? Enter marks</a>` : x.pack ? `<a class="btn full" href="#teach/sra/pack">Take-home pack</a>` : ''}`);
     bindSheet();
   }
   function handInSheet(x){
@@ -841,6 +886,10 @@ window.TUT = (function(){
     on('[data-tclmove]', el => { const c = (data.clashes || []).find(x => x.key === el.dataset.tclmove); if(c) window.clashMove(c, {me: myName(), after: fetchData}); });
     on('[data-tcallink]', async () => { const u = location.origin + (data.calLink || ''); try{ await navigator.clipboard.writeText(u); toast('Link copied'); }catch(e){ prompt('Copy this link:', u); } });
     on('[data-tgive]', el => { const x = unref(el.dataset.tgive); if(x) saveEntries(giveEntries([x]), true).then(ok => ok && toast(el.dataset.early ? 'Given early · still done on its review day · comes back after ' + nice(x.doOn) : 'Marked as given')); });
+    on('[data-tpkprint]', el => { const p = packOf(el.dataset.tpkprint); if(p) printPack(p); });
+    on('[data-tpkout]', el => { const p = packOf(el.dataset.tpkout); if(!p) return; const e0 = outEntry(p);
+      const e = e0 ? Object.assign({}, e0, {x: 1}) : {id: uid(), ty: 'p', k: p.k, st: p.st, sub: p.sub, on: p.on, d: today(), n: p.sheets.length};
+      saveEntries([e], true).then(ok => ok && toast(e0 ? 'Untick saved' : 'Pack handed over · ' + firstN(p.st) + ' sees it in the Hub')); });
     on('[data-tgiveall]', () => { const G = SRA.today(sras(), today()).give; saveEntries(giveEntries(G), true).then(ok => ok && toast(`${G.length} marked as given`)); });
     on('[data-tin]', el => { const x = unref(el.dataset.tin); if(x) handInSheet(x); });
     on('[data-tsdet]', el => { const x = unref(el.dataset.tsdet); if(x) sraSheet(x); });

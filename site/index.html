@@ -574,6 +574,7 @@ function attention(list){
         const days = [...new Set(SCHED.sessions(cards, SREP.addDays(t, -21), SREP.addDays(t, -1), {student: p.name}).map(e => e.date))].filter(d => d >= from).sort().slice(-3);
         if(days.length === 3 && days.every(d => !mine[d])) out.push({w:0, g:'rmiss', s:{name:`${p.name} hasn't reported`}, href:stuLink(key, 'reports'), ico:'clock', col:'--am', sub:'Last 3 session days'}); });
     }
+    packsAll().filter(p => !p.out && p.on < t).forEach(p => out.push({w:-1, g:'pkout', s:{name:`Take-home pack not handed over: ${p.st}`}, href:stuLink(SCHED.nk(p.st), 'marks'), ico:'box', col:'--am', sub:`${p.sub} · ${p.tutor || 'tutor'} · last session ${nice(p.on)} · ${p.sheets.length} sheets`}));
     disp.filter(e => !e.cf.step || e.cf.step === 'lhq').forEach(e => out.push({w:-2, g:'disp', s:{name:'Settle: ' + e.st}, href:'#confirm/' + encodeURIComponent(e.id), ico:'alert', col:'--rd', sub:`${e.sub} with ${e.tutor || 'tutor'} · ${nice(e.d)} · ${cfLine(e)}`, tag:['Disputed','rd']}));
   }
   return out.sort((a, b) => a.w - b.w);
@@ -639,7 +640,7 @@ async function saveHome(cards){
 /* Needs attention: the same kind of task more than once becomes one line (tap it to see each) */
 const GL = {over:'invoices overdue', grace:'payments in their grace period', nocard:'paid without a tuition card', notutor:'cards with a subject without a tutor', end:'periods end this week', muend:'periods ended with make-ups owed',
   quote:'quotes waiting over a week', cant:"cards a tutor can't make", seen:"cards tutors haven't seen", tell:'families to tell about a move', disp:'disputed sessions',
-  rprep:'tutors not prepared', rguide:'guides missing', rweek:'answers to look at', rnote:'notes from students', rmiss:"students who haven't reported"};
+  rprep:'tutors not prepared', rguide:'guides missing', rweek:'answers to look at', rnote:'notes from students', rmiss:"students who haven't reported", pkout:'take-home packs not handed over'};
 let attG = {};
 function attRows(att){
   const out = [], done = {};
@@ -736,10 +737,19 @@ P.student = (key, tab = 'overview') => {
   }
   if(tab === 'marks'){
     const E = Object.values((store.get('lhq_logs', {e:{}}) || {}).e || {}).filter(e => e && String(e.k || '').split('|')[0] === s.key);
-    const B = MARKS.bySubject(MARKS.fromEntries(E));
-    body = B.length ? `<div class="mk-cards" style="${MARKS.cols(B.length)}">${B.map(x => `<div class="card pad"><div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><b>${esc(x.sub)}</b>${x.last != null ? `<span class="mk-big">${x.last}%${MARKS.change(x.diff)}</span>` : ''}</div><p class="note" style="margin:0 0 4px">Weekly assessments</p>${MARKS.line(x, 340, 160)}</div>`).join('')}</div>
+    const PK = packsAll().filter(p => p.k.split('|')[0] === s.key), sd = store.get('lhq_sradone', {}) || {}, sid = x => [x.k, x.topic, x.stage].join('|');
+    const M = MARKS.fromEntries(E), pc = o => o && Number(o.mx) > 0 ? Math.round(Number(o.sc) / Number(o.mx) * 100) : null;
+    PK.forEach(p => p.sheets.filter(x => x.status !== 'in').forEach(x => { const d = sd[sid(x)];
+      if(d && d.sc != null && pc(d) != null) M.r.push({sub: x.sub, tk: x.topic, rv: x.stage, p: pc(d), d: x.doOn, self: 1}); else (M.p = M.p || []).push({sub: x.sub, tk: x.topic, rv: x.stage, d: x.doOn}); }));
+    const B = MARKS.bySubject(M);
+    const pk = PK.length ? (() => { const S = PK.flatMap(p => p.sheets), n = S.filter(x => sd[sid(x)] || x.status === 'in').length, self = S.filter(x => (sd[sid(x)] || {}).sc != null && x.status !== 'in'), last = S.map(x => x.doOn).sort().pop();
+      const avg = self.length ? Math.round(self.reduce((a, x) => a + pc(sd[sid(x)]), 0) / self.length) : null, onDay = S.filter(x => { const d = sd[sid(x)]; return d && d.at && HD.isoOf(new Date(d.at)) <= x.doOn; }).length;
+      return `<div class="card pad mk-pack"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><b>Take-home pack</b><small class="note" style="margin:0">to ${nice(last)}</small></div>
+        <p style="margin:6px 0 8px"><b>${n} of ${S.length} done</b><span class="note" style="margin:0"> · ${self.length} self-marked${avg != null ? ' · average ' + avg + '%' : ''} · on their day ${onDay} of ${n}</span></p>
+        ${PK.map(p => `<div class="it"><span class="cfm" style="${p.out ? 'background:var(--ok);border-color:var(--ok);color:#fff' : 'border:2px solid var(--' + (p.on < HD.today() ? 'rd' : 'line') + ')'}">${p.out ? '✓' : ''}</span><span class="t"><b>${esc(p.sub)} · ${p.sheets.length} sheet${p.sheets.length === 1 ? '' : 's'}</b><small${!p.out && p.on < HD.today() ? ' style="color:var(--rd)"' : ''}>${p.out ? `Handed over ${nice(p.out.d)}${p.out.by ? ' by ' + esc(p.out.by) : ''}` : `${p.on < HD.today() ? 'Not ticked as handed over' : 'Last session ' + nice(p.on)} · ${esc(p.tutor || '')}`}</small></span></div>`).join('')}</div>`; })() : '';
+    body = pk + (B.length ? `<div class="mk-cards" style="${MARKS.cols(B.length)}">${B.map(x => `<div class="card pad"><div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><b>${esc(x.sub)}</b>${x.last != null ? `<span class="mk-big">${x.last}%${MARKS.change(x.diff)}</span>` : ''}</div><p class="note" style="margin:0 0 4px">Weekly assessments</p>${MARKS.line(x, 340, 160)}</div>`).join('')}</div>
       <div class="h2">SRAs <em>% at each review</em></div><div class="mk-cards" style="${MARKS.cols(B.length)}">${B.map(x => `<div class="card pad"><b style="display:block;margin-bottom:6px">${esc(x.sub)}</b>${MARKS.grid(x)}</div>`).join('')}</div>`
-      : '<p class="empty">No marks yet. They appear as tutors enter weekly assessment and SRA marks.</p>';
+      : '<p class="empty">No marks yet. They appear as tutors enter weekly assessment and SRA marks.</p>');
   }
   if(tab === 'reports'){
     const R = (store.get('lhq_sreports', {}) || {})[s.key] || {}, days = Object.keys(R).sort().reverse().slice(0, 30);
@@ -961,6 +971,13 @@ P.more = () => `<div class="ph"><div class="tt"><h1>More</h1></div></div><div cl
 
 /* ---------- sessions: tutors log, students confirm (Stage 2), LHQ oversees and settles disputes ---------- */
 const SF = {tutor:'', q:''};
+/* take-home packs across LHQ: reviews after a student's last session, from the cards and the tutors' logs */
+function packsAll(){
+  if(!window.SRA || !window.SCHED) return [];
+  const t = HD.today(), cards = saved.filter(d => typeOf(d) === 'card'), I = SCHED.items(cards, t, 45);
+  const E = Object.values((store.get('lhq_logs', {e:{}}) || {}).e || {}).filter(e => e && !e.x);
+  return SRA.packs(SRA.build(I, E, t), t, 7).map(p => Object.assign(p, {tutor: (I.find(i => i.k === p.k) || {}).tutor || ''}));
+}
 function sessionRows(){
   const t = today(), cards = saved.filter(x => typeOf(x) === 'card'), E = Object.values((store.get('lhq_logs', {e:{}}) || {}).e || {}).filter(Boolean);
   return SCHED.items(cards, t).map(it => ({it, T: SCHED.tally(it, E, t, HD.cfState)})).sort((p, q) => q.T.behind - p.T.behind || p.it.st.localeCompare(q.it.st) || p.it.sub.localeCompare(q.it.sub));

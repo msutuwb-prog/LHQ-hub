@@ -18,7 +18,10 @@ window.MARKS = (function(){
     const subs = [...new Set((M.w || []).map(x => x.sub).concat((M.r || []).map(x => x.sub)))].sort();
     return subs.map(sub => {
       const w = (M.w || []).filter(x => x.sub === sub).sort((a, b) => a.d.localeCompare(b.d)).slice(-12);
-      const T = {}; (M.r || []).filter(x => x.sub === sub && x.rv >= 1 && x.rv <= 5).sort((a, b) => a.d.localeCompare(b.d)).forEach(x => { (T[x.tk] = T[x.tk] || [null, null, null, null, null])[x.rv - 1] = x.p; });
+      /* a cell: the tutor's mark (a number), a self-marked take-home sheet ({p, self}), or a sheet still at home ('P'); the tutor's mark wins */
+      const T = {}, row = tk => (T[tk] = T[tk] || [null, null, null, null, null]);
+      (M.p || []).filter(x => x.sub === sub && x.rv >= 1 && x.rv <= 5).forEach(x => { const r = row(x.tk); if(r[x.rv - 1] == null) r[x.rv - 1] = 'P'; });
+      (M.r || []).filter(x => x.sub === sub && x.rv >= 1 && x.rv <= 5).sort((a, b) => (a.self ? 0 : 1) - (b.self ? 0 : 1) || a.d.localeCompare(b.d)).forEach(x => { row(x.tk)[x.rv - 1] = x.self ? {p: x.p, self: 1} : x.p; });
       const last = w.length ? w[w.length - 1].p : null, prev = w.length > 1 ? w[w.length - 2].p : null;
       return {sub, w, last, diff: last != null && prev != null ? last - prev : null, sra: Object.entries(T).slice(-8)};
     });
@@ -44,8 +47,8 @@ window.MARKS = (function(){
   const step = v => v >= 85 ? 5 : v >= 70 ? 4 : v >= 55 ? 3 : v >= 40 ? 2 : 1;
   function grid(s){
     if(!s.sra.length) return '<p class="mk-none">No SRA marks yet.</p>';
-    return `<table class="mk-g"><tr><th>Topic</th>${[1, 2, 3, 4, 5].map(r => `<th>R${r}</th>`).join('')}</tr>${s.sra.map(([tp, a]) => `<tr><td class="tp" title="${esc(tp)}">${esc(tp)}</td>${a.map((v, i) => v == null ? '<td class="no">–</td>' : `<td class="s${step(v)}" title="${esc(tp)} · review ${i + 1} · ${v}%">${v}</td>`).join('')}</tr>`).join('')}</table>
-    <div class="mk-sc">Low <i class="s1"></i><i class="s2"></i><i class="s3"></i><i class="s4"></i><i class="s5"></i> High · – not yet</div>`;
+    return `<table class="mk-g"><tr><th>Topic</th>${[1, 2, 3, 4, 5].map(r => `<th>R${r}</th>`).join('')}</tr>${s.sra.map(([tp, a]) => `<tr><td class="tp" title="${esc(tp)}">${esc(tp)}</td>${a.map((v, i) => v == null ? '<td class="no">–</td>' : v === 'P' ? `<td class="pk" title="${esc(tp)} · review ${i + 1} · in the take-home pack">P</td>` : v.self ? `<td class="sm" title="${esc(tp)} · review ${i + 1} · ${v.p}% · self-marked, not in averages">${v.p}</td>` : `<td class="s${step(v)}" title="${esc(tp)} · review ${i + 1} · ${v}%">${v}</td>`).join('')}</tr>`).join('')}</table>
+    <div class="mk-sc">Low <i class="s1"></i><i class="s2"></i><i class="s3"></i><i class="s4"></i><i class="s5"></i> High · – not yet</div>${s.sra.some(([, a]) => a.some(v => v === 'P' || (v && v.self))) ? '<div class="mk-sc"><i class="sm"></i> Self-marked · not in averages <i class="pk"></i> P · in the take-home pack</div>' : ''}`;
   }
   const change = d => d == null ? '' : `<small class="${d >= 0 ? 'up' : 'dn'}">${d >= 0 ? '▲' : '▼'} ${Math.abs(d)}</small>`;
   const css = document.createElement('style');
@@ -61,6 +64,8 @@ window.MARKS = (function(){
 .mk-g .s1{background:var(--mk1);color:var(--ink)}.mk-g .s2{background:var(--mk2);color:#14213d}.mk-g .s3{background:var(--mk3);color:#14213d}.mk-g .s4{background:var(--mk4);color:#fff}.mk-g .s5{background:var(--mk5);color:#fff}
 [data-theme=dark] .mk-g .s3{color:#fff}[data-theme=dark] .mk-g .s4,[data-theme=dark] .mk-g .s5{color:#0d1420}[data-theme=dark] .mk-g .s2{color:#e8edf4}
 .mk-sc{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted);margin-top:8px}.mk-sc i{width:20px;height:10px;border-radius:3px;display:inline-block;background:var(--mk1)}
+.mk-g td.sm,.mk-sc i.sm{background:repeating-linear-gradient(135deg,var(--surface) 0 4px,var(--line2) 4px 8px);color:var(--ink);box-shadow:inset 0 0 0 1.5px var(--am)}
+.mk-g td.pk{color:var(--muted);box-shadow:inset 0 0 0 1px var(--muted);background:none}.mk-sc i.pk{background:none;box-shadow:inset 0 0 0 1px var(--muted)}
 .mk-sc .s2{background:var(--mk2)}.mk-sc .s3{background:var(--mk3)}.mk-sc .s4{background:var(--mk4)}.mk-sc .s5{background:var(--mk5)}
 .mk-big{font-size:20px;font-weight:800;color:var(--brand,var(--accent));font-variant-numeric:tabular-nums;text-align:right;line-height:1.1;white-space:nowrap}
 .mk-big small{display:block;font-size:11.5px;font-weight:700;color:var(--muted)}.mk-big small.up{color:var(--ok)}.mk-big small.dn{color:var(--am)}
