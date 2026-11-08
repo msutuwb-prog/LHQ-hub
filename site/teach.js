@@ -713,13 +713,13 @@ window.TUT = (function(){
     const sheet = x => `<div class="it"><span class="t"><b>${esc(x.topic)} · R${x.stage}</b><small>Do on ${WEEKDAY[HD.parseISO(x.doOn).getDay()].slice(0, 3)} ${nice(x.doOn)}${x.from ? ` · <span style="color:var(--am);font-weight:700">moved from ${nice(x.from)}</span>` : ''}</small></span></div>`;
     const card = p => { const id = packKey(p), said = p.sheets.filter(x => sd[[x.k, x.topic, x.stage].join('|')] || x.status === 'in').length;
       return `<div class="card pad"><div class="it" style="padding-top:0"><span class="t"><b>${esc(p.st)}</b><small>${esc(p.sub)} · last session ${p.on === t ? 'today' : WEEKDAY[HD.parseISO(p.on).getDay()].slice(0, 3) + ' ' + nice(p.on)}</small></span><b style="color:var(--brand)">${p.sheets.length} sheet${p.sheets.length === 1 ? '' : 's'}</b></div>
-        ${p.out ? `<p class="note" style="margin:0 0 8px">Handed over ${nice(p.out.d)} · ${said ? `${firstN(p.st)} says ${said} of ${p.sheets.length} done` : 'none ticked done yet'}</p>` : `<div class="cap" style="margin-top:6px">Print · 1 copy each</div>${p.sheets.map(sheet).join('')}`}
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0">${p.out ? '' : `<button class="btn sm" type="button" data-tpkprint="${id}">Print list for ${esc(firstN(p.st))}</button>`}</div>
-        <button type="button" role="checkbox" aria-checked="${!!p.out}" class="t-opt${p.out ? ' on' : ''}" data-tpkout="${id}"><span class="t-ind"></span><span class="tx">Pack handed over<small>${p.out ? 'Recorded ' + nice(p.out.d) + (p.out.by && nk(p.out.by) !== nk(me().name) ? ' by ' + esc(p.out.by) : '') : `Tick when ${esc(firstN(p.st))} has it`}</small></span></button></div>`; };
+        ${p.out ? `<p class="note" style="margin:0 0 8px">${said} of ${p.sheets.length} done</p>` : `<div class="cap" style="margin-top:6px">Print</div>${p.sheets.map(sheet).join('')}`}
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin:10px 0">${p.out ? '' : `<button class="btn sm" type="button" data-tpkprint="${id}">Print list</button>`}</div>
+        <button type="button" role="checkbox" aria-checked="${!!p.out}" class="t-opt${p.out ? ' on' : ''}" data-tpkout="${id}"><span class="t-ind"></span><span class="tx">Pack handed over${p.out ? `<small>${nice(p.out.d)}${p.out.by && nk(p.out.by) !== nk(me().name) ? ' · ' + esc(p.out.by) : ''}</small>` : ''}</span></button></div>`; };
     return (late.length ? `<div class="h2">Not ticked yet <em>${late.length}</em></div>${late.map(card).join('')}` : '') +
-      `<div class="h2">${soon.some(p => p.on === t) ? 'Last session today and coming up' : 'Last sessions in the next 7 days'} <em>${soon.length}</em></div>${soon.map(card).join('') || '<div class="card"><p class="empty">No student finishes in the next 7 days.</p></div>'}` +
+      `<div class="h2">${soon.some(p => p.on === t) ? 'Last session today' : 'Next 7 days'} <em>${soon.length}</em></div>${soon.map(card).join('') || '<div class="card"><p class="empty">None.</p></div>'}` +
       (done.length ? `<div class="h2">Handed over <em>${done.length}</em></div>${done.map(card).join('')}` : '') +
-      '<p class="note">Reviews after a student\'s last session go home on paper, at most 2 a day. They never count as missed or late.</p>';
+      '';
   }
   const firstN = n => String(n || '').trim().split(/\s+/)[0];
   /* the A4 list that goes on top of the sheets: shown over the Hub with Print and Close (no pop-up, so it works on phones and installed apps) */
@@ -737,9 +737,9 @@ window.TUT = (function(){
 @media (max-width:700px){#pkPrint .pg{padding:22px 16px;margin:0 10px 16px}#pkPrint .how{grid-template-columns:1fr}#pkPrint .hd{flex-direction:column}#pkPrint h1,#pkPrint .sub{text-align:left}}
 @media print{body>*:not(#pkPrint){display:none!important}#pkPrint{position:static;background:#fff;overflow:visible}#pkPrint .bar{display:none}#pkPrint .pg{box-shadow:none;margin:0;max-width:none}}`; document.head.appendChild(css); }
     el.innerHTML = `<div class="bar"><button type="button" data-pkx>Close</button><button type="button" class="p" data-pkp>Print</button></div><div class="pg"><div class="hd"><div class="lg">LHQ<i>.</i><small>LEARNING SOLUTIONS</small></div><div><h1>Your take-home pack</h1><div class="sub">${esc(p.st)} · ${esc(p.sub)}<small>From ${esc(me().name)} · ${WD(p.on)} ${p.on.slice(0, 4)}</small></div></div></div>
-<p style="margin:0 0 14px;color:#3d4a63">Do each sheet on its day, not before. Tick it in LHQ Hub when it's done, and mark it if the answers are in the pack.</p>
+<p style="margin:0 0 14px;color:#3d4a63">One sheet on its day.</p>
 <table><tr><th>Do on</th><th>Topic</th><th>Review</th><th>Done</th><th>Mark</th></tr>${p.sheets.map(x => `<tr><td><b>${WD(x.doOn)}</b></td><td>${esc(x.topic)}</td><td>Review ${x.stage}</td><td class="bx"><span></span></td><td style="color:#6b7585">____ / ____</td></tr>`).join('')}</table>
-<div class="how"><div><b>Missed a day?</b>Do it the next day.</div><div><b>In LHQ Hub</b>Practice › Take-home shows each day's sheet.</div><div><b>Coming back?</b>Bring the sheets to your first session.</div></div></div>`;
+<div class="how"><div><b>Missed one?</b>Do it the next day.</div><div><b>LHQ Hub</b>Practice › Take-home</div><div><b>Back at LHQ?</b>Bring the sheets.</div></div></div>`;
     el.hidden = false; document.documentElement.classList.add('gs-open');
     const close = () => { el.hidden = true; document.documentElement.classList.remove('gs-open'); window.removeEventListener('hashchange', close); };
     el.querySelector('[data-pkx]').onclick = close; el.querySelector('[data-pkp]').onclick = () => window.print(); window.addEventListener('hashchange', close);
@@ -889,7 +889,7 @@ window.TUT = (function(){
     on('[data-tpkprint]', el => { const p = packOf(el.dataset.tpkprint); if(p) printPack(p); });
     on('[data-tpkout]', el => { const p = packOf(el.dataset.tpkout); if(!p) return; const e0 = outEntry(p);
       const e = e0 ? Object.assign({}, e0, {x: 1}) : {id: uid(), ty: 'p', k: p.k, st: p.st, sub: p.sub, on: p.on, d: today(), n: p.sheets.length};
-      saveEntries([e], true).then(ok => ok && toast(e0 ? 'Untick saved' : 'Pack handed over · ' + firstN(p.st) + ' sees it in the Hub')); });
+      saveEntries([e], true).then(ok => ok && toast(e0 ? 'Undone' : 'Handed over')); });
     on('[data-tgiveall]', () => { const G = SRA.today(sras(), today()).give; saveEntries(giveEntries(G), true).then(ok => ok && toast(`${G.length} marked as given`)); });
     on('[data-tin]', el => { const x = unref(el.dataset.tin); if(x) handInSheet(x); });
     on('[data-tsdet]', el => { const x = unref(el.dataset.tsdet); if(x) sraSheet(x); });

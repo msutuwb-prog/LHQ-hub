@@ -123,7 +123,7 @@ window.FAM = (function(){
     if(!P.length) return `<div class="ph"><div class="tt"><h1>Take-home pack</h1></div></div>${kidChips()}<div class="card"><p class="empty">No take-home pack.</p></div>`;
     const subs = [...new Set(P.map(x => x.sub))];
     const row = x => `<div class="it" style="align-items:flex-start"><span class="f-day"><small>${DAYN[['Su','Mo','Tu','We','Th','Fr','Sa'][HD.parseISO(x.doOn).getDay()]].slice(0, 3)}</small><b>${HD.parseISO(x.doOn).getDate()}</b></span>
-      <span class="t"><b>${esc(x.topic)} · R${x.stage}</b><small>${esc(sub(x.sub))}${x.from ? ` · moved from ${day(x.from)}` : ''}${x.status === 'in' && x.score ? ` · ${x.score.sc}/${x.score.mx} from your tutor` : ''}</small>
+      <span class="t"><b>${esc(x.topic)} · R${x.stage}</b><small>${esc(sub(x.sub))}${x.from ? ` · was ${day(x.from)}` : ''}${x.status === 'in' && x.score ? ` · ${x.score.sc}/${x.score.mx}` : ''}</small>
       ${(x.done || x.doOn <= t) && x.status !== 'in' ? (isParent() ? (x.self ? `<small>${x.self.sc}/${x.self.mx} <span class="f-self">self-marked</span></small>` : '')
         : `<span class="f-sm"><span>Mark</span><input class="in" inputmode="decimal" value="${x.self ? esc(x.self.sc) : ''}" placeholder="–" data-fself="${esc(x.id)}" aria-label="Your mark"><span>/ ${x.self ? x.self.mx : 10}</span>${x.self ? '<span class="f-self">self-marked</span>' : ''}</span>`) : ''}</span>
       ${isParent() ? `<span class="f-mk ${x.done ? 'ok' : ''}">${x.done ? '✓' : ''}</span>` : `<button class="f-tick ${x.done ? 'on' : ''}" data-fdone="${esc(x.id)}" aria-label="Done">✓</button>`}</div>`;
@@ -133,7 +133,7 @@ window.FAM = (function(){
       ${today.length ? `<div class="h2">Today</div><div class="card">${today.map(row).join('')}</div>` : ''}
       ${next.length ? `<div class="h2">Next <em>${next.length}</em></div><div class="card">${(packAll ? next : next.slice(0, 4)).map(row).join('')}${next.length > 4 && !packAll ? `<button class="it f-all" data-fpkall>All ${next.length}</button>` : ''}</div>` : ''}
       ${past.length ? `<div class="h2">Earlier <em>${past.filter(x => x.done).length} of ${past.length} done</em></div><div class="card">${past.slice().reverse().map(row).join('')}</div>` : ''}
-      <p class="note">${isParent() ? 'Sheets go home after the last session. Self-marked scores are kept out of averages.' : 'Do each sheet on its day. Missed one? Do it the next day. Your own marks show as self-marked.'}</p>`;
+`;
   }
   function calendar(ym){
     const k = kid(); if(!k) return emptyNoKids();
@@ -256,7 +256,7 @@ window.FAM = (function(){
       catch(e){ b.classList.toggle('on', !on); toast(e.message); } });
     document.querySelectorAll('[data-fpkall]').forEach(b => b.onclick = () => { packAll = true; render(); });
     document.querySelectorAll('[data-fself]').forEach(inp => inp.onchange = async () => { const id = inp.dataset.fself, v = inp.value.trim();
-      const j = await post({action:'selfmark', id, sc: v}, v ? 'Mark saved · self-marked' : 'Mark removed');
+      const j = await post({action:'selfmark', id, sc: v}, v ? 'Saved' : 'Removed');
       if(j && v){ const x = kids().flatMap(k => k.sras).find(s => s.id === id); if(x && !x.done) await hub.api('family', {method:'POST', body: JSON.stringify({action:'done', id, done: true})}).then(fetchData).catch(() => {}); } });
     /* today's report */
     const R0 = () => { const k = kid(); return k && k.report && RS[k.report.date]; };

@@ -574,7 +574,7 @@ function attention(list){
         const days = [...new Set(SCHED.sessions(cards, SREP.addDays(t, -21), SREP.addDays(t, -1), {student: p.name}).map(e => e.date))].filter(d => d >= from).sort().slice(-3);
         if(days.length === 3 && days.every(d => !mine[d])) out.push({w:0, g:'rmiss', s:{name:`${p.name} hasn't reported`}, href:stuLink(key, 'reports'), ico:'clock', col:'--am', sub:'Last 3 session days'}); });
     }
-    packsAll().filter(p => !p.out && p.on < t).forEach(p => out.push({w:-1, g:'pkout', s:{name:`Take-home pack not handed over: ${p.st}`}, href:stuLink(SCHED.nk(p.st), 'marks'), ico:'box', col:'--am', sub:`${p.sub} · ${p.tutor || 'tutor'} · last session ${nice(p.on)} · ${p.sheets.length} sheets`}));
+    packsAll().filter(p => !p.out && p.on < t).forEach(p => out.push({w:-1, g:'pkout', s:{name:`Pack not handed over: ${p.st}`}, href:stuLink(SCHED.nk(p.st), 'marks'), ico:'box', col:'--am', sub:`${p.sub} · ${p.tutor || 'tutor'} · last session ${nice(p.on)} · ${p.sheets.length} sheets`}));
     disp.filter(e => !e.cf.step || e.cf.step === 'lhq').forEach(e => out.push({w:-2, g:'disp', s:{name:'Settle: ' + e.st}, href:'#confirm/' + encodeURIComponent(e.id), ico:'alert', col:'--rd', sub:`${e.sub} with ${e.tutor || 'tutor'} · ${nice(e.d)} · ${cfLine(e)}`, tag:['Disputed','rd']}));
   }
   return out.sort((a, b) => a.w - b.w);
@@ -640,7 +640,7 @@ async function saveHome(cards){
 /* Needs attention: the same kind of task more than once becomes one line (tap it to see each) */
 const GL = {over:'invoices overdue', grace:'payments in their grace period', nocard:'paid without a tuition card', notutor:'cards with a subject without a tutor', end:'periods end this week', muend:'periods ended with make-ups owed',
   quote:'quotes waiting over a week', cant:"cards a tutor can't make", seen:"cards tutors haven't seen", tell:'families to tell about a move', disp:'disputed sessions',
-  rprep:'tutors not prepared', rguide:'guides missing', rweek:'answers to look at', rnote:'notes from students', rmiss:"students who haven't reported", pkout:'take-home packs not handed over'};
+  rprep:'tutors not prepared', rguide:'guides missing', rweek:'answers to look at', rnote:'notes from students', rmiss:"students who haven't reported", pkout:'packs not handed over'};
 let attG = {};
 function attRows(att){
   const out = [], done = {};
@@ -746,7 +746,7 @@ P.student = (key, tab = 'overview') => {
       const avg = self.length ? Math.round(self.reduce((a, x) => a + pc(sd[sid(x)]), 0) / self.length) : null, onDay = S.filter(x => { const d = sd[sid(x)]; return d && d.at && HD.isoOf(new Date(d.at)) <= x.doOn; }).length;
       return `<div class="card pad mk-pack"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><b>Take-home pack</b><small class="note" style="margin:0">to ${nice(last)}</small></div>
         <p style="margin:6px 0 8px"><b>${n} of ${S.length} done</b><span class="note" style="margin:0"> · ${self.length} self-marked${avg != null ? ' · average ' + avg + '%' : ''} · on their day ${onDay} of ${n}</span></p>
-        ${PK.map(p => `<div class="it"><span class="cfm" style="${p.out ? 'background:var(--ok);border-color:var(--ok);color:#fff' : 'border:2px solid var(--' + (p.on < HD.today() ? 'rd' : 'line') + ')'}">${p.out ? '✓' : ''}</span><span class="t"><b>${esc(p.sub)} · ${p.sheets.length} sheet${p.sheets.length === 1 ? '' : 's'}</b><small${!p.out && p.on < HD.today() ? ' style="color:var(--rd)"' : ''}>${p.out ? `Handed over ${nice(p.out.d)}${p.out.by ? ' by ' + esc(p.out.by) : ''}` : `${p.on < HD.today() ? 'Not ticked as handed over' : 'Last session ' + nice(p.on)} · ${esc(p.tutor || '')}`}</small></span></div>`).join('')}</div>`; })() : '';
+        ${PK.map(p => `<div class="it"><span class="cfm" style="${p.out ? 'background:var(--ok);border-color:var(--ok);color:#fff' : 'border:2px solid var(--' + (p.on < HD.today() ? 'rd' : 'line') + ')'}">${p.out ? '✓' : ''}</span><span class="t"><b>${esc(p.sub)} · ${p.sheets.length} sheet${p.sheets.length === 1 ? '' : 's'}</b><small${!p.out && p.on < HD.today() ? ' style="color:var(--rd)"' : ''}>${p.out ? `Handed over ${nice(p.out.d)}${p.out.by ? ' · ' + esc(p.out.by) : ''}` : `${p.on < HD.today() ? 'Not handed over' : 'Last session ' + nice(p.on)} · ${esc(p.tutor || '')}`}</small></span></div>`).join('')}</div>`; })() : '';
     body = pk + (B.length ? `<div class="mk-cards" style="${MARKS.cols(B.length)}">${B.map(x => `<div class="card pad"><div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><b>${esc(x.sub)}</b>${x.last != null ? `<span class="mk-big">${x.last}%${MARKS.change(x.diff)}</span>` : ''}</div><p class="note" style="margin:0 0 4px">Weekly assessments</p>${MARKS.line(x, 340, 160)}</div>`).join('')}</div>
       <div class="h2">SRAs <em>% at each review</em></div><div class="mk-cards" style="${MARKS.cols(B.length)}">${B.map(x => `<div class="card pad"><b style="display:block;margin-bottom:6px">${esc(x.sub)}</b>${MARKS.grid(x)}</div>`).join('')}</div>`
       : '<p class="empty">No marks yet. They appear as tutors enter weekly assessment and SRA marks.</p>');
