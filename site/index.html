@@ -1330,9 +1330,9 @@ LHQSearch.provider = () => {
   if(m.role === 'tutor'){
     const seen = new Set(), its = (window.TUT && TUT.items ? TUT.items() : []).filter(it => !seen.has(it.k) && seen.add(it.k));
     G.push({g:'Students', items: its.map(it => ({t:it.st, s:it.sub, href:'#teach/student/' + encodeURIComponent(it.k), ic:`<b style="font-size:11px">${esc(inits(it.st))}</b>`}))});
-    G.push({g:'Pages', items: [['#teach','Home','today'],['#teach/cal','Calendar','timetable week clashes'],['#teach/students','My students','sessions'],['#teach/sra','SRA tracker','spaced repetition print'],['#teach/report','Daily report','end of day'],['#teach/makeups','Make-ups','book'],['#teach/classes','Classes','groups'],['#teach/avail',"Times you can't teach",'availability away']]
+    G.push({g:'Pages', items: [['#teach','Home','today'],['#teach/cal','Calendar','timetable week clashes'],['#teach/students','My students','sessions'],['#teach/sra','SRA tracker','spaced repetition print'],['#teach/report','Daily report','end of day'],['#teach/makeups','Make-ups','book'],['#teach/classes','Classes','groups'],['#teach/avail',"Times you can't teach",'availability away'],['#teach/sra/pack','Take-home packs','holiday print hand over'],['#teach/wa','Assessment marks','weekly monthly mock topical past paper']]
       .map(([h, t, k]) => ({t, k, href:h, ic:I('layout')})).concat(setPages())});
-    G.push({g:'Actions', items: [['#teach/log','Log a session','attendance topics'],['#teach/marks','Enter marks','sra weekly assessment scores']].map(([h, t, k]) => ({t, k, href:h, ic:I('plus')}))});
+    G.push({g:'Actions', items: [['#teach/log','Log a session','attendance topics'],['#teach/marks','Enter marks','sra weekly assessment scores'],['#teach/assess','Schedule an assessment','weekly monthly topical mock past paper test']].map(([h, t, k]) => ({t, k, href:h, ic:I('plus')}))});
     return G;
   }
   if(!staffRole()) return [];
