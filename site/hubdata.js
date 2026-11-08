@@ -1,7 +1,9 @@
 /* LHQ Hub: reading the saved documents. Students, where each invoice stands, how documents link up,
    who is signed in and what they may do. Used by the Hub pages and the document page. */
 (function(){
-  const store = { get(k, d){ try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } },
+  /* who is signed in and the people list are read thousands of times a page (every permission check): parse them once per change */
+  const RO = {lhq_session: 1, lhq_people: 1}, PC = {};
+  const store = { get(k, d){ try{ const v = localStorage.getItem(k); if(!v) return d; if(RO[k]){ const c = PC[k]; if(c && c.v === v) return c.o; const o = JSON.parse(v); PC[k] = {v, o}; return o; } return JSON.parse(v); }catch(e){ return d; } },
                   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} } };
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const num = v => { const n = parseFloat(String(v ?? '').replace(/,/g,'')); return isNaN(n) ? 0 : n; };
@@ -160,11 +162,20 @@
   /* make-up sessions for a tuition card, from tutors' session logs inside its period:
      owed = missed (student absent or tutor couldn't teach) + carried in from last period - make-ups taught */
   const nk = x => String(x || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  /* the session logs grouped by student + subject, read once per change (not once per card: with 3,000 logs that cost ~1 s a page on a phone) */
+  let LG = {txt: null, by: new Map()};
+  function sessionsByK(){
+    let txt = null; try{ txt = localStorage.getItem('lhq_logs'); }catch(e){}
+    if(txt === LG.txt) return LG.by;
+    const by = new Map(); let L = null; try{ L = txt ? JSON.parse(txt) : null; }catch(e){}
+    Object.values((L && L.e) || {}).forEach(e => { if(e && !e.x && e.ty === 's'){ if(!by.has(e.k)) by.set(e.k, []); by.get(e.k).push(e); } });
+    LG = {txt, by}; return by;
+  }
   function makeups(card){
-    const L = store.get('lhq_logs', {e:{}}), E = Object.values((L && L.e) || {}).filter(e => e && !e.x && e.ty === 's');
+    const BY = sessionsByK();
     const a = card.periodStart || '', b = card.periodEnd || '9999';
     return (card.subjects || []).map(s => {
-      const k = nk(card.student) + '|' + nk(s.name), X = E.filter(e => e.k === k && e.d >= a && e.d <= b);
+      const k = nk(card.student) + '|' + nk(s.name), X = (BY.get(k) || []).filter(e => e.d >= a && e.d <= b);
       const missS = X.filter(e => e.a === 'absent').length, missT = X.filter(e => e.a === 'cancelled').length, made = X.filter(e => +e.mk).length, cf = +s.cf || 0;
       return {sub: s.name, tutor: s.tutor || '', missS, missT, made, cf, owed: Math.max(0, missS + missT + cf - made)};
     });
