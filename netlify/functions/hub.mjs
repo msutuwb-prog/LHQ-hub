@@ -37,7 +37,9 @@ let testStore = null;
 export const _setStore = s => { testStore = s; };
 // Deploy previews (and branch deploys) get their own storage, so trying things there never touches LHQ's real documents
 let site = "production";
-const isPreview = () => site !== "production";
+/* a separate test site (its own Netlify account, e.g. lhqhub-test) sets LHQ_TEST=yes: it then behaves as a test copy (demo data, the gold strip) */
+const testSite = () => { try { return String((globalThis.Netlify && Netlify.env.get("LHQ_TEST")) || process.env.LHQ_TEST || "").toLowerCase() === "yes"; } catch { return false; } };
+const isPreview = () => site !== "production" || testSite();
 const blobs = () => testStore || getStore({ name: isPreview() ? "lhq-hub-preview" : "lhq-hub", consistency: "strong" });
 /* One system: once the Director has copied the Hub into the database and switched to it (Settings › Shared records), every
    document, list, money entry and tutor log is read and written there. Until then, and if it is ever switched back,
