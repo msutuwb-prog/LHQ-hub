@@ -41,9 +41,10 @@
     const L = k => (BUSY[k] = BUSY[k] || []), T = tutor ? L('t:' + tutor) : [], S = L('s:' + stu);
     const taken = (X, ds) => X.some(x => x.ds === ds && x.a <= b && a <= x.b);
     const order = WD6.slice(seed % 6).concat(WD6.slice(0, seed % 6));
-    for(const t of SLOTS){ const ok = order.filter(d => !taken(T, d + t) && !taken(S, d + t)); if(ok.length >= n){
+    for(const t of SLOTS){ const sun = t >= '14:00' && t <= '16:00' && seed % 5 === 0;   // LHQ opens Sunday 2–5 pm: some afternoon timetables use it
+      const ok = (sun ? ['Su'].concat(order) : order).filter(d => !taken(T, d + t) && !taken(S, d + t)); if(ok.length >= n){
       const pickD = []; for(let i = 0; pickD.length < n && i < ok.length; i += Math.max(1, Math.floor(ok.length / n))) pickD.push(ok[i]); ok.forEach(d => { if(pickD.length < n && !pickD.includes(d)) pickD.push(d); });
-      pickD.forEach(d => { if(tutor) T.push({a, b, ds: d + t}); S.push({a, b, ds: d + t}); }); return {days: WD6.filter(d => pickD.includes(d)), start: t, end: hh(t)}; } }
+      pickD.forEach(d => { if(tutor) T.push({a, b, ds: d + t}); S.push({a, b, ds: d + t}); }); return {days: WD6.concat('Su').filter(d => pickD.includes(d)), start: t, end: hh(t)}; } }
     return null;
   }
   /* the subject's tutors in turn, so a full timetable passes the student to the other tutor; if nobody is free, a clash stays */
