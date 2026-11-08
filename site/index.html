@@ -33,6 +33,7 @@ if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash)
 <script src="schools.js"></script>
 <script src="business.js"></script>
 <script src="insights.js"></script>
+<script src="moneyin.js"></script>
 <script src="perf.js"></script>
 <script src="cards.js"></script>
 <script src="sra.js"></script>
@@ -59,6 +60,7 @@ a{color:inherit}
 .ph p{margin:3px 0 0;color:var(--muted);font-size:13.5px}
 .crumb{display:inline-flex;align-items:center;gap:4px;border:0;background:none;color:var(--muted);font-weight:700;font-size:13.5px;padding:4px 0;margin:0 0 4px;text-decoration:none}
 .crumb:hover{color:var(--ink)}
+.tm-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 36px;gap:6px;align-items:center;margin-bottom:8px}@media (max-width:520px){.tm-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 36px}.tm-row input:first-child{grid-column:1/-1}}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--line);background:var(--surface);color:var(--brand);border-radius:11px;padding:9px 14px;font-weight:800;font-size:13.5px;min-height:40px;white-space:nowrap;text-decoration:none}
 .btn:hover{border-color:var(--muted)}
 .btn.n{background:var(--accent);border-color:var(--accent);color:var(--onaccent)}
@@ -1320,7 +1322,7 @@ P.tutors = (show = '') => {
 
 /* ================= search: everything this person can open, for the search box in the top bar ================= */
 window.LHQSearchScope = () => ({students:'Students', student:'Students', docs:'Documents', tutors:'People', set:'Pages'})[route.page] || '';
-const SKW = {account:'password sign in devices sign out', appearance:'theme dark light auto text size bar sidebar menu lean full', notifications:'phone notifications push alerts quiet hours morning summary devices', people:'staff access accounts setup code tutors admin',
+const SKW = {account:'password sign in devices sign out', appearance:'theme dark light auto text size bar sidebar menu lean full', terms:'school terms holidays calendar term dates', notifications:'phone notifications push alerts quiet hours morning summary devices', people:'staff access accounts setup code tutors admin',
   company:'bank address logo contact', payments:'due dates instalments', hours:'opening hours times saturday sunday', numbering:'numbers prefix', messages:'whatsapp email wording templates',
   lists:'subjects schools year levels spending categories', enrol:'checklist', sending:'whatsapp email', backup:'export download restore', deleted:'bin trash restore', demo:'sample data'};
 LHQSearch.provider = () => {
@@ -1343,6 +1345,9 @@ LHQSearch.provider = () => {
   if(ppl.length) G.push({g:'People', items: ppl.map(p => ({t:p.name, s:({director:'Director', admin:'Admin', tutor:'Tutor', bdo:'BDO'})[p.role] || p.role, k:p.username || '', href: p.role === 'tutor' || p.tutor ? '#tutors/' + encodeURIComponent(p.name) : allowed('people') ? '#set/people' : '#tutors', ic:`<b style="font-size:11px">${esc(inits(p.name))}</b>`}))});
   const pages = LHQNav.pool().map(([k, l, h]) => ({t:l, href:h.replace('index.html', ''), ic:I({students:'users', docs:'quote', business:'cash', reports:'rep', calendar:'clock', tutors:'users', activity:'list', teach:'list', settings:'layout'}[k] || 'layout')}));
   pages.push({t:'Sessions', k:'confirm dispute settle attendance', href:'#sessions', ic:I('clock')}, {t:'Make-ups', k:'bookings', href:'#bookings', ic:I('clock')}, {t:'Clashes', k:'double booked', href:'#clashes', ic:I('alert')});
+  if(can('pl') && window.MIN){ const t = today(), q = MIN.periodOf('term', t);
+    pages.push({t:'Money in · today', k:'received payments day', href:'#biz/money/d' + t, ic:I('cash')}, {t:'Money in · this week', k:'received payments week', href:'#biz/money/' + MIN.key(MIN.periodOf('week', t)), ic:I('cash')},
+      {t:'Money in · this term', k:'received payments school term holiday', href:'#biz/money/' + MIN.key(q), ic:I('cash')}, {t:'Money in · this year', k:'received payments financial year half', href:'#biz/money/' + MIN.key(MIN.periodOf('year', t)), ic:I('cash')}); }
   if(store.get('lhq_sreports', null)) pages.push({t:'What students say', k:'daily reports ratings', href:'#says', ic:I('msg')});
   G.push({g:'Pages', items: pages.concat(setPages())});
   const A = [['quote','New quote','quotes','quote'],['invoice','New invoice','quotes','invoice'],['receipt','Record a payment','receipts','receipt'],['card','New tuition card','cards','card']].filter(x => can(x[2])).map(([t, l, , i]) => ({t:l, k:'new ' + t + (t === 'receipt' ? ' receipt payment received' : ''), href:'#new/' + t, ic:I(i)}));
@@ -1376,7 +1381,7 @@ P.rep = (kind, arg) => PERF.page(kind, arg);
 /* ================= settings ================= */
 const SETS = [
   ['Account', [['account','user','My account'],['appearance','layout','Appearance'],['notifications','bell','Notifications']]],
-  ['LHQ', [['people','users','People & access', () => isDir() || can('tutors')],['company','bank','Company & bank details', isDir],['payments','cash','Payments & due dates', isDir],['hours','clock','Opening hours', isDir],['tutorinfo','users','Tutors\' contacts', () => isDir() || can('tutors') || can('msgs')]]],
+  ['LHQ', [['people','users','People & access', () => isDir() || can('tutors')],['company','bank','Company & bank details', isDir],['payments','cash','Payments & due dates', isDir],['hours','clock','Opening hours', isDir],['terms','clock','School terms', isDir],['tutorinfo','users','Tutors\' contacts', () => isDir() || can('tutors') || can('msgs')]]],
   ['Documents', [['numbering','hash','Numbering', () => can('numbering')],['messages','msg','Messages', () => can('msgs')],['lists','list','Lists', () => can('msgs')]]],
   ['Enrolment & sending', [['enrol','link','Student checklist', () => staffRole()],['sending','wa','Email & WhatsApp', () => staffRole()]]],
   ['Data', [['records.html','layout','Shared records', () => isDir()],['backup','box','Backup & restore', () => can('backup')],['deleted','bin','Recently deleted', () => can('restore')],['demo','restore','Demo data (preview)', () => isDir() && PREVIEW]]],
@@ -1409,6 +1414,11 @@ S.hours = () => { const H = Object.assign({}, SCHED.OPEN, settingsKV().openHours
   const sel = (id, v) => `<select class="in" id="${id}" style="padding:8px">${['', ...T].map(t => `<option value="${t}" ${t === (v || '') ? 'selected' : ''}>${t || 'Closed'}</option>`).join('')}</select>`;
   return `<h2 class="sec-h">Opening hours</h2><div class="card pad">${D.map(([d, n]) => `<div class="r2" style="align-items:center;grid-template-columns:110px 1fr 1fr;margin-bottom:8px"><b>${n}</b>${sel('oh' + d + 'a', (H[d] || [])[0])}${sel('oh' + d + 'b', (H[d] || [])[1])}</div>`).join('')}
     <button class="btn n" id="ohSave">Save</button></div><p class="note">Used for free times when moving a session.</p>`; };
+let termDraft = null;
+S.terms = () => { const L = termDraft || (window.MIN ? MIN.terms() : []).map(t => t.slice());
+  termDraft = L;
+  return `<h2 class="sec-h">School terms</h2><div class="card pad">${L.map((t, i) => `<div class="tm-row"><input class="in" data-tm="${i}:0" value="${esc(t[0])}" aria-label="Name"><input class="in" type="date" data-tm="${i}:1" value="${esc(t[1])}" aria-label="Starts"><input class="in" type="date" data-tm="${i}:2" value="${esc(t[2])}" aria-label="Ends"><button class="ib" data-tmrm="${i}" aria-label="Remove">✕</button></div>`).join('')}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"><button class="btn" id="tmAdd">+ Term</button><button class="btn n" id="tmSave">Save</button></div></div><p class="note">Holidays are the gaps between terms. Used by Money in.</p>`; };
 S.details = () => `<h2 class="sec-h">LHQ details</h2>${setList(DETAILS)}`;
 S.data = () => `<h2 class="sec-h">Data</h2>${setList(DATA)}`;
 S.account = () => { const m = me(), L = LHQNav.layout();
@@ -1702,6 +1712,10 @@ function bind(){
       ${others.length ? `<div class="h2">Or an existing parent</div><div class="card">${others.slice(0, 30).map(p => `<button class="it" data-alink="${p.id}"><span class="t"><b>${esc(p.name)}</b><small>${esc((p.children || []).join(', '))}</small></span></button>`).join('')}</div>` : ''}`);
     $('apAdd').onclick = () => go($('apN').value.trim(), $('apE').value.trim());
     document.querySelectorAll('[data-alink]').forEach(b => b.onclick = async () => { try{ const r = await hub.api('people', {method:'POST', body: JSON.stringify({action:'link', id: b.dataset.alink, childName: s0.name})}); store.set('lhq_people', r.people); closeSheet(); render(); toast('Linked'); }catch(e){ toast(e.message); } }); });
+  document.querySelectorAll('[data-tm]').forEach(el => el.onchange = () => { const [i, j] = el.dataset.tm.split(':').map(Number); if(termDraft && termDraft[i]) termDraft[i][j] = el.value; });
+  document.querySelectorAll('[data-tmrm]').forEach(el => el.onclick = () => { termDraft.splice(+el.dataset.tmrm, 1); render(); });
+  if($('tmAdd')) $('tmAdd').onclick = () => { const last = termDraft[termDraft.length - 1], n = last ? (+(last[0].match(/\d+/) || [0])[0] % 3) + 1 : 1; termDraft.push(['Term ' + n, '', '']); render(); };
+  if($('tmSave')) $('tmSave').onclick = () => { const L = termDraft.filter(t => t[0].trim() && t[1] && t[2]); if(L.some(t => t[1] > t[2])){ toast('A term ends before it starts'); return; } saveSettings({terms: L.map(t => [t[0].trim(), t[1], t[2]])}); termDraft = null; render(); };
   if($('ohSave')) $('ohSave').onclick = () => { const o = {}; ['Mo','Tu','We','Th','Fr','Sa','Su'].forEach(d => { const a = $('oh' + d + 'a').value, b = $('oh' + d + 'b').value; o[d] = a && b && a < b ? [a, b] : null; }); saveSettings({openHours: o}); };
   document.querySelectorAll('[data-view]').forEach(el => el.onclick = async () => { const v = el.dataset.view, s0 = hub.session();
     if(s0 && s0.me){ s0.me.view = v; localStorage.setItem('lhq_session', JSON.stringify(s0)); } LHQNav.section(route.page); render();

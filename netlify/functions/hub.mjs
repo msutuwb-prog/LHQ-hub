@@ -981,7 +981,7 @@ async function managePeople(req, me) {
   }
   if (b.action === "cards") {   // each person's own cards on Business, Students, a student's page, Tutors
     const page = String(b.page || "");
-    if (!/^(biz|students|student|tutors|teach|tstudent)$/.test(page)) return fail("Unknown page.");
+    if (!/^(biz|students|student|tutors|teach|tstudent|money)$/.test(page)) return fail("Unknown page.");
     const ok = x => typeof x === "string" ? x.length <= 40 : x && typeof x === "object" && JSON.stringify(x).length <= 600;
     const chosen = Array.isArray(b.cards) ? b.cards.filter(ok).slice(0, 16) : null;
     const p = find(me.id); p.cards = Object.assign({}, p.cards || {}, { [page]: chosen });

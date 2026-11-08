@@ -204,6 +204,8 @@ window.BIZ = (function(){
   function page(tab, period, cat){
     const T = SEC();
     if(!T.length) return `<div class="ph"><div class="tt"><h1>Business</h1></div></div><p class="empty">The Director hasn't given you access to Business.</p>`;
+    const miK = tab === 'money' && window.MIN && MIN.ok(period) ? period : '';   // Money in also takes a day, week, term or half-year
+    if(miK) period = MIN.std(miK);
     if(!period || !(isM(period) || isQ(period) || isY(period))){ if(tab === 'charts' && period) cat = period; period = thisMonth(); }
     const fy = isY(period) ? +period.slice(2) : fyOf(isQ(period) ? qMonths(period)[0] : period);
     const acts = `<div class="acts">${can('spend') ? `<button class="btn" data-bzin>${ic('plus',16,2.4)} Money in</button><button class="btn n" data-bznew>${ic('plus',16,2.4)} Spending</button>` : ''}</div>`;
@@ -219,10 +221,10 @@ window.BIZ = (function(){
     if(tab === 'charts' && /^p\d+$/.test(cat || '') && window.PC){ const it = PC.chosen('biz')[+cat.slice(1)]; if(it && it.c) INS.setChart(it.c); }
     const name = SEC_NAME[tab] || (T.find(x => x[0] === tab) || [])[1] || 'Business';
     const body = tab === 'pl' ? plView(period) : tab === 'budgets' ? budgetView(period) : tab === 'allocations' ? (window.INS ? INS.pots(period) : '') : tab === 'spending' ? (window.INS ? INS.spendTop(period) : '') + spendingView(period, cat)
-      : window.INS ? INS.view(tab, period, cat) : '';
+      : tab === 'money' && window.MIN ? MIN.view(miK || period) : window.INS ? INS.view(tab, period, cat) : '';
     return `${crumb('#biz/home/' + period, 'Business', 'biz/' + (tab === 'cat' ? 'cat' : tab))}
-      <div class="ph"><div class="tt"><h1>${esc(name)}</h1><p>${tab === 'owed' ? 'As of today' : tab === 'charts' ? 'Build a chart from any of the figures' : periodLabel(period)}</p></div>${['spending','cat','money'].includes(tab) ? acts : ''}</div>
-      ${['charts','owed','allocations'].includes(tab) ? '' : periodBar(tab, period, tab === 'cat' ? cat : '')}
+      <div class="ph"><div class="tt"><h1>${esc(name)}</h1><p>${tab === 'owed' ? 'As of today' : tab === 'charts' ? 'Build a chart from any of the figures' : tab === 'money' && window.MIN ? esc(MIN.label(miK || period)) : periodLabel(period)}</p></div>${['spending','cat','money'].includes(tab) ? (tab === 'money' && window.PC && window.MIN ? acts.replace('<div class="acts">', '<div class="acts">' + PC.pencil('money')) : acts) : ''}</div>
+      ${['charts','owed','allocations'].includes(tab) ? '' : tab === 'money' && window.MIN ? MIN.bar(miK || period) : periodBar(tab, period, tab === 'cat' ? cat : '')}
       ${body}`;
   }
 
@@ -333,6 +335,7 @@ window.BIZ = (function(){
       const L = d.last, e = {id:uid(), sid, date, cat:L.cat, amount:L.amount, from:L.from || '', what:L.what || '', method:L.method || '', rep:'m', at:Date.now(), by:me().name};
       const all = store.get('lhq_income', {}) || {}; all[e.id] = e; store.set('lhq_income', all); toast(`Recorded: ${mk(num(e.amount))} · ${e.cat}`); render(); });
     if(window.INS) INS.bind();
+    if(window.MIN) MIN.bind();
     on('[data-bzedit]', el => { const e = (store.get('lhq_spend', {}) || {})[el.dataset.bzedit]; if(e) sheet(Object.assign({}, e)); });
     on('[data-bzp]', el => { location.hash = '#biz/' + el.dataset.bzp; });
     on('[data-bzcsv]', el => csv(el.dataset.bzcsv));

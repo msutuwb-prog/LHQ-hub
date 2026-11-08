@@ -48,12 +48,12 @@ window.INS = (function(){
     rcts.forEach(r => {
       const amt = num(r.received); if(!amt) return;
       const inv = invByNo.get(UP(r.ref)), k = sk((inv || r).student || (inv || r).name), info = stuInfo(k);
-      if(!inv){ rows.push(Object.assign({date: r.date, amt, sub: 'No invoice', level: r.level || 'Not set', prog: progOf(r.level), tutor: 'Not known', mode: 'Not set', newRet: 'Returning', stu: k}, info)); return; }
+      if(!inv){ rows.push(Object.assign({rid: r.id, date: r.date, amt, sub: 'No invoice', level: r.level || 'Not set', prog: progOf(r.level), tutor: 'Not known', mode: 'Not set', newRet: 'Returning', stu: k}, info)); return; }
       const card = cardByInv.get(inv.id), items = (inv.items || []).map(it => ({it, v: num(it.sessions) * num(it.cost)})).filter(x => x.v > 0), tot = sum(items, x => x.v);
       const newRet = firstInv.get(k) === inv.id ? 'New' : 'Returning';
       (items.length ? items : [{it: {desc: 'Tuition'}, v: 1}]).forEach(({it, v}) => {
         const subj = (card && (card.subjects || []).find(x => sk(x.name) === sk(it.desc))) || null;
-        rows.push(Object.assign({date: r.date, amt: amt * (tot ? v / tot : 1), sub: it.desc || 'Tuition', level: inv.level || 'Not set', prog: progOf(inv.level),
+        rows.push(Object.assign({rid: r.id, date: r.date, amt: amt * (tot ? v / tot : 1), sub: it.desc || 'Tuition', level: inv.level || 'Not set', prog: progOf(inv.level),
           tutor: subj && subj.tutor ? subj.tutor : card ? 'No tutor yet' : 'No card yet', mode: modeOf(card && card.where), newRet, stu: k}, info));
       });
     });
@@ -522,7 +522,7 @@ window.INS = (function(){
   /* ---------- routing and taps ---------- */
   function view(tab, period, cat){
     if(tab === 'overview') return overview(period);
-    if(tab === 'money') return money(period);
+    if(tab === 'money') return window.MIN ? MIN.view(period) : money(period);
     if(tab === 'pipeline') return pipeline(period);
     if(tab === 'owed') return owed();
     if(tab === 'sessions') return sessions(period);
