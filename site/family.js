@@ -31,6 +31,7 @@ window.FAM = (function(){
 .f-pk{display:flex;align-items:center;gap:14px;padding:12px 14px;color:var(--ink);text-decoration:none}.f-pk .t{flex:1;min-width:0}.f-pk .t b{display:block}.f-pk .t small{color:var(--muted);font-size:12.5px}.f-ring{flex:none}
 .f-day{width:40px;flex:none;text-align:center;line-height:1.1}.f-day small{display:block;font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase}.f-day b{font-size:18px;color:var(--brand)}
 .f-sm{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12.5px;color:var(--muted);font-weight:700}.f-sm .in{width:58px;min-height:34px;padding:4px 8px;text-align:center}
+.it .t b.f-aty{display:flex;align-items:center;gap:6px}.f-aty svg{flex:none}
 .f-told{color:var(--am);font-weight:800}.f-told.lt{color:var(--brand)}
 .f-seg{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:10px}.f-seg button{border:0;background:var(--bg);padding:10px 6px;font:inherit;font-weight:800;color:var(--muted);cursor:pointer}.f-seg button.on{background:var(--accent);color:var(--onaccent,#fff)}.f-seg button:disabled{opacity:.4;cursor:default}
 .f-g2,.f-g4{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.f-g2 .f-opt,.f-g4 .f-opt{width:100%;margin:0}
@@ -147,7 +148,7 @@ window.FAM = (function(){
       <div class="h2">Do today</div><div class="card">${doT.map(row).join('') || '<p class="empty">Nothing today. ✓</p>'}</div>
       ${inT.length ? `<div class="h2">Hand in</div><div class="card">${inT.map(x => `<div class="it"><span class="f-mk am">!</span><span class="t"><b>${esc(x.topic)} ${x.stage ? 'R' + x.stage : 'LD'}</b><small>${esc(sub(x.sub))} · ${x.status === 'late' ? 'late' : 'today'}</small></span></div>`).join('')}</div>` : ''}
       ${out.length ? `<div class="h2">You have</div><div class="card">${out.map(row).join('')}</div>` : ''}
-      ${(k.coming || []).length ? `<div class="h2">Coming up <em>assessments</em></div><div class="card">${k.coming.map(a => `<div class="it"><span class="f-day"><small>${DAYN[['Su','Mo','Tu','We','Th','Fr','Sa'][HD.parseISO(a.d).getDay()]]}</small><b>${HD.parseISO(a.d).getDate()}</b></span><span class="t"><b>${window.MARKS ? MARKS.ico(a.ak) + ' ' : ''}${esc((window.MARKS ? MARKS.TY[a.ak] : '') || 'Assessment')} · ${esc(sub(a.sub))}</b><small>${[a.s, (a.tp || []).join(', ')].filter(Boolean).map(esc).join(' · ')}</small></span></div>`).join('')}</div>` : ''}`;
+      ${(k.coming || []).length ? `<div class="h2">Coming up <em>assessments</em></div><div class="card">${k.coming.map(a => `<div class="it"><span class="f-day"><small>${DAYN[['Su','Mo','Tu','We','Th','Fr','Sa'][HD.parseISO(a.d).getDay()]]}</small><b>${HD.parseISO(a.d).getDate()}</b></span><span class="t"><b class="f-aty">${window.MARKS ? MARKS.ico(a.ak) : ''}<span>${esc((window.MARKS ? MARKS.TY[a.ak] : '') || 'Assessment')} · ${esc(sub(a.sub))}</span></b><small>${[a.s, (a.tp || []).join(', ')].filter(Boolean).map(esc).join(' · ')}</small></span></div>`).join('')}</div>` : ''}`;
   }
   /* ---------- the take-home pack: review sheets after the last session, by date ---------- */
   const ring = (n, N, sz = 60) => { const r = sz / 2 - 6, c = 2 * Math.PI * r, a = N ? c * n / N : 0;
