@@ -37,8 +37,12 @@ let testStore = null;
 export const _setStore = s => { testStore = s; };
 // Deploy previews (and branch deploys) get their own storage, so trying things there never touches LHQ's real documents
 let site = "production";
-/* a separate test site (its own Netlify account, e.g. lhqhub-test) sets LHQ_TEST=yes: it then behaves as a test copy (demo data, the gold strip) */
-const testSite = () => { try { return String((globalThis.Netlify && Netlify.env.get("LHQ_TEST")) || process.env.LHQ_TEST || "").toLowerCase() === "yes"; } catch { return false; } };
+/* a separate test site (its own Netlify account, e.g. lhqhub-test) sets LHQ_TEST=yes: it then behaves as a test copy (demo data, the gold strip);
+   also any site whose Netlify name or address starts "lhqhub-test", in case the variable doesn't reach the functions */
+let siteName = "";
+const whichSite = (req, context) => { try { return (context && context.site && context.site.name) || new URL(req.url).hostname; } catch { return ""; } };
+export const testName = n => /^lhqhub-test/i.test(String(n || ""));
+const testSite = () => { try { return testName(siteName) || String((globalThis.Netlify && Netlify.env.get("LHQ_TEST")) || process.env.LHQ_TEST || "").toLowerCase() === "yes"; } catch { return testName(siteName); } };
 const isPreview = () => site !== "production" || testSite();
 const blobs = () => testStore || getStore({ name: isPreview() ? "lhq-hub-preview" : "lhq-hub", consistency: "strong" });
 /* One system: once the Director has copied the Hub into the database and switched to it (Settings › Shared records), every
@@ -1150,21 +1154,21 @@ async function tutorPost(req, me) {
 /* for the shared records (api/v2): whoever is signed in, any role. Until sign-in moves to the database (step 2),
    the people list in Blobs stays the source of who can sign in. */
 export async function personFrom(req, context) {
-  site = (context && context.deploy && context.deploy.context) || "production";
+  site = (context && context.deploy && context.deploy.context) || "production"; siteName = whichSite(req, context);
   if (!secret()) return null;
   return await whoIs(req);
 }
 
 /* for the email and WhatsApp functions: only someone signed in to LHQ Hub as Director or admin may send */
 export async function staffFrom(req, context) {
-  site = (context && context.deploy && context.deploy.context) || "production";
+  site = (context && context.deploy && context.deploy.context) || "production"; siteName = whichSite(req, context);
   if (!secret()) return null;
   const me = await whoIs(req);
   return me && staff(me) ? me : null;
 }
 
 export default async (req, context) => {
-  site = (context && context.deploy && context.deploy.context) || "production";
+  site = (context && context.deploy && context.deploy.context) || "production"; siteName = whichSite(req, context);
   if (!secret()) return fail("LHQ Hub isn't set up yet: add LHQ_SECRET in Netlify's environment variables.", 500);
   storeOnDb = await usesDbStore();
   const path = new URL(req.url).pathname.replace(/^\/api\/hub\/?/, "").replace(/\/$/, "");

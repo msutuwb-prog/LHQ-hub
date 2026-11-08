@@ -39,7 +39,7 @@ async function whoAmI(req, context) {
 
 export default async (req, context) => {
   const url = new URL(req.url), path = url.pathname.replace(/^\/api\/v2\/?/, "").replace(/\/$/, "");
-  const preview = ((context && context.deploy && context.deploy.context) || "production") !== "production" || String(process.env.LHQ_TEST || "").toLowerCase() === "yes";
+  const preview = ((context && context.deploy && context.deploy.context) || "production") !== "production" || String(process.env.LHQ_TEST || "").toLowerCase() === "yes" || /^lhqhub-test/i.test((context && context.site && context.site.name) || (() => { try { return new URL(req.url).hostname; } catch { return ""; } })());
   try {
     /* public: is the database switched on? (no records, just yes or no) */
     if (req.method === "GET" && path === "health") {
