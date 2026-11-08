@@ -2,10 +2,10 @@
    Keeps the Hub's own files on the device, so pages open straight away and still open with no internet.
    Each file is shown from the device first, then quietly checked online; if LHQ Hub has been updated,
    the page shows "A newer version is ready" and one tap loads it. Saving and syncing (/api/…) always go online. */
-const CACHE = 'lhq-hub-v32', FONTS = 'lhq-fonts-v1';
+const CACHE = 'lhq-hub-v33', FONTS = 'lhq-fonts-v1';
 const CORE = ['index.html', 'doc.html', 'reports.html', 'checklist.html', 'tutor.html', 'account.html', 'hub.css', 'theme.js', 'picker.js', 'testbar.js', 'schedule.js', 'sreport.js', 'search.js', 'marks.js', 'pako.min.js', 'store.js', 'sync.js',
-  'defaults.js', 'hubdata.js', 'nav.js', 'schools.js', 'business.js', 'insights.js', 'perf.js', 'cards.js', 'sra.js', 'attn.js', 'teach.js', 'family.js', 'card.js', 'topics.js', 'codec.js', 'report-render.js',
-  'logo.png', 'logo-white.png', 'arrow.png', 'icon-32.png', 'icon-180.png', 'icon-192.png', 'icon-app-192.png', 'icon-app-512.png',
+  'defaults.js', 'hubdata.js', 'nav.js', 'schools.js', 'business.js', 'insights.js', 'perf.js', 'cards.js', 'sra.js', 'attn.js', 'push.js', 'teach.js', 'family.js', 'card.js', 'topics.js', 'codec.js', 'report-render.js',
+  'logo.png', 'logo-white.png', 'arrow.png', 'icon-32.png', 'icon-180.png', 'icon-192.png', 'icon-app-192.png', 'icon-app-512.png', 'badge-96.png',
   'manifest.webmanifest', 'lib/html2pdf.bundle.min.js'];
 const CHECK_EVERY = 60000;   // look online for a newer copy of a file at most once a minute (an unchanged file costs a tiny 'not modified' reply)
 const checked = new Map();
@@ -70,4 +70,20 @@ self.addEventListener('fetch', e => {
   }));
   // then quietly look for a newer copy
   e.waitUntil(found.then(({cached}) => cached ? refresh(key, new Request(key, {cache: 'no-cache'}), cached) : null));
+});
+
+/* phone notifications: show what the Hub sends, and open the right page when tapped */
+self.addEventListener('push', e => {
+  let m = {}; try{ m = e.data ? e.data.json() : {}; }catch(err){ m = {title: 'LHQ Hub', body: e.data ? e.data.text() : ''}; }
+  const actions = (m.actions || []).slice(0, 2).map(a => ({action: a.url, title: a.title}));
+  e.waitUntil(self.registration.showNotification(m.title || 'LHQ Hub', {body: m.body || '', icon: 'icon-app-192.png', badge: 'badge-96.png', tag: m.tag || undefined, renotify: !!m.tag, data: {url: m.url || '/'}, actions}));
+});
+self.addEventListener('notificationclick', e => {
+  e.notification.close();
+  const url = new URL(e.action || (e.notification.data && e.notification.data.url) || '/', self.registration.scope).href;
+  e.waitUntil(self.clients.matchAll({type: 'window', includeUncontrolled: true}).then(L => {
+    const w = L.find(c => c.url.startsWith(self.registration.scope));
+    if(w){ w.focus(); return w.navigate ? w.navigate(url) : null; }
+    return self.clients.openWindow(url);
+  }));
 });

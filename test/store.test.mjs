@@ -503,6 +503,45 @@ test("absence and late notices: the student or a parent tells the tutor and LHQ 
   assert.ok(acts.some(x => /^Chimwemwe Banda: absent · sick · Biology/.test(x)) && acts.some(x => /3 sessions/.test(x)) && acts.some(x => /can come after all/.test(x)), acts.slice(0, 5).join(" | "));
 });
 
+test("phone notifications: devices, choices, events, quiet hours and the 07:00 summary", async () => {
+  const sent = []; let fail410 = "";
+  hubMod._setPushSender(async (sub, payload) => { if (sub.endpoint === fail410) { const e = new Error("gone"); e.statusCode = 410; throw e; } sent.push({ to: sub.endpoint, ...payload }); });
+  const day = n => new Date(Date.now() + 2 * 3600e3 + n * 864e5).toISOString().slice(0, 10);
+  const newAcct = async (body, pw) => { const add = await call("people", Object.assign({ action: "add" }, body), DIR); assert.equal(add.status, 200, JSON.stringify(add.j));
+    const c = await call("code", { code: add.j.code }); return (await call("password", { ticket: c.j.ticket, password: pw })).j.token; };
+  const tok = (await call("signin", { id: "emmanuel.mkwamba", password: "Maths!2026x" })).j.token;
+  const sub = n => ({ endpoint: "https://push.example/" + n, keys: { p256dh: "BPk" + n, auth: "au" + n } });
+  assert.equal((await call("push", { action: "subscribe", sub: { endpoint: "http://bad", keys: {} } }, tok)).status, 400, "only real push addresses");
+  assert.equal((await call("push", { action: "subscribe", sub: sub("tutor"), ua: "Android Chrome" }, tok)).status, 200);
+  assert.equal((await call("push", { action: "subscribe", sub: sub("dir") }, DIR)).status, 200);
+  const g = (await call("push", null, tok, "GET")).j; assert.deepEqual(g.kinds.map(k => k[0]), ["notice", "decided", "dispute", "report"], "a tutor's kinds"); assert.equal(g.devices.length, 1);
+  await call("push", { action: "prefs", off: {}, quiet: ["00:00", "00:00"], summary: false }, tok);
+  await call("push", { action: "prefs", off: {}, quiet: ["00:00", "00:00"], summary: false }, DIR);
+  const subj = { name: "Geography", tutor: "Emmanuel Mkwamba", days: ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"], start: "23:58", end: "23:59", sessions: "30" };
+  await call("sync", { upserts: [{ doc: { id: "pc1", type: "card", number: "TC-0501", student: "Kettie Gondwe", periodStart: day(-3), periodEnd: day(25), subjects: [subj] } }] }, DIR);
+  const stu = await newAcct({ name: "Kettie Gondwe", role: "student" }, "Lilongwe#2026k");
+  sent.length = 0;
+  const r = await call("family", { action: "notice", st: "kettie gondwe", kind: "late", mins: 15, d: day(1), sub: "Geography" }, stu); assert.equal(r.status, 200, JSON.stringify(r.j));
+  await new Promise(res => setTimeout(res, 300));
+  assert.ok(sent.some(m => m.to.endsWith("/tutor") && m.title === "Kettie Gondwe · about 15 min late" && m.url === "/#teach"), JSON.stringify(sent));
+  assert.ok(sent.some(m => m.to.endsWith("/dir") && m.url.startsWith("/#student/")), "LHQ too");
+  /* turned off: nothing; quiet hours: held, then sent at 07:00; a dead device is removed */
+  await call("push", { action: "prefs", off: { notice: true }, quiet: ["00:00", "00:00"] }, tok); sent.length = 0;
+  await call("family", { action: "notice", st: "kettie gondwe", kind: "abs", why: "Sick", d: day(2), sub: "Geography" }, stu); await new Promise(res => setTimeout(res, 300));
+  assert.ok(!sent.some(m => m.to.endsWith("/tutor")), "the tutor turned Absent or late off");
+  await call("push", { action: "prefs", off: {}, quiet: ["00:00", "23:59"] }, tok); sent.length = 0;
+  await call("family", { action: "notice", st: "kettie gondwe", kind: "abs", why: "Travel", d: day(3), sub: "Geography" }, stu); await new Promise(res => setTimeout(res, 300));
+  assert.ok(!sent.some(m => m.to.endsWith("/tutor")), "held in quiet hours");
+  const seven = Date.parse(day(0) + "T05:00:00Z");   // 07:00 in Malawi
+  const t1 = await hubMod.pushTick(null, seven); assert.ok(t1.sent.some(k => k.includes("summary")), JSON.stringify(t1));
+  assert.ok(sent.some(m => m.to.endsWith("/tutor") && /travel/.test(m.title)), "sent at 07:00: " + JSON.stringify(sent));
+  const t2 = await hubMod.pushTick(null, seven); assert.equal(t2.sent.length, 0, "only once");
+  fail410 = "https://push.example/dir"; await call("family", { action: "notice", st: "kettie gondwe", kind: "late", mins: 30, d: day(4), sub: "Geography" }, stu); await new Promise(res => setTimeout(res, 300));
+  assert.equal((await call("push", null, DIR, "GET")).j.devices.length, 0, "a device the phone gave up on is removed");
+  const st = (await call("state", null, DIR, "GET")).j; assert.ok(!st.kv.lhq_push, "devices never go to anyone's browser");
+  hubMod._setPushSender(null);
+});
+
 test("student daily report: averages, the 4-week rule and LHQ's flags", async () => {
   await import("../site/sreport.js"); const SP = globalThis.SREP;
   const R = { "gift kamanga": {}, "luka mwale": {} }, t = "2026-11-09";

@@ -226,6 +226,7 @@ window.FAM = (function(){
   function more(){
     return `<div class="ph"><div class="tt"><h1>More</h1></div></div><div class="card">
       <a class="it" href="#settings"><span class="t"><b>My account</b></span><span class="chev">›</span></a>
+      <a class="it" href="#set/notifications"><span class="t"><b>Notifications</b></span><span class="chev">›</span></a>
       <a class="it" href="tel:+265992525250"><span class="t"><b>Contact LHQ</b><small>0992 525 250</small></span><span class="chev">›</span></a></div>`;
   }
   const emptyNoKids = () => `<div class="ph"><div class="tt"><h1>Hi ${esc(firstN(me().name))}</h1></div></div>${!data ? `<p class="empty">${err === 'offline' ? 'Offline.' : err ? esc(err) : 'Loading…'}</p>` : '<p class="empty">Your account isn\'t linked to a student yet. Ask LHQ.</p>'}`;
