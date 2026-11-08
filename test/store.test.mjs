@@ -477,6 +477,32 @@ test("student daily report: the student answers today's sessions; LHQ reads it; 
   assert.ok(acts.some(x => /^Tamanda Phiri sent the report for /.test(x)), "Activity shows it was sent, without the answers");
 });
 
+test("absence and late notices: the student or a parent tells the tutor and LHQ before a session", async () => {
+  const day = n => new Date(Date.now() + 2 * 3600e3 + n * 864e5).toISOString().slice(0, 10);
+  const newAcct = async (body, pw) => { const add = await call("people", Object.assign({ action: "add" }, body), DIR); assert.equal(add.status, 200, JSON.stringify(add.j));
+    const c = await call("code", { code: add.j.code }); return (await call("password", { ticket: c.j.ticket, password: pw })).j.token; };
+  const tok = (await call("signin", { id: "emmanuel.mkwamba", password: "Maths!2026x" })).j.token;
+  const subj = { name: "Biology", tutor: "Emmanuel Mkwamba", days: ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"], start: "23:58", end: "23:59", sessions: "30" };
+  await call("sync", { upserts: [{ doc: { id: "nc1", type: "card", number: "TC-0401", student: "Chimwemwe Banda", periodStart: day(-3), periodEnd: day(25), subjects: [subj] } }] }, DIR);
+  const stu = await newAcct({ name: "Chimwemwe Banda", role: "student" }, "Lilongwe#2026n");
+  const par = await newAcct({ name: "Ruth Banda", role: "parent", childNames: ["Chimwemwe Banda"] }, "Lilongwe#2026p");
+  const st = "chimwemwe banda";
+  assert.equal((await call("family", { action: "notice", st, kind: "abs", why: "Bored", d: day(1), sub: "Biology" }, stu)).status, 400, "the reason must be one of the four");
+  assert.equal((await call("family", { action: "notice", st, kind: "late", mins: 7, d: day(1), sub: "Biology" }, stu)).status, 400, "late: 10, 15, 30 or 45 min");
+  const a = await call("family", { action: "notice", st, kind: "abs", why: "Sick", d: day(1), sub: "Biology", note: "fever" }, stu); assert.equal(a.status, 200, JSON.stringify(a.j)); assert.equal(a.j.n, 1);
+  const r = await call("family", { action: "notice", st, kind: "abs", why: "School event", from: day(3), to: day(5) }, par); assert.equal(r.status, 200, JSON.stringify(r.j)); assert.equal(r.j.n, 3, "a few days: one notice per session");
+  assert.equal((await call("family", { action: "notice", st, kind: "abs", why: "Sick", from: day(-2), to: day(1) }, stu)).status, 400, "not for days gone");
+  const g = (await call("family", null, stu, "GET")).j.kids[0], s1 = g.week.find(x => x.date === day(1));
+  assert.equal(s1.told.why, "Sick", "the session shows it was told"); assert.ok(g.lhqPhone.length > 6, "LHQ's number for WhatsApp");
+  const tg = (await call("tutor", null, tok, "GET")).j; assert.equal(tg.notices.filter(n => !n.x).length, 4, "the tutor gets them");
+  const un = await call("family", { action: "unnotice", st, id: s1.told.id }, par); assert.equal(un.status, 200, "a parent can undo the student's notice");
+  assert.equal((await call("family", null, stu, "GET")).j.kids[0].week.find(x => x.date === day(1)).told, null);
+  await call("sync", { kv: { lhq_notices: {} } }, DIR);
+  const kv = (await call("state", null, DIR, "GET")).j.kv.lhq_notices; assert.equal(Object.values(kv).filter(n => !n.x).length, 3, "a save can't wipe notices");
+  const acts = (await call("activity", null, DIR, "GET")).j.rows.map(x => x.summary);
+  assert.ok(acts.some(x => /^Chimwemwe Banda: absent · sick · Biology/.test(x)) && acts.some(x => /3 sessions/.test(x)) && acts.some(x => /can come after all/.test(x)), acts.slice(0, 5).join(" | "));
+});
+
 test("student daily report: averages, the 4-week rule and LHQ's flags", async () => {
   await import("../site/sreport.js"); const SP = globalThis.SREP;
   const R = { "gift kamanga": {}, "luka mwale": {} }, t = "2026-11-09";

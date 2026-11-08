@@ -9,7 +9,7 @@ window.MARKS = (function(){
   /* from log entries (LHQ's side) to the same shape the family data sends: {w:[{sub,d,p}], r:[{sub,tk,rv,p,d}]} */
   function fromEntries(E){
     return {
-      w: E.filter(e => e && !e.x && e.ty === 'w' && !e.abs && pc(e) != null).map(e => ({sub: e.sub, d: e.d, p: pc(e)})),
+      w: E.filter(e => e && !e.x && e.ty === 'w' && !e.abs && pc(e) != null).map(e => ({sub: e.sub, d: e.d, p: pc(e), ak: e.ak || 'w'})),
       r: E.filter(e => e && !e.x && e.ty === 'r' && e.tk && pc(e) != null).map(e => ({sub: e.sub, tk: e.tk, rv: +e.rv || 0, p: pc(e), d: e.d})),
     };
   }
@@ -31,7 +31,18 @@ window.MARKS = (function(){
     const a = w.map(x => x.p), mn = Math.min(...a) - 5, mx = Math.max(...a) + 5, X = i => 3 + i / (a.length - 1) * (W - 6), Y = v => H - 3 - (v - mn) / (mx - mn || 1) * (H - 6);
     return `<svg class="mk-sp" width="${W}" height="${H}" aria-hidden="true"><path d="${a.map((v, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(v).toFixed(1)).join('')}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><circle cx="${X(a.length - 1)}" cy="${Y(a[a.length - 1])}" r="3" fill="var(--accent)"/></svg>`;
   }
-  /* one line, 0–100%; a dot for each assessment with its date and score on hover or tap */
+  /* assessment types: a point shape each (one colour: one subject is one series) */
+  const TY = {w:'Weekly', m:'Monthly', t:'Topical', k:'Mock', p:'Past paper'};
+  const shp = (ty, x, y, r = 4.5) => ty === 'm' ? `<rect x="${x - r}" y="${y - r}" width="${2 * r}" height="${2 * r}" rx="1.5"/>` : ty === 't' ? `<path d="M${x} ${y - r - 1.5}L${x + r + 1.5} ${y}L${x} ${y + r + 1.5}L${x - r - 1.5} ${y}Z"/>`
+    : ty === 'k' ? `<path d="M${x} ${y - r - 1}L${x + r + 1} ${y + r}L${x - r - 1} ${y + r}Z"/>` : ty === 'p' ? `<path d="M${x - r} ${y - r}L${x + r} ${y + r}M${x + r} ${y - r}L${x - r} ${y + r}" stroke-width="2.6" stroke-linecap="round"/>` : `<circle cx="${x}" cy="${y}" r="${r}"/>`;
+  const ico = (ty, n = 13) => `<svg width="${n}" height="${n}" viewBox="0 0 14 14" aria-hidden="true"><g fill="var(--accent)" stroke="var(--accent)" stroke-width="0">${shp(ty, 7, 7, 4)}</g></svg>`;
+  const types = s => [...new Set((s.w || []).map(x => x.ak || 'w'))];
+  /* each type's average, shown when there is more than one type */
+  function avgs(s){
+    const T = types(s); if(T.length < 2) return '';
+    return `<div class="mk-key">${Object.keys(TY).filter(k => T.includes(k)).map(k => `<span>${ico(k)}${TY[k]}</span>`).join('')}</div><div class="mk-avg">${Object.keys(TY).filter(k => T.includes(k)).map(k => { const L = s.w.filter(x => (x.ak || 'w') === k); return `<div><small>${ico(k, 11)} ${TY[k]}</small><b>${Math.round(L.reduce((a, x) => a + x.p, 0) / L.length)}%</b></div>`; }).join('')}</div>`;
+  }
+  /* one line, 0–100%; a point for each assessment (its type's shape) with its date, type and score on hover or tap */
   function line(s, W = 340, H = 170){
     const w = s.w; if(!w.length) return '<p class="mk-none">No weekly assessments marked yet.</p>';
     const L = 30, R = 12, T = 14, B = 22, n = w.length, X = i => n === 1 ? (L + W - R) / 2 : L + i / (n - 1) * (W - L - R), Y = v => T + (100 - v) / 100 * (H - T - B);
@@ -40,9 +51,9 @@ window.MARKS = (function(){
     const xl = xi.map(i => `<text x="${X(i)}" y="${H - 6}" text-anchor="${n === 1 ? 'middle' : i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle'}" font-size="10" fill="var(--muted)">${dl(w[i].d)}</text>`).join('');
     const path = w.map((x, i) => (i ? 'L' : 'M') + X(i).toFixed(1) + ' ' + Y(x.p).toFixed(1)).join('');
     const hit = Math.max(16, (W - L - R) / Math.max(1, n - 1));
-    const dots = w.map((x, i) => `<g><title>${dl(x.d)} · ${x.p}%</title><circle cx="${X(i)}" cy="${Y(x.p)}" r="4" fill="var(--accent)" stroke="var(--surface)" stroke-width="2"/><rect x="${X(i) - hit / 2}" y="${T}" width="${hit}" height="${H - T - B}" fill="transparent"/></g>`).join('');
+    const dots = w.map((x, i) => `<g><title>${dl(x.d)} · ${TY[x.ak || 'w']} · ${x.p}%</title><g fill="var(--accent)" stroke="${x.ak === 'p' ? 'var(--accent)' : 'var(--surface)'}" stroke-width="${x.ak === 'p' ? 2.6 : 1.5}">${shp(x.ak || 'w', X(i), Y(x.p))}</g><rect x="${X(i) - hit / 2}" y="${T}" width="${hit}" height="${H - T - B}" fill="transparent"/></g>`).join('');
     const lx = X(n - 1), ly = Y(w[n - 1].p);
-    return `<svg class="mk-ln" viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(s.sub)} weekly assessments">${grid}<path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>${dots}<text x="${lx - 8}" y="${ly - 10}" text-anchor="end" font-size="12" font-weight="800" fill="var(--ink)">${w[n - 1].p}%</text>${xl}</svg>`;
+    return `<svg class="mk-ln" viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${esc(s.sub)} assessments">${grid}<path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>${dots}<text x="${lx - 8}" y="${ly - 10}" text-anchor="end" font-size="12" font-weight="800" fill="var(--ink)">${w[n - 1].p}%</text>${xl}</svg>`;
   }
   const step = v => v >= 85 ? 5 : v >= 70 ? 4 : v >= 55 ? 3 : v >= 40 ? 2 : 1;
   function grid(s){
@@ -54,7 +65,8 @@ window.MARKS = (function(){
   const css = document.createElement('style');
   css.textContent = `:root{--mk1:#e3ebf5;--mk2:#b9cde6;--mk3:#7fa3cf;--mk4:#3f73ae;--mk5:#0b3f7a}
 [data-theme=dark]{--mk1:#1f2b3b;--mk2:#2f4d73;--mk3:#4a77ab;--mk4:#79a5d8;--mk5:#b9d3f1}
-.mk-ln text{font-family:inherit}.mk-none{color:var(--muted);font-size:13px;margin:6px 0}
+.mk-ln text{font-family:inherit}.mk-key{display:flex;flex-wrap:wrap;gap:10px;font-size:11.5px;color:var(--muted);margin-top:6px}.mk-key svg{vertical-align:-2px;margin-right:3px}
+.mk-avg{display:grid;grid-template-columns:repeat(auto-fit,minmax(78px,1fr));gap:6px;margin-top:8px}.mk-avg div{background:var(--bg);border-radius:9px;padding:6px 8px}.mk-avg small{display:block;color:var(--muted);font-size:11px;font-weight:700;white-space:nowrap}.mk-avg b{font-size:16px;color:var(--brand,var(--accent))}.mk-none{color:var(--muted);font-size:13px;margin:6px 0}
 .mk-g{border-collapse:separate;border-spacing:2px;width:100%;font-size:12px;font-variant-numeric:tabular-nums;table-layout:fixed}
 .mk-g th{font-size:10.5px;color:var(--muted);font-weight:800;text-transform:uppercase;letter-spacing:.05em;padding:2px}
 .mk-g th:first-child{text-align:left;width:38%}
@@ -75,5 +87,5 @@ window.MARKS = (function(){
   document.head.appendChild(css);
   /* balanced columns on wide screens: 4 subjects sit 2 × 2, never 3 + 1 */
   const cols = n => `--n:${n};--c:${n <= 3 ? n : n === 4 ? 2 : 3}`;
-  return {fromEntries, bySubject, spark, line, grid, change, pc, cols};
+  return {fromEntries, bySubject, spark, line, grid, change, pc, cols, avgs, ico, TY};
 })();

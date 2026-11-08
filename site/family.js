@@ -31,6 +31,10 @@ window.FAM = (function(){
 .f-pk{display:flex;align-items:center;gap:14px;padding:12px 14px;color:var(--ink);text-decoration:none}.f-pk .t{flex:1;min-width:0}.f-pk .t b{display:block}.f-pk .t small{color:var(--muted);font-size:12.5px}.f-ring{flex:none}
 .f-day{width:40px;flex:none;text-align:center;line-height:1.1}.f-day small{display:block;font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase}.f-day b{font-size:18px;color:var(--brand)}
 .f-sm{display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12.5px;color:var(--muted);font-weight:700}.f-sm .in{width:58px;min-height:34px;padding:4px 8px;text-align:center}
+.f-told{color:var(--am);font-weight:800}.f-told.lt{color:var(--brand)}
+.f-seg{display:grid;grid-template-columns:repeat(3,1fr);border:1px solid var(--line);border-radius:10px;overflow:hidden;margin-bottom:10px}.f-seg button{border:0;background:var(--bg);padding:10px 6px;font:inherit;font-weight:800;color:var(--muted);cursor:pointer}.f-seg button.on{background:var(--accent);color:var(--onaccent,#fff)}.f-seg button:disabled{opacity:.4;cursor:default}
+.f-g2,.f-g4{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:6px}.f-g2 .f-opt,.f-g4 .f-opt{width:100%;margin:0}
+.f-wa{display:flex;justify-content:center;background:#1f8f4e!important;border-color:#1f8f4e!important;color:#fff!important;text-decoration:none}
 .f-self{font-size:11.5px;font-weight:800;color:var(--am)}.f-all{width:100%;border:0;background:none;color:var(--brand);font:inherit;font-weight:800;cursor:pointer;text-align:left}
 .f-four{display:grid;grid-template-columns:repeat(4,1fr);text-align:center;gap:4px}.f-four b{display:block;font-size:20px;color:var(--brand)}.f-four small{color:var(--muted);font-size:12px}
 .f-opt{display:flex;gap:10px;align-items:center;width:100%;text-align:left;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:11px 12px;margin:6px 0;font:inherit;font-weight:700;color:var(--ink);cursor:pointer}
@@ -78,6 +82,43 @@ window.FAM = (function(){
   const stText = e => e.a === 'absent' ? 'Absent · owed' : e.a === 'cancelled' ? 'Cancelled · owed' : e.st === 'disputed' ? ({tutor:'With your tutor', student:'Your tutor answered', lhq:'With LHQ'}[e.cf && e.cf.step] || 'Not right') : e.st === 'settled' ? 'Settled' + (e.cf && e.cf.lost ? ` · ${e.cf.lost} min off` : '') : e.st === 'waiting' ? `${Math.max(1, Math.round(e.left / 36e5))} h` : (STL[e.st] || '');
   const kidChips = () => kids().length > 1 ? `<div class="f-kids">${kids().map((k, i) => `<button class="f-kid ${k === kid() ? 'on' : ''}" data-fkid="${i}"><span class="f-av">${esc(k.name[0])}</span>${esc(firstN(k.name))}</button>`).join('')}</div>` : '';
 
+  /* ---------- absence and late notices: "Can't come" on a session that hasn't started ---------- */
+  const nowMin = () => { const d = new Date(); return d.getHours() * 60 + d.getMinutes(); };
+  const tm = v => { const m = /^(\d{1,2}):(\d{2})/.exec(String(v || '')); return m ? +m[1] * 60 + +m[2] : null; };
+  const open4 = (x, late) => x.date > T() || (x.date === T() && tm(x.s) != null && tm(x.s) + (late ? 15 : 0) > nowMin());
+  const toldL = n => n.kind === 'late' ? `About ${n.mins} min late` : `Absent · ${n.why.toLowerCase()}`;
+  function sesTell(x){
+    const n = x.told, can = open4(x, n && n.kind === 'late');
+    return `<div class="it"><span class="cal-t">${esc(x.s)}<small>${esc(x.e)}</small></span><span class="t"><b>${esc(sub(x.sub))}${x.mu ? ' · make-up' : ''}</b><small>${n ? `<span class="f-told${n.kind === 'late' ? ' lt' : ''}">${esc(toldL(n))}</span>` : esc(x.tutor)}</small></span>
+      ${n ? (can ? `<button class="btn sm" data-funtell="${esc(n.id)}">Undo</button>` : '') : open4(x, true) ? `<button class="btn sm" data-ftell="${esc(x.date)}|${esc(x.sub)}|${esc(x.s)}">Can't come</button>` : ''}</div>`;
+  }
+  let NT = null;
+  function tellSheet(){
+    const f = NT, started = !open4({date: f.d, s: f.s}, false);
+    if(started && f.kind !== 'late') f.kind = 'late';
+    const opt = (on, attr, l) => `<button class="f-opt ${on ? 'on' : ''}" ${attr}><span class="f-tick ${on ? 'on' : ''}">✓</span>${l}</button>`;
+    openSheet(`<div class="hx"><h3>${esc(sub(f.sub))} · ${f.d === T() ? 'today' : day(f.d)} ${esc(f.s)}</h3><button class="ib" data-close>✕</button></div>
+      <div class="f-seg">${[['abs','Absent'],['late','Late'],['days','A few days']].map(([k, l]) => `<button class="${f.kind === k ? 'on' : ''}" data-ftk="${k}" ${started && k !== 'late' ? 'disabled' : ''}>${l}</button>`).join('')}</div>
+      ${f.kind === 'late' ? `<div class="f-g4">${[10,15,30,45].map(m => opt(f.mins === m, `data-ftm="${m}"`, m + ' min')).join('')}</div>`
+        : `${f.kind === 'days' ? `<div class="r2" style="margin:10px 0 4px"><label class="f" style="margin:0"><span>From</span><input class="in" type="date" id="ftFrom" value="${f.from}" min="${T()}"></label><label class="f" style="margin:0"><span>To</span><input class="in" type="date" id="ftTo" value="${f.to}" min="${T()}"></label></div>` : ''}
+          <div class="f-g2">${['Sick','School event','Travel','Other'].map(w => opt(f.why === w, `data-ftw="${esc(w)}"`, w)).join('')}</div>`}
+      <label class="f" style="margin-top:10px"><span>Note</span><input class="in" id="ftNote" value="${esc(f.note)}" maxlength="300"></label>
+      <button class="btn n full" id="ftSend" ${(f.kind === 'late' ? f.mins : f.why) ? '' : 'disabled'}>Send</button>`);
+    document.querySelectorAll('[data-ftk]').forEach(b => b.onclick = () => { f.kind = b.dataset.ftk; tellSheet(); });
+    document.querySelectorAll('[data-ftw]').forEach(b => b.onclick = () => { f.why = b.dataset.ftw; tellSheet(); });
+    document.querySelectorAll('[data-ftm]').forEach(b => b.onclick = () => { f.mins = +b.dataset.ftm; tellSheet(); });
+    const keep = () => { f.note = $('ftNote').value; if($('ftFrom')){ f.from = $('ftFrom').value; f.to = $('ftTo').value; } };
+    $('ftNote').oninput = keep; if($('ftFrom')){ $('ftFrom').onchange = keep; $('ftTo').onchange = keep; }
+    $('ftSend').onclick = async () => { keep(); $('ftSend').disabled = true; const k = kid();
+      const body = f.kind === 'days' ? {action:'notice', st:k.key, kind:'abs', why:f.why, from:f.from, to:f.to, note:f.note}
+        : {action:'notice', st:k.key, kind:f.kind, why:f.why, mins:f.mins, d:f.d, sub:f.sub, s:f.s, note:f.note};
+      const j = await post(body, 'Sent'); if(!j){ $('ftSend') && ($('ftSend').disabled = false); return; }
+      const soon = f.kind !== 'days' && f.d === T() && tm(f.s) != null && tm(f.s) - nowMin() < 120;
+      if(soon && k.lhqPhone){ const msg = `Hello LHQ, this is ${me().name}${isParent() ? ` (${firstN(k.name)}'s parent)` : ''}. ${isParent() ? firstN(k.name) : 'I'} ${f.kind === 'late' ? `will be about ${f.mins} min late for` : "can't come to"} ${f.sub} today at ${f.s}${f.kind === 'abs' ? ` (${f.why.toLowerCase()})` : ''}.${f.note ? ' ' + f.note : ''}`;
+        openSheet(`<div class="hx"><h3>Sent</h3><button class="ib" data-close>✕</button></div><a class="btn n full f-wa" href="https://wa.me/${k.lhqPhone}?text=${encodeURIComponent(msg)}" target="_blank" rel="noopener" data-close>WhatsApp LHQ</a><button class="btn full" style="margin-top:8px" data-close>Done</button>`); }
+      NT = null; };
+  }
+
   /* ---------- pages ---------- */
   function home(){
     const k = kid(); if(!k) return emptyNoKids();
@@ -87,7 +128,7 @@ window.FAM = (function(){
     const pay = isParent() ? owedLine() : '';
     return `<div class="ph"><div class="tt"><h1>Hi ${esc(firstN(me().name))}</h1><p>${isParent() && kids().length === 1 ? esc(firstN(k.name)) + ' · ' : ''}${day(t)}</p></div></div>${kidChips()}
       ${need.length ? `<div class="h2">Needs you <em>${need.length}</em></div><div class="card" style="border-left:3px solid var(--gold)">${need.join('')}</div>` : ''}
-      <div class="h2">Today</div><div class="card">${today.map(s => `<a class="it" href="#me/calendar"><span class="cal-t">${esc(s.s)}<small>${esc(s.e)}</small></span><span class="t"><b>${esc(sub(s.sub))}</b><small>${esc(s.tutor)}</small></span><span class="chev">›</span></a>`).join('') || '<p class="empty">No sessions today.</p>'}</div>
+      <div class="h2">Today</div><div class="card">${today.map(sesTell).join('') || '<p class="empty">No sessions today.</p>'}</div>
       ${k.changes.length ? `<div class="h2">Changes</div><div class="card">${k.changes.slice(0, 3).map(c => `<div class="it"><span class="f-mk bl">i</span><span class="t"><b>${esc(sub(c.sub))} → ${DAYN[c.to.day]} ${esc(c.to.s)}</b><small>was ${DAYN[c.from.day]} ${esc(c.from.s)}</small></span></div>`).join('')}</div>` : ''}
       ${packCard(k, true)}<div class="h2">Sessions</div><div class="card">${k.subjects.map(sesRow).join('') || '<p class="empty">No tuition this period.</p>'}</div>${pay}`;
   }
@@ -105,7 +146,8 @@ window.FAM = (function(){
     return `<div class="ph"><div class="tt"><h1>Practice</h1></div></div>${kidChips()}${packCard(k)}
       <div class="h2">Do today</div><div class="card">${doT.map(row).join('') || '<p class="empty">Nothing today. ✓</p>'}</div>
       ${inT.length ? `<div class="h2">Hand in</div><div class="card">${inT.map(x => `<div class="it"><span class="f-mk am">!</span><span class="t"><b>${esc(x.topic)} ${x.stage ? 'R' + x.stage : 'LD'}</b><small>${esc(sub(x.sub))} · ${x.status === 'late' ? 'late' : 'today'}</small></span></div>`).join('')}</div>` : ''}
-      ${out.length ? `<div class="h2">You have</div><div class="card">${out.map(row).join('')}</div>` : ''}`;
+      ${out.length ? `<div class="h2">You have</div><div class="card">${out.map(row).join('')}</div>` : ''}
+      ${(k.coming || []).length ? `<div class="h2">Coming up <em>assessments</em></div><div class="card">${k.coming.map(a => `<div class="it"><span class="f-day"><small>${DAYN[['Su','Mo','Tu','We','Th','Fr','Sa'][HD.parseISO(a.d).getDay()]]}</small><b>${HD.parseISO(a.d).getDate()}</b></span><span class="t"><b>${window.MARKS ? MARKS.ico(a.ak) + ' ' : ''}${esc((window.MARKS ? MARKS.TY[a.ak] : '') || 'Assessment')} · ${esc(sub(a.sub))}</b><small>${[a.s, (a.tp || []).join(', ')].filter(Boolean).map(esc).join(' · ')}</small></span></div>`).join('')}</div>` : ''}`;
   }
   /* ---------- the take-home pack: review sheets after the last session, by date ---------- */
   const ring = (n, N, sz = 60) => { const r = sz / 2 - 6, c = 2 * Math.PI * r, a = N ? c * n / N : 0;
@@ -139,22 +181,24 @@ window.FAM = (function(){
     const k = kid(); if(!k) return emptyNoKids();
     const t = T(), [y, m] = (ym || t.slice(0, 7)).split('-').map(Number), first = new Date(y, m - 1, 1), start = (first.getDay() + 6) % 7, nDays = new Date(y, m, 0).getDate();
     const iso = d => `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`, sel = route.args[2] || t;
-    const by = {}; k.week.forEach(s => (by[s.date] = by[s.date] || []).push({k:'s', s})); k.makeups.forEach(s => (by[s.d] = by[s.d] || []).push({k:'s', s:{date:s.d, s:s.s, e:s.e, sub:s.sub, tutor:s.tutor, mu:1}}));
+    const by = {}; k.week.forEach(s => (by[s.date] = by[s.date] || []).push({k:'s', s})); k.makeups.forEach(s => (by[s.d] = by[s.d] || []).push({k:'s', s:{date:s.d, s:s.s, e:s.e, sub:s.sub, tutor:s.tutor, mu:1, told:s.told}}));
     k.sras.forEach(x => { [x.doOn, x.due].filter(Boolean).forEach(d => (by[d] = by[d] || []).push({k:'g', x})); });
+    (k.coming || []).forEach(a => (by[a.d] = by[a.d] || []).push({k:'a', a}));
     const prev = new Date(y, m - 2, 1), next = new Date(y, m, 1), ymOf = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
     const L = by[sel] || [];
     return `<div class="ph"><div class="tt"><h1>Calendar</h1></div></div>${kidChips()}
       <div class="cal-nav"><a class="btn sm" href="#me/calendar/${ymOf(prev)}">‹</a><b>${['January','February','March','April','May','June','July','August','September','October','November','December'][m - 1]} ${y}</b><a class="btn sm" href="#me/calendar/${ymOf(next)}">›</a></div>
       <div class="card pad"><div class="f-cal">${['M','T','W','T','F','S','S'].map(x => `<span>${x}</span>`).join('')}${Array(start).fill('<span></span>').join('')}
-        ${Array.from({length: nDays}, (_, i) => { const d = iso(i + 1), E = by[d] || []; return `<a class="${d === sel ? 'on' : ''}" href="#me/calendar/${y}-${String(m).padStart(2, '0')}/${d}">${i + 1}<span>${E.filter(e => e.k === 's').slice(0, 3).map(() => '<i></i>').join('')}${E.some(e => e.k === 'g') ? '<i class="g"></i>' : ''}</span></a>`; }).join('')}</div></div>
-      <div class="h2">${day(sel)}</div><div class="card">${L.map(e => e.k === 's' ? `<div class="it"><span class="cal-t">${esc(e.s.s)}<small>${esc(e.s.e)}</small></span><span class="t"><b>${esc(sub(e.s.sub))}${e.s.mu ? ' · make-up' : ''}</b><small>${esc(e.s.tutor)}</small></span></div>`
+        ${Array.from({length: nDays}, (_, i) => { const d = iso(i + 1), E = by[d] || []; return `<a class="${d === sel ? 'on' : ''}" href="#me/calendar/${y}-${String(m).padStart(2, '0')}/${d}">${i + 1}<span>${E.filter(e => e.k === 's').slice(0, 3).map(() => '<i></i>').join('')}${E.some(e => e.k !== 's') ? '<i class="g"></i>' : ''}</span></a>`; }).join('')}</div></div>
+      <div class="h2">${day(sel)}</div><div class="card">${L.map(e => e.k === 's' ? sesTell(e.s)
+        : e.k === 'a' ? `<div class="it"><span class="cal-t">${esc(e.a.s || '')}</span><span class="t"><b>${esc((window.MARKS ? MARKS.TY[e.a.ak] : '') || 'Assessment')} · ${esc(sub(e.a.sub))}</b><small>${esc((e.a.tp || []).join(', '))}</small></span></div>`
         : `<div class="it"><span class="f-mk am">!</span><span class="t"><b>${esc(e.x.topic)} ${e.x.stage ? 'R' + e.x.stage : 'LD'}</b><small>${esc(sub(e.x.sub))} · ${e.x.doOn === sel ? 'do' : 'hand in'}</small></span></div>`).join('') || '<p class="empty">Nothing.</p>'}</div>
 `;
   }
   function progress(){
     const k = kid(); if(!k) return emptyNoKids();
     const B = window.MARKS ? MARKS.bySubject(k.marks || {}) : [], kOf = sb => (k.subjects.find(x => x.sub === sb) || {}).k;
-    const marks = B.length ? `<div class="h2">Marks <em>weekly assessments</em></div><div class="card">${B.map(x => { const kk = kOf(x.sub), tag = kk ? `a href="#me/subject/${encodeURIComponent(kk)}"` : 'div';
+    const marks = B.length ? `<div class="h2">Marks <em>assessments</em></div><div class="card">${B.map(x => { const kk = kOf(x.sub), tag = kk ? `a href="#me/subject/${encodeURIComponent(kk)}"` : 'div';
       return `<${tag} class="it"><span class="t"><b>${esc(sub(x.sub))}</b><small>${x.w.length ? x.w.length + ' marked' : 'SRAs only'}</small></span>${MARKS.spark(x.w)}${x.last != null ? `<span class="mk-big">${x.last}%${MARKS.change(x.diff)}</span>` : ''}</${tag.split(' ')[0]}>`; }).join('')}</div>` : '';
     return `<div class="ph"><div class="tt"><h1>${isParent() ? 'Sessions' : 'Progress'}</h1></div></div>${kidChips()}${marks}<div class="h2">Sessions <button class="btn sm" data-fhelp style="padding:2px 8px;border-radius:50%">?</button></div><div class="card">${k.subjects.map(sesRow).join('') || '<p class="empty">No tuition this period.</p>'}</div>`;
   }
@@ -163,7 +207,7 @@ window.FAM = (function(){
     const x = k.subjects.find(s => s.k === kk); if(!x) return `<p class="empty">Not found.</p>`;
     const L = k.sessions.filter(e => e.k === kk);
     return `${crumb('#me/progress', isParent() ? 'Sessions' : 'Progress')}<div class="ph"><div class="tt"><h1>${esc(sub(x.sub))}</h1><p>${esc(x.tutor)} · until ${dshort(x.b)}</p></div></div>
-      ${(M => M && (M.w.length || M.sra.length) ? `<div class="card pad"><b>Weekly assessments</b><p class="note" style="margin:0 0 4px">% each time</p>${MARKS.line(M)}</div>
+      ${(M => M && (M.w.length || M.sra.length) ? `<div class="card pad"><b>Assessments</b><p class="note" style="margin:0 0 4px">% each time</p>${MARKS.line(M)}${MARKS.avgs(M)}</div>
         <div class="card pad"><b>What ${isParent() ? 'they remember' : 'you remember'} (SRAs)</b><p class="note" style="margin:0 0 8px">% at each review of a topic</p>${MARKS.grid(M)}</div>` : '')(window.MARKS && MARKS.bySubject(k.marks || {}).find(m => m.sub === x.sub))}
       <div class="card pad"><div class="f-four"><div><b>${x.planned}</b><small>Planned</small></div><div><b>${x.had}</b><small>Had</small></div><div><b>${x.remaining}</b><small>Left</small></div><div><b>${x.owed}</b><small>Owed</small></div></div></div>
       <div class="h2">${x.times.map(t => `${DAYN[t.d]} ${t.s}`).join(' · ')}</div>
@@ -254,6 +298,8 @@ window.FAM = (function(){
     document.querySelectorAll('[data-fdone]').forEach(b => b.onclick = async () => { const on = !b.classList.contains('on'); b.classList.toggle('on', on);
       try{ await hub.api('family', {method:'POST', body: JSON.stringify({action:'done', id: b.dataset.fdone, done: on})}); const x = kids().flatMap(k => k.sras).find(s => s.id === b.dataset.fdone); if(x) x.done = on; write(CK, data); toast(on ? 'Done' : 'Not done'); if(x && x.pack) render(); }
       catch(e){ b.classList.toggle('on', !on); toast(e.message); } });
+    document.querySelectorAll('[data-ftell]').forEach(b => b.onclick = () => { const [d, sb, st] = b.dataset.ftell.split('|'); NT = {d, sub: sb, s: st, kind: 'abs', why: '', mins: 0, note: '', from: d, to: d}; tellSheet(); });
+    document.querySelectorAll('[data-funtell]').forEach(b => b.onclick = () => post({action:'unnotice', st: kid().key, id: b.dataset.funtell}, 'Undone'));
     document.querySelectorAll('[data-fpkall]').forEach(b => b.onclick = () => { packAll = true; render(); });
     document.querySelectorAll('[data-fself]').forEach(inp => inp.onchange = async () => { const id = inp.dataset.fself, v = inp.value.trim();
       const j = await post({action:'selfmark', id, sc: v}, v ? 'Saved' : 'Removed');

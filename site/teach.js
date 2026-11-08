@@ -46,6 +46,10 @@ window.TUT = (function(){
 .t-score{display:grid;grid-template-columns:1fr auto 1fr 56px;gap:8px;align-items:center}.t-score span{color:var(--muted)}.t-score b{color:var(--brand);font-size:17px;text-align:right}
 .t-marks{display:grid;grid-template-columns:1fr 78px 56px;gap:8px;align-items:center}.t-marks .nm{font-weight:700}.t-marks b{text-align:right;color:var(--brand)}
 .t-req{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:10px}
+.t-sl{width:28px;height:28px;border-radius:9px;display:grid;place-items:center;font-weight:900;flex:none}.t-sl.now{background:var(--rd-bg,rgba(180,35,24,.12));color:var(--rd)}.t-sl.watch{background:var(--am-bg);color:var(--am)}
+.t-slg{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.07em;padding:10px 0 2px}.t-slg.now{color:var(--rd)}.t-slg.watch{color:var(--am)}
+.t-tl{color:var(--am);font-weight:800}.t-tl.lt{color:var(--brand)}
+.t-told{background:var(--am-bg);color:var(--am);border-radius:12px;padding:9px 12px;margin-bottom:10px;font-weight:700;font-size:13px}
 .t-banner{display:flex;gap:12px;align-items:center;background:var(--am-bg);color:var(--am);border-radius:14px;padding:12px 14px;margin-bottom:14px;font-weight:700;font-size:13.5px;text-decoration:none}
 .t-banner b{display:block;color:var(--ink)}.t-banner.ok{background:var(--ok-bg);color:var(--ok)}
 .t-warn{background:var(--am-bg);color:var(--am);border-radius:12px;padding:12px;font-weight:700;font-size:13.5px;margin:0 0 12px}
@@ -82,7 +86,7 @@ window.TUT = (function(){
     if(loading) return loading;
     loading = (async () => {
       await flush();
-      try{ const j = await hub.api('tutor'); data = {cards: j.cards || [], entries: j.entries || [], classes: j.classes || [], reports: j.reports || [], avail: j.avail || [], acks: j.acks || {}, gone: j.gone || [], ackFrom: j.ackFrom || 0, calLink: j.calLink || '', makeups: j.makeups || [], reqs: j.reqs || {}, clashes: j.clashes || [], says: j.says || null, at: Date.now()}; write(CK, data); err = ''; }
+      try{ const j = await hub.api('tutor'); data = {cards: j.cards || [], entries: j.entries || [], classes: j.classes || [], reports: j.reports || [], avail: j.avail || [], acks: j.acks || {}, gone: j.gone || [], ackFrom: j.ackFrom || 0, calLink: j.calLink || '', makeups: j.makeups || [], reqs: j.reqs || {}, clashes: j.clashes || [], says: j.says || null, sradone: j.sradone || {}, notices: j.notices || [], at: Date.now()}; write(CK, data); err = ''; }
       catch(e){ err = navigator.onLine ? e.message : 'offline'; }
       loading = null; if(!form) render();
     })();
@@ -129,6 +133,10 @@ window.TUT = (function(){
   const timeOf = (it, d) => { const s = tStart(it, d), e = tEnd(it, d); return s ? `${s}–${e}` : 'time TBC'; };
   const sras = () => SRA.build(items(), live(), today());
   const stuOf = k => k.split('|')[0];
+  /* absence and late notices from students and parents (not undone) */
+  const tolds = () => ((data && data.notices) || []).filter(n => n && !n.x);
+  const noticeOf = (k, d) => tolds().find(n => n.k === k && n.d === d) || null;
+  const toldL = n => n.kind === 'late' ? `about ${n.mins} min late` : `absent · ${String(n.why || '').toLowerCase()}`;
   const itemOf = k => items().find(i => i.k === k);
   const short = n => { const p = String(n || '').split(' '); return p[0] + (p[1] ? ' ' + p[1][0] + '.' : ''); };
   const hm = ms => { const d = new Date(ms || 0); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
@@ -145,6 +153,10 @@ window.TUT = (function(){
   const tutorRole = () => me().role === 'tutor';
   const todayRep = () => (data.reports || []).find(r => r.d === today());
   const ATT = [['attended','On time'],['late','Late'],['absent','Absent'],['cancelled','Cancelled']];
+  /* assessment types (a 'w' entry's ak; none = Weekly) and the ones scheduled ahead (ty 'a') */
+  const ATY = [['w','Weekly'],['m','Monthly'],['t','Topical'],['k','Mock'],['p','Past paper']], atyL = k => (ATY.find(x => x[0] === (k || 'w')) || ATY[0])[1];
+  const scheduled = () => live().filter(e => e.ty === 'a');
+  const schedOpen = (keys, d) => { const done = new Set(live().filter(e => e.ty === 'w' && e.sch).map(e => e.sch)); return scheduled().filter(a => keys.includes(a.k) && !done.has(a.ag || a.id) && a.d >= addDays(d, -3) && a.d <= addDays(d, 1)); };
   const FMT = [['1i','1-to-1 in person'],['1o','1-to-1 online'],['gi','Group in person'],['go','Group online']];
   const FMTL = Object.fromEntries(FMT), ATTL = Object.fromEntries(ATT);
 
@@ -194,7 +206,7 @@ window.TUT = (function(){
     due.filter(it => !inCls.has(it.k)).forEach(it => g.push({href:'#teach/log/' + encodeURIComponent(it.k), b:`${tStart(it, dow) || ''} ${short(it.st)} · session not logged`.trim(), s:it.sub}));
     SRA.today(sras(), t).collect.forEach(x => g.push({href:'#teach/marks/' + ref(x), b:`${short(x.st)} · ${x.topic} ${x.label}`, s: x.status === 'late' ? 'Late · marks not entered' : 'SRA due back today · marks not entered'}));
     SRA.packs(sras(), t, 0).filter(p => !p.out && p.on <= t && p.on >= addDays(t, -3)).forEach(p => g.push({href:'#teach/sra/pack', b:`${short(p.st)} · take-home pack`, s:`${p.sub} · ${p.sheets.length} sheet${p.sheets.length === 1 ? '' : 's'} · ${p.on === t ? 'last session today' : 'last session ' + nice(p.on)} · not ticked as handed over`}));
-    pendingWa().filter(w => w.d < t).forEach(w => g.push({href:'#teach/wa/' + encodeURIComponent(w.id), b:`${w.name} · weekly assessment`, s:`Given ${nice(w.d)} · marks not entered`}));
+    pendingWa().filter(w => w.d < t).forEach(w => g.push({href:'#teach/wa/' + encodeURIComponent(w.id), b:`${w.name} · ${atyL(w.ak).toLowerCase()} assessment`, s:`Given ${nice(w.d)} · marks not entered`}));
     return g;
   }
   /* weekly assessments given and waiting for marks, one per class sitting or student */
@@ -202,7 +214,7 @@ window.TUT = (function(){
     const W = live().filter(e => e.ty === 'w'), by = new Map();
     W.forEach(e => { const g = e.wid || e.id; if(!by.has(g)) by.set(g, []); by.get(g).push(e); });
     return [...by.entries()].filter(([g, G]) => G.every(x => (x.sc == null || x.sc === '') && !x.abs)).map(([g, G]) => { const cls = G[0].cls && (data.classes || []).find(c => c.id === G[0].cls);
-      return {id:g, G, d:G[0].d, sub:G[0].sub, tp:G[0].tp || [], mx:G[0].mx || '', name: cls ? cls.name : G.length > 1 ? G.map(x => short(x.st)).join(', ') : short(G[0].st)}; }).sort((a, b) => a.d.localeCompare(b.d));
+      return {id:g, G, d:G[0].d, sub:G[0].sub, tp:G[0].tp || [], mx:G[0].mx || '', ak:G[0].ak || 'w', name: cls ? cls.name : G.length > 1 ? G.map(x => short(x.st)).join(', ') : short(G[0].st)}; }).sort((a, b) => a.d.localeCompare(b.d));
   }
 
   /* ---------- small pieces ---------- */
@@ -216,7 +228,7 @@ window.TUT = (function(){
   const PEN = () => ic('edit', 16);
 
   /* ---------- pages ---------- */
-  let form = null, editing = null, wform = null, mform = null, rform = null;
+  let form = null, editing = null, wform = null, mform = null, rform = null, aform = null;
   /* ---------- the tutor's schedule: new or changed cards, the calendar, unavailable times, the phone link ---------- */
   const myName = () => { try{ return (hub.session().me || {}).name || ''; }catch(e){ return ''; } };
   const DN = {Mo:'Mon',Tu:'Tue',We:'Wed',Th:'Thu',Fr:'Fri',Sa:'Sat',Su:'Sun'}, DORDER = ['Mo','Tu','We','Th','Fr','Sa','Su'];
@@ -258,6 +270,7 @@ window.TUT = (function(){
     notices().forEach(n => need.push({t:`${n.kind === 'new' ? 'New' : 'Changed'}: ${n.card.student}`, s:n.lines[0] || '', href:'#teach'}));
     (data.clashes || []).filter(c => !c.res || c.res.s !== 'together').forEach(c => need.push({t:`Clash · ${SCHED.DAYN[c.day]} ${c.members[0].s}`, s:c.members.map(m => m.st).join(', '), href:'#teach'}));
     (data.makeups || []).filter(m => m.status !== 'asked' && m.decidedAt && Date.now() - m.decidedAt < 7 * 864e5).forEach(m => info.push({t:`Make-up ${m.status === 'ok' ? 'confirmed' : 'declined'}`, s:`${m.st} · ${nice(m.d)} ${m.s}`, at:m.decidedAt, href:'#teach/makeups'}));
+    tolds().filter(n => n.d >= today() && Date.now() - n.at < 7 * 864e5).forEach(n => info.push({t:`${short(n.name)}: ${n.kind === 'late' ? `about ${n.mins} min late` : "can't come"}`, s:`${n.sub} · ${n.d === today() ? 'today' : nice(n.d)} ${n.s}${n.why ? ' · ' + n.why.toLowerCase() : ''}`, at:n.at, href:'#teach'}));
     Object.values(data.reqs || {}).filter(v => v && v.at && Date.now() - v.at < 7 * 864e5).forEach(v => info.push({t:`${v.item}: ${v.s}`, s:v.note || '', at:v.at, href:'#teach'}));
     (data.entries || []).filter(e => e && e.cf && e.cf.agreed && e.cf.at && Date.now() - e.cf.at < 7 * 864e5 && SCHED.nk(e.tutor) === SCHED.nk(myName())).forEach(e => info.push({t:`${short(e.st)} agreed`, s:`${e.sub} · ${nice(e.d)}`, at:e.cf.at, href:'#teach'}));
     return {need, info};
@@ -317,7 +330,7 @@ window.TUT = (function(){
       return Object.assign(ev, {log: lg, clash: clash.has(ev) || !!un, ck: un ? 'unavailable' : clash.get(ev) || '', un}); });
   }
   const evRow = ev => { const st = ev.log ? (ev.log.a === 'absent' ? 'absent' : ev.log.a === 'cancelled' ? 'cancelled' : 'had') : '';
-    return `<a class="it" href="${ev.mu ? '#teach/makeups' : '#teach/log/' + encodeURIComponent(ev.k)}" style="${ev.clash ? 'border-left:3px solid ' + (ev.ck === 'group' ? 'var(--am)' : 'var(--rd)') : ev.mu && ev.mu.status === 'asked' ? 'border-left:3px dashed var(--am)' : ''}"><span class="cal-t">${ev.s || '?'}<small>${ev.e || ''}</small></span><span class="t"><b style="${st === 'absent' || st === 'cancelled' ? 'text-decoration:line-through;color:var(--muted)' : ''}">${esc(ev.student)} · ${esc(ev.sub)}</b><small>${ev.mu ? (ev.mu.status === 'asked' ? 'Make-up · waiting for LHQ' : 'Make-up · confirmed') : esc(ev.where || '')}${st ? ' · ' + {had:'✓ logged', absent:'student absent', cancelled:'cancelled'}[st] : ''}${ev.clash ? ' · <span style="color:var(--rd);font-weight:700">' + (ev.un ? 'in your unavailable time' : 'clash') + '</span>' : ''}</small></span><span class="chev">›</span></a>`; };
+    return `<a class="it" href="${ev.mu ? '#teach/makeups' : '#teach/log/' + encodeURIComponent(ev.k)}" style="${ev.clash ? 'border-left:3px solid ' + (ev.ck === 'group' ? 'var(--am)' : 'var(--rd)') : ev.mu && ev.mu.status === 'asked' ? 'border-left:3px dashed var(--am)' : ''}"><span class="cal-t">${ev.s || '?'}<small>${ev.e || ''}</small></span><span class="t"><b style="${st === 'absent' || st === 'cancelled' ? 'text-decoration:line-through;color:var(--muted)' : ''}">${esc(ev.student)} · ${esc(ev.sub)}</b><small>${ev.mu ? (ev.mu.status === 'asked' ? 'Make-up · waiting for LHQ' : 'Make-up · confirmed') : esc(ev.where || '')}${st ? ' · ' + {had:'✓ logged', absent:'student absent', cancelled:'cancelled'}[st] : ''}${!st && ev.k && noticeOf(ev.k, ev.date) ? ` · <span class="t-tl">${esc(toldL(noticeOf(ev.k, ev.date)))}</span>` : ''}${ev.clash ? ' · <span style="color:var(--rd);font-weight:700">' + (ev.un ? 'in your unavailable time' : 'clash') + '</span>' : ''}</small></span><span class="chev">›</span></a>`; };
   function calPage(view, d){
     calView = ['day','week','month'].includes(view) ? view : calView; calDate = /^\d{4}-\d{2}-\d{2}$/.test(d || '') ? d : (calDate || today());
     const t = today(), go = (v, x) => `#teach/cal/${v}/${x}`;
@@ -408,6 +421,7 @@ window.TUT = (function(){
     if(sub === 'log') return logPage(decodeURIComponent(a1 || ''), a2);
     if(sub === 'marks') return marksPage(!a1 ? '' : a1.startsWith('edit:') ? a1 : a2 ? [a1, a2, a3].map(encodeURIComponent).join('/') : 'stu:' + a1);
     if(sub === 'wa') return waPage(decodeURIComponent(a1 || ''));
+    if(sub === 'assess') return assessPage(decodeURIComponent(a1 || ''));
     if(sub === 'sra') return sraPage(a1 || 'today');
     if(sub === 'report') return reportPage();
     if(sub === 'classes') return classesPage();
@@ -423,7 +437,7 @@ window.TUT = (function(){
     mk:{t:'Make-ups', d:'Owed for absences and cancellations', f:() => { const o = items().reduce((a, it) => a + sessions(it).owed, 0); return {href:'#teach/makeups', v:`${o} <small>owed</small>`, s: o ? 'Tap to book times' : 'None owed', warn: o}; }},
     sra:{t:'SRAs today', d:'To give and to collect today', f:() => { const T = SRA.today(sras(), today()); return {href:'#teach/sra', v:`${T.give.length} <small>to give</small>`, s:`${T.collect.length} to collect`}; }},
     collect:{t:'SRAs to collect', d:'Due back, marks still to enter', f:() => { const n = SRA.today(sras(), today()).collect.length; return {href:'#teach/sra', v:`${n} <small>due back</small>`, s:'marks still to enter', warn: n}; }},
-    wam:{t:'Assessments to mark', d:'Weekly assessments given, marks not entered', f:() => { const P = pendingWa(); return {href:'#teach/wa', v:`${P.length} <small>waiting</small>`, s: P.length ? 'oldest given ' + nice(P[0].d) : 'all marked', warn: P.some(w => w.d < today())}; }},
+    wam:{t:'Assessments to mark', d:'Given, marks not entered', f:() => { const P = pendingWa(); return {href:'#teach/wa', v:`${P.length} <small>waiting</small>`, s: P.length ? 'oldest given ' + nice(P[0].d) : 'all marked', warn: P.some(w => w.d < today())}; }},
     hours:{t:'Hours this month', d:'From the sessions you logged', f:() => { const m = today().slice(0, 7), seen = new Set(); let h = 0;
       live().filter(e => e.ty === 's' && taught(e.a) && (e.d || '').startsWith(m)).forEach(e => { const g = e.grp || e.id; if(seen.has(g)) return; seen.add(g); h += hoursOf(e); });
       return {href:'#teach/report', v:`${Math.round(h * 10) / 10} <small>h taught</small>`, s:'from logged sessions'}; }},
@@ -457,6 +471,20 @@ window.TUT = (function(){
     const href = x.kind === 's' ? '#teach/log/' + encodeURIComponent('edit:' + x.id) : x.kind === 'r' ? '#teach/marks/' + encodeURIComponent('edit:' + x.id) : x.kind === 'w' ? '#teach/wa/' + encodeURIComponent('edit:' + x.id) : '#teach/sra';
     return tap ? `<a class="it" href="${href}">${inner}<span class="chev">${ic('chev',16,2)}</span></a>` : `<div class="it">${inner}</div>`; }).join('')}</div>` : '<div class="card pad"><p class="empty" style="margin:0">Nothing logged yet today.</p></div>';
   const gapCard = G => G.length ? `<div class="card">${G.map(x => `<a class="it" href="${x.href}"><span class="t"><b>${esc(x.b)}</b><small>${esc(x.s)}</small></span><span class="tag am">Log</span></a>`).join('')}</div>` : '';
+  /* students slipping: Act now and Watch (attn.js, the same rules LHQ uses) */
+  function slipBlock(){
+    if(!window.ATTN) return '';
+    const L = ATTN.slipping(items().map(it => ({k: it.k, st: it.st, sub: it.sub, pa: it.pa})), live(), today()); if(!L.length) return '';
+    const row = x => `<a class="it" href="#teach/student/${encodeURIComponent(x.k)}"><span class="t-sl ${x.level}">${x.level === 'now' ? '!' : '↘'}</span><span class="t"><b>${esc(x.st)} · ${esc(x.what)}</b><small>${esc(x.sub)} · ${esc(x.detail)}</small></span><span class="chev">›</span></a>`;
+    const now = L.filter(x => x.level === 'now'), w = L.filter(x => x.level === 'watch');
+    return `<div class="h2">Needs attention <em>${L.length}</em></div><div class="card">${now.length ? `<div class="t-slg now">Act now</div>${now.map(row).join('')}` : ''}${w.length ? `<div class="t-slg watch">Watch</div>${w.map(row).join('')}` : ''}</div>`;
+  }
+  /* absent or late: what students and parents told LHQ, today and the next 7 days */
+  function toldBlock(){
+    const t = today(), L = tolds().filter(n => n.d >= t && n.d <= addDays(t, 7)).sort((a, b) => (a.d + a.s).localeCompare(b.d + b.s));
+    if(!L.length) return '';
+    return `<div class="h2">Absent or late <em>${L.length}</em></div><div class="card">${L.map(n => `<a class="it" href="#teach/log/${encodeURIComponent(n.k)}"><span class="cal-t">${n.d === t ? esc(n.s) : WEEKDAY[HD.parseISO(n.d).getDay()].slice(0, 3)}<small>${n.d === t ? 'today' : nice(n.d)}</small></span><span class="t"><b>${esc(n.name)}</b><small>${esc(n.sub)} · <span class="t-tl${n.kind === 'late' ? ' lt' : ''}">${esc(toldL(n))}</span>${n.note ? ' · “' + esc(n.note) + '”' : ''}</small></span><span class="chev">›</span></a>`).join('')}</div>`;
+  }
   function home(){
     const t = today(), rep = todayRep(), G = gaps(), L = dayLogs(t), ed = editing === 'teach', q = read(QK, []).length;
     const acts = ed ? `<div class="acts"><button class="btn n" type="button" data-tedit="">Done</button></div>` : `<div class="acts"><button class="btn" type="button" data-tedit="teach" title="Edit cards" aria-label="Edit cards">${PEN()}</button>${logBtn()}</div>`;
@@ -464,7 +492,7 @@ window.TUT = (function(){
       (ed ? '<p class="note" style="margin:-6px 0 12px">Move, remove or add cards.</p>'
         : rep ? `<a class="t-banner ok" href="#teach/report"><span><b>Today's report is in</b>Sent at ${hm(rep.sent)}. You can still log; changes show as edited.</span></a>`
         : `<a class="t-banner" href="#teach/report"><span><b>Daily report due before you leave</b>Reminder between 4 and 5 pm${G.length ? ` · ${G.length} thing${G.length > 1 ? 's' : ''} still to log` : ''}</span></a>`) +
-      (ed ? '' : answersBlock() + noticesBlock() + clashesBlock()) + cardsBlock() + (ed ? '' : saysBlock() + reqsBlock() + `
+      (ed ? '' : answersBlock() + toldBlock() + slipBlock() + noticesBlock() + clashesBlock() + comingBlock()) + cardsBlock() + (ed ? '' : saysBlock() + reqsBlock() + `
       <div class="h2">Logged today <em>${L.length}</em></div>${timeline(L)}
       ${G.length ? `<div class="h2">Still to log <em>${G.length}</em></div>${gapCard(G)}` : ''}
       <div class="card">${[['#teach/cal','clock','Calendar','Your week from your tuition cards · clashes · times you can\'t teach'],['#teach/students','users','My students','Sessions had and remaining, make-ups'],['#teach/sra','restore','SRA tracker','Give, collect and print · next 7 days · by student'],['#teach/classes','users','Classes',`${(data.classes || []).length} official class${(data.classes || []).length === 1 ? '' : 'es'}`]].concat(tutorRole() ? [] : [['#teach/report','list','Daily report', rep ? 'Sent today' : 'Due before you leave']]).map(([h, i, b, s]) => `<a class="it" href="${h}"><span class="ico">${ic(i,18)}</span><span class="t"><b>${b}</b><small>${s}</small></span><span class="chev">${ic('chev',16,2)}</span></a>`).join('')}</div>`);
@@ -478,7 +506,7 @@ window.TUT = (function(){
       (I.length ? `<div class="card">${I.map(it => { const S = sessions(it); return `<a class="it" href="#teach/student/${encodeURIComponent(it.k)}" style="align-items:flex-start"><span class="t"><b>${esc(it.st)}</b><small>${esc(it.sub)} · ${S.had} of ${S.planned || '?'} had · ${S.remaining} left${S.owed ? ` · ${S.owed} make-up${S.owed > 1 ? 's' : ''} owed` : ''}</small>${bar(S)}</span>${S.behind ? `<span class="tag am">${S.behind} behind</span>` : '<span class="tag ok">On track</span>'}</a>`; }).join('')}</div><p class="note">Dark mark: where they should be today.</p>`
         : '<p class="empty">No students yet. They appear when LHQ puts you on a tuition card.</p>');
   }
-  const SECS = {ses:'Sessions and make-ups', sra:'SRA scores by review', wa:'Weekly assessments', logs:'Recent logs', topics:'Topics finished', time:'Timetable'};
+  const SECS = {ses:'Sessions and make-ups', sra:'SRA scores by review', wa:'Assessments', logs:'Recent logs', topics:'Topics finished', time:'Timetable'};
   function studentPage(k){
     const it = itemOf(k); if(!it) return backHome() + '<p class="empty">That student isn\'t on your tuition cards.</p>';
     const S = sessions(it), ed = editing === 'tstudent', on = (myCards('tstudent') || ['ses','sra','wa','time']).filter(x => SECS[x]);
@@ -493,7 +521,7 @@ window.TUT = (function(){
       sra: () => `<div class="card pad" style="margin:0"><div class="cap">SRA scores by review <small style="text-transform:none;letter-spacing:0">· %</small></div>
         ${byT.size ? `<div class="t-sgrid"><span></span>${['LD','R1','R2','R3','R4','R5'].map(h => `<span class="h">${h}</span>`).join('')}${[...byT.entries()].map(([t, X]) => `<span class="t">${esc(t)}</span>${[0,1,2,3,4,5].map(i => cell(X.find(x => x.stage === i))).join('')}`).join('')}</div>
         <p class="note">Lower than the last review: the topic is fading.</p>` : '<p class="empty" style="margin:0">No topics finished yet.</p>'}</div>`,
-      wa: () => `<div class="card pad" style="margin:0"><div class="cap">Weekly assessments</div>${W.length ? `<div style="display:flex;align-items:flex-end;gap:8px;height:90px">${W.map((e, i) => { const p = Math.round(e.sc / e.mx * 100); return `<div style="flex:1;text-align:center;font-size:11.5px;font-weight:800;color:var(--muted)" title="${nice(e.d)}"><div style="height:${Math.max(4, p * .7)}px;background:${i === W.length - 1 ? 'var(--gold)' : 'var(--bl-bg)'};border-radius:6px 6px 2px 2px;margin-bottom:4px"></div>${p}%</div>`; }).join('')}</div>` : '<p class="empty" style="margin:0">No marks yet.</p>'}</div>`,
+      wa: () => `<div class="card pad" style="margin:0"><div class="cap">Assessments</div>${W.length ? `<div style="display:flex;align-items:flex-end;gap:8px;height:90px">${W.map((e, i) => { const p = Math.round(e.sc / e.mx * 100); return `<div style="flex:1;text-align:center;font-size:11.5px;font-weight:800;color:var(--muted)" title="${nice(e.d)}"><div style="height:${Math.max(4, p * .7)}px;background:${i === W.length - 1 ? 'var(--gold)' : 'var(--bl-bg)'};border-radius:6px 6px 2px 2px;margin-bottom:4px"></div>${p}%</div>`; }).join('')}</div>` : '<p class="empty" style="margin:0">No marks yet.</p>'}</div>`,
       logs: () => { const E = live().filter(e => e.k === k && ['s','r','w'].includes(e.ty)).sort((a, b) => (b.d || '').localeCompare(a.d || '') || (b.at || 0) - (a.at || 0)).slice(0, 8);
         return `<div class="card pad" style="margin:0"><div class="cap">Recent logs</div>${E.map(e => `<div class="it"><span class="t"><b>${nice(e.d)} · ${e.ty === 's' ? 'Session · ' + (ATTL[e.a] || e.a) : e.ty === 'r' ? 'SRA ' + (e.h === 'm' ? 'not handed in' : 'marks ' + (e.sc ?? '') + '/' + (e.mx ?? '')) : 'Weekly assessment' + (e.sc != null && e.sc !== '' ? ' ' + e.sc + '/' + e.mx : ' given')}</b><small>${esc(e.ty === 's' ? [(e.tp || []).join(', '), cfText([e])].filter(Boolean).join(' · ') : e.ty === 'r' ? e.tk + ' · ' + SRA.label(e.rv) : (e.tp || []).join(', '))}</small></span></div>`).join('') || '<p class="empty" style="margin:0">Nothing logged yet.</p>'}</div>`; },
       topics: () => `<div class="card pad" style="margin:0"><div class="cap">Topics finished</div>${byT.size ? `<p style="margin:0;font-weight:700">${[...byT.keys()].map(esc).join(' · ')}</p>` : ''}<p class="note">${byT.size} of ${it.topics.length || '?'} topics</p></div>`,
@@ -515,15 +543,15 @@ window.TUT = (function(){
     const t = today(), dow = DAYC[HD.parseISO(t).getDay()], {cls, M} = key === 'group' ? {M: []} : members(key);
     const it0 = M[0], online = /online/i.test((cls && cls.mode) || (it0 && it0.where) || '');
     return {key, grp: 'g' + uid(), ids:{}, d: t, keys: M.map(m => m.k), cls: cls ? cls.id : '', fmt: (cls || key === 'group') ? (online ? 'go' : 'gi') : (online ? '1o' : '1i'),
-      t1: it0 ? tStart(it0, dow) : '', t2: it0 ? tEnd(it0, dow) : '', att: Object.fromEntries(M.map(m => [m.k, 'attended'])), mk: 0, tp: [], fin: [], q: '', open: false,
-      give: SRA.build(items(), live(), t).filter(x => M.some(m => m.k === x.k) && x.status === 'give').map(ref), had: [], gb: 0, ga: 0, wa: 0, waTp: [], waMx: '', waOpen: false, wq: '', nt: '', n: ''};
+      t1: it0 ? tStart(it0, dow) : '', t2: it0 ? tEnd(it0, dow) : '', att: Object.fromEntries(M.map(m => { const n = noticeOf(m.k, t); return [m.k, n ? (n.kind === 'late' ? 'late' : 'absent') : 'attended']; })), mk: 0, tp: [], fin: [], q: '', open: false,
+      give: SRA.build(items(), live(), t).filter(x => M.some(m => m.k === x.k) && x.status === 'give').map(ref), had: [], gb: 0, ga: 0, wa: 0, waTp: [], waMx: '', waOpen: false, wq: '', nt: '', n: '', waAk: 'w', waSch: ((schedOpen(M.map(m => m.k), t)[0] || {}).ag || '')};
   }
   function editForm(grp){
     const E = live().filter(e => e.ty === 's' && (e.grp || e.id) === grp); if(!E.length) return null; const e = E[0];
     const G = live().filter(x => x.ty === 'g' && x.grp === grp), W = live().filter(x => x.ty === 'w' && x.grp === grp);
     return {key: e.cls ? 'class:' + e.cls : E.length > 1 ? 'group' : e.k, grp, edit: true, ids: Object.fromEntries(E.map(x => [x.k, x.id])), d: e.d, keys: E.map(x => x.k), cls: e.cls || '', fmt: e.fmt || '1i', t1: e.t1 || '', t2: e.t2 || '',
       att: Object.fromEntries(E.map(x => [x.k, x.a])), mk: e.mk || 0, tp: e.tp || [], fin: e.fin || [], q: '', open: false, give: G.map(g => [g.k, g.tk, g.rv].map(encodeURIComponent).join('/')), had: G.map(g => g.id), gIds: Object.fromEntries(G.map(g => [[g.k, g.tk, g.rv].map(encodeURIComponent).join('/'), g.id])),
-      gb: e.gb || 0, ga: e.ga || 0, wa: W.length ? 1 : 0, waTp: (W[0] || {}).tp || [], waMx: (W[0] || {}).mx || '', wIds: Object.fromEntries(W.map(x => [x.k, x.id])), waOpen: false, wq: '', nt: e.nt || '', n: e.n || ''};
+      gb: e.gb || 0, ga: e.ga || 0, wa: W.length ? 1 : 0, waTp: (W[0] || {}).tp || [], waMx: (W[0] || {}).mx || '', waAk: (W[0] || {}).ak || 'w', waSch: (W[0] || {}).sch || '', wIds: Object.fromEntries(W.map(x => [x.k, x.id])), waOpen: false, wq: '', nt: e.nt || '', n: e.n || ''};
   }
   function topicPicker(f, key, openKey, qKey, label){
     const M = f.keys.map(itemOf).filter(Boolean), E = live().filter(e => f.keys.includes(e.k));
@@ -563,6 +591,7 @@ window.TUT = (function(){
         <div style="margin-top:8px">${tick('mk', f.mk, 'This was a make-up session')}</div>
         <div class="r2" style="margin-top:14px"><label class="f" style="margin:0"><span>Date</span><input class="in" type="date" data-tin="d" value="${f.d}" max="${today()}"></label><span></span></div>
         <div class="r2" style="margin-top:10px"><label class="f" style="margin:0"><span>Started</span><input class="in" type="time" data-tin="t1" value="${esc(f.t1)}"></label><label class="f" style="margin:0"><span>Finished</span><input class="in" type="time" data-tin="t2" value="${esc(f.t2)}"></label></div></div>
+      ${M.map(m => { const n = noticeOf(m.k, f.d); return n ? `<div class="t-told">${esc(short(m.st))} · told ${hm(n.at)} · ${esc(toldL(n))}${n.note ? ` · “${esc(n.note)}”` : ''}</div>` : ''; }).join('')}
       <div class="card pad"><div class="cap">Attendance</div><div class="t-att"><span></span>${ATT.map(a => `<span class="hd">${a[1]}</span>`).join('')}
         ${M.map(m => `<span class="nm">${esc(short(m.st))}</span>${ATT.map(([v, l]) => `<button type="button" role="radio" aria-label="${esc(short(m.st))} ${l}" aria-checked="${f.att[m.k] === v}" class="${f.att[m.k] === v ? 'on' : ''}" data-tset="att.${esc(m.k)}" data-v="${v}"><span class="t-ind c"></span></button>`).join('')}`).join('')}</div>
         ${M.some(m => !taught(f.att[m.k])) ? '<p class="note">Absent or cancelled: a make-up is owed.</p>' : ''}</div>
@@ -571,9 +600,11 @@ window.TUT = (function(){
         ${f.tp.map(t => `<div class="t-pk"><div class="row"><span>${esc(t)}</span><button class="t-x" type="button" aria-label="Remove ${esc(t)}" data-ttog="tp:${esc(t)}">×</button></div><div style="margin-top:8px">${tick('fin:' + t, f.fin.includes(t), 'Finished this topic', f.fin.includes(t) ? 'Starts its SRAs: today, then 1, 3, 7, 14 days and a month' : '')}</div></div>`).join('')}</div>
       <div class="card pad"><div class="cap">SRAs handed out <small style="text-transform:none;letter-spacing:0">· from the SRA tracker</small></div>${sraGroups(f)}</div>
       <div class="card pad lm"><div class="cap">Guide</div><div class="t-opts">${tick('gb', f.gb, 'Guide handed before the session')}${tick('ga', f.ga, 'Guide handed after the session')}</div></div>
-      <div class="card pad lm"><div class="cap">Weekly assessment</div>${tick('wa', f.wa, 'Weekly assessment given', f.wa ? 'Enter the marks later: + Log › Weekly assessment marks' : '')}
-        ${f.wa ? `<div style="margin-top:12px"><label class="f" style="margin-bottom:6px"><span>Topics tested (optional now)</span></label>${topicPicker(f, 'waTp', 'waOpen', 'wq', 'Choose topics')}${f.waTp.length ? `<p class="note">${f.waTp.map(esc).join(', ')}</p>` : ''}
-          <label class="f" style="margin:12px 0 0"><span>Marked out of (optional now)</span><input class="in" inputmode="decimal" data-tin="waMx" value="${esc(f.waMx)}" placeholder="e.g. 40"></label></div>` : ''}</div>` : ''}
+      <div class="card pad lm"><div class="cap">Assessment</div>${tick('wa', f.wa, 'Assessment given')}
+        ${f.wa ? (SO => `${SO.length ? `<div class="cap" style="margin-top:12px">Which</div>${one('waSch', SO.map(a => [a.ag || a.id, `${atyL(a.ak)} · ${(a.tp || []).map(esc).join(', ') || esc(a.sub)}<small>${nice(a.d)}${a.s ? ' ' + a.s : ''}</small>`]).concat([['', 'Another one']]), f.waSch || '')}` : ''}
+          ${f.waSch ? '' : `<div class="cap" style="margin-top:12px">Type</div>${one('waAk', ATY, f.waAk || 'w', 'g2')}
+          <div style="margin-top:12px"><label class="f" style="margin-bottom:6px"><span>Topics</span></label>${topicPicker(f, 'waTp', 'waOpen', 'wq', 'Choose topics')}${f.waTp.length ? `<p class="note">${f.waTp.map(esc).join(', ')}</p>` : ''}
+          <label class="f" style="margin:12px 0 0"><span>Out of</span><input class="in" inputmode="decimal" data-tin="waMx" value="${esc(f.waMx)}" placeholder="e.g. 40"></label></div>`}`)(schedOpen(f.keys, f.d)) : ''}</div>` : ''}
       <div class="card pad lm"><label class="f"><span>Note for LHQ (optional)</span><textarea class="in" data-tin="nt" rows="2" style="min-height:0;height:72px">${esc(f.nt)}</textarea></label>
         <label class="f" style="margin:0"><span>Line for the parent (optional)</span><textarea class="in" data-tin="n" rows="2" maxlength="140" style="min-height:0;height:72px" placeholder="e.g. Much more confident with mole calculations this week.">${esc(f.n)}</textarea></label></div>
       <button class="lean-more" type="button" data-leanmore>+ More: guide, assessment, notes</button>
@@ -588,6 +619,7 @@ window.TUT = (function(){
     M.forEach(m => { const a = f.att[m.k] || 'attended', ok = taught(a);
       const e = {id: f.ids[m.k] || uid(), ty:'s', k:m.k, st:m.st, sub:m.sub, d:f.d, a, md, fmt:f.fmt, grp:f.grp};
       if(f.t1) e.t1 = f.t1; if(f.t2) e.t2 = f.t2; if(f.cls) e.cls = f.cls; if(f.mk) e.mk = 1;
+      const tn = noticeOf(m.k, f.d); if(tn && ((tn.kind === 'abs' && a === 'absent') || (tn.kind === 'late' && a === 'late'))) e.told = tn.id; else delete e.told;
       if(ok){ e.tp = f.tp.slice(); if(f.fin.length) e.fin = f.fin.filter(t => f.tp.includes(t)); if(f.gb) e.gb = 1; if(f.ga) e.ga = 1; }
       if(f.nt) e.nt = f.nt; if(f.n) e.n = f.n; list.push(e); });
     if(f.edit) Object.entries(f.ids).forEach(([k, id]) => { if(!f.keys.includes(k)){ const o = live().find(x => x.id === id); if(o) list.push(Object.assign({}, o, {x:1})); } });
@@ -602,7 +634,8 @@ window.TUT = (function(){
     // weekly assessment given: waits for marks
     const wIds = f.wIds || {};
     if(f.wa) M.filter(m => taught(f.att[m.k])).forEach(m => { const o = live().find(x => x.id === wIds[m.k]) || {};
-      list.push(Object.assign({}, o, {id: wIds[m.k] || uid(), ty:'w', k:m.k, st:m.st, sub:m.sub, d:f.d, tp:f.waTp.slice(), mx:f.waMx, wid:f.grp, grp:f.grp}, f.cls ? {cls:f.cls} : {})); });
+      const sa = f.waSch ? scheduled().find(a => (a.ag || a.id) === f.waSch && a.k === m.k) || scheduled().find(a => (a.ag || a.id) === f.waSch) : null;
+      list.push(Object.assign({}, o, {id: wIds[m.k] || uid(), ty:'w', k:m.k, st:m.st, sub:m.sub, d:f.d, tp: sa ? (sa.tp || []).slice() : f.waTp.slice(), mx: sa ? (sa.mx || '') : f.waMx, ak: sa ? (sa.ak || 'w') : (f.waAk || 'w'), wid:f.grp, grp:f.grp}, sa ? {sch: f.waSch} : {}, f.cls ? {cls:f.cls} : {})); });
     else Object.values(wIds).forEach(id => { const o = live().find(x => x.id === id); if(o && (o.sc == null || o.sc === '')) list.push(Object.assign({}, o, {x:1})); });
     const fins = list.filter(e => e.ty === 's').reduce((a, e) => a + (e.fin || []).length, 0) ? f.fin.length : 0, gave = list.filter(e => e.ty === 'g' && !e.x && !(f.gIds && Object.values(f.gIds).includes(e.id))).length;
     form = null;
@@ -642,33 +675,67 @@ window.TUT = (function(){
     const P = pendingWa(), I = items(), C = data.classes || [];
     if(!wform){
       if(v.startsWith('edit:')){ const id = v.slice(5), G = live().filter(e => e.ty === 'w' && (e.wid || e.id) === id); if(!G.length) return backHome() + '<p class="empty">That log isn\'t here any more.</p>';
-        wform = {pend: id, edit: true, key: G[0].cls ? 'class:' + G[0].cls : G[0].k, keys: G.map(x => x.k), ids: Object.fromEntries(G.map(x => [x.k, x.id])), tp: G[0].tp || [], d: G[0].d, mx: G[0].mx || '', marks: Object.fromEntries(G.map(x => [x.k, x.sc ?? ''])), abs: Object.fromEntries(G.map(x => [x.k, !!x.abs])), open: false, q: ''}; }
-      else { const w = P.find(x => x.id === v); wform = w ? fromPending(w) : {pend: P.length ? '' : 'new', key: '', keys: [], ids: {}, tp: [], d: today(), mx: '', marks: {}, abs: {}, open: false, q: ''}; }
+        wform = {pend: id, edit: true, key: G[0].cls ? 'class:' + G[0].cls : G[0].k, keys: G.map(x => x.k), ids: Object.fromEntries(G.map(x => [x.k, x.id])), tp: G[0].tp || [], d: G[0].d, mx: G[0].mx || '', ak: G[0].ak || 'w', marks: Object.fromEntries(G.map(x => [x.k, x.sc ?? ''])), abs: Object.fromEntries(G.map(x => [x.k, !!x.abs])), open: false, q: ''}; }
+      else { const w = P.find(x => x.id === v); wform = w ? fromPending(w) : {pend: P.length ? '' : 'new', key: '', keys: [], ids: {}, tp: [], d: today(), mx: '', ak: 'w', marks: {}, abs: {}, open: false, q: ''}; }
     }
     const f = wform, cls = f.key.startsWith('class:') ? C.find(c => c.id === f.key.slice(6)) : null;
-    const pick = !f.edit && P.length ? `<div class="card pad"><div class="cap">Which assessment</div><div class="t-opts">${P.map(w => `<button type="button" role="radio" aria-checked="${f.pend === w.id}" class="t-opt${f.pend === w.id ? ' on' : ''}" data-twpick="${esc(w.id)}"><span class="t-ind c"></span><span class="tx">${esc(w.name)} · ${esc(w.sub)}<small>Given ${nice(w.d)} · ${w.tp.map(esc).join(', ') || 'topics not set'} · marks not entered</small></span></button>`).join('')}
-      <button type="button" role="radio" aria-checked="${f.pend === 'new'}" class="t-opt${f.pend === 'new' ? ' on' : ''}" data-twpick="new"><span class="t-ind c"></span><span class="tx">Another assessment<small>Not ticked in a session</small></span></button></div></div>` : '';
-    if(!f.pend) return backHome() + head('Weekly assessment marks', 'Choose the assessment') + pick;
+    const pick = !f.edit && P.length ? `<div class="card pad"><div class="cap">Which assessment</div><div class="t-opts">${P.map(w => `<button type="button" role="radio" aria-checked="${f.pend === w.id}" class="t-opt${f.pend === w.id ? ' on' : ''}" data-twpick="${esc(w.id)}"><span class="t-ind c"></span><span class="tx">${esc(w.name)} · ${atyL(w.ak)} · ${esc(w.sub)}<small>Given ${nice(w.d)} · ${w.tp.map(esc).join(', ') || 'topics not set'} · marks not entered</small></span></button>`).join('')}
+      <button type="button" role="radio" aria-checked="${f.pend === 'new'}" class="t-opt${f.pend === 'new' ? ' on' : ''}" data-twpick="new"><span class="t-ind c"></span><span class="tx">Another one</span></button></div></div>` : '';
+    if(!f.pend) return backHome() + head('Assessment marks') + pick;
     const fromP = f.pend !== 'new', M = f.keys.map(itemOf).filter(Boolean);
-    return backHome() + head(f.edit ? 'Edit weekly assessment' : 'Weekly assessment marks', cls ? 'Same test for the whole class' : M.length === 1 ? 'For ' + esc(M[0].st) + ' only' : '') + pick + `
+    return backHome() + head(f.edit ? 'Edit assessment' : 'Assessment marks', cls ? esc(cls.name) : M.length === 1 ? esc(M[0].st) : '') + pick + `
       ${fromP ? '' : `<div class="card pad"><label class="f" style="margin:0"><span>Who</span><select class="in" data-twwho aria-label="Who"><option value="">Choose…</option>${C.length ? `<optgroup label="Classes">${C.map(c => `<option value="class:${c.id}" ${f.key === 'class:' + c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</optgroup>` : ''}<optgroup label="Students">${I.map(it => `<option value="${esc(it.k)}" ${f.key === it.k ? 'selected' : ''}>${esc(it.st)} · ${esc(it.sub)}</option>`).join('')}</optgroup></select></label></div>`}
-      ${M.length ? `<div class="card pad"><div class="cap">The test · ${esc(M[0].sub)}</div>
+      ${M.length ? `<div class="card pad"><div class="cap">${atyL(f.ak)} · ${esc(M[0].sub)}</div>${fromP || f.edit ? '' : `${one('ak', ATY, f.ak || 'w', 'g2')}<div style="height:12px"></div>`}
         <label class="f" style="margin-bottom:6px"><span>Topics tested</span></label>${topicPicker(f, 'tp', 'open', 'q', 'Choose topics')}${f.tp.length ? `<p class="note">${f.tp.map(esc).join(', ')}</p>` : ''}
         <div class="r2" style="margin-top:14px"><label class="f" style="margin:0"><span>Date given</span><input class="in" type="date" data-tin="d" value="${f.d}" max="${today()}"></label><label class="f" style="margin:0"><span>Marks out of</span><input class="in" inputmode="decimal" data-tin="mx" data-twpc="1" value="${esc(f.mx)}" placeholder="e.g. 40"></label></div></div>
       <div class="card pad"><div class="cap">Marks</div><div class="t-marks">${M.map(m => `<span class="nm">${esc(short(m.st))}</span>${f.abs[m.k] ? '<span class="tag gr" style="justify-self:start">Absent</span>' : `<input class="in" inputmode="decimal" data-tin="marks.${esc(m.k)}" data-twpc="1" value="${esc(f.marks[m.k] ?? '')}" aria-label="${esc(short(m.st))} marks">`}<b data-twp="${esc(m.k)}">${f.abs[m.k] ? '' : pct(f.marks[m.k], f.mx)}</b>`).join('')}</div>
         ${M.length > 1 ? `<div class="cap" style="margin-top:14px">Didn't sit it</div><div class="t-opts">${M.map(m => tick('abs:' + m.k, f.abs[m.k], esc(m.st) + ' was absent')).join('')}</div>` : ''}</div>
       <button class="btn n full" type="button" id="twSave">${f.edit ? 'Save changes' : 'Save marks'}</button>` : ''}`;
   }
-  function fromPending(w){ const G = w.G; return {pend: w.id, key: G[0].cls ? 'class:' + G[0].cls : G[0].k, keys: G.map(x => x.k), ids: Object.fromEntries(G.map(x => [x.k, x.id])), tp: w.tp.slice(), d: w.d, mx: w.mx, marks: {}, abs: {}, open: false, q: ''}; }
+  function fromPending(w){ const G = w.G; return {pend: w.id, key: G[0].cls ? 'class:' + G[0].cls : G[0].k, keys: G.map(x => x.k), ids: Object.fromEntries(G.map(x => [x.k, x.id])), tp: w.tp.slice(), d: w.d, mx: w.mx, ak: w.ak, marks: {}, abs: {}, open: false, q: ''}; }
   function saveWa(){
     const f = wform, M = f.keys.map(itemOf).filter(Boolean); if(!M.length){ toast('Choose who sat it'); return; }
     if(!(parseFloat(f.mx) > 0)){ toast('Add what it was marked out of'); return; }
     const bad = M.find(m => !f.abs[m.k] && !pct(f.marks[m.k], f.mx)); if(bad){ toast(`Check ${short(bad.st)}'s marks`); return; }
     const wid = f.pend !== 'new' ? f.pend : 'w' + uid(), cls = f.key.startsWith('class:') ? f.key.slice(6) : '', now = Date.now();
     const list = M.map(m => { const o = live().find(x => x.id === f.ids[m.k]) || {};
-      const e = Object.assign({}, o, {id: f.ids[m.k] || uid(), ty:'w', k:m.k, st:m.st, sub:m.sub, d:f.d, tp:f.tp.slice(), mx:+f.mx, wid, md: today(), mc: o.mc || now}, cls ? {cls} : {});
+      const e = Object.assign({}, o, {id: f.ids[m.k] || uid(), ty:'w', k:m.k, st:m.st, sub:m.sub, d:f.d, tp:f.tp.slice(), mx:+f.mx, ak: o.ak || f.ak || 'w', wid, md: today(), mc: o.mc || now}, cls ? {cls} : {});
       if(f.abs[m.k]){ e.abs = 1; delete e.sc; } else { e.sc = +f.marks[m.k]; delete e.abs; } return e; });
     wform = null; saveEntries(list, true).then(ok => { if(ok){ toast('Assessment marks saved'); location.hash = '#teach'; } });
+  }
+
+  /* ---------- scheduling an assessment: who, type, date, time, topics; it shows on the students' calendar and Practice ---------- */
+  function assessPage(v){
+    const I = items(), C = data.classes || [];
+    if(!aform || aform.v !== v){
+      const G = v && !v.startsWith('new') ? scheduled().filter(a => (a.ag || a.id) === v) : [];
+      aform = G.length ? {v, ag: v, edit: true, keys: G.map(a => a.k), ids: Object.fromEntries(G.map(a => [a.k, a.id])), ak: G[0].ak || 'w', d: G[0].d, s: G[0].s || '', tp: (G[0].tp || []).slice(), mx: G[0].mx || '', cls: G[0].cls || '', open: false, q: '', att: {}, give: [], fmt: 'x', t1: 'x'}
+        : {v, ag: 'a' + uid(), keys: v.startsWith('new:') ? [v.slice(4)] : [], ids: {}, ak: 'm', d: addDays(today(), 1), s: '', tp: [], mx: '', cls: '', open: false, q: '', att: {}, give: [], fmt: 'x', t1: 'x'};
+    }
+    const f = aform, M = f.keys.map(itemOf).filter(Boolean), sub0 = M[0] && M[0].sub, same = I.filter(it => !sub0 || nk(it.sub) === nk(sub0));
+    return backHome() + head(f.edit ? 'Edit assessment' : 'Schedule an assessment') + `
+      <div class="card pad"><div class="cap">Who</div>${C.length ? `<select class="in" data-tascls aria-label="Class" style="margin-bottom:10px"><option value="">Students…</option>${C.map(c => `<option value="${c.id}" ${f.cls === c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}</select>` : ''}
+        <div class="t-opts">${same.map(it => tick('keys:' + it.k, f.keys.includes(it.k), esc(it.st), esc(it.sub))).join('')}</div></div>
+      <div class="card pad"><div class="cap">Type</div>${one('ak', ATY, f.ak, 'g2')}
+        <div class="r2" style="margin-top:14px"><label class="f" style="margin:0"><span>Date</span><input class="in" type="date" data-tin="d" value="${f.d}" min="${today()}"></label><label class="f" style="margin:0"><span>Time</span><input class="in" type="time" data-tin="s" value="${esc(f.s)}"></label></div>
+        ${M.length ? `<label class="f" style="margin:14px 0 6px"><span>Topics</span></label>${topicPicker(f, 'tp', 'open', 'q', 'Choose topics')}${f.tp.length ? `<p class="note">${f.tp.map(esc).join(', ')}</p>` : ''}` : ''}
+        <label class="f" style="margin:12px 0 0"><span>Out of</span><input class="in" inputmode="decimal" data-tin="mx" value="${esc(f.mx)}" placeholder="e.g. 50"></label></div>
+      <button class="btn n full" type="button" id="taSave">${f.edit ? 'Save' : 'Schedule'}</button>
+      ${f.edit ? '<button class="btn full" type="button" id="taDel" style="margin-top:8px">Remove</button>' : ''}`;
+  }
+  function saveAssess(del){
+    const f = aform, M = f.keys.map(itemOf).filter(Boolean), now = Date.now();
+    if(!del){ if(!M.length){ toast('Choose who'); return; } if(new Set(M.map(m => nk(m.sub))).size > 1){ toast('One subject at a time'); return; } if(!/^\d{4}-\d{2}-\d{2}$/.test(f.d)){ toast('Choose the date'); return; } if(f.mx && !(parseFloat(f.mx) > 0)){ toast('Check Out of'); return; } }
+    const list = M.map(m => Object.assign({id: f.ids[m.k] || uid(), ty:'a', k:m.k, st:m.st, sub:m.sub, d:f.d, s:f.s || '', ak:f.ak, tp:f.tp.slice(), mx:f.mx ? +f.mx : '', ag:f.ag}, f.cls ? {cls:f.cls} : {}, del ? {x:1} : {}))
+      .concat(Object.entries(f.ids).filter(([k]) => !f.keys.includes(k)).map(([, id]) => Object.assign({}, live().find(e => e.id === id) || {id, ty:'a'}, {x:1})));
+    aform = null; saveEntries(list, true).then(ok => { if(ok){ toast(del ? 'Removed' : f.edit ? 'Saved' : 'Scheduled'); location.hash = '#teach'; } });
+  }
+  /* coming up on Home: scheduled assessments in the next 14 days, one line each */
+  function comingBlock(){
+    const t = today(), by = new Map(); scheduled().filter(a => a.d >= t && a.d <= addDays(t, 14)).forEach(a => { const g = a.ag || a.id; if(!by.has(g)) by.set(g, []); by.get(g).push(a); });
+    const L = [...by.entries()].sort((p, q) => (p[1][0].d + (p[1][0].s || '')).localeCompare(q[1][0].d + (q[1][0].s || '')));
+    return `<div class="h2">Assessments <em><a href="#teach/assess" style="color:var(--brand);font-weight:800">Schedule</a></em></div>${L.length ? `<div class="card">${L.map(([g, G]) => { const a = G[0], cls = a.cls && (data.classes || []).find(c => c.id === a.cls);
+      return `<a class="it" href="#teach/assess/${encodeURIComponent(g)}"><span class="cal-t">${WEEKDAY[HD.parseISO(a.d).getDay()].slice(0, 3)}<small>${nice(a.d)}</small></span><span class="t"><b>${atyL(a.ak)} · ${esc(a.sub)}</b><small>${cls ? esc(cls.name) : G.map(x => esc(short(x.st))).join(', ')}${a.s ? ' · ' + a.s : ''}${(a.tp || []).length ? ' · ' + a.tp.map(esc).join(', ') : ''}</small></span><span class="chev">›</span></a>`; }).join('')}</div>` : ''}`;
   }
 
   /* ---------- the SRA tracker ---------- */
@@ -846,16 +913,17 @@ window.TUT = (function(){
     const P = pendingWa().length, it = k && itemOf(k);
     const row = (h, i, c, b, s) => `<a class="t-opt" href="${h}" style="margin-bottom:8px;text-decoration:none"><span class="t-ico ${c}" aria-hidden="true">${i}</span><span class="tx">${b}<small>${s}</small></span></a>`;
     openSheet(`<div class="hx"><h3>What are you logging?</h3><button class="ib" data-close>✕</button></div>${it ? `<p class="sp">${esc(it.st)} · ${esc(it.sub)}</p>` : ''}
-      ${row('#teach/log/' + encodeURIComponent(k || 'pick'), 'S', 'bl', 'A session', 'Attendance, topics, SRAs, guide, weekly assessment given')}
+      ${row('#teach/log/' + encodeURIComponent(k || 'pick'), 'S', 'bl', 'A session', 'Attendance, topics, SRAs, guide, assessment')}
       ${row('#teach/marks' + (k ? '/' + encodeURIComponent(k) : ''), 'R', 'ok', 'SRA marks', 'For an SRA handed in, today or earlier')}
-      ${row('#teach/wa', 'A', 'am', 'Weekly assessment marks', P ? `${P} waiting for marks` : 'One student, or a whole class')}`);
-    document.querySelectorAll('#sheet a.t-opt').forEach(a => a.addEventListener('click', () => { form = null; mform = null; wform = null; closeSheet(); }));
+      ${row('#teach/wa', 'A', 'am', 'Assessment marks', P ? `${P} waiting` : 'One student, or a class')}
+      ${row('#teach/assess' + (k ? '/new:' + encodeURIComponent(k) : ''), '+', 'gr', 'Schedule an assessment', 'Weekly, monthly, topical, mock, past paper')}`);
+    document.querySelectorAll('#sheet a.t-opt').forEach(a => a.addEventListener('click', () => { form = null; mform = null; wform = null; aform = null; closeSheet(); }));
   }
 
   /* ---------- taps ---------- */
   const setPath = (o, p, v) => { const k = p.split('.'); const last = k.pop(); const t = k.reduce((a, x) => (a[x] = a[x] ?? {}), o); t[last] = v; };
   const getPath = (o, p) => p.split('.').reduce((a, x) => a == null ? a : a[x], o);
-  const curForm = () => location.hash.startsWith('#teach/log') ? form : location.hash.startsWith('#teach/marks') ? mform : location.hash.startsWith('#teach/wa') ? wform : location.hash.startsWith('#teach/report') ? rform : null;
+  const curForm = () => location.hash.startsWith('#teach/log') ? form : location.hash.startsWith('#teach/marks') ? mform : location.hash.startsWith('#teach/wa') ? wform : location.hash.startsWith('#teach/assess') ? aform : location.hash.startsWith('#teach/report') ? rform : null;
   function giveEntries(L){ return L.map(x => ({id: uid(), ty:'g', k:x.k, st:x.st, sub:x.sub, d:today(), tk:x.topic, rv:x.stage})); }
   function bindSheet(){
     document.querySelectorAll('#sheet [data-tgive]').forEach(el => el.onclick = () => { const x = unref(el.dataset.tgive); if(!x) return; closeSheet(); saveEntries(giveEntries([x]), true).then(ok => ok && toast(el.dataset.early ? 'Given early · still done on its review day' : 'Marked as given')); });
@@ -890,6 +958,9 @@ window.TUT = (function(){
     on('[data-tpkout]', el => { const p = packOf(el.dataset.tpkout); if(!p) return; const e0 = outEntry(p);
       const e = e0 ? Object.assign({}, e0, {x: 1}) : {id: uid(), ty: 'p', k: p.k, st: p.st, sub: p.sub, on: p.on, d: today(), n: p.sheets.length};
       saveEntries([e], true).then(ok => ok && toast(e0 ? 'Undone' : 'Handed over')); });
+    on('#taSave', () => saveAssess(false));
+    on('#taDel', () => { if(confirm('Remove this assessment?')) saveAssess(true); });
+    const tcls = document.querySelector('#main [data-tascls]'); if(tcls && aform) tcls.onchange = () => { const c = (data.classes || []).find(x => x.id === tcls.value); aform.cls = c ? c.id : ''; if(c) aform.keys = items().filter(it => c.stu.includes(stuOf(it.k)) && nk(it.sub) === nk(c.sub)).map(it => it.k); render(); };
     on('[data-tgiveall]', () => { const G = SRA.today(sras(), today()).give; saveEntries(giveEntries(G), true).then(ok => ok && toast(`${G.length} marked as given`)); });
     on('[data-tin]', el => { const x = unref(el.dataset.tin); if(x) handInSheet(x); });
     on('[data-tsdet]', el => { const x = unref(el.dataset.tsdet); if(x) sraSheet(x); });

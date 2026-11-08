@@ -58,7 +58,7 @@ async function usesDbStore() {
 /* compare two values whatever order their keys come in (the database keeps keys in its own order) */
 const canon = v => JSON.stringify(v, (k, x) => x && typeof x === "object" && !Array.isArray(x) ? Object.keys(x).sort().reduce((o, key) => (o[key] = x[key], o), {}) : x);
 
-const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes", "lhq_treps", "lhq_avail", "lhq_cardack", "lhq_makeups", "lhq_reqs", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports"];
+const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes", "lhq_treps", "lhq_avail", "lhq_cardack", "lhq_makeups", "lhq_reqs", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices"];
 
 /* ---------- roles and permissions ---------- */
 const PERMS = ["quotes", "receipts", "cards", "delete", "restore", "students", "money", "tpay", "tutors", "msgs", "numbering", "backup", "classes", "moveclass", "spend", "pl"];
@@ -314,7 +314,7 @@ async function checkSync(me, upserts, deletes, kv) {
       const ch = Object.keys(v || {}).filter(id => canon(v[id]) !== canon(old[id]) && (!old[id] || (v[id].at || 0) >= (old[id].at || 0)));
       if (ch.length && !can(me, "spend")) return "You don't have permission to record spending.";
       if (ch.some(id => old[id] && old[id].by !== me.name)) return "You can only change spending you recorded. Ask the Director to change the others.";
-    } else if (["lhq_makeups", "lhq_reqs", "lhq_treps", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports"].includes(k)) {
+    } else if (["lhq_makeups", "lhq_reqs", "lhq_treps", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices"].includes(k)) {
       if (changedKeys(old, v).length) return "Make-ups, requisitions, clashes and tutors' reports change through their own buttons.";
     } else if (k === "lhq_avail" || k === "lhq_cardack") {
       if (changedKeys(old, v).length && !can(me, "tutors")) return "You don't have permission to change tutors' times.";
@@ -350,7 +350,7 @@ async function sync(req, me) {
   const s = store(), now = Date.now();
   const upserts = Array.isArray(body.upserts) ? body.upserts : [], deletes = Array.isArray(body.deletes) ? body.deletes : [];
   // students' daily reports change only through the student's own Send, never through a save (not even the Director's)
-  const kvIn = body.kv && typeof body.kv === "object" ? Object.entries(body.kv).filter(([k]) => KV_KEYS.includes(k) && k !== "lhq_sreports") : [];
+  const kvIn = body.kv && typeof body.kv === "object" ? Object.entries(body.kv).filter(([k]) => KV_KEYS.includes(k) && k !== "lhq_sreports" && k !== "lhq_notices") : [];
   const denied = await checkSync(me, upserts, deletes, kvIn);
   if (denied) return json({ error: denied, denied: true }, 403);
   const r = await writeDocs(me, upserts, deletes, kvIn);
@@ -588,6 +588,48 @@ async function tutorClashes(me) {
   return st.list.filter(c => involves(c, me.name)).map(c => Object.assign({ text: st.S.clashText(c), res: st.res[c.key] || null }, c));
 }
 
+/* ---------- Absence and late notices: a student or parent tells the tutor and LHQ before a session ----------
+   Stored in kv lhq_notices: {id: {id, st (student key), name, sub, k, tutor, d, s (start), kind: abs|late, why, mins, note, by, role, at, grp, x (undone)}}.
+   Absent: until the session starts. Late: until 15 minutes after. A few days: every session in the dates, one notice each (same grp). */
+const NOTICE_WHY = ["Sick", "School event", "Travel", "Other"], LATE_MINS = [10, 15, 30, 45];
+const mwNowMin = () => { const d = new Date(Date.now() + 2 * 3600e3); return d.getUTCHours() * 60 + d.getUTCMinutes(); };
+async function noticePost(b, me, kids, now) {
+  await import("../../site/schedule.js"); const S = globalThis.SCHED;
+  const t = mwToday(), nowM = mwNowMin(), kid = kids.find(k => k.key === String(b.st || "")) || (kids.length === 1 ? kids[0] : null);
+  if (!kid) return fail("Choose the student.", 403);
+  if (b.action === "unnotice") {
+    const cur = (await store().get("kv/lhq_notices", { type: "json" })) || {}, n = cur[String(b.id || "")];
+    if (!n || n.st !== kid.key || n.x) return fail("That notice isn't there any more.", 404);
+    if (n.d < t || (n.d === t && S.mins(n.s) + (n.kind === "late" ? 15 : 0) <= nowM)) return fail("That session has started.", 409);
+    await writeKv("lhq_notices", old => { const o = Object.assign({}, old); o[n.id] = Object.assign({}, o[n.id], { x: now, xBy: me.name }); return o; });
+    await act(me, "sessions", "notice.undo", `${kid.name} can come after all · ${n.sub} · ${dayL(n.d)} ${n.s}`, "notices", n.id);
+    return json({ ok: true });
+  }
+  const kind = b.kind === "late" ? "late" : "abs", why = kind === "abs" ? String(b.why || "") : "", mins = kind === "late" ? Number(b.mins) : 0;
+  if (kind === "abs" && !NOTICE_WHY.includes(why)) return fail("Choose why.");
+  if (kind === "late" && !LATE_MINS.includes(mins)) return fail("Choose how late.");
+  const iso = v => /^\d{4}-\d{2}-\d{2}$/.test(String(v || "")) ? String(v) : "";
+  const from = iso(b.from) || iso(b.d), to = kind === "late" ? from : iso(b.to) || from;
+  if (!from || to < from || from < t || to > S.addDays(t, 60) || to > S.addDays(from, 21)) return fail("Check the dates.");
+  const cards = (await readAll("doc/")).filter(d => d && !d.del && d.type === "card");
+  const mus = Object.values((await store().get("kv/lhq_makeups", { type: "json" })) || {}).filter(m => m && m.status === "ok" && nk(m.st) === kid.key);
+  let L = S.sessions(cards, from, to, { student: kid.name }).map(e => ({ d: e.date, s: e.s, sub: e.sub, tutor: e.tutor }))
+    .concat(mus.filter(m => m.d >= from && m.d <= to).map(m => ({ d: m.d, s: m.s, sub: m.sub, tutor: m.tutor })));
+  if (b.sub) L = L.filter(e => nk(e.sub) === nk(b.sub) && (!b.s || e.s === b.s));
+  L = L.filter(e => e.d > t || S.mins(e.s) + (kind === "late" ? 15 : 0) > nowM);
+  if (!L.length) return fail(kind === "late" ? "That session has started." : "No sessions to tell LHQ about in those dates.", 409);
+  const cur = (await store().get("kv/lhq_notices", { type: "json" })) || {}, grp = "g" + crypto.randomBytes(4).toString("hex"), add = {};
+  L.forEach(e => {
+    const was = Object.values(cur).find(n => n && !n.x && n.st === kid.key && n.d === e.d && nk(n.sub) === nk(e.sub));
+    const id = was ? was.id : "n" + crypto.randomBytes(5).toString("hex");
+    add[id] = { id, st: kid.key, name: kid.name, sub: e.sub, k: kid.key + "|" + nk(e.sub), tutor: e.tutor || "", d: e.d, s: e.s, kind, why, mins, note: String(b.note || "").trim().slice(0, 300), by: me.name, role: me.role, at: now, grp };
+  });
+  await writeKv("lhq_notices", old => Object.assign({}, old, add));
+  const one = L[0], what = kind === "late" ? `about ${mins} min late` : `absent · ${why.toLowerCase()}`;
+  await act(me, "sessions", "notice", L.length === 1 ? `${kid.name}: ${what} · ${one.sub} · ${dayL(one.d)} ${one.s}` : `${kid.name}: ${what} · ${L.length} sessions, ${dayL(from)} – ${dayL(to)}`, "notices", Object.keys(add)[0]);
+  return json({ ok: true, n: L.length, notices: Object.values(add) });
+}
+
 /* ---------- Students and parents (Stage 2) ----------
    A student sees their own sessions, SRAs and timetable; a parent sees each of their children, and their payments.
    The student confirms their sessions (✓ or ✕); where LHQ switches it on for a child, the parent does instead.
@@ -607,7 +649,7 @@ async function familyData(me) {
   if (!kids.length) return { kids: [] };
   await import("../../site/schedule.js"); await import("../../site/sra.js"); const S = globalThis.SCHED, SR = globalThis.SRA;
   const t = mwToday(), docs = (await readAll("doc/")).filter(d => d && !d.del), cards = docs.filter(d => d.type === "card");
-  const [logs, conf, done, moves, mus, sreps] = await Promise.all(["lhq_logs", "lhq_confirmer", "lhq_sradone", "lhq_moves", "lhq_makeups", "lhq_sreports"].map(k => store().get("kv/" + k, { type: "json" })));
+  const [logs, conf, done, moves, mus, sreps, nts, set] = await Promise.all(["lhq_logs", "lhq_confirmer", "lhq_sradone", "lhq_moves", "lhq_makeups", "lhq_sreports", "lhq_notices", "lhq_settings"].map(k => store().get("kv/" + k, { type: "json" })));
   await import("../../site/sreport.js"); const SP = globalThis.SREP;
   const E = Object.values((logs && logs.e) || {}).filter(e => e && !e.x);
   const items = S.items(cards, t);
@@ -629,7 +671,10 @@ async function familyData(me) {
       .filter(x => x.pack ? x.pack.on <= t && SR.add(x.doOn, 7) >= t : x.given && x.status !== "in").map(x => { const id = [x.k, x.topic, x.stage].join("|"), dn = (done || {})[id];
         return Object.assign({ id, sub: x.sub, topic: x.topic, label: x.label, stage: x.stage, doOn: x.doOn, due: x.due, status: x.status, done: !!dn || x.status === "in" },
           x.pack ? { pack: { on: x.pack.on, out: !!x.pack.out, from: x.from || null }, self: dn && dn.sc != null ? { sc: dn.sc, mx: dn.mx || 10 } : null, score: x.score } : {}); });
-    const week = S.sessions(cards, t, S.addDays(t, 13), { student: kid.name }).map(e => ({ date: e.date, s: e.s, e: e.e, sub: e.sub, tutor: e.tutor, where: e.where }));
+    /* absence and late notices: on each session they cover (only live ones: not undone) */
+    const told = Object.values(nts || {}).filter(n => n && !n.x && n.st === kid.key && n.d >= S.addDays(t, -14));
+    const toldOf = (d, sb) => { const n = told.find(x => x.d === d && nk(x.sub) === nk(sb)); return n ? { id: n.id, kind: n.kind, why: n.why || "", mins: n.mins || 0, by: n.by, at: n.at } : null; };
+    const week = S.sessions(cards, t, S.addDays(t, 13), { student: kid.name }).map(e => ({ k: kid.key + "|" + nk(e.sub), date: e.date, s: e.s, e: e.e, sub: e.sub, tutor: e.tutor, where: e.where, told: toldOf(e.date, e.sub) }));
     const changes = Object.values(moves || {}).filter(m => m && nk(m.st) === kid.key && Date.now() - m.at < 30 * 864e5).sort((a, b) => b.at - a.at).map(m => ({ sub: m.sub, from: m.from, to: m.to, at: m.at, by: m.by }));
     const makeups = Object.values(mus || {}).filter(m => m && nk(m.st) === kid.key && m.status === "ok" && m.d >= t).map(m => ({ d: m.d, s: m.s, e: m.e, sub: m.sub, tutor: m.tutor }));
     let pay = null;
@@ -652,11 +697,13 @@ async function familyData(me) {
     }
     /* marks: weekly assessments and SRA scores, as percentages, for the charts on Progress */
     const pcOf = e => Number(e.mx) > 0 && e.sc != null && e.sc !== "" && !isNaN(Number(e.sc)) ? Math.max(0, Math.min(100, Math.round(Number(e.sc) / Number(e.mx) * 100))) : null;
-    const marks = { w: ent.filter(e => e.ty === "w" && !e.abs && pcOf(e) != null).map(e => ({ sub: e.sub, d: e.d, p: pcOf(e) })),
+    const coming = ent.filter(e => e.ty === "a" && e.d >= t && e.d <= S.addDays(t, 14)).sort((a, b) => (a.d + (a.s || "")).localeCompare(b.d + (b.s || ""))).map(e => ({ d: e.d, s: e.s || "", sub: e.sub, ak: e.ak || "w", tp: e.tp || [] }));
+    const marks = { w: ent.filter(e => e.ty === "w" && !e.abs && pcOf(e) != null).map(e => ({ sub: e.sub, d: e.d, p: pcOf(e), ak: e.ak || "w" })),
       r: ent.filter(e => e.ty === "r" && e.tk && pcOf(e) != null).map(e => ({ sub: e.sub, tk: e.tk, rv: Number(e.rv) || 0, p: pcOf(e), d: e.d }))
         .concat(sras.filter(x => x.pack && x.status !== "in" && x.self).map(x => ({ sub: x.sub, tk: x.topic, rv: x.stage, p: pcOf(x.self), d: x.doOn, self: 1 })).filter(x => x.p != null)),
       p: sras.filter(x => x.pack && x.status !== "in" && !x.self).map(x => ({ sub: x.sub, tk: x.topic, rv: x.stage, d: x.doOn })) };
-    return Object.assign({}, kid, { confirmer, canConfirm, subjects, sessions, toConfirm, answers, sras, week, changes, makeups, pay, report, marks });
+    makeups.forEach(m => { m.told = toldOf(m.d, m.sub); m.k = kid.key + "|" + nk(m.sub); });
+    return Object.assign({}, kid, { confirmer, canConfirm, subjects, sessions, toConfirm, answers, sras, week, changes, makeups, pay, report, marks, coming, lhqPhone: String((set && set.phone) || SETTINGS_DEFAULT.phone).replace(/\D/g, "") });
   }) };
 }
 async function familyGet(me) {
@@ -673,6 +720,7 @@ async function familyPost(req, me) {
     await writeKv("lhq_sradone", old => { const o = Object.assign({}, old); if (b.done) o[id] = Object.assign({}, o[id], { at: now }); else delete o[id]; return o; });
     return json({ ok: true });
   }
+  if (b.action === "notice" || b.action === "unnotice") return noticePost(b, me, kids, now);
   if (b.action === "selfmark") {   // a take-home sheet marked by the student with the pack's answer sheet: kept, labelled self-marked, never in averages
     if (me.role !== "student") return fail("Only the student marks their own sheets.", 403);
     const fd = await familyData(me), x = fd.kids.flatMap(k => k.sras).find(y => y.id === String(b.id || ""));
@@ -1050,7 +1098,9 @@ async function tutorExtras(me, d) {
   const R = (await store().get("kv/lhq_sreports", { type: "json" })) || {}, tday = mwToday(), opens = SP.opensOn(R);
   let says = { opens: opens || null };
   if (opens && opens <= tday) { const B = SP.byTutor(R, tday), mine = Object.entries(B.tutors).find(([k]) => nk(k) === mk); says = mine && mine[1].n >= 5 ? { mine: mine[1], lhq: B.all, from: B.from } : { few: true }; }
-  return { avail: (av || {})[mk] || [], acks, gone, ackFrom: ack._from, calLink: calPath(me.id), makeups, reqs, clashes: await tutorClashes(me), sradone, says };
+  const nt = (await store().get("kv/lhq_notices", { type: "json" })) || {}, nfrom = new Date(Date.now() - 21 * 864e5).toISOString().slice(0, 10);
+  const notices = Object.values(nt).filter(n => n && n.d >= nfrom && d.keys.has(n.k));
+  return { avail: (av || {})[mk] || [], acks, gone, ackFrom: ack._from, calLink: calPath(me.id), makeups, reqs, clashes: await tutorClashes(me), sradone, says, notices };
 }
 async function tutorPost(req, me) {
   if (!isTutor(me)) return fail("This part is for tutors.", 403);
@@ -1073,7 +1123,7 @@ async function tutorPost(req, me) {
     const before = await store().get("kv/lhq_logs", { type: "json" });
     await writeKv("lhq_logs", old => mergeLogs(old, { e: add }));
     const fresh = Object.values(add).filter(e => !((before && before.e) || {})[e.id]), edits = Object.keys(add).length - fresh.length;
-    const TY = { s: "session", g: "SRA given", r: "SRA marked", w: "assessment mark", p: "take-home pack" }, cnt = {};
+    const TY = { s: "session", g: "SRA given", r: "SRA marked", w: "assessment mark", p: "take-home pack", a: "assessment scheduled" }, cnt = {};
     fresh.forEach(e => { const t = TY[e.ty] || "line"; cnt[t] = (cnt[t] || 0) + 1; });
     const sess = fresh.filter(e => e.ty === "s"), first = sess[0] || fresh[0];
     const outs = fresh.filter(e => e.ty === "p");

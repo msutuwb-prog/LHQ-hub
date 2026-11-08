@@ -220,7 +220,7 @@
           logs[eid] = e;
           // a weekly assessment about every third session, drifting up (most students) or down
           if(a !== 'absent' && n % 3 === 0){ const wid = 'dw' + (++uid).toString(36), p0 = Math.max(15, Math.min(98, wb + wn * wt + Math.round(rnd() * 10 - 5)));
-            logs[wid] = {id:wid, k:key, st:card.student, sub:sub.name, d:iso(d), ty:'w', tp:[topics[ti % topics.length]], mx:50, sc:Math.round(p0 / 2), wid:'w' + wid, md:iso(d), at:t + 18 * 3600e3, tutor:sub.tutor}; wn++; }
+            logs[wid] = {id:wid, k:key, st:card.student, sub:sub.name, d:iso(d), ty:'w', ak: wn % 4 === 3 ? 'm' : wn % 7 === 5 ? 't' : 'w', tp:[topics[ti % topics.length]], mx:50, sc:Math.round(p0 / 2), wid:'w' + wid, md:iso(d), at:t + 18 * 3600e3, tutor:sub.tutor}; wn++; }
           if(a !== 'absent' && n % 2 === 0){
             // topic finished: SRA reviews 1, 3, 7 and 14 days later
             const topic = topics[ti % topics.length]; e.fin = [topic];   // its Learning Day: the SRA schedule starts here
@@ -233,6 +233,12 @@
             });
             ti++;
           }
+        }
+        // an assessment scheduled ahead for about one in four current subjects (monthly or mock)
+        if(new Date(card.periodEnd).getTime() > T + 7 * DAY && rnd() < .25){
+          for(let t = T + 3 * DAY, i = 0; i < 14; i++, t += DAY){ const d = new Date(t); if(!sub.days.some(x => DN[x] === d.getDay())) continue;
+            const aid = 'da' + (++uid).toString(36), mock = rnd() < .3;
+            logs[aid] = {id:aid, k:key, st:card.student, sub:sub.name, d:iso(d), ty:'a', s: sub.start || '', ak: mock ? 'k' : 'm', tp: mock ? [] : topics.slice(0, 2), mx: mock ? 80 : 50, ag:'g' + aid, at:T - DAY, tutor:sub.tutor}; break; }
         }
         if(n > 3){
           const cid = 'dc' + (++uid).toString(36);
