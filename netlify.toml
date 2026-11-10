@@ -6,3 +6,5 @@
 
 [functions]
   node_bundler = "esbuild"
+  # read at run time (topic lists and card rules, for syllabus codes and topic counts)
+  included_files = ["site/topics.js", "site/card.js"]

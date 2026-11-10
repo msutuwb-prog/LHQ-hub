@@ -66,6 +66,20 @@ window.FAM = (function(){
   const isParent = () => me().role === 'parent';
   const kids = () => (data && data.kids) || [];
   const kid = () => kids()[Math.min(kidI, Math.max(0, kids().length - 1))];
+  /* exams: targets, On track and the student's papers (exams.js, examsui.js) */
+  const nsub = v => String(v || '').trim().toLowerCase().replace(/^maths$/, 'mathematics');
+  const exInfo = (k, x) => window.EXUI && k.exam ? EXUI.info(x.k, k.exam, ((k.marks || {}).w || []).filter(m => m.sub === x.sub)) : null;
+  const choices = k => { if(!k || !k.exam || !window.EXAMS) return [];
+    const L = k.subjects.map(x => { const i = exInfo(k, x); return i && i.c.code ? {code: i.c.code, ex: i.c.ex, as: i.c.as, lhq: 1} : null; }).filter(Boolean);
+    ((k.exam.myexams || {})[k.key] || []).forEach(c => { if(!L.some(y => y.code === c.code && y.ex === c.ex)) L.push(Object.assign({removable: !isParent()}, c)); });
+    return L; };
+  function mineCtx(){ const k = kid(); if(!k || isParent()) return null;
+    return {mine: ((k.exam && k.exam.myexams || {})[k.key] || []).slice(), lhq: choices(k).filter(c => c.lhq),
+      save: async list => { await hub.api('exams', {method:'POST', body: JSON.stringify({action:'myexams', st: k.key, list})}); await fetchData(); }}; }
+  /* LHQ's topical dates for the student's subjects, beside the tutors' assessments */
+  const comingOf = k => { const t = T(), end = HD.isoOf(new Date(HD.parseISO(t).getTime() + 14 * 864e5)), L = (k.coming || []).slice();
+    ((k.exam && k.exam.set && k.exam.set.topicals) || []).filter(x => x.d >= t && x.d <= end).forEach(x => { const s0 = k.subjects.find(y => nsub(y.sub) === nsub(x.sub) && (!x.ex || ((exInfo(k, y) || {c: {}}).c.ex || x.ex) === x.ex)); if(s0) L.push({d: x.d, s: '', sub: s0.sub, ak: 't', tp: x.tp ? [x.tp] : [], lhq: 1}); });
+    return L.sort((a, b) => (a.d + (a.s || '')).localeCompare(b.d + (b.s || ''))); };
   const T = () => (data && data.today) || HD.today();
 
   /* ---------- pieces ---------- */
@@ -148,7 +162,7 @@ window.FAM = (function(){
       <div class="h2">Do today</div><div class="card">${doT.map(row).join('') || '<p class="empty">Nothing today. ✓</p>'}</div>
       ${inT.length ? `<div class="h2">Hand in</div><div class="card">${inT.map(x => `<div class="it"><span class="f-mk am">!</span><span class="t"><b>${esc(x.topic)} ${x.stage ? 'R' + x.stage : 'LD'}</b><small>${esc(sub(x.sub))} · ${x.status === 'late' ? 'late' : 'today'}</small></span></div>`).join('')}</div>` : ''}
       ${out.length ? `<div class="h2">You have</div><div class="card">${out.map(row).join('')}</div>` : ''}
-      ${(k.coming || []).length ? `<div class="h2">Coming up <em>assessments</em></div><div class="card">${k.coming.map(a => `<div class="it"><span class="f-day"><small>${DAYN[['Su','Mo','Tu','We','Th','Fr','Sa'][HD.parseISO(a.d).getDay()]]}</small><b>${HD.parseISO(a.d).getDate()}</b></span><span class="t"><b class="f-aty">${window.MARKS ? MARKS.ico(a.ak) : ''}<span>${esc((window.MARKS ? MARKS.TY[a.ak] : '') || 'Assessment')} · ${esc(sub(a.sub))}</span></b><small>${[a.s, (a.tp || []).join(', ')].filter(Boolean).map(esc).join(' · ')}</small></span></div>`).join('')}</div>` : ''}`;
+      ${comingOf(k).length ? `<div class="h2">Coming up <em>assessments</em></div><div class="card">${comingOf(k).map(a => `<div class="it"><span class="f-day"><small>${DAYN[['Su','Mo','Tu','We','Th','Fr','Sa'][HD.parseISO(a.d).getDay()]]}</small><b>${HD.parseISO(a.d).getDate()}</b></span><span class="t"><b class="f-aty">${window.MARKS ? MARKS.ico(a.ak) : ''}<span>${esc((window.MARKS ? MARKS.TY[a.ak] : '') || 'Assessment')} · ${esc(sub(a.sub))}</span></b><small>${[a.s, (a.tp || []).join(', '), a.lhq ? 'from LHQ' : ''].filter(Boolean).map(esc).join(' · ')}</small></span></div>`).join('')}</div>` : ''}`;
   }
   /* ---------- the take-home pack: review sheets after the last session, by date ---------- */
   const ring = (n, N, sz = 60) => { const r = sz / 2 - 6, c = 2 * Math.PI * r, a = N ? c * n / N : 0;
@@ -184,7 +198,7 @@ window.FAM = (function(){
     const iso = d => `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`, sel = route.args[2] || t;
     const by = {}; k.week.forEach(s => (by[s.date] = by[s.date] || []).push({k:'s', s})); k.makeups.forEach(s => (by[s.d] = by[s.d] || []).push({k:'s', s:{date:s.d, s:s.s, e:s.e, sub:s.sub, tutor:s.tutor, mu:1, told:s.told}}));
     k.sras.forEach(x => { [x.doOn, x.due].filter(Boolean).forEach(d => (by[d] = by[d] || []).push({k:'g', x})); });
-    (k.coming || []).forEach(a => (by[a.d] = by[a.d] || []).push({k:'a', a}));
+    comingOf(k).forEach(a => (by[a.d] = by[a.d] || []).push({k:'a', a}));
     const prev = new Date(y, m - 2, 1), next = new Date(y, m, 1), ymOf = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
     const L = by[sel] || [];
     return `<div class="ph"><div class="tt"><h1>Calendar</h1></div></div>${kidChips()}
@@ -201,17 +215,21 @@ window.FAM = (function(){
     const B = window.MARKS ? MARKS.bySubject(k.marks || {}) : [], kOf = sb => (k.subjects.find(x => x.sub === sb) || {}).k;
     const marks = B.length ? `<div class="h2">Marks <em>assessments</em></div><div class="card">${B.map(x => { const kk = kOf(x.sub), tag = kk ? `a href="#me/subject/${encodeURIComponent(kk)}"` : 'div';
       return `<${tag} class="it"><span class="t"><b>${esc(sub(x.sub))}</b><small>${x.w.length ? x.w.length + ' marked' : 'SRAs only'}</small></span>${MARKS.spark(x.w)}${x.last != null ? `<span class="mk-big">${x.last}%${MARKS.change(x.diff)}</span>` : ''}</${tag.split(' ')[0]}>`; }).join('')}</div>` : '';
-    return `<div class="ph"><div class="tt"><h1>${isParent() ? 'Sessions' : 'Progress'}</h1></div></div>${kidChips()}${marks}<div class="h2">Sessions <button class="btn sm" data-fhelp style="padding:2px 8px;border-radius:50%">?</button></div><div class="card">${k.subjects.map(sesRow).join('') || '<p class="empty">No tuition this period.</p>'}</div>`;
+    const tg = k.exam && window.EXUI ? `<div class="h2">Targets</div><div class="card">${k.subjects.map(x => { const i = exInfo(k, x); return i ? EXUI.row(i, sub(x.sub), `data-fgo="#me/subject/${encodeURIComponent(x.k)}"`) : ''; }).join('')}</div>` : '';
+    return `<div class="ph"><div class="tt"><h1>${isParent() ? 'Sessions' : 'Progress'}</h1></div><div class="acts"><a class="btn" href="#me/exams">${isParent() ? 'Exams' : 'My exams'}</a></div></div>${kidChips()}${tg}${marks}<div class="h2">Sessions <button class="btn sm" data-fhelp style="padding:2px 8px;border-radius:50%">?</button></div><div class="card">${k.subjects.map(sesRow).join('') || '<p class="empty">No tuition this period.</p>'}</div>`;
   }
   function subject(kk){
     const k = kids().find(x => x.subjects.some(s => s.k === kk)) || kid(); if(!k) return emptyNoKids();
     const x = k.subjects.find(s => s.k === kk); if(!x) return `<p class="empty">Not found.</p>`;
     const L = k.sessions.filter(e => e.k === kk);
+    const xi = exInfo(k, x);
     return `${crumb('#me/progress', isParent() ? 'Sessions' : 'Progress')}<div class="ph"><div class="tt"><h1>${esc(sub(x.sub))}</h1><p>${esc(x.tutor)} · until ${dshort(x.b)}</p></div></div>
+      ${xi ? EXUI.block(xi, isParent() ? '' : `data-fextg="${esc(x.k)}"`, false) : ''}
       ${(M => M && (M.w.length || M.sra.length) ? `<div class="card pad"><b>Assessments</b><p class="note" style="margin:0 0 4px">% each time</p>${MARKS.line(M)}${MARKS.avgs(M)}</div>
         <div class="card pad"><b>What ${isParent() ? 'they remember' : 'you remember'} (SRAs)</b><p class="note" style="margin:0 0 8px">% at each review of a topic</p>${MARKS.grid(M)}</div>` : '')(window.MARKS && MARKS.bySubject(k.marks || {}).find(m => m.sub === x.sub))}
       <div class="card pad"><div class="f-four"><div><b>${x.planned}</b><small>Planned</small></div><div><b>${x.had}</b><small>Had</small></div><div><b>${x.remaining}</b><small>Left</small></div><div><b>${x.owed}</b><small>Owed</small></div></div></div>
       <div class="h2">${x.times.map(t => `${DAYN[t.d]} ${t.s}`).join(' · ')}</div>
+      ${xi && xi.pace ? EXUI.block(xi, '', true).replace(/^[\s\S]*?(<div class="h2">Syllabus)/, '$1') : xi && xi.papers.length ? EXUI.block(xi, '', true).replace(/^[\s\S]*?(<div class="h2">Exams)/, '$1') : ''}
       <div class="card">${L.map(e => `<div class="it">${stMark(e)}<span class="t"><b>${day(e.d)}${e.mk ? ' · make-up' : ''}</b><small>${e.a === 'absent' || e.a === 'cancelled' ? '' : esc(e.t1) + '–' + esc(e.t2) + ' · '}${esc(stText(e))}</small></span>${k.canConfirm && e.st === 'waiting' ? `<button class="f-ok" data-fcf="yes:${esc(e.id)}">✓</button><button class="f-no" data-fcf="no:${esc(e.id)}">✕</button>` : ''}</div>`).join('') || '<p class="empty">No sessions logged yet.</p>'}</div>`;
   }
   function payments(){
@@ -226,6 +244,8 @@ window.FAM = (function(){
   function more(){
     return `<div class="ph"><div class="tt"><h1>More</h1></div></div><div class="card">
       <a class="it" href="#settings"><span class="t"><b>My account</b></span><span class="chev">›</span></a>
+      <a class="it" href="#me/exams"><span class="t"><b>${isParent() ? 'Exams' : 'My exams'}</b></span><span class="chev">›</span></a>
+      <a class="it" href="#exams"><span class="t"><b>Exam timetable</b></span><span class="chev">›</span></a>
       <a class="it" href="#set/notifications"><span class="t"><b>Notifications</b></span><span class="chev">›</span></a>
       <a class="it" href="tel:+265992525250"><span class="t"><b>Contact LHQ</b><small>0992 525 250</small></span><span class="chev">›</span></a></div>`;
   }
@@ -270,6 +290,7 @@ window.FAM = (function(){
     if(sub0 === 'subject') return subject(decodeURIComponent(a1 || ''));
     if(sub0 === 'payments' && isParent()) return payments();
     if(sub0 === 'more') return more();
+    if(sub0 === 'exams'){ const k = kid(); if(!k) return emptyNoKids(); return kidChips() + EXUI.myExams(choices(k), crumb('#me/progress', isParent() ? 'Sessions' : 'Progress'), !isParent()); }
     if(sub0 === 'report') return report();
     return home();
   }
@@ -292,6 +313,11 @@ window.FAM = (function(){
     draw();
   }
   function bind(){
+    document.querySelectorAll('[data-fgo]').forEach(b => b.onclick = () => { location.hash = b.dataset.fgo; });
+    document.querySelectorAll('[data-fextg]').forEach(b => b.onclick = () => { const k = kid(), x = k && k.subjects.find(y => y.k === b.dataset.fextg); if(!x) return;
+      EXUI.targetSheet({k: x.k, name: k.name, sub: sub(x.sub), i: exInfo(k, x), onSaved: async () => { await fetchData(); render(); }}); });
+    document.querySelectorAll('[data-myrm]').forEach(b => b.onclick = async () => { const ctx = mineCtx(); if(!ctx) return; const [code, ex] = b.dataset.myrm.split('|');
+      try{ await ctx.save(ctx.mine.filter(m => !(m.code === code && m.ex === ex))); toast('Removed'); render(); }catch(e){ toast(e.message); } });
     document.querySelectorAll('[data-fkid]').forEach(b => b.onclick = () => { kidI = +b.dataset.fkid; write('lhq_family_kid', kidI); render(); });
     document.querySelectorAll('[data-fcf]').forEach(b => b.onclick = () => { const [a, ...r] = b.dataset.fcf.split(':'), id = r.join(':');
       if(a === 'yes') post({action:'confirm', id}, 'Confirmed'); else notRight(id); });
@@ -336,5 +362,5 @@ window.FAM = (function(){
     if(isParent()){ const seen = new Set(); kids().flatMap(k => k.pay || []).filter(p => p.type === 'invoice' && p.balance > 0.5 && !seen.has(p.id) && seen.add(p.id)).forEach(p => need.push({t:mk(p.balance), s:(p.over ? 'Overdue · ' : 'Due ') + day(p.due) + ' · ' + p.number, href:'#me/payments'})); }
     return {need, info};
   }
-  return {page, bind, bell, refresh: fetchData};
+  return {page, bind, bell, refresh: fetchData, mineCtx};
 })();

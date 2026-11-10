@@ -38,6 +38,9 @@ if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash)
 <script src="cards.js"></script>
 <script src="sra.js"></script>
 <script src="attn.js"></script>
+<script src="examdata.js"></script>
+<script src="exams.js"></script>
+<script src="examsui.js"></script>
 <script src="push.js"></script>
 <script src="teach.js"></script>
 <script src="family.js"></script>
@@ -60,6 +63,7 @@ a{color:inherit}
 .ph p{margin:3px 0 0;color:var(--muted);font-size:13.5px}
 .crumb{display:inline-flex;align-items:center;gap:4px;border:0;background:none;color:var(--muted);font-weight:700;font-size:13.5px;padding:4px 0;margin:0 0 4px;text-decoration:none}
 .crumb:hover{color:var(--ink)}
+.tp-row{display:grid;grid-template-columns:150px 110px minmax(0,1fr) minmax(0,1fr) 36px;gap:6px;align-items:center;margin-bottom:8px}@media (max-width:620px){.tp-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 36px}.tp-row input:nth-child(3),.tp-row input:nth-child(4){grid-column:1/-1}}
 .tm-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 36px;gap:6px;align-items:center;margin-bottom:8px}@media (max-width:520px){.tm-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 36px}.tm-row input:first-child{grid-column:1/-1}}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--line);background:var(--surface);color:var(--brand);border-radius:11px;padding:9px 14px;font-weight:800;font-size:13.5px;min-height:40px;white-space:nowrap;text-decoration:none}
 .btn:hover{border-color:var(--muted)}
@@ -474,8 +478,8 @@ function render(){
   document.documentElement.classList.toggle('lean', LEAN());
   if(render.last !== route.page){ document.documentElement.classList.remove('flt-open'); render.last = route.page; }
   if(render.lastH !== location.hash){ document.documentElement.classList.remove('lean-open'); render.lastH = location.hash; }
-  if(me().role === 'tutor' && !['teach','settings','set'].includes(route.page)){ location.replace('#teach'); route = {page:'teach', args:[]}; }
-  if(['student','parent'].includes(me().role) && !['me','settings','set'].includes(route.page)){ location.replace('#me'); route = {page:'me', args:[]}; }
+  if(me().role === 'tutor' && !['teach','settings','set','exams'].includes(route.page)){ location.replace('#teach'); route = {page:'teach', args:[]}; }
+  if(['student','parent'].includes(me().role) && !['me','settings','set','exams'].includes(route.page)){ location.replace('#me'); route = {page:'me', args:[]}; }
   const sec = route.page === 'me' ? ({practice:'mprac', calendar:'mcal', progress:'mprog', sessions:'mprog', subject:'mprog', payments:'mpay', more:'more'}[route.args[0]] || 'me') : route.page === 'teach' && me().role === 'tutor' ? ({sra:'tsra', report:'trep', cal:'tcal', avail:'tcal'}[route.args[0]] || 'teach') : {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', teach:'teach', tutors:'tutors', bookings:'tutors', reqs:'tutors', sessions:'tutors', confirm:'tutors', clashes:'tutors', calendar:'calendar', says:'tutors', more:'more'}[route.page] || route.page;
   LHQNav.section(sec);
   const m = $('main');
@@ -594,8 +598,9 @@ function attention(list){
       if(L.length) out.push({w:-1, s:{name:`${L.length} ${w} today`}, href:stuLink(L[0].st, 'sessions'), ico:'clock', col: k === 'abs' ? '--am' : '--bl', sub:L.slice(0, 3).map(ntl).join(' · ') + (L.length > 3 ? ` · +${L.length - 3}` : '')}); });
     /* students slipping (the tutors' rules): one grouped line, each student inside */
     if(window.ATTN){ const LG = Object.values((store.get('lhq_logs', {e:{}}) || {}).e || {}), I = SCHED.items(saved.filter(d => typeOf(d) === 'card'), t), seenS = new Set();
-      ATTN.slipping(I, LG, t).forEach(x => { const key = SCHED.nk(x.st) + '|' + x.level; if(seenS.has(key + x.kind)) return; seenS.add(key + x.kind);
-        out.push({w: x.level === 'now' ? -1 : 0, g:'slip', s:{name:`${x.st} · ${x.what}`}, href:stuLink(SCHED.nk(x.st), x.kind === 'drop' || x.kind === 'fall' ? 'marks' : 'sessions'), ico: x.level === 'now' ? 'alert' : 'clock', col: x.level === 'now' ? '--rd' : '--am', sub:`${x.sub.replace(/^Mathematics$/, 'Maths')} · ${x.detail} · ${x.tutor || 'no tutor'}`}); }); }
+      const PKX = window.EXUI ? EXUI.staffPack([], []) : null, tgOf = k => { if(!PKX) return null; const it = I.find(y => y.k === k); const i = EXUI.info(k, Object.assign({}, PKX, {subs: it ? {[k]: {card: EXAMS.fromCard(it.x)}} : {}}), []); return i.c.g ? {g: i.c.g, tp: i.tp} : null; };
+      ATTN.slipping(I, LG, t, {target: tgOf}).forEach(x => { const key = SCHED.nk(x.st) + '|' + x.level; if(seenS.has(key + x.kind)) return; seenS.add(key + x.kind);
+        out.push({w: x.level === 'now' ? -1 : 0, g:'slip', s:{name:`${x.st} · ${x.what}`}, href:stuLink(SCHED.nk(x.st), x.kind === 'drop' || x.kind === 'fall' || x.kind === 'below' ? 'marks' : 'sessions'), ico: x.level === 'now' ? 'alert' : 'clock', col: x.level === 'now' ? '--rd' : '--am', sub:`${x.sub.replace(/^Mathematics$/, 'Maths')} · ${x.detail} · ${x.tutor || 'no tutor'}`}); }); }
     packsAll().filter(p => !p.out && p.on < t).forEach(p => out.push({w:-1, g:'pkout', s:{name:`Pack not handed over: ${p.st}`}, href:stuLink(SCHED.nk(p.st), 'marks'), ico:'box', col:'--am', sub:`${p.sub} · ${p.tutor || 'tutor'} · last session ${nice(p.on)} · ${p.sheets.length} sheets`}));
     disp.filter(e => !e.cf.step || e.cf.step === 'lhq').forEach(e => out.push({w:-2, g:'disp', s:{name:'Settle: ' + e.st}, href:'#confirm/' + encodeURIComponent(e.id), ico:'alert', col:'--rd', sub:`${e.sub} with ${e.tutor || 'tutor'} · ${nice(e.d)} · ${cfLine(e)}`, tag:['Disputed','rd']}));
   }
@@ -764,12 +769,19 @@ P.student = (key, tab = 'overview') => {
     PK.forEach(p => p.sheets.filter(x => x.status !== 'in').forEach(x => { const d = sd[sid(x)];
       if(d && d.sc != null && pc(d) != null) M.r.push({sub: x.sub, tk: x.topic, rv: x.stage, p: pc(d), d: x.doOn, self: 1}); else (M.p = M.p || []).push({sub: x.sub, tk: x.topic, rv: x.stage, d: x.doOn}); }));
     const B = MARKS.bySubject(M);
+    /* targets, On track and exams, per subject (exams.js) */
+    const tgt = (() => { if(!window.EXUI) return '';
+      const I = SCHED.items(saved.filter(d => typeOf(d) === 'card'), HD.today()).filter(it => SCHED.nk(it.st) === SCHED.nk(s.name)); if(!I.length) return '';
+      EXUI.ensureLibs(render); const PKX = EXUI.staffPack(I, E), mayT = isDir() || can('tutors') || can('students');
+      const my = (PKX.myexams[SCHED.nk(s.name)] || []);
+      return `<div class="h2">Targets <em>avg of last 3</em></div><div class="card">${I.map(it => EXUI.row(EXUI.info(it.k, PKX, M.w.filter(m => m.sub === it.sub)), it.sub, mayT ? `data-extg="${esc(it.k)}"` : '')).join('')}</div>
+        ${my.length ? `<p class="note" style="margin:-4px 2px 14px">Also sitting: ${my.map(c => esc(c.code + ' ' + EXAMS.EXS[c.ex])).join(' · ')}</p>` : ''}`; })();
     const pk = PK.length ? (() => { const S = PK.flatMap(p => p.sheets), n = S.filter(x => sd[sid(x)] || x.status === 'in').length, self = S.filter(x => (sd[sid(x)] || {}).sc != null && x.status !== 'in'), last = S.map(x => x.doOn).sort().pop();
       const avg = self.length ? Math.round(self.reduce((a, x) => a + pc(sd[sid(x)]), 0) / self.length) : null, onDay = S.filter(x => { const d = sd[sid(x)]; return d && d.at && HD.isoOf(new Date(d.at)) <= x.doOn; }).length;
       return `<div class="card pad mk-pack"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><b>Take-home pack</b><small class="note" style="margin:0">to ${nice(last)}</small></div>
         <p style="margin:6px 0 8px"><b>${n} of ${S.length} done</b><span class="note" style="margin:0"> · ${self.length} self-marked${avg != null ? ' · average ' + avg + '%' : ''} · on their day ${onDay} of ${n}</span></p>
         ${PK.map(p => `<div class="it"><span class="cfm" style="${p.out ? 'background:var(--ok);border-color:var(--ok);color:#fff' : 'border:2px solid var(--' + (p.on < HD.today() ? 'rd' : 'line') + ')'}">${p.out ? '✓' : ''}</span><span class="t"><b>${esc(p.sub)} · ${p.sheets.length} sheet${p.sheets.length === 1 ? '' : 's'}</b><small${!p.out && p.on < HD.today() ? ' style="color:var(--rd)"' : ''}>${p.out ? `Handed over ${nice(p.out.d)}${p.out.by ? ' · ' + esc(p.out.by) : ''}` : `${p.on < HD.today() ? 'Not handed over' : 'Last session ' + nice(p.on)} · ${esc(p.tutor || '')}`}</small></span></div>`).join('')}</div>`; })() : '';
-    body = pk + (B.length ? `<div class="mk-cards" style="${MARKS.cols(B.length)}">${B.map(x => `<div class="card pad"><div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><b>${esc(x.sub)}</b>${x.last != null ? `<span class="mk-big">${x.last}%${MARKS.change(x.diff)}</span>` : ''}</div><p class="note" style="margin:0 0 4px">Assessments</p>${MARKS.line(x, 340, 160)}${MARKS.avgs(x)}</div>`).join('')}</div>
+    body = tgt + pk + (B.length ? `<div class="mk-cards" style="${MARKS.cols(B.length)}">${B.map(x => `<div class="card pad"><div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><b>${esc(x.sub)}</b>${x.last != null ? `<span class="mk-big">${x.last}%${MARKS.change(x.diff)}</span>` : ''}</div><p class="note" style="margin:0 0 4px">Assessments</p>${MARKS.line(x, 340, 160)}${MARKS.avgs(x)}</div>`).join('')}</div>
       <div class="h2">SRAs <em>% at each review</em></div><div class="mk-cards" style="${MARKS.cols(B.length)}">${B.map(x => `<div class="card pad"><b style="display:block;margin-bottom:6px">${esc(x.sub)}</b>${MARKS.grid(x)}</div>`).join('')}</div>`
       : '<p class="empty">No marks yet. They appear as tutors enter weekly assessment and SRA marks.</p>');
   }
@@ -1322,7 +1334,7 @@ P.tutors = (show = '') => {
 
 /* ================= search: everything this person can open, for the search box in the top bar ================= */
 window.LHQSearchScope = () => ({students:'Students', student:'Students', docs:'Documents', tutors:'People', set:'Pages'})[route.page] || '';
-const SKW = {account:'password sign in devices sign out', appearance:'theme dark light auto text size bar sidebar menu lean full', terms:'school terms holidays calendar term dates', notifications:'phone notifications push alerts quiet hours morning summary devices', people:'staff access accounts setup code tutors admin',
+const SKW = {account:'password sign in devices sign out', appearance:'theme dark light auto text size bar sidebar menu lean full', terms:'school terms holidays calendar term dates', bands:'grade boundaries percent target grades a* outstanding checkpoint igcse a level', exams:'exam series timetable zone topical dates correct a paper date cambridge', notifications:'phone notifications push alerts quiet hours morning summary devices', people:'staff access accounts setup code tutors admin',
   company:'bank address logo contact', payments:'due dates instalments', hours:'opening hours times saturday sunday', numbering:'numbers prefix', messages:'whatsapp email wording templates',
   lists:'subjects schools year levels spending categories', enrol:'checklist', sending:'whatsapp email', backup:'export download restore', deleted:'bin trash restore', demo:'sample data'};
 LHQSearch.provider = () => {
@@ -1348,6 +1360,7 @@ LHQSearch.provider = () => {
   if(can('pl') && window.MIN){ const t = today(), q = MIN.periodOf('term', t);
     pages.push({t:'Money in · today', k:'received payments day', href:'#biz/money/d' + t, ic:I('cash')}, {t:'Money in · this week', k:'received payments week', href:'#biz/money/' + MIN.key(MIN.periodOf('week', t)), ic:I('cash')},
       {t:'Money in · this term', k:'received payments school term holiday', href:'#biz/money/' + MIN.key(q), ic:I('cash')}, {t:'Money in · this year', k:'received payments financial year half', href:'#biz/money/' + MIN.key(MIN.periodOf('year', t)), ic:I('cash')}); }
+  if(window.EXUI) pages.push({t:'Exam timetable', k:'exams dates papers cambridge igcse a level as checkpoint june november march', href:'#exams', ic:I('list')});
   if(store.get('lhq_sreports', null)) pages.push({t:'What students say', k:'daily reports ratings', href:'#says', ic:I('msg')});
   G.push({g:'Pages', items: pages.concat(setPages())});
   const A = [['quote','New quote','quotes','quote'],['invoice','New invoice','quotes','invoice'],['receipt','Record a payment','receipts','receipt'],['card','New tuition card','cards','card']].filter(x => can(x[2])).map(([t, l, , i]) => ({t:l, k:'new ' + t + (t === 'receipt' ? ' receipt payment received' : ''), href:'#new/' + t, ic:I(i)}));
@@ -1376,18 +1389,22 @@ P.perf = () => { setTimeout(() => location.replace('#rep/business'), 0); return 
 P.reports = () => PERF.page() + (isDir() || me().role === 'admin' ? `<div class="card" style="margin-top:14px"><a class="it" href="#activity"><span class="t"><b>Activity</b><small>Everything done in the Hub, by whom</small></span><span class="chev">›</span></a></div>` : '');
 P.teach = (sub, a1, a2) => TUT.page(sub, a1, a2);
 P.me = (sub, a1, a2) => FAM.page(sub, a1, a2);
+/* the exam timetable (exams.js, examsui.js): everyone; students add subjects to My exams from here */
+P.exams = () => { EXUI.setMine(['student','parent'].includes(me().role) && window.FAM && FAM.mineCtx ? FAM.mineCtx() : null);
+  const back = me().role === 'tutor' ? '<a class="crumb" href="#teach">‹ Home</a>' : ['student','parent'].includes(me().role) ? '<a class="crumb" href="#me/exams">‹ My exams</a>' : crumb(null, null, 'exams');
+  return EXUI.timetable(back); };
 P.rep = (kind, arg) => PERF.page(kind, arg);
 
 /* ================= settings ================= */
 const SETS = [
   ['Account', [['account','user','My account'],['appearance','layout','Appearance'],['notifications','bell','Notifications']]],
-  ['LHQ', [['people','users','People & access', () => isDir() || can('tutors')],['company','bank','Company & bank details', isDir],['payments','cash','Payments & due dates', isDir],['hours','clock','Opening hours', isDir],['terms','clock','School terms', isDir],['tutorinfo','users','Tutors\' contacts', () => isDir() || can('tutors') || can('msgs')]]],
+  ['LHQ', [['people','users','People & access', () => isDir() || can('tutors')],['company','bank','Company & bank details', isDir],['payments','cash','Payments & due dates', isDir],['hours','clock','Opening hours', isDir],['terms','clock','School terms', isDir],['bands','rep','Grade boundaries', isDir],['exams','list','Exams', isDir],['tutorinfo','users','Tutors\' contacts', () => isDir() || can('tutors') || can('msgs')]]],
   ['Documents', [['numbering','hash','Numbering', () => can('numbering')],['messages','msg','Messages', () => can('msgs')],['lists','list','Lists', () => can('msgs')]]],
   ['Enrolment & sending', [['enrol','link','Student checklist', () => staffRole()],['sending','wa','Email & WhatsApp', () => staffRole()]]],
   ['Data', [['records.html','layout','Shared records', () => isDir()],['backup','box','Backup & restore', () => can('backup')],['deleted','bin','Recently deleted', () => can('restore')],['demo','restore','Demo data (preview)', () => isDir() && PREVIEW]]],
 ];
 const setVis = ids => SETS.flatMap(([, items]) => items).filter(x => ids.includes(x[0]) && (!x[3] || x[3]()));
-const DETAILS = ['company','payments','hours','numbering','messages','sending','tutorinfo','enrol'], DATA = ['records.html','backup','deleted','demo'];
+const DETAILS = ['company','payments','hours','terms','bands','exams','numbering','messages','sending','tutorinfo','enrol'], DATA = ['records.html','backup','deleted','demo'];
 /* Lean: 5 places. Things set once sit inside LHQ details; shared records, backups and the bin inside Data */
 const LEAN_SETS = () => [['Account', [['account','user','My account'],['appearance','layout','Appearance'],['notifications','bell','Notifications']]],
   ['LHQ', setVis(['people']).concat(setVis(DETAILS).length ? [['details','bank','LHQ details']] : [], setVis(['lists']))],
@@ -1419,6 +1436,22 @@ S.terms = () => { const L = termDraft || (window.MIN ? MIN.terms() : []).map(t =
   termDraft = L;
   return `<h2 class="sec-h">School terms</h2><div class="card pad">${L.map((t, i) => `<div class="tm-row"><input class="in" data-tm="${i}:0" value="${esc(t[0])}" aria-label="Name"><input class="in" type="date" data-tm="${i}:1" value="${esc(t[1])}" aria-label="Starts"><input class="in" type="date" data-tm="${i}:2" value="${esc(t[2])}" aria-label="Ends"><button class="ib" data-tmrm="${i}" aria-label="Remove">✕</button></div>`).join('')}
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"><button class="btn" id="tmAdd">+ Term</button><button class="btn n" id="tmSave">Save</button></div></div><p class="note">Holidays are the gaps between terms. Used by Money in.</p>`; };
+let bandSc = 'al', exTab = 'series', topDraft = null;
+S.bands = () => { const E0 = EXAMS, cur = E0.bandsOf(bandSc, settingsKV());
+  return `<h2 class="sec-h">Grade boundaries</h2><p class="sec-p">% of the marks for each grade. Used for On track.</p>
+    <div class="chips">${E0.SCALES.map(([k, l]) => `<button class="chip${bandSc === k ? ' on' : ''}" data-bsc="${k}">${esc(l)}</button>`).join('')}</div>
+    <div class="card pad">${E0.GRADES[bandSc].map(g => `<div class="it" style="padding:6px 0"><span class="ex-gr">${esc(g)}</span><span class="t"></span><input class="in" style="width:80px;text-align:right" inputmode="numeric" data-bnd="${esc(g)}" value="${esc(cur[g])}"> %</div>`).join('')}</div>
+    <div class="acts"><button class="btn n" id="bndSave">Save</button><button class="btn" id="bndReset">Cambridge-style default</button></div>`; };
+S.exams = () => { const E0 = EXAMS, set = settingsKV(), I = (window.EXAMDATA || {}).series || {}, fix = set.examFix || {};
+  const tabs = `<div class="chips"><button class="chip${exTab === 'series' ? ' on' : ''}" data-extab="series">Exam series</button><button class="chip${exTab === 'top' ? ' on' : ''}" data-extab="top">Topical dates</button></div>`;
+  if(exTab === 'top'){ const L = topDraft || (set.topicals || []).map(x => Object.assign({}, x)); topDraft = L;
+    return `<h2 class="sec-h">Exams</h2>${tabs}<div class="card pad">${L.map((x, i) => `<div class="tp-row"><input class="in" type="date" data-tp="${i}:d" value="${esc(x.d || '')}" aria-label="Date"><select class="in" data-tp="${i}:ex" aria-label="Exam">${E0.EX.map(([k, l]) => `<option value="${k}" ${x.ex === k ? 'selected' : ''}>${esc(E0.EXS[k])}</option>`).join('')}</select><input class="in" data-tp="${i}:sub" value="${esc(x.sub || '')}" placeholder="Subject" aria-label="Subject"><input class="in" data-tp="${i}:tp" value="${esc(x.tp || '')}" placeholder="Topics" aria-label="Topics"><button class="ib" data-tprm="${i}" aria-label="Remove">✕</button></div>`).join('') || '<p class="empty" style="margin:0 0 8px">None yet.</p>'}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"><button class="btn" id="tpAdd">+ Topical</button><button class="btn n" id="tpSave">Save</button></div></div><p class="note">Shows on the students' Practice and calendar, and on their tutors' Home.</p>`; }
+  return `<h2 class="sec-h">Exams</h2>${tabs}<div class="card"><div class="it"><span class="t"><b>Zone</b><small>Malawi</small></span><b>${esc((window.EXAMDATA || {}).zone || '3')}</b></div>
+    ${Object.entries(I).map(([sr, x]) => { const n = (E0.rowsAll(set)[sr] || []).length; return `<div class="it"><span class="t"><b>${esc(x.name)} · ${x.exams.map(k => E0.EXS[k]).filter((v, i, a) => a.indexOf(v) === i).join(', ')}</b><small>${n ? n + ' papers' : 'Not published yet'}</small></span>${n ? '<span class="ex-st ok"><i>✓</i></span>' : '<span class="ex-st no"><i></i></span>'}</div>`; }).join('')}</div>
+    <a class="btn" href="#exams">Exam timetable</a>
+    <div class="h2">Correct a date</div><div class="card pad"><div class="tp-row" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)"><select class="in" id="fxSr">${Object.entries(I).filter(([sr]) => (E0.rowsAll(set)[sr] || []).length).map(([sr, x]) => `<option value="${sr}">${esc(x.name)}</option>`).join('')}</select><input class="in" id="fxCc" placeholder="0580/22"><input class="in" type="date" id="fxD"></div><button class="btn n" id="fxSave" style="margin-top:8px">Save</button></div>
+    ${Object.keys(fix).length ? `<div class="card">${Object.entries(fix).map(([k, v]) => `<div class="it"><span class="t"><b>${esc(k.split('|')[1])}</b><small>${esc((I[k.split('|')[0]] || {}).name || '')} · ${esc(EXUI.dly(v.a))}</small></span><button class="ib" data-fxrm="${esc(k)}" aria-label="Remove">✕</button></div>`).join('')}</div>` : ''}`; };
 S.details = () => `<h2 class="sec-h">LHQ details</h2>${setList(DETAILS)}`;
 S.data = () => `<h2 class="sec-h">Data</h2>${setList(DATA)}`;
 S.account = () => { const m = me(), L = LHQNav.layout();
@@ -1715,6 +1748,25 @@ function bind(){
   document.querySelectorAll('[data-tm]').forEach(el => el.onchange = () => { const [i, j] = el.dataset.tm.split(':').map(Number); if(termDraft && termDraft[i]) termDraft[i][j] = el.value; });
   document.querySelectorAll('[data-tmrm]').forEach(el => el.onclick = () => { termDraft.splice(+el.dataset.tmrm, 1); render(); });
   if($('tmAdd')) $('tmAdd').onclick = () => { const last = termDraft[termDraft.length - 1], n = last ? (+(last[0].match(/\d+/) || [0])[0] % 3) + 1 : 1; termDraft.push(['Term ' + n, '', '']); render(); };
+  document.querySelectorAll('[data-bsc]').forEach(b => b.onclick = () => { bandSc = b.dataset.bsc; render(); });
+  if($('bndSave')) $('bndSave').onclick = () => { const v = {}; let bad = false; document.querySelectorAll('[data-bnd]').forEach(el => { const n = Number(el.value); if(!(n >= 0 && n <= 100)) bad = true; v[el.dataset.bnd] = n; });
+    const G = EXAMS.GRADES[bandSc]; if(bad || G.some((g, i) => i && v[g] > v[G[i - 1]])){ toast('Each grade needs a lower % than the one above'); return; }
+    saveSettings({bands: Object.assign({}, settingsKV().bands || {}, {[bandSc]: v})}); toast('Saved'); render(); };
+  if($('bndReset')) $('bndReset').onclick = () => { const b = Object.assign({}, settingsKV().bands || {}); delete b[bandSc]; saveSettings({bands: b}); render(); };
+  document.querySelectorAll('[data-extab]').forEach(b => b.onclick = () => { exTab = b.dataset.extab; topDraft = null; render(); });
+  document.querySelectorAll('[data-tp]').forEach(el => el.onchange = () => { const [i, f] = el.dataset.tp.split(':'); if(topDraft && topDraft[+i]) topDraft[+i][f] = el.value; });
+  document.querySelectorAll('[data-tprm]').forEach(el => el.onclick = () => { topDraft.splice(+el.dataset.tprm, 1); render(); });
+  if($('tpAdd')) $('tpAdd').onclick = () => { topDraft.push({id: 't' + Date.now().toString(36), d: '', ex: 'I', sub: '', tp: ''}); render(); };
+  if($('tpSave')) $('tpSave').onclick = () => { const L = topDraft.filter(x => x.d && String(x.sub).trim()).map(x => ({id: x.id || 't' + Math.random().toString(36).slice(2, 8), d: x.d, ex: x.ex, sub: String(x.sub).trim(), tp: String(x.tp || '').trim()})).sort((a, b) => a.d.localeCompare(b.d)); saveSettings({topicals: L}); topDraft = null; toast('Saved'); render(); };
+  if($('fxSave')) $('fxSave').onclick = () => { const sr = $('fxSr').value, cc = $('fxCc').value.trim(), d = $('fxD').value;
+    if(!/^\d{4}\/\d{2}$/.test(cc) || !d){ toast('Give the paper (e.g. 0580/22) and its date'); return; }
+    if(!(EXAMS.rowsAll({})[sr] || []).some(p => p.code + '/' + p.comp === cc)){ toast('That paper isn\'t in this series'); return; }
+    saveSettings({examFix: Object.assign({}, settingsKV().examFix || {}, {[sr + '|' + cc]: {a: d}})}); toast('Saved'); render(); };
+  document.querySelectorAll('[data-fxrm]').forEach(b => b.onclick = () => { const f = Object.assign({}, settingsKV().examFix || {}); delete f[b.dataset.fxrm]; saveSettings({examFix: f}); render(); });
+  document.querySelectorAll('[data-extg]').forEach(b => b.onclick = () => { const k = b.dataset.extg, s0 = HD.students().find(x => x.key === route.args[0]) || {}, it = SCHED.items(saved.filter(d => typeOf(d) === 'card'), HD.today()).find(y => y.k === k); if(!it) return;
+    const E = Object.values((store.get('lhq_logs', {e:{}}) || {}).e || {}).filter(e => e && e.k === k), M = MARKS.fromEntries(E);
+    EXUI.targetSheet({k, name: s0.name || it.st, sub: it.sub, i: EXUI.info(k, EXUI.staffPack([it], E), M.w), onSaved: async () => { await hub.pull(); render(); }}); });
+  if(route.page === 'exams' && window.EXUI) EXUI.bindTimetable(render);
   if($('tmSave')) $('tmSave').onclick = () => { const L = termDraft.filter(t => t[0].trim() && t[1] && t[2]); if(L.some(t => t[1] > t[2])){ toast('A term ends before it starts'); return; } saveSettings({terms: L.map(t => [t[0].trim(), t[1], t[2]])}); termDraft = null; render(); };
   if($('ohSave')) $('ohSave').onclick = () => { const o = {}; ['Mo','Tu','We','Th','Fr','Sa','Su'].forEach(d => { const a = $('oh' + d + 'a').value, b = $('oh' + d + 'b').value; o[d] = a && b && a < b ? [a, b] : null; }); saveSettings({openHours: o}); };
   document.querySelectorAll('[data-view]').forEach(el => el.onclick = async () => { const v = el.dataset.view, s0 = hub.session();

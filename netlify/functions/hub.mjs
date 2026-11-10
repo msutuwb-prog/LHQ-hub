@@ -24,6 +24,10 @@ import webpush from "web-push";
 import * as A from "../lib/auth.mjs";
 import { pgStore, moveFromBlobs as copyBlobs, copyToBlobs } from "../lib/pgstore.mjs";
 import { one, q } from "../lib/db.mjs";
+import vm from "node:vm";
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 /* With the shared records' database switched on, people and sign-in live there (username or email + password, see
    netlify/lib/auth.mjs); everything below keeps using getPeople/putPeople/whoIs and doesn't notice.
@@ -59,7 +63,7 @@ async function usesDbStore() {
 /* compare two values whatever order their keys come in (the database keeps keys in its own order) */
 const canon = v => JSON.stringify(v, (k, x) => x && typeof x === "object" && !Array.isArray(x) ? Object.keys(x).sort().reduce((o, key) => (o[key] = x[key], o), {}) : x);
 
-const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes", "lhq_treps", "lhq_avail", "lhq_cardack", "lhq_makeups", "lhq_reqs", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices"];
+const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes", "lhq_treps", "lhq_avail", "lhq_cardack", "lhq_makeups", "lhq_reqs", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams"];
 
 /* ---------- roles and permissions ---------- */
 const PERMS = ["quotes", "receipts", "cards", "delete", "restore", "students", "money", "tpay", "tutors", "msgs", "numbering", "backup", "classes", "moveclass", "spend", "pl"];
@@ -315,8 +319,8 @@ async function checkSync(me, upserts, deletes, kv) {
       const ch = Object.keys(v || {}).filter(id => canon(v[id]) !== canon(old[id]) && (!old[id] || (v[id].at || 0) >= (old[id].at || 0)));
       if (ch.length && !can(me, "spend")) return "You don't have permission to record spending.";
       if (ch.some(id => old[id] && old[id].by !== me.name)) return "You can only change spending you recorded. Ask the Director to change the others.";
-    } else if (["lhq_makeups", "lhq_reqs", "lhq_treps", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices"].includes(k)) {
-      if (changedKeys(old, v).length) return "Make-ups, requisitions, clashes and tutors' reports change through their own buttons.";
+    } else if (["lhq_makeups", "lhq_reqs", "lhq_treps", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams"].includes(k)) {
+      if (changedKeys(old, v).length) return "Make-ups, requisitions, clashes, targets and tutors' reports change through their own buttons.";
     } else if (k === "lhq_avail" || k === "lhq_cardack") {
       if (changedKeys(old, v).length && !can(me, "tutors")) return "You don't have permission to change tutors' times.";
     } else if (k === "lhq_budget") {
@@ -351,7 +355,7 @@ async function sync(req, me) {
   const s = store(), now = Date.now();
   const upserts = Array.isArray(body.upserts) ? body.upserts : [], deletes = Array.isArray(body.deletes) ? body.deletes : [];
   // students' daily reports change only through the student's own Send, never through a save (not even the Director's)
-  const kvIn = body.kv && typeof body.kv === "object" ? Object.entries(body.kv).filter(([k]) => KV_KEYS.includes(k) && k !== "lhq_sreports" && k !== "lhq_notices") : [];
+  const kvIn = body.kv && typeof body.kv === "object" ? Object.entries(body.kv).filter(([k]) => KV_KEYS.includes(k) && k !== "lhq_sreports" && k !== "lhq_notices" && k !== "lhq_targets" && k !== "lhq_myexams") : [];
   const denied = await checkSync(me, upserts, deletes, kvIn);
   if (denied) return json({ error: denied, denied: true }, 403);
   const r = await writeDocs(me, upserts, deletes, kvIn);
@@ -661,7 +665,7 @@ async function familyData(me) {
   await import("../../site/sreport.js"); const SP = globalThis.SREP;
   const E = Object.values((logs && logs.e) || {}).filter(e => e && !e.x);
   const items = S.items(cards, t);
-  return { kids: kids.map(kid => {
+  return { kids: await Promise.all(kids.map(async kid => {
     const mineK = k => String(k || "").split("|")[0] === kid.key;
     const its = items.filter(it => nk(it.st) === kid.key);
     const confirmer = (conf || {})[kid.key] === "parent" ? "parent" : "student";
@@ -711,8 +715,9 @@ async function familyData(me) {
         .concat(sras.filter(x => x.pack && x.status !== "in" && x.self).map(x => ({ sub: x.sub, tk: x.topic, rv: x.stage, p: pcOf(x.self), d: x.doOn, self: 1 })).filter(x => x.p != null)),
       p: sras.filter(x => x.pack && x.status !== "in" && !x.self).map(x => ({ sub: x.sub, tk: x.topic, rv: x.stage, d: x.doOn })) };
     makeups.forEach(m => { m.told = toldOf(m.d, m.sub); m.k = kid.key + "|" + nk(m.sub); });
-    return Object.assign({}, kid, { confirmer, canConfirm, subjects, sessions, toConfirm, answers, sras, week, changes, makeups, pay, report, marks, coming, lhqPhone: String((set && set.phone) || SETTINGS_DEFAULT.phone).replace(/\D/g, "") });
-  }) };
+    const exam = await examPack(new Set(its.map(it => it.k)), new Set([kid.key]), its, ent, set);
+    return Object.assign({}, kid, { exam, confirmer, canConfirm, subjects, sessions, toConfirm, answers, sras, week, changes, makeups, pay, report, marks, coming, lhqPhone: String((set && set.phone) || SETTINGS_DEFAULT.phone).replace(/\D/g, "") });
+  })) };
 }
 async function familyGet(me) {
   if (!["student", "parent"].includes(me.role)) return fail("This part is for students and parents.", 403);
@@ -794,6 +799,64 @@ async function setConfirmer(req, me) {
   await writeKv("lhq_confirmer", old => { const o = Object.assign({}, old); if (b.who === "parent") o[key] = "parent"; else delete o[key]; return o; });
   await act(me, "students", "confirmer", `${b.who === "parent" ? "The parent" : "The student"} confirms ${b.name || key}'s sessions`, "students", key);
   return json({ ok: true });
+}
+
+/* ---------- Targets and exams (shared rules in site/exams.js; timetables in site/examdata.js) ----------
+   kv lhq_targets: {"student|subject": {g, ex, code, as, by, role, at}} · kv lhq_myexams: {student: [{code, ex, as}]} (subjects a
+   student sits outside LHQ). Targets: LHQ (Director, or admin with tutors or students), the subject's tutor, or the student.
+   Parents see them. My exams: the student, or LHQ for them. */
+let TOPICS_CTX = null;
+function topicsCtx() {   // the topic lists and card rules, as the browser has them, to read a card's syllabus code and topic count
+  if (TOPICS_CTX) return TOPICS_CTX;
+  const ctx = { console }; ctx.window = ctx; vm.createContext(ctx);
+  const here = path.dirname(fileURLToPath(import.meta.url));
+  for (const f of ["topics.js", "card.js"]) for (const dir of [path.join(here, "../../site"), path.join(process.cwd(), "site")]) {
+    try { vm.runInContext(fs.readFileSync(path.join(dir, f), "utf8"), ctx); break; } catch (e) { /* try the next place */ }
+  }
+  return TOPICS_CTX = ctx;
+}
+async function examLib() { await import("../../site/examdata.js"); await import("../../site/exams.js"); return globalThis.EXAMS; }
+const topicCount = x => { try { const c = topicsCtx(); return c.cardTopicNames ? c.cardTopicNames(JSON.parse(JSON.stringify(x))).length : 0; } catch (e) { return 0; } };
+/* what the browser needs to work out targets, exams and pace for some subjects */
+async function examPack(keys, stKeys, items, ent, set) {
+  const E = await examLib(), [tg, my] = await Promise.all(["lhq_targets", "lhq_myexams"].map(k => store().get("kv/" + k, { type: "json" })));
+  const targets = {}, myexams = {}, T = topicsCtx().TOPICS;
+  Object.entries(tg || {}).forEach(([k, v]) => { if (keys.has(k)) targets[k] = v; });
+  Object.entries(my || {}).forEach(([k, v]) => { if (stKeys.has(k)) myexams[k] = v; });
+  const subs = {};
+  (items || []).forEach(it => { if (!keys.has(it.k)) return;
+    const fin = new Set(); (ent || []).forEach(e => { if (e.k === it.k && e.ty === "s" && !e.x) (e.fin || []).forEach(f => fin.add(f)); });
+    subs[it.k] = { card: E.fromCard(it.x, T), topics: topicCount(it.x), done: fin.size, from: ((it.periods || [])[0] || {}).a || it.pa || "" }; });
+  return { targets, myexams, subs, set: { bands: (set || {}).bands || {}, examFix: (set || {}).examFix || {}, topicals: ((set || {}).topicals || []).filter(x => x && x.d >= mwToday()) } };
+}
+async function examsPost(req, me) {
+  const b = await req.json().catch(() => ({})), now = Date.now(), E = await examLib();
+  const okEx = c => c && E.EXL[c.ex] && /^\d{4}$/.test(String(c.code || ""));
+  const staff = isDirector(me) || can(me, "tutors") || can(me, "students");
+  let kids = [];
+  if (["student", "parent"].includes(me.role)) kids = await familyOf(me);
+  if (b.action === "target") {
+    const k = String(b.k || ""), st = k.split("|")[0];
+    let who = staff ? "lhq" : null;
+    if (!who && isTutor(me)) { const d = await tutorData(me); if (d.keys.has(k)) who = "tutor"; }
+    if (!who && me.role === "student" && kids.some(x => x.key === st)) who = "student";
+    if (!who) return fail("You can't set this target.", 403);
+    const g = String(b.g || ""), ex = String(b.ex || ""), code = String(b.code || "");
+    if (ex && !E.EXL[ex]) return fail("Choose the exam.");
+    if (g && ex && !E.GRADES[E.scale(ex, code)].includes(g)) return fail("Choose a grade.");
+    if (code && !/^\d{4}$/.test(code)) return fail("Check the syllabus code.");
+    await writeKv("lhq_targets", old => { const o = Object.assign({}, old); if (!g && !ex) delete o[k]; else o[k] = { g, ex, code, as: ex === "A" ? (b.as ? 1 : 0) : 0, by: me.name, role: who, at: now }; return o; });
+    await act(me, "students", "target", `Target for ${b.name || st} · ${b.sub || k.split("|")[1]}: ${g || "none"}${ex ? " · " + E.EXS[ex] + (code ? " " + code : "") : ""}`, "students", st);
+    return json({ ok: true });
+  }
+  if (b.action === "myexams") {
+    const st = String(b.st || "");
+    if (!(staff || (me.role === "student" && kids.some(x => x.key === st)))) return fail("You can't change these exams.", 403);
+    const list = (Array.isArray(b.list) ? b.list : []).slice(0, 30).filter(okEx).map(c => ({ code: String(c.code), ex: c.ex, as: c.ex === "A" && c.as ? 1 : 0 }));
+    await writeKv("lhq_myexams", old => { const o = Object.assign({}, old); if (list.length) o[st] = list; else delete o[st]; return o; });
+    return json({ ok: true });
+  }
+  return fail("Unknown action.");
 }
 
 /* Confirming a logged session. A session a tutor logged counts (for reports and pay) once it is confirmed: by the student
@@ -1110,7 +1173,9 @@ async function tutorExtras(me, d) {
   if (opens && opens <= tday) { const B = SP.byTutor(R, tday), mine = Object.entries(B.tutors).find(([k]) => nk(k) === mk); says = mine && mine[1].n >= 5 ? { mine: mine[1], lhq: B.all, from: B.from } : { few: true }; }
   const nt = (await store().get("kv/lhq_notices", { type: "json" })) || {}, nfrom = new Date(Date.now() - 21 * 864e5).toISOString().slice(0, 10);
   const notices = Object.values(nt).filter(n => n && n.d >= nfrom && d.keys.has(n.k));
-  return { avail: (av || {})[mk] || [], acks, gone, ackFrom: ack._from, calLink: calPath(me.id), makeups, reqs, clashes: await tutorClashes(me), sradone, says, notices };
+  await import("../../site/schedule.js");
+  const exam = await examPack(d.keys, new Set([...d.keys].map(k => k.split("|")[0])), globalThis.SCHED.items(d.cards, mwToday()), d.entries, await store().get("kv/lhq_settings", { type: "json" }));
+  return { avail: (av || {})[mk] || [], acks, gone, ackFrom: ack._from, calLink: calPath(me.id), makeups, reqs, clashes: await tutorClashes(me), sradone, says, notices, exam };
 }
 async function tutorPost(req, me) {
   if (!isTutor(me)) return fail("This part is for tutors.", 403);
@@ -1292,6 +1357,7 @@ export default async (req, context) => {
     if (req.method === "GET" && path === "family") return await familyGet(me);
     if (req.method === "POST" && path === "family") return await familyPost(req, me);
     if (req.method === "POST" && path === "confirmer") return await setConfirmer(req, me);
+    if (req.method === "POST" && path === "exams") return await examsPost(req, me);
     if (req.method === "GET" && path === "activity") return await activityList(req, me);
     if (path === "push") return await pushRoute(req, me);
     return fail("Not found.", 404);

@@ -111,6 +111,7 @@
     const now = new Date(); now.setHours(9, 0, 0, 0);
     const T = now.getTime(), at = (days, h = 10) => { const d = new Date(T + days * DAY); d.setHours(h, Math.floor(rnd() * 59), 0, 0); return d; };
     const docs = [], logs = {}, recs = {};
+    const targets = {};
     let uid = 0; const id = () => 'demo' + (++uid).toString(36) + Math.floor(rnd() * 1e6).toString(36);
     const by = () => pick(ADMINS);
     function mk(type, dayOff, s, extra){
@@ -210,6 +211,9 @@
       card.subjects.forEach(sub => {
         if(!sub.tutor) return;
         const key = norm(card.student) + '|' + norm(sub.name), topics = topicsOf(sub.list);
+        /* a target for most subjects (LHQ sets them until students have accounts) */
+        if(!targets[key] && rnd() < .7){ const lv = String(sub.list || '').split('|')[0], ex = {'Primary (Year 6)':'P','Lower Secondary (Years 7–9)':'L','IGCSE':'I','A Level':'A'}[lv];
+          if(ex){ const G = ex === 'P' || ex === 'L' ? ['High','Good','Outstanding'] : ex === 'A' ? ['A','B','C'] : ['A*','A','B','C']; targets[key] = {g: pick(G), ex, code: '', as: ex === 'A' ? 1 : 0, by: 'Wanangwa', role: 'lhq', at: T - 5 * DAY}; } }
         const start = Math.max(new Date(card.periodStart).getTime(), T - 28 * DAY), end = Math.min(new Date(card.periodEnd).getTime() + DAY, T);
         let ti = Math.floor(rnd() * 3), n = 0, wn = 0; const wb = 42 + Math.floor(rnd() * 30), wt = rnd() < .7 ? 3 : -2;
         for(let t = start; t < end; t += DAY){
@@ -253,7 +257,7 @@
     [...new Set(Object.values(logs).map(e => e.tutor))].forEach(t => imports.push({t, at:T - Math.floor(rnd() * 3) * DAY, n:Object.values(logs).filter(e => e.tutor === t).length}));
 
     const money = spending(docs, now);
-    return {docs, trash, people:PEOPLE, kv:{lhq_students:recs, lhq_logs:{e:logs, imports}, lhq_counters:{quote:C.quote, invoice:C.invoice, receipt:C.receipt + 1, card:C.card}, lhq_spend:money.spend, lhq_budget:money.budget}};
+    return {docs, trash, people:PEOPLE, kv:{lhq_students:recs, lhq_logs:{e:logs, imports}, lhq_counters:{quote:C.quote, invoice:C.invoice, receipt:C.receipt + 1, card:C.card}, lhq_spend:money.spend, lhq_budget:money.budget, lhq_targets:targets}};
   }
   /* Business: spending from the first month with payments to today, recorded by Wanangwa and Catherine.
      Rent, internet and staff salaries repeat monthly; this month's internet and salaries are left for "to confirm". */

@@ -1,13 +1,14 @@
 /* LHQ Hub › students slipping: one set of rules for the tutor's Home and LHQ's Needs attention.
    Act now: absent 2+ times in the last 14 days, attendance under 85% this period (6+ sessions logged), the last 2 SRAs not handed in.
-   Watch: a topic's last 3 SRA scores each 3+ points lower than the one before; the last 3 assessment marks each lower.
+   Watch: a topic's last 3 SRA scores each 3+ points lower than the one before; the last 3 assessment marks each lower;
+   the last 2 assessments both below the target (opts.target(k) → {g, tp}, from exams.js).
    Lines clear themselves when the cause is gone (the 14 days pass, an SRA is handed in, a mark goes up).
    items: [{k, st, sub, tutor, pa}] · entries: tutors' logs · t: today (YYYY-MM-DD). */
 (function(G){
   const ms = d => Date.parse(d + 'T12:00:00Z'), add = (d, n) => new Date(ms(d) + n * 864e5).toISOString().slice(0, 10);
   const pc = e => Number(e.mx) > 0 && e.sc != null && e.sc !== '' && !isNaN(+e.sc) ? Math.round(+e.sc / +e.mx * 100) : null;
   const TIMES = ['', 'once', 'twice', '3 times', '4 times', '5 times'];
-  function slipping(items, entries, t){
+  function slipping(items, entries, t, opts){
     const out = [], E = (entries || []).filter(e => e && !e.x);
     (items || []).forEach(it => {
       const mine = E.filter(e => e.k === it.k), push = (level, kind, what, detail, extra) => out.push(Object.assign({k: it.k, st: it.st, sub: it.sub, tutor: it.tutor || '', level, kind, what, detail}, extra || {}));
@@ -28,6 +29,9 @@
       /* assessments falling */
       const W = mine.filter(e => e.ty === 'w' && !e.abs && pc(e) != null).sort((a, b) => (a.d || '').localeCompare(b.d || '')).slice(-3);
       if(W.length === 3 && pc(W[1]) < pc(W[0]) && pc(W[2]) < pc(W[1]) && W[2].d > add(t, -45)) push('watch', 'fall', 'assessments falling', W.map(pc).join(' → ') + '%');
+      /* below the target twice running */
+      const tg = opts && opts.target ? opts.target(it.k) : null, W2 = W.slice(-2);
+      if(tg && tg.tp != null && W2.length === 2 && W2.every(e => pc(e) < tg.tp) && W2[1].d > add(t, -45)) push('watch', 'below', `below ${tg.g} twice running`, W2.map(pc).join(' → ') + '%', {g: tg.g});
     });
     return out.sort((a, b) => (a.level === 'now' ? 0 : 1) - (b.level === 'now' ? 0 : 1) || a.st.localeCompare(b.st));
   }
