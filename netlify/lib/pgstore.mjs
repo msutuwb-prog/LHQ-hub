@@ -107,7 +107,7 @@ async function mapPut(key, value, mode, match) {
 }
 
 /* single values in the settings table: lists, messages, numbering, report edits, tutor links, budgets */
-const SETTINGS = new Set(["kv/lhq_settings", "kv/lhq_templates", "kv/lhq_counters", "kv/lhq_repEdits", "kv/lhq_tlinks", "kv/lhq_budget", "kv/lhq_avail", "kv/lhq_cardack", "kv/lhq_makeups", "kv/lhq_reqs", "kv/lhq_clashes", "kv/lhq_moves", "kv/lhq_confirmer", "kv/lhq_sradone", "kv/lhq_sreports", "kv/lhq_notices", "kv/lhq_targets", "kv/lhq_myexams", "kv/lhq_push", "kv/lhq_pushlog"]);
+const SETTINGS = new Set(["kv/lhq_settings", "kv/lhq_templates", "kv/lhq_counters", "kv/lhq_repEdits", "kv/lhq_tlinks", "kv/lhq_budget", "kv/lhq_avail", "kv/lhq_cardack", "kv/lhq_makeups", "kv/lhq_reqs", "kv/lhq_clashes", "kv/lhq_moves", "kv/lhq_confirmer", "kv/lhq_sradone", "kv/lhq_sreports", "kv/lhq_notices", "kv/lhq_targets", "kv/lhq_myexams", "kv/lhq_kpi", "kv/lhq_push", "kv/lhq_pushlog"]);
 const skey = key => "hub:" + key.slice(3);
 async function setGet(key) { return one("SELECT value AS v, ver::text AS etag FROM settings WHERE key = $1 AND NOT del", [skey(key)]); }
 async function setPut(key, value, mode, match) {

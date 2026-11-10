@@ -257,7 +257,20 @@
     [...new Set(Object.values(logs).map(e => e.tutor))].forEach(t => imports.push({t, at:T - Math.floor(rnd() * 3) * DAY, n:Object.values(logs).filter(e => e.tutor === t).length}));
 
     const money = spending(docs, now);
-    return {docs, trash, people:PEOPLE, kv:{lhq_students:recs, lhq_logs:{e:logs, imports}, lhq_counters:{quote:C.quote, invoice:C.invoice, receipt:C.receipt + 1, card:C.card}, lhq_spend:money.spend, lhq_budget:money.budget, lhq_targets:targets}};
+    /* SRAs handed out on (mostly) their day, and make-ups booked for missed sessions */
+    const makeups = {}, tIso = iso(new Date(T));
+    try{ if(window.SCHED && window.SRA){ const its = SCHED.items(docs.filter(d => d.type === 'card'), tIso);
+      SRA.build(its, Object.values(logs), tIso).filter(x => x.stage > 0 && x.giveOn < tIso && x.status !== 'after').forEach(x => { const r = rnd(); if(r < .07) return; const it = its.find(i => i.k === x.k); if(!it) return;
+        const d = r < .12 ? new Date(Date.parse(x.giveOn + 'T12:00:00Z') + 864e5).toISOString().slice(0, 10) : x.giveOn, id = 'dg' + (uid++).toString(36);
+        if(d >= tIso) return; logs[id] = {id, ty:'g', k:x.k, st:x.st, sub:x.sub, d, tk:x.topic, rv:x.stage, tutor:it.tutor, c:Date.parse(d + 'T13:00:00Z'), at:Date.parse(d + 'T13:00:00Z')}; }); } }catch(e){ console.warn('demo SRAs', e); }
+    Object.values(logs).filter(e => e && e.ty === 's' && !e.mk && (e.a === 'absent' || e.a === 'cancelled') && e.d < tIso).forEach(e => { const r = rnd(); if(r < .12) return;
+      const id = 'mu' + (uid++).toString(36), lag = r < .2 ? 9 : 1 + Math.floor(rnd() * 4), at = Date.parse(e.d + 'T12:00:00Z') + lag * 864e5, d = new Date(at + 3 * 864e5).toISOString().slice(0, 10);
+      makeups[id] = {id, k:e.k, st:e.st, sub:e.sub, tutor:e.tutor, d, s:'15:00', e:'15:50', why:'', status: d < tIso ? 'ok' : 'asked', at, by:e.tutor}; });
+    /* tutors' daily reports: sent on most days they taught (a few late or missing) */
+    const treps = {}; const days = {}; Object.values(logs).forEach(e => { if(e && e.ty === 's' && e.tutor && e.d < iso(new Date(T))) days[e.tutor + '|' + e.d] = 1; });
+    Object.keys(days).forEach(k => { const [tutor, d] = k.split('|'), r = rnd(); if(r < .08) return; const id = 'tr' + (uid++).toString(36);
+      treps[id] = {id, tutor, d, sent: Date.parse(d + 'T14:30:00Z') + (r < .14 ? 864e5 : 0), at: Date.parse(d + 'T14:30:00Z'), rate: 4, comment: '', req: []}; });
+    return {docs, trash, people:PEOPLE, kv:{lhq_treps:{e:treps}, lhq_makeups:makeups, lhq_students:recs, lhq_logs:{e:logs, imports}, lhq_counters:{quote:C.quote, invoice:C.invoice, receipt:C.receipt + 1, card:C.card}, lhq_spend:money.spend, lhq_budget:money.budget, lhq_targets:targets}};
   }
   /* Business: spending from the first month with payments to today, recorded by Wanangwa and Catherine.
      Rent, internet and staff salaries repeat monthly; this month's internet and salaries are left for "to confirm". */

@@ -41,6 +41,8 @@ if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash)
 <script src="examdata.js"></script>
 <script src="exams.js"></script>
 <script src="examsui.js"></script>
+<script src="kpi.js"></script>
+<script src="kpiui.js"></script>
 <script src="push.js"></script>
 <script src="teach.js"></script>
 <script src="family.js"></script>
@@ -570,6 +572,7 @@ function attention(list){
     const TF = Object.values(store.get('lhq_moves', {}) || {}).filter(m => m && !m.told);
     TF.forEach(m => { const sp = HD.students().find(x => SCHED.nk(x.name) === SCHED.nk(m.st)), msg = tellMsg(m);
       out.push({w:-1, g:'tell', s:{name:`Tell the family: ${m.st}`}, href:'#clashes', ico:'msg', col:'--am', sub:`${m.sub} moves from ${SCHED.DAYN[m.from.day]} ${m.from.s} to ${SCHED.DAYN[m.to.day]} ${m.to.s} · moved by ${m.by}`, btn:['WhatsApp', `https://wa.me/${sp && sp.phone ? waNum(sp.phone) : ''}?text=${encodeURIComponent(msg)}`]}); });
+    if(window.KPIUI) KPIUI.attention().forEach(x => out.push({w:-1, s:{name:x.t}, href:x.href, ico:'rep', col: x.col === 'var(--rd)' ? '--rd' : x.col === 'var(--am)' ? '--am' : '--muted', sub:x.s}));
     const behind = sessionRows().filter(r => r.T.behind >= 2);
     if(behind.length) out.push({w:-1, s:{name:`${behind.length} student${behind.length === 1 ? '' : 's'} behind on sessions`}, href:'#sessions/behind', ico:'clock', col:'--am', sub:behind.slice(0, 3).map(r => `${r.it.st} · ${r.it.sub} ${r.T.behind} behind`).join(' · '), btn:['See', '#sessions/behind']});
     const MU = Object.values(store.get('lhq_makeups', {}) || {}).filter(m => m && m.status === 'asked');
@@ -1320,11 +1323,11 @@ P.tutors = (show = '') => {
   const ppl = HD.people(), pid = n => (ppl.find(p => p.name.toLowerCase() === n.toLowerCase()) || {}).id;
   const row = ({s, card, x}) => `<a class="it" href="${openLink(card)}"><span class="t"><b>${esc(s.name)}</b><small>${esc([x.name, (x.days || []).join(' '), x.start ? x.start + '–' + (x.end || '') : ''].filter(Boolean).join(' · '))}</small></span><span class="chev">${ic('chev',16,2)}</span></a>`;
   return `${crumb('#home', 'Home', 'tutors')}
-  <div class="ph"><div class="tt"><h1>Tutors</h1><p>${list.length} teaching${none.length ? ` · ${none.length} without a tutor` : ''}</p></div>${can('tutors') && !LEAN() ? `<div class="acts"><a class="btn" href="#calendar">${ic('clock',15)} Calendar</a><a class="btn" href="#bookings">Make-ups</a>${store.get('lhq_sreports', null) ? '<a class="btn" href="#says">What students say</a>' : ''}<a class="btn" href="#reqs">Requisitions</a><a class="btn" href="#sessions">${ic('clock',15)} Sessions</a><a class="btn" href="#clashes">Clashes</a></div>` : ''}</div>
+  <div class="ph"><div class="tt"><h1>Tutors</h1><p>${list.length} teaching${none.length ? ` · ${none.length} without a tutor` : ''}</p></div>${can('tutors') && !LEAN() ? `<div class="acts"><a class="btn" href="#calendar">${ic('clock',15)} Calendar</a><a class="btn" href="#bookings">Make-ups</a>${store.get('lhq_sreports', null) ? '<a class="btn" href="#says">What students say</a>' : ''}<a class="btn" href="#reqs">Requisitions</a><a class="btn" href="#sessions">${ic('clock',15)} Sessions</a><a class="btn" href="#clashes">Clashes</a>${window.KPIUI && KPIUI.may() ? '<a class="btn" href="#kpi">KPIs</a>' : ''}</div>` : ''}</div>
   ${can('tutors') ? (() => { const dsp = HD.sessionsToConfirm().filter(e => HD.cfState(e) === 'disputed').length, beh = sessionRows().filter(r => r.T.behind >= 2).length, cl = openClashes().length,
       mu = Object.values(store.get('lhq_makeups', {}) || {}).filter(m => m && m.status === 'asked').length, rq = reqList().filter(r => !r.dec.s || r.dec.s === 'approved').length;
       const r = (h, t, s) => `<a class="it" href="${h}"><span class="t"><b>${t}</b><small>${s}</small></span><span class="chev">›</span></a>`;
-      return LEAN() ? `<div class="card">${store.get('lhq_sreports', null) ? r('#says', 'What students say', 'Last 4 weeks') : ''}${r('#sessions', 'Sessions', [beh ? beh + ' behind' : 'On track', dsp ? dsp + ' disputed' : ''].filter(Boolean).join(' · '))}${r('#clashes', 'Clashes', cl ? String(cl) : 'None')}${r('#bookings', 'Make-ups', mu ? mu + ' to confirm' : 'None waiting')}${r('#reqs', 'Requisitions', rq ? rq + ' open' : 'None open')}</div><div class="h2">Teaching</div>` : ''; })() : ''}
+      return LEAN() ? `<div class="card">${window.KPIUI && KPIUI.may() ? r('#kpi', 'KPIs', 'Last 4 weeks') : ''}${store.get('lhq_sreports', null) ? r('#says', 'What students say', 'Last 4 weeks') : ''}${r('#sessions', 'Sessions', [beh ? beh + ' behind' : 'On track', dsp ? dsp + ' disputed' : ''].filter(Boolean).join(' · '))}${r('#clashes', 'Clashes', cl ? String(cl) : 'None')}${r('#bookings', 'Make-ups', mu ? mu + ' to confirm' : 'None waiting')}${r('#reqs', 'Requisitions', rq ? rq + ' open' : 'None open')}</div><div class="h2">Teaching</div>` : ''; })() : ''}
   ${window.PC ? PC.block('tutors', {}, 'At a glance') : ''}
   ${none.length ? `<div class="h2" id="none">No tutor yet <em>${none.length}</em></div><div class="card" style="border-color:var(--gold)">${none.map(row).join('')}</div>` : ''}
   ${list.map(([n, items]) => { const st = new Set(items.map(i => i.s.key)).size, open = show === encodeURIComponent(n) || show === n;
@@ -1334,7 +1337,7 @@ P.tutors = (show = '') => {
 
 /* ================= search: everything this person can open, for the search box in the top bar ================= */
 window.LHQSearchScope = () => ({students:'Students', student:'Students', docs:'Documents', tutors:'People', set:'Pages'})[route.page] || '';
-const SKW = {account:'password sign in devices sign out', appearance:'theme dark light auto text size bar sidebar menu lean full', terms:'school terms holidays calendar term dates', bands:'grade boundaries percent target grades a* outstanding checkpoint igcse a level', exams:'exam series timetable zone topical dates correct a paper date cambridge', notifications:'phone notifications push alerts quiet hours morning summary devices', people:'staff access accounts setup code tutors admin',
+const SKW = {account:'password sign in devices sign out', appearance:'theme dark light auto text size bar sidebar menu lean full', terms:'school terms holidays calendar term dates', kpi:'tutor kpis performance targets falling short slipping observation review admin tutors see', bands:'grade boundaries percent target grades a* outstanding checkpoint igcse a level', exams:'exam series timetable zone topical dates correct a paper date cambridge', notifications:'phone notifications push alerts quiet hours morning summary devices', people:'staff access accounts setup code tutors admin',
   company:'bank address logo contact', payments:'due dates instalments', hours:'opening hours times saturday sunday', numbering:'numbers prefix', messages:'whatsapp email wording templates',
   lists:'subjects schools year levels spending categories', enrol:'checklist', sending:'whatsapp email', backup:'export download restore', deleted:'bin trash restore', demo:'sample data'};
 LHQSearch.provider = () => {
@@ -1360,6 +1363,7 @@ LHQSearch.provider = () => {
   if(can('pl') && window.MIN){ const t = today(), q = MIN.periodOf('term', t);
     pages.push({t:'Money in · today', k:'received payments day', href:'#biz/money/d' + t, ic:I('cash')}, {t:'Money in · this week', k:'received payments week', href:'#biz/money/' + MIN.key(MIN.periodOf('week', t)), ic:I('cash')},
       {t:'Money in · this term', k:'received payments school term holiday', href:'#biz/money/' + MIN.key(q), ic:I('cash')}, {t:'Money in · this year', k:'received payments financial year half', href:'#biz/money/' + MIN.key(MIN.periodOf('year', t)), ic:I('cash')}); }
+  if(window.KPIUI && KPIUI.may()) pages.push({t:'Tutor KPIs', k:'performance falling short slipping meeting observation review renewals', href:'#kpi', ic:I('users')});
   if(window.EXUI) pages.push({t:'Exam timetable', k:'exams dates papers cambridge igcse a level as checkpoint june november march', href:'#exams', ic:I('list')});
   if(store.get('lhq_sreports', null)) pages.push({t:'What students say', k:'daily reports ratings', href:'#says', ic:I('msg')});
   G.push({g:'Pages', items: pages.concat(setPages())});
@@ -1389,6 +1393,8 @@ P.perf = () => { setTimeout(() => location.replace('#rep/business'), 0); return 
 P.reports = () => PERF.page() + (isDir() || me().role === 'admin' ? `<div class="card" style="margin-top:14px"><a class="it" href="#activity"><span class="t"><b>Activity</b><small>Everything done in the Hub, by whom</small></span><span class="chev">›</span></a></div>` : '');
 P.teach = (sub, a1, a2) => TUT.page(sub, a1, a2);
 P.me = (sub, a1, a2) => FAM.page(sub, a1, a2);
+/* tutor KPIs (kpi.js, kpiui.js): the Director, and Admin when switched on */
+P.kpi = a1 => KPIUI.route(a1);
 /* the exam timetable (exams.js, examsui.js): everyone; students add subjects to My exams from here */
 P.exams = () => { EXUI.setMine(['student','parent'].includes(me().role) && window.FAM && FAM.mineCtx ? FAM.mineCtx() : null);
   const back = me().role === 'tutor' ? '<a class="crumb" href="#teach">‹ Home</a>' : ['student','parent'].includes(me().role) ? '<a class="crumb" href="#me/exams">‹ My exams</a>' : crumb(null, null, 'exams');
@@ -1398,13 +1404,13 @@ P.rep = (kind, arg) => PERF.page(kind, arg);
 /* ================= settings ================= */
 const SETS = [
   ['Account', [['account','user','My account'],['appearance','layout','Appearance'],['notifications','bell','Notifications']]],
-  ['LHQ', [['people','users','People & access', () => isDir() || can('tutors')],['company','bank','Company & bank details', isDir],['payments','cash','Payments & due dates', isDir],['hours','clock','Opening hours', isDir],['terms','clock','School terms', isDir],['bands','rep','Grade boundaries', isDir],['exams','list','Exams', isDir],['tutorinfo','users','Tutors\' contacts', () => isDir() || can('tutors') || can('msgs')]]],
+  ['LHQ', [['people','users','People & access', () => isDir() || can('tutors')],['company','bank','Company & bank details', isDir],['payments','cash','Payments & due dates', isDir],['hours','clock','Opening hours', isDir],['terms','clock','School terms', isDir],['bands','rep','Grade boundaries', isDir],['kpi','users','Tutor KPIs', isDir],['exams','list','Exams', isDir],['tutorinfo','users','Tutors\' contacts', () => isDir() || can('tutors') || can('msgs')]]],
   ['Documents', [['numbering','hash','Numbering', () => can('numbering')],['messages','msg','Messages', () => can('msgs')],['lists','list','Lists', () => can('msgs')]]],
   ['Enrolment & sending', [['enrol','link','Student checklist', () => staffRole()],['sending','wa','Email & WhatsApp', () => staffRole()]]],
   ['Data', [['records.html','layout','Shared records', () => isDir()],['backup','box','Backup & restore', () => can('backup')],['deleted','bin','Recently deleted', () => can('restore')],['demo','restore','Demo data (preview)', () => isDir() && PREVIEW]]],
 ];
 const setVis = ids => SETS.flatMap(([, items]) => items).filter(x => ids.includes(x[0]) && (!x[3] || x[3]()));
-const DETAILS = ['company','payments','hours','terms','bands','exams','numbering','messages','sending','tutorinfo','enrol'], DATA = ['records.html','backup','deleted','demo'];
+const DETAILS = ['company','payments','hours','terms','bands','exams','kpi','numbering','messages','sending','tutorinfo','enrol'], DATA = ['records.html','backup','deleted','demo'];
 /* Lean: 5 places. Things set once sit inside LHQ details; shared records, backups and the bin inside Data */
 const LEAN_SETS = () => [['Account', [['account','user','My account'],['appearance','layout','Appearance'],['notifications','bell','Notifications']]],
   ['LHQ', setVis(['people']).concat(setVis(DETAILS).length ? [['details','bank','LHQ details']] : [], setVis(['lists']))],
@@ -1437,6 +1443,11 @@ S.terms = () => { const L = termDraft || (window.MIN ? MIN.terms() : []).map(t =
   return `<h2 class="sec-h">School terms</h2><div class="card pad">${L.map((t, i) => `<div class="tm-row"><input class="in" data-tm="${i}:0" value="${esc(t[0])}" aria-label="Name"><input class="in" type="date" data-tm="${i}:1" value="${esc(t[1])}" aria-label="Starts"><input class="in" type="date" data-tm="${i}:2" value="${esc(t[2])}" aria-label="Ends"><button class="ib" data-tmrm="${i}" aria-label="Remove">✕</button></div>`).join('')}
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"><button class="btn" id="tmAdd">+ Term</button><button class="btn n" id="tmSave">Save</button></div></div><p class="note">Holidays are the gaps between terms. Used by Money in.</p>`; };
 let bandSc = 'al', exTab = 'series', topDraft = null;
+S.kpi = () => { const c = KPI.conf(settingsKV()), sw = (id, on, t, sub) => `<div class="it"><span class="t"><b>${t}</b><small>${sub}</small></span><button class="lp-sw${on ? ' on' : ''}" id="${id}" role="switch" aria-checked="${on}" aria-label="${t}"></button></div>`;
+  return `<h2 class="sec-h">Tutor KPIs</h2><div class="h2">Who sees it</div><div class="card">${sw('kAdm', c.admin, 'Admin', 'All tutors · with Tutors access')}${sw('kTut', c.tutors, 'Tutors', 'Their own · Week and Month')}</div>
+    <div class="h2">Targets</div><div class="card pad">${KPI.CORE.map(([id, n]) => `<div class="it" style="padding:6px 0"><span class="t">${esc(n)}</span><input class="in" style="width:80px;text-align:right" inputmode="numeric" data-ktg="${id}" value="${c.tg[id]}"> %</div>`).join('')}</div>
+    <div class="h2">Falling short</div><div class="card pad"><div class="it" style="padding:6px 0"><span class="t">A KPI below target</span><input class="in" style="width:70px;text-align:right" inputmode="numeric" id="kRun" value="${c.run}"> weeks running</div><div class="it" style="padding:6px 0"><span class="t">Or below target at once</span><input class="in" style="width:70px;text-align:right" inputmode="numeric" id="kMany" value="${c.many}"> KPIs</div></div>
+    <div class="acts"><button class="btn n" id="kSave">Save</button><a class="btn" href="#kpi">KPIs</a></div>`; };
 S.bands = () => { const E0 = EXAMS, cur = E0.bandsOf(bandSc, settingsKV());
   return `<h2 class="sec-h">Grade boundaries</h2><p class="sec-p">% of the marks for each grade. Used for On track.</p>
     <div class="chips">${E0.SCALES.map(([k, l]) => `<button class="chip${bandSc === k ? ' on' : ''}" data-bsc="${k}">${esc(l)}</button>`).join('')}</div>
@@ -1749,6 +1760,12 @@ function bind(){
   document.querySelectorAll('[data-tmrm]').forEach(el => el.onclick = () => { termDraft.splice(+el.dataset.tmrm, 1); render(); });
   if($('tmAdd')) $('tmAdd').onclick = () => { const last = termDraft[termDraft.length - 1], n = last ? (+(last[0].match(/\d+/) || [0])[0] % 3) + 1 : 1; termDraft.push(['Term ' + n, '', '']); render(); };
   document.querySelectorAll('[data-bsc]').forEach(b => b.onclick = () => { bandSc = b.dataset.bsc; render(); });
+  const kSaveConf = patch => saveSettings({kpi: Object.assign({}, settingsKV().kpi || {}, patch)});
+  if($('kAdm')) $('kAdm').onclick = () => { kSaveConf({admin: !KPI.conf(settingsKV()).admin}); render(); };
+  if($('kTut')) $('kTut').onclick = () => { kSaveConf({tutors: !KPI.conf(settingsKV()).tutors}); render(); };
+  if($('kSave')) $('kSave').onclick = () => { const tg = {}; let bad = false; document.querySelectorAll('[data-ktg]').forEach(el => { const n = Number(el.value); if(!(n >= 0 && n <= 100)) bad = true; tg[el.dataset.ktg] = n; });
+    const run = Math.round(Number($('kRun').value)), many = Math.round(Number($('kMany').value)); if(bad || !(run >= 1 && run <= 8) || !(many >= 1 && many <= 6)){ toast('Check the numbers'); return; }
+    kSaveConf({tg, run, many}); toast('Saved'); render(); };
   if($('bndSave')) $('bndSave').onclick = () => { const v = {}; let bad = false; document.querySelectorAll('[data-bnd]').forEach(el => { const n = Number(el.value); if(!(n >= 0 && n <= 100)) bad = true; v[el.dataset.bnd] = n; });
     const G = EXAMS.GRADES[bandSc]; if(bad || G.some((g, i) => i && v[g] > v[G[i - 1]])){ toast('Each grade needs a lower % than the one above'); return; }
     saveSettings({bands: Object.assign({}, settingsKV().bands || {}, {[bandSc]: v})}); toast('Saved'); render(); };
@@ -1767,6 +1784,7 @@ function bind(){
     const E = Object.values((store.get('lhq_logs', {e:{}}) || {}).e || {}).filter(e => e && e.k === k), M = MARKS.fromEntries(E);
     EXUI.targetSheet({k, name: s0.name || it.st, sub: it.sub, i: EXUI.info(k, EXUI.staffPack([it], E), M.w), onSaved: async () => { await hub.pull(); render(); }}); });
   if(route.page === 'exams' && window.EXUI) EXUI.bindTimetable(render);
+  if(route.page === 'kpi' && window.KPIUI) KPIUI.bindDir();
   if($('tmSave')) $('tmSave').onclick = () => { const L = termDraft.filter(t => t[0].trim() && t[1] && t[2]); if(L.some(t => t[1] > t[2])){ toast('A term ends before it starts'); return; } saveSettings({terms: L.map(t => [t[0].trim(), t[1], t[2]])}); termDraft = null; render(); };
   if($('ohSave')) $('ohSave').onclick = () => { const o = {}; ['Mo','Tu','We','Th','Fr','Sa','Su'].forEach(d => { const a = $('oh' + d + 'a').value, b = $('oh' + d + 'b').value; o[d] = a && b && a < b ? [a, b] : null; }); saveSettings({openHours: o}); };
   document.querySelectorAll('[data-view]').forEach(el => el.onclick = async () => { const v = el.dataset.view, s0 = hub.session();
