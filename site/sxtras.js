@@ -61,7 +61,7 @@ window.SX = (function(){
   const weekFocus = (k, mon) => focusLog(k).filter(x => x.d >= mon && x.d <= add(mon, 6));
 
   /* ---------- Home: cards with a picture ---------- */
-  const CARDS = [['sras','SRAs this week'],['mem','Memory'],['focus','Focus this week'],['pace','On pace'],['cons','SRAs on their day'],['count','Countdown'],['ftime','Focus time']];
+  const CARDS = [['sras','SRAs this week'],['mem','Memory'],['focus','Focus this week'],['pace','On pace'],['cons','SRAs on their day'],['count','Countdowns'],['ftime','Focus time']];
   function homeCards(k){
     if(isParent() || !k) return '';
     css(); const on = read('lhq_sxcards', CARDS.map(c => c[0])), t = T(), mon = mondayOf(t);
@@ -73,7 +73,7 @@ window.SX = (function(){
       focus: `<span class="h">Focus this week</span><small style="color:var(--ink);font-weight:700">${F.map(x => esc(x.tk)).join(' · ') || '–'}</small><small>weakest first</small>`,
       pace: `<span class="h">On pace</span>${P.slice(0, 3).map(o => `<small class="${o.i.pace.diff >= 0 ? 'sx-up' : 'sx-dn'}">${esc(o.x.sub)} · ${EXAMS.paceL(o.i.pace)}</small>`).join('') || '<small>Set an exam to see it</small>'}`,
       cons: `<span class="h">SRAs on their day</span><div style="display:flex;align-items:baseline;gap:8px"><span class="v">${C.n ? Math.round(C.on / C.n * 100) + '%' : '–'}</span><small>${C.on} of ${C.n} · 4 weeks</small></div>${consGrid(C)}`,
-      count: `<span class="h">Countdown</span><span class="v">${first ? first.i.days : '–'}</span><small>${first ? 'days · ' + esc(first.x.sub) : 'No exam set'}</small>`,
+      count: (C => `<span class="h">Countdowns</span>${C.slice(0, 3).map(c => `<span style="display:flex;justify-content:space-between;gap:6px;align-items:baseline"><small style="color:var(--ink);font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.n)}</small><b style="color:var(--brand)">${c.days}<small> d</small></b></span>`).join('') || '<small>No dates yet</small>'}`)(window.SPLAN ? SPLAN.countdowns(k) : []),
       ftime: `<span class="h">Focus time</span><span class="v">${hmin(fm)}</span><small>this week${fl || fm ? ` · ${fm >= fl ? '▲' : '▼'} ${hmin(Math.abs(fm - fl))}` : ''}</small>`};
     return `<div style="display:flex;justify-content:space-between;align-items:center;margin:16px 2px 8px"><b style="font-size:12px;letter-spacing:.06em;color:var(--muted)">YOUR CARDS</b><button class="ib" data-sxpick aria-label="Choose cards">✎</button></div>
       <div class="sx-pc">${CARDS.filter(c => on.includes(c[0])).map(([id]) => `<button class="${id === 'cons' ? 'wide' : ''}" data-sxd="${id}">${html[id]}</button>`).join('')}</div>`;
@@ -85,7 +85,7 @@ window.SX = (function(){
     if(id === 'focus'){ const F = focusTopics(k); sheet('Focus this week', 'The 3 topics needing most work', '', F.map((x, i) => row(esc(x.tk), `${esc(x.sub)} · ${x.kept != null ? `memory ${x.kept}% · ` : ''}latest SRA ${R(x.l.rv)} ${x.l.p}%`, String(i + 1), 'y')).join('')); }
     if(id === 'pace'){ const P = exI(k).filter(o => o.i.pace); sheet('On pace', 'Topics finished against topics needed by today', 'To finish 4 weeks before the first paper.', P.map(o => row(esc(o.x.sub), `${o.i.pace.done} finished · ${o.i.pace.need} needed by today${o.i.first ? ' · first paper ' + dl(o.i.first.a) : ''}`, EXAMS.paceL(o.i.pace), o.i.pace.diff >= 0 ? 'g' : 'y')).join('')); }
     if(id === 'cons'){ const C = cons(k, add(t, -27), t); sheet(`SRAs on their day · ${C.n ? Math.round(C.on / C.n * 100) + '%' : '–'}`, `${C.on} of ${C.n} · ${dl(add(t, -27))} – ${dl(t)}`, '', `<div style="padding:12px 14px">${consGrid(C)}</div>` + C.H.filter(r => r[2] !== 'o').sort((a, b) => b[0].localeCompare(a[0])).map(r => row(esc(r[1]), dl(r[0]), r[2] === 'm' ? 'missed' : 'late', r[2] === 'm' ? 'r' : 'y')).join(''), `Late or missed<span>${C.n - C.on}</span>`); }
-    if(id === 'count'){ const L = exI(k).filter(o => o.i.first).sort((a, b) => a.i.days - b.i.days); sheet('Countdown', 'Each subject\'s first paper', 'Cambridge timetable for zone 3 (Malawi).', L.map(o => row(esc(o.x.sub), `${esc(o.i.first.code || '')} · ${dl(o.i.first.a)}`, o.i.days + ' days')).join('')); }
+    if(id === 'count'){ const L = window.SPLAN ? SPLAN.countdowns(k) : []; sheet('Countdowns', 'From today', 'First papers from your subjects; your own dates with "Countdown on Home" on.', L.map(c => row(esc(c.n), `${esc(c.s)} · ${dl(c.d)}`, c.days + ' days')).join('')); }
     if(id === 'ftime'){ const L = weekFocus(k, mon), fl = weekFocus(k, add(mon, -7)).reduce((a, x) => a + x.m, 0); sheet(`Focus time · ${hmin(L.reduce((a, x) => a + x.m, 0))}`, `This week · last week ${hmin(fl)}`, 'Finished rounds only.', L.sort((a, b) => b.at - a.at).map(x => row(esc(x.sub || 'Focus') + (x.tk ? ' · ' + esc(x.tk) : ''), dl(x.d), x.m + ' min')).join(''), `Total<span>${hmin(L.reduce((a, x) => a + x.m, 0))}</span>`); }
   }
   function pickCards(){
@@ -102,7 +102,8 @@ window.SX = (function(){
   function focusPage(k, sraId){
     css(); let s = st(); const len = read('lhq_focus_len', 25), t = T();
     const today = (k.sras || []).filter(x => x.doOn <= t && !x.done);
-    if(sraId && (!s || !s.run)){ const x = (k.sras || []).find(y => y.id === sraId); if(x && (!s || s.sra !== sraId)){ s = {len, ph: 'work', round: 1, run: false, left: len * 60, sra: x.id, sub: x.sub, tk: `${x.topic} ${R(x.stage)}`}; write(FK, s); } }
+    if(sraId && /^blk:/.test(sraId) && (!s || !s.run)){ const b = ((k.sx || {}).plan || []).find(x => x.id === sraId.slice(4)); if(b){ s = {len, ph: 'work', round: 1, run: false, left: len * 60, sub: b.sub || '', tk: b.name || 'Study'}; write(FK, s); } }
+    else if(sraId && (!s || !s.run)){ const x = (k.sras || []).find(y => y.id === sraId); if(x && (!s || s.sra !== sraId)){ s = {len, ph: 'work', round: 1, run: false, left: len * 60, sra: x.id, sub: x.sub, tk: `${x.topic} ${R(x.stage)}`}; write(FK, s); } }
     if(!s) s = {len, ph: 'work', round: 1, run: false, left: len * 60, sub: '', tk: ''};
     const tot = LEN[s.len][s.ph === 'work' ? 0 : s.ph === 'long' ? 2 : 1] * 60, frac = leftOf(s) / tot, r = 78, c = 2 * Math.PI * r;
     const W = weekFocus(k, mondayOf(t)), bySub = {}; W.forEach(x => { bySub[x.sub || 'Other'] = (bySub[x.sub || 'Other'] || 0) + x.m; });
@@ -255,5 +256,5 @@ window.SX = (function(){
   }
   /* parents and tutors: the week's totals only */
   function weekTotals(k){ const mon = mondayOf(T()), f = weekFocus(k, mon).reduce((a, x) => a + x.m, 0), st0 = (k.sx || {}).study || 0; return {focus: f, study: st0}; }
-  return {homeCards, focusPage, habits, dayView, reminders, barPage, barPicks, CHOICE, bind, weekTotals, hmin, tick};
+  return {memory, homeCards, focusPage, habits, dayView, reminders, barPage, barPicks, CHOICE, bind, weekTotals, hmin, tick};
 })();

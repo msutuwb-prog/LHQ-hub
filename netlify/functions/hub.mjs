@@ -661,6 +661,7 @@ async function familyOf(me) {
 const lite = e => ({ id: e.id, d: e.d, t1: e.t1 || "", t2: e.t2 || "", a: e.a || "", sub: e.sub, tutor: e.tutor || "", k: e.k, mk: !!e.mk, tp: e.tp || [], st: cfState(e), cf: e.cf ? { s: e.cf.s, step: e.cf.step || null, kind: e.cf.kind || null, t1: e.cf.t1 || "", t2: e.cf.t2 || "", note: e.cf.note || "", tutorNote: e.cf.tutorNote || "", by: e.cf.by || "", out: e.cf.out || null, lost: e.cf.lost || 0, agreed: !!e.cf.agreed } : null, left: Math.max(0, (e.c || e.at || 0) + CF_MS - Date.now()) });
 /* a study block on a day: once, every day, weekdays, chosen days (0–6), until an end date */
 function blockOn(b, d) {
+  if (b && b.all) return !!b.from && d >= b.from && d <= (b.to || b.from);   // an all-day date, from .. to
   if (!b || !b.from || d < b.from || (b.until && d > b.until)) return false;
   const w = new Date(d + "T00:00:00Z").getUTCDay();
   if (b.rep === "once") return d === b.from;
@@ -748,7 +749,7 @@ async function familyData(me) {
       pk: allS.filter(x => x.pack && x.doOn >= S.addDays(t, -120) && x.doOn <= t).map(x => { const id = [x.k, x.topic, x.stage].join("|"); return { sub: x.sub, topic: x.topic, stage: x.stage, doOn: x.doOn, done: !!(done || {})[id] || x.status === "in" }; }),
       rep: Object.keys(((sreps || {})[kid.key]) || {}), focus: (((focus || {})[kid.key]) || []).filter(x => x.d >= S.addDays(t, -120)),
       plan: me.role === "student" ? Object.values(((plan || {})[kid.key]) || {}) : null,
-      study: (() => { const P = Object.values(((plan || {})[kid.key]) || {}).filter(b => b.type === "study" || b.type === "rev"); let m = 0;   // planned study minutes this week, for parents and tutors
+      study: (() => { const P = Object.values(((plan || {})[kid.key]) || {}).filter(b => !b.all && (b.type === "study" || b.type === "rev")); let m = 0;   // planned study minutes this week, for parents and tutors
         for (let i = 0; i < 7; i++) { const d = S.addDays(mon, i); P.forEach(b => { if (blockOn(b, d)) m += Math.max(0, (S.mins(b.e) || 0) - (S.mins(b.s) || 0)); }); } return m; })() };
     const extra = me.role !== "parent" ? { sx, hist: { s: ent.filter(e => e.ty === "s").map(e => [e.d, e.sub, e.a || "attended", e.tp || [], e.cb || ""]), r: ent.filter(e => e.ty === "r").map(e => [e.d, e.sub, e.h || "o"]) } } : { sx, hist: { s: ent.filter(e => e.ty === "s").map(e => [e.d, e.sub, e.a || "attended", e.tp || []]), r: ent.filter(e => e.ty === "r").map(e => [e.d, e.sub, e.h || "o"]),
         c: ent.filter(e => e.ty === "c").sort((a, b) => b.d.localeCompare(a.d)).slice(0, 12).map(e => ({ d: e.d, sub: e.sub, cs: e.cs || "", ci: e.ci || "", cn: e.cn || "" })),
@@ -780,14 +781,23 @@ async function familyPost(req, me) {
     await writeKv("lhq_focus", old => { const o = Object.assign({}, old), L = (o[kids[0].key] || []).concat([row]); o[kids[0].key] = L.slice(-600); return o; });
     return json({ ok: true });
   }
+  if (b.action === "snooze") {   // remind again in 5, 10 or 15 minutes (the 5-minute reminder run sends it)
+    if (me.role !== "student" || !kids[0]) return fail("Only the student.", 403);
+    const m = [5, 10, 15].includes(+b.m) ? +b.m : 10, mw = new Date(now + 2 * 3600e3), at = mw.getUTCHours() * 60 + mw.getUTCMinutes() + m;
+    await writeKv("lhq_plan", old => { const o = Object.assign({}, old), M = Object.assign({}, o[kids[0].key]); if (M[b.id]) M[b.id] = Object.assign({}, M[b.id], { snz: { d: mwToday(), m: at } }); o[kids[0].key] = M; return o; });
+    return json({ ok: true, m });
+  }
   if (b.action === "block" || b.action === "unblock") {   // the student's own study blocks: private (others see the week's study total)
     if (me.role !== "student" || !kids[0]) return fail("Only the student plans their own time.", 403);
     if (b.action === "unblock") { await writeKv("lhq_plan", old => { const o = Object.assign({}, old), M = Object.assign({}, o[kids[0].key]); delete M[String(b.id)]; o[kids[0].key] = M; return o; }); return json({ ok: true }); }
-    const TY = ["study", "rev", "school", "act", "rest", "other"], REP = ["once", "daily", "weekdays", "days"];
-    const x = b.block || {}, blk = { id: /^b[a-z0-9]{4,20}$/.test(String(x.id || "")) ? x.id : "b" + now.toString(36), name: txt(x.name, 60), type: TY.includes(x.type) ? x.type : "study", sub: txt(x.sub, 60),
-      s: hm(x.s), e: hm(x.e), rep: REP.includes(x.rep) ? x.rep : "once", days: (Array.isArray(x.days) ? x.days : []).map(Number).filter(n => n >= 0 && n <= 6), from: /^\d{4}-\d{2}-\d{2}$/.test(String(x.from || "")) ? x.from : mwToday(),
-      until: /^\d{4}-\d{2}-\d{2}$/.test(String(x.until || "")) ? x.until : "", at: now };
-    if (!blk.s || !blk.e || blk.e <= blk.s) return fail("Check the times.");
+    const TY = ["study", "rev", "school", "act", "rest", "other"], DT = ["exam", "season", "school", "hol", "other"], REP = ["once", "daily", "weekdays", "days"], D = v => /^\d{4}-\d{2}-\d{2}$/.test(String(v || "")) ? String(v) : "";
+    const x = b.block || {}, all = !!x.all, blk = { id: /^b[a-z0-9]{4,20}$/.test(String(x.id || "")) ? x.id : "b" + now.toString(36), name: txt(x.name, 60), sub: txt(x.sub, 60), at: now,
+      from: D(x.from) || mwToday(), busy: x.busy ? 1 : 0, cd: x.cd ? 1 : 0 };
+    if (all) Object.assign(blk, { all: 1, type: DT.includes(x.type) ? x.type : "other", to: D(x.to) && D(x.to) >= blk.from ? D(x.to) : "", sh: ["sub", "all", "none"].includes(x.sh) ? x.sh : "none" });
+    else Object.assign(blk, { type: TY.includes(x.type) ? x.type : "study", s: hm(x.s), e: hm(x.e), rep: REP.includes(x.rep) ? x.rep : "once", days: (Array.isArray(x.days) ? x.days : []).map(Number).filter(n => n >= 0 && n <= 6),
+      until: D(x.until), sh: x.busy && x.sh !== "none" ? "busy" : "none", foc: x.foc ? 1 : 0, rem: [...new Set((Array.isArray(x.rem) ? x.rem : [0]).map(Number).filter(n => [0, 5, 10, 15, 30, 60].includes(n)))].slice(0, 6) });
+    if (all && !blk.name) return fail("Give the date a name.");
+    if (!all && (!blk.s || !blk.e || blk.e <= blk.s)) return fail("Check the times.");
     await writeKv("lhq_plan", old => { const o = Object.assign({}, old), M = Object.assign({}, o[kids[0].key]); M[blk.id] = blk; o[kids[0].key] = M; return o; });
     return json({ ok: true, id: blk.id });
   }
@@ -1664,11 +1674,11 @@ export async function pushTick(context, at = Date.now()) {
   site = (context && context.deploy && context.deploy.context) || "production"; if (context && context.site) siteName = context.site.name || siteName;
   const k = vapidKeys(); if ((!k.pub || !k.priv) && !pushSender) return { skipped: "no keys" };
   storeOnDb = await usesDbStore();
-  const mw = new Date(at + 2 * 3600e3), h = mw.getUTCHours(), t = mw.toISOString().slice(0, 10), sent = [];
+  const mw = new Date(at + 2 * 3600e3), h = mw.getUTCHours(), t = mw.toISOString().slice(0, 10), sent = [], nowM = h * 60 + mw.getUTCMinutes(), top = mw.getUTCMinutes() < 5;
   const log = (await store().get("kv/lhq_pushlog", { type: "json" })) || {}, mark = {};
   const once = async (key, fn) => { if (log[key] || mark[key]) return; mark[key] = 1; await fn(); sent.push(key); };
   const all = (await store().get("kv/lhq_push", { type: "json" })) || {}, ppl = await getPeople();
-  if (h === 7) {
+  if (top && h === 7) {
     for (const [id, P] of Object.entries(all)) {
       const Qd = (P.q || []); if (!Qd.length) continue;
       await once(`${t}|${id}|summary`, async () => {
@@ -1684,7 +1694,7 @@ export async function pushTick(context, at = Date.now()) {
   /* each student's reminder hours (Settings › Reminders): SRA days default 07:00; "off" only where LHQ allows it */
   const remH = (pid, kind, dflt) => { const v = (((all[pid] || {}).prefs || {}).rem || {})[kind]; return v === undefined || v === "" ? dflt : v === "off" ? -1 : +v; };
   const sraNow = students.filter(r => remH(r.person_id, "sra", 7) === h);
-  if (sraNow.length) {
+  if (top && sraNow.length) {
     await import("../../site/sra.js"); const SR = globalThis.SRA;
     const logs = (await store().get("kv/lhq_logs", { type: "json" })) || {}, E = Object.values(logs.e || {}).filter(e => e && !e.x), done = (await store().get("kv/lhq_sradone", { type: "json" })) || {};
     const L = SR.build(S.items(cards, t, 45).map(it => ({ k: it.k, days: it.days, a: it.pa, b: it.b, st: it.st, sub: it.sub, periods: it.periods })), E, t)
@@ -1692,20 +1702,24 @@ export async function pushTick(context, at = Date.now()) {
     for (const r of sraNow) { const mine = L.filter(x => nk(x.st) === nk(r.name)); if (!mine.length) continue;
       await once(`${t}|${r.person_id}|sra`, () => pushTo([r.person_id], "sra", { title: mine.length === 1 ? `${mine[0].topic} R${mine[0].stage} today` : `${mine.length} SRAs today`, body: [...new Set(mine.map(x => x.sub))].join(", "), url: mine.some(x => x.pack) ? "/#me/practice/pack" : "/#me/practice" })); }
   }
-  if (h === 16) {
+  if (top && h === 16) {
     const reps = (await store().get("kv/lhq_treps", { type: "json" })) || {}, sentBy = new Set(Object.values(reps.e || {}).filter(r => r && r.d === t).map(r => nk(r.tutor)));
     const teaching = new Set(S.sessions(cards, t, t).map(e => nk(e.tutor)).filter(Boolean));
     for (const p of ppl.filter(p => p.active !== false && isTutor(p) && teaching.has(nk(p.name)) && !sentBy.has(nk(p.name))))
       await once(`${t}|${p.id}|report`, () => pushTo([p.id], "report", { title: "Daily report", body: "Before you leave", url: "/#teach/report" }));
   }
-  if (students.length) {   // study blocks starting this hour (the student's own plan; reminder on unless they turned it off)
+  if (students.length) {   // study blocks and activities: each reminder the student chose (at the start, or 5–60 min before), and snoozes
     const plan = (await store().get("kv/lhq_plan", { type: "json" })) || {};
     for (const r of students.filter(r => remH(r.person_id, "block", 1) !== -1)) {
-      const B = Object.values(plan[nk(r.name)] || {}).filter(x => blockOn(x, t) && S.mins(x.s) != null && Math.floor(S.mins(x.s) / 60) === h);
-      for (const x of B) await once(`${t}|${r.person_id}|blk|${x.id}`, () => pushTo([r.person_id], "block", { title: `${x.name || "Study"} · ${x.s}–${x.e}`, body: x.sub || "Your plan", url: "/#me/day/" + t }));
+      for (const x of Object.values(plan[nk(r.name)] || {}).filter(x => x && !x.all && blockOn(x, t) && S.mins(x.s) != null)) {
+        const st = S.mins(x.s), msg = m => ({ title: `${x.name || "Study"} · ${m ? x.s + " in " + m + " min" : x.s + "–" + x.e}`, body: x.sub || "Your plan", url: "/#me/day/" + t,
+          actions: [{ title: x.type === "study" || x.type === "rev" ? "Start now" : "Open", url: x.type === "study" || x.type === "rev" ? "/#me/focus/blk:" + x.id : "/#me/day/" + t }, { title: "Snooze 10", url: "/#me/snooze/" + x.id + "/10" }] });
+        for (const m of (x.rem && x.rem.length ? x.rem : [0])) { const due = st - m; if (nowM >= due && nowM < due + 5) await once(`${t}|${r.person_id}|blk|${x.id}|${m}`, () => pushTo([r.person_id], "block", msg(m))); }
+        if (x.snz && x.snz.d === t && nowM >= x.snz.m && nowM < x.snz.m + 5) await once(`${t}|${r.person_id}|snz|${x.id}|${x.snz.m}`, () => pushTo([r.person_id], "block", msg(0)));
+      }
     }
   }
-  if (h >= 8 && h <= 19 && students.length) {
+  if (top && h >= 8 && h <= 19 && students.length) {
     const sr = (await store().get("kv/lhq_sreports", { type: "json" })) || {}, now = h * 60 + mw.getUTCMinutes();
     for (const r of students) {
       const L = S.sessions(cards, t, t, { student: r.name }).filter(e => e.e); if (!L.length || ((sr[nk(r.name)] || {})[t])) continue;

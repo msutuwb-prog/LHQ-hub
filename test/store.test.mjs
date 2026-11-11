@@ -549,6 +549,19 @@ test("phone notifications: devices, choices, events, quiet hours and the 07:00 s
   const t2 = await hubMod.pushTick(null, seven); assert.equal(t2.sent.length, 0, "only once");
   fail410 = "https://push.example/dir"; await call("family", { action: "notice", st: "kettie gondwe", kind: "late", mins: 30, d: day(4), sub: "Geography" }, stu); await new Promise(res => setTimeout(res, 300));
   assert.equal((await call("push", null, DIR, "GET")).j.devices.length, 0, "a device the phone gave up on is removed");
+  /* a student's own blocks: reminders at each chosen time (every 5 minutes), all-day dates, a snooze */
+  await call("push", { action: "subscribe", sub: sub("stu") }, stu); await call("push", { action: "prefs", off: {}, quiet: ["00:00", "00:00"], summary: false }, stu);
+  const bad = await call("family", { action: "block", block: { name: "", all: 1 } }, stu); assert.equal(bad.status, 400, "an all-day date needs a name");
+  const sw = await call("family", { action: "block", block: { name: "Swimming", type: "act", s: "16:00", e: "17:00", rep: "once", from: day(0), busy: 1, rem: [0, 15, 99] } }, stu); assert.equal(sw.status, 200, JSON.stringify(sw.j));
+  const sd = await call("family", { action: "block", block: { name: "School sports day", all: 1, type: "school", from: day(1), to: day(0), busy: 1, sh: "all", cd: 1 } }, stu); assert.equal(sd.status, 200);
+  const F = (await call("family", null, stu, "GET")).j.kids[0].sx.plan, swb = F.find(b => b.name === "Swimming"), sdb = F.find(b => b.all);
+  assert.deepEqual(swb.rem, [0, 15], "only the offered reminder times"); assert.equal(swb.sh, "busy", "busy and shared"); assert.equal(sdb.to, "", "an end before the start is dropped"); assert.equal(sdb.cd, 1);
+  sent.length = 0; const at = hh => Date.parse(day(0) + "T" + hh + ":00Z") - 2 * 3600e3;
+  await hubMod.pushTick(null, at("15:45")); assert.ok(sent.some(m => m.to.endsWith("/stu") && m.title === "Swimming · 16:00 in 15 min" && m.actions.length === 2), JSON.stringify(sent));
+  await hubMod.pushTick(null, at("15:50")); assert.equal(sent.filter(m => m.to.endsWith("/stu")).length, 1, "once per reminder");
+  await hubMod.pushTick(null, at("16:00")); assert.ok(sent.some(m => m.title === "Swimming · 16:00–17:00"), "at the start");
+  assert.equal((await call("family", { action: "snooze", id: swb.id, m: 10 }, stu)).status, 200);
+  const P2 = (await call("family", null, stu, "GET")).j.kids[0].sx.plan.find(b => b.id === swb.id); assert.equal(P2.snz.d, day(0), "snoozed today");
   const st = (await call("state", null, DIR, "GET")).j; assert.ok(!st.kv.lhq_push, "devices never go to anyone's browser");
   hubMod._setPushSender(null);
 });

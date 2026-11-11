@@ -27,6 +27,7 @@ window.FAM = (function(){
 .f-mk.ok{background:var(--ok);border-color:var(--ok);color:#fff}.f-mk.am{border-color:var(--am);color:var(--am);background:var(--am-bg)}.f-mk.rd{background:var(--rd);border-color:var(--rd);color:#fff}.f-mk.bl{border-color:var(--bl);color:var(--bl);background:var(--bl-bg)}
 .f-bar{display:block;height:8px;border-radius:5px;background:var(--line2);position:relative;margin:7px 0 2px}.f-bar i{position:absolute;left:0;top:0;bottom:0;border-radius:5px;background:var(--ok)}.f-bar b{position:absolute;top:-3px;width:3px;height:14px;border-radius:2px;background:var(--ink)}
 .f-n{float:right;font-weight:800}
+.f-cal a span i.o{background:var(--ok)}
 .f-dayl{font-size:12.5px;font-weight:700;color:var(--accent);text-decoration:none}
 .f-kids{display:flex;gap:6px;overflow-x:auto;padding:2px 0 10px}
 .f-kid{flex:none;border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:8px 12px;font:inherit;font-weight:700;font-size:13px;display:flex;align-items:center;gap:7px;cursor:pointer;color:var(--ink)}
@@ -212,12 +213,13 @@ window.FAM = (function(){
     const prev = new Date(y, m - 2, 1), next = new Date(y, m, 1), ymOf = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
     const L = by[sel] || [];
     return `<div class="ph"><div class="tt"><h1>Calendar</h1></div></div>${kidChips()}
+      ${window.SPLAN ? `<div class="seg" style="display:flex;margin-bottom:12px">${[['Day','#me/day/' + sel],['Week','#me/week/' + sel],['Month',''],['Year','#me/year/' + sel]].map(([l, h]) => h ? `<a style="flex:1;text-align:center;text-decoration:none" href="${h}">${l}</a>` : `<a style="flex:1;text-align:center;text-decoration:none" class="on">${l}</a>`).join('')}</div>` : ''}
       <div class="cal-nav"><a class="btn sm" href="#me/calendar/${ymOf(prev)}">‹</a><b>${['January','February','March','April','May','June','July','August','September','October','November','December'][m - 1]} ${y}</b><a class="btn sm" href="#me/calendar/${ymOf(next)}">›</a></div>
       <div class="card pad"><div class="f-cal">${['M','T','W','T','F','S','S'].map(x => `<span>${x}</span>`).join('')}${Array(start).fill('<span></span>').join('')}
-        ${Array.from({length: nDays}, (_, i) => { const d = iso(i + 1), E = by[d] || []; return `<a class="${d === sel ? 'on' : ''}" href="#me/calendar/${y}-${String(m).padStart(2, '0')}/${d}">${i + 1}<span>${E.filter(e => e.k === 's').slice(0, 3).map(() => '<i></i>').join('')}${E.some(e => e.k !== 's') ? '<i class="g"></i>' : ''}</span></a>`; }).join('')}</div></div>
-      <div class="h2">${day(sel)}${window.SX ? ` <a class="f-dayl" href="#me/day/${sel}">Day ›</a>` : ''}</div><div class="card">${L.map(e => e.k === 's' ? sesTell(e.s)
+        ${Array.from({length: nDays}, (_, i) => { const d = iso(i + 1), E = by[d] || []; return `<a class="${d === sel ? 'on' : ''}" href="#me/calendar/${y}-${String(m).padStart(2, '0')}/${d}">${i + 1}<span>${E.filter(e => e.k === 's').slice(0, 3).map(() => '<i></i>').join('')}${E.some(e => e.k !== 's') ? '<i class="g"></i>' : ''}${window.SPLAN && SPLAN.hasOwn(k, d) ? '<i class="o"></i>' : ''}</span></a>`; }).join('')}</div></div>
+      <div class="h2">${day(sel)}${window.SPLAN ? ` <a class="f-dayl" href="#me/day/${sel}">${isParent() ? 'Day ›' : 'Plan my day ›'}</a>` : ''}</div><div class="card">${window.SPLAN ? SPLAN.monthRows(k, sel, 1) : ''}${L.map(e => e.k === 's' ? sesTell(e.s)
         : e.k === 'a' ? `<div class="it"><span class="cal-t">${esc(e.a.s || '')}</span><span class="t"><b>${esc((window.MARKS ? MARKS.TY[MARKS.akN(e.a.ak)] : '') || 'Assessment')} · ${esc(sub(e.a.sub))}</b><small>${esc((e.a.tp || []).join(', '))}</small></span></div>`
-        : `<div class="it"><span class="f-mk am">!</span><span class="t"><b>${esc(e.x.topic)} ${e.x.stage ? 'R' + e.x.stage : 'LD'}</b><small>${esc(sub(e.x.sub))} · ${e.x.doOn === sel ? 'do' : 'hand in'}</small></span></div>`).join('') || '<p class="empty">Nothing.</p>'}</div>
+        : `<div class="it"><span class="f-mk am">!</span><span class="t"><b>${esc(e.x.topic)} ${e.x.stage ? 'R' + e.x.stage : 'LD'}</b><small>${esc(sub(e.x.sub))} · ${e.x.doOn === sel ? 'do' : 'hand in'}</small></span></div>`).join('') || (window.SPLAN && SPLAN.hasOwn(k, sel) ? '' : '<p class="empty">Nothing.</p>')}${window.SPLAN ? SPLAN.monthRows(k, sel) : ''}</div>
 `;
   }
   function progress(){
@@ -316,7 +318,7 @@ window.FAM = (function(){
     if(sub0 === 'report') return report();
     if(window.SX){ const k = kid(); if(k){
       if(sub0 === 'habits') return kidChips() + SX.habits(k);
-      if(sub0 === 'day') return SX.dayView(k, a1);
+      if(window.SPLAN && ['day','week','year','blk','snooze'].includes(sub0)) return SPLAN.page(k, sub0, a1, route.args[2], route.args[3]);
       if(!isParent() && sub0 === 'focus') return SX.focusPage(k, a1 ? decodeURIComponent(a1) : '');
       if(!isParent() && sub0 === 'reminders') return SX.reminders();
       if(!isParent() && sub0 === 'bar') return SX.barPage(); } }
@@ -342,6 +344,7 @@ window.FAM = (function(){
   }
   function bind(){
     if(window.SX) SX.bind(kid());
+    if(window.SPLAN) SPLAN.bind(kid());
     document.querySelectorAll('[data-fgo]').forEach(b => b.onclick = () => { location.hash = b.dataset.fgo; });
     document.querySelectorAll('[data-fextg]').forEach(b => b.onclick = () => { const k = kid(), x = k && k.subjects.find(y => y.k === b.dataset.fextg); if(!x) return;
       EXUI.targetSheet({k: x.k, name: k.name, sub: sub(x.sub), i: exInfo(k, x), onSaved: async () => { await fetchData(); render(); }}); });
@@ -402,5 +405,5 @@ window.FAM = (function(){
     if(isParent()){ const seen = new Set(); kids().flatMap(k => k.pay || []).filter(p => p.type === 'invoice' && p.balance > 0.5 && !seen.has(p.id) && seen.add(p.id)).forEach(p => need.push({t:mk(p.balance), s:(p.over ? 'Overdue · ' : 'Due ') + day(p.due) + ' · ' + p.number, href:'#me/payments'})); }
     return {need, info};
   }
-  return {page, bind, bell, refresh: fetchData, mineCtx};
+  return {page, bind, bell, refresh: fetchData, mineCtx, steps, comingOf, sub, sesTell};
 })();
