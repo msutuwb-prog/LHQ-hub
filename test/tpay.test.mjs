@@ -28,7 +28,7 @@ test("full-time: salary by days, overtime, weekend transport and lunch", () => {
   const x = P.month({ cards: [c2], entries: E, classes: [], pay: { place: { "peter mvula": [{ p: "part", from: "2026-01-01" }, { p: "full", from: "2026-11-16" }] } }, t: "2026-11-30" }, "Peter Mvula", "2026-11");
   assert.equal(line(x, "sal").amt, Math.round(350000 * 15 / 30), "16–30 Nov full-time");
   const y = P.month({ cards: [c2], entries: E, classes: [], pay: { place: { "peter mvula": [{ p: "full", from: "2026-01-01" }] } }, t: "2026-11-30" }, "Peter Mvula", "2026-11");
-  assert.equal(line(y, "ovt").amt, 6000); assert.equal(line(y, "trn").amt, 10000); assert.equal(line(y, "lun").amt, 5000);
+  assert.equal(line(y, "ovt").amt, 7000); assert.equal(line(y, "trn").amt, 10000); assert.equal(line(y, "lun").amt, 5000);
 });
 test("a class or group is one session; items added by LHQ", () => {
   const E = [s("2026-11-03", { grp: "G1" }), s("2026-11-03", { grp: "G1", k: "tadala|physics", st: "Tadala" })];

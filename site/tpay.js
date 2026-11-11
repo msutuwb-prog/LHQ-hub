@@ -18,7 +18,7 @@
    - Full-time: salary by days of the month in that placement; weekday after-hours sessions get overtime; each weekend day taught
      gets transport, and lunch when the hours taught that day reach the set hours; minutes lost taken off at the in-person fee. */
 (function(G){
-  const DEF = {inp: 8000, onl: 7000, cap: 350000, after: '17:00', salary: 350000, transport: 10000, lunch: 5000, lunchH: 5, overtime: 6000, lenTerm: 50, lenHol: 45, grace: 5, progs: []};
+  const DEF = {inp: 8000, onl: 7000, cap: 350000, after: '17:00', salary: 350000, transport: 10000, lunch: 5000, lunchH: 5, overtime: 7000, lenTerm: 50, lenHol: 45, grace: 5, progs: []};
   const nk = s => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
   const pad = n => String(n).padStart(2, '0');
   const mins = t => { const m = /^(\d{1,2}):(\d{2})/.exec(String(t || '')); return m ? +m[1] * 60 + +m[2] : null; };
