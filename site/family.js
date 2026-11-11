@@ -275,6 +275,7 @@ window.FAM = (function(){
       <a class="it" href="#me/bar"><span class="t"><b>Edit the bar</b></span><span class="chev">›</span></a>`}
       <a class="it" href="#exams"><span class="t"><b>Exam timetable</b></span><span class="chev">›</span></a>
       <a class="it" href="#set/notifications"><span class="t"><b>Notifications</b></span><span class="chev">›</span></a>
+      <a class="it" href="#me/callink"><span class="t"><b>Calendar link</b><small>Google Calendar or iPhone</small></span><span class="chev">›</span></a>
       <a class="it" href="#set/appearance"><span class="t"><b>Appearance</b><small>Theme, colour, text size${isParent() ? '' : ', Lean or Full'}</small></span><span class="chev">›</span></a>
       <a class="it" href="tel:+265992525250"><span class="t"><b>Contact LHQ</b><small>0992 525 250</small></span><span class="chev">›</span></a></div>`;
   }
@@ -329,6 +330,7 @@ window.FAM = (function(){
       if(!isParent() && sub0 === 'bar') return SX.barPage();
       if(!isParent() && sub0 === 'sharing') return SX.sharing(k);
       if(sub0 === 'switch'){ kidI = Math.max(0, +a1 || 0); write('lhq_family_kid', kidI); setTimeout(() => { location.hash = '#me'; }, 0); return ''; }
+      if(sub0 === 'callink') return calLink();
       if(window.SOUNDS && sub0 === 'sounds') return SOUNDS.page();
       if(window.REV && sub0 === 'review') return kidChips() + REV.page(k, a1, route.args[2]);
       if(window.REV && sub0 === 'school') return kidChips() + REV.school(k);
@@ -357,6 +359,10 @@ window.FAM = (function(){
     if(window.SX) SX.bind(kid());
     if(window.SPLAN) SPLAN.bind(kid());
     if(window.REV) REV.bind(kid());
+    const calPost = async body => { try{ const r = await hub.api('family', {method: 'POST', body: JSON.stringify(Object.assign({action: 'calopt'}, body))}); data.cal = {link: r.link, inc: r.inc}; write(CK, data); render(); return r; }catch(e){ toast(e.message); } };
+    document.querySelectorAll('[data-fcal]').forEach(b => b.onclick = () => { const id = b.dataset.fcal, on = !(((data.cal || {}).inc || {})[id]); calPost({inc: {[id]: on}}).then(r => r && toast('Saved · your calendar updates in a few hours')); });
+    document.querySelectorAll('[data-fcallink]').forEach(b => b.onclick = async () => { try{ await navigator.clipboard.writeText(location.origin + ((data.cal || {}).link || '')); toast('Link copied'); }catch(e){ toast('Copy didn\'t work'); } });
+    document.querySelectorAll('[data-fcalnew]').forEach(b => b.onclick = () => calPost({renew: 1}).then(r => r && toast('New link · add it again; the old one stops')));
     if(window.SOUNDS && /^#me\/sounds/.test(location.hash)) SOUNDS.bind();
     document.querySelectorAll('[data-fmore]').forEach(b => b.onclick = async () => { write('lhq_moreAsk', 1); if(b.dataset.fmore === '1'){ const s0 = hub.session(); if(s0 && s0.me){ s0.me.view = 'full'; localStorage.setItem('lhq_session', JSON.stringify(s0)); } try{ await hub.api('people', {method: 'POST', body: JSON.stringify({action: 'view', view: 'full'})}); }catch(e){} toast('Full · change it in Appearance'); } render(); if(window.LHQNav && LHQNav.refresh) LHQNav.refresh(); });
     document.querySelectorAll('[data-fgo]').forEach(b => b.onclick = () => { location.hash = b.dataset.fgo; });
@@ -421,7 +427,7 @@ window.FAM = (function(){
   }
   /* after 2 weeks on Lean, Home asks once */
   function moreAsk(){ if(isParent()) return ''; let f = read('lhq_first', 0); if(!f){ f = Date.now(); write('lhq_first', f); } if(read('lhq_moreAsk', 0) || Date.now() - f < 14 * 864e5) return '';
-    return `<div class="card pad" style="margin-top:12px"><b>Want to see more?</b><p class="note" style="margin:2px 0 10px">Your cards, focus timer, habits, reviews and planning.</p><div class="row" style="gap:8px"><button class="btn n" style="flex:1" data-fmore="1">Show me</button><button class="btn" style="flex:1" data-fmore="0">Not now</button></div></div>`; }
+    return `<div class="card pad" style="margin-top:12px"><b>Want to see more?</b><p class="note" style="margin:2px 0 10px">Your cards, focus timer, habits, reviews and planning.</p><div style="display:flex;gap:8px"><button class="btn n" style="flex:1" data-fmore="1">Show me</button><button class="btn" style="flex:1" data-fmore="0">Not now</button></div></div>`; }
   /* search: only what's in this account, for the child in view (parents switch child from here too) */
   function searchGroups(){
     const k = kid(); if(!k) return []; const G = [], R = n => n ? 'R' + n : 'LD', sk = sb => '#me/subject/' + encodeURIComponent((k.subjects.find(x => x.sub === sb) || {}).k || ''), me0 = isParent();
@@ -444,6 +450,18 @@ window.FAM = (function(){
       .concat([['#set/appearance','Appearance','theme dark colour text size lean full'],['#set/notifications','Notifications','quiet hours']]);
     G.push({g: 'Pages', items: pages.map(([h, t, kw]) => ({t, k: kw || '', href: h}))});
     return G.filter(g => g.items.length);
+  }
+  /* the private calendar link (Google Calendar or an iPhone): one way, LHQ Hub to the calendar */
+  function calLink(){
+    const c = (data && data.cal) || {inc: {}}, I = c.inc || {}, sw = (on, id) => `<button type="button" class="sp-sw ${on ? 'on' : ''}" data-fcal="${id}" aria-label="On or off" style="width:46px;height:28px;border-radius:99px;border:0;background:${on ? 'var(--ok)' : 'var(--line)'};position:relative;flex:none;cursor:pointer"><i style="position:absolute;top:3px;left:${on ? 21 : 3}px;width:22px;height:22px;border-radius:50%;background:#fff"></i></button>`;
+    const row = (t, s0, r) => `<div class="it"><span class="t"><b>${t}</b>${s0 ? `<small>${s0}</small>` : ''}</span>${r}</div>`;
+    return `${crumb('#me/more', 'More')}<div class="ph"><div class="tt"><h1>Calendar link</h1><p>Google Calendar or iPhone</p></div></div>
+      <div class="card">${row(isParent() ? 'Sessions and make-ups' : 'LHQ sessions and make-ups', isParent() ? 'Every child' : '', '<span>🔒</span>')}
+        ${isParent() ? row('Assessments', '', sw(I.as, 'as')) + row('Payment dates', 'Invoices with a balance', sw(I.pay, 'pay')) + row('Study blocks', 'Their own', '<span class="note">🔒 private</span>')
+          : row('SRA days', 'Do on, ARS then SRA', sw(I.sra, 'sra')) + row('Assessments', '', sw(I.as, 'as')) + row('My blocks and activities', 'Only in your own calendar', sw(I.blk, 'blk')) + row('My dates', '', sw(I.dt, 'dt'))}</div>
+      <a class="btn n full" href="${'webcal://' + location.host + (c.link || '')}">Add to Google Calendar</a>
+      <div style="display:flex;gap:8px;margin-top:8px"><button class="btn" style="flex:1" data-fcallink>Copy the link</button><button class="btn" style="flex:1" data-fcalnew>New link</button></div>
+      <p class="note" style="margin-top:10px">One way: LHQ Hub → your calendar. Google updates it every few hours. Google: Other calendars › From URL. iPhone: Settings › Calendar › Accounts › Add Subscribed Calendar. Keep it private; New link stops the old one.</p>`;
   }
   return {page, bind, bell, refresh: fetchData, mineCtx, steps, comingOf, sub, sesTell, full, searchGroups};
 })();

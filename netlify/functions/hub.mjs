@@ -761,7 +761,8 @@ async function familyData(me) {
 }
 async function familyGet(me) {
   if (!["student", "parent"].includes(me.role)) return fail("This part is for students and parents.", 403);
-  return json(Object.assign({ me: pub(me), today: mwToday(), now: Date.now() }, await familyData(me)));
+  const co = ((await store().get("kv/lhq_calopt", { type: "json" })) || {})[me.id] || {};
+  return json(Object.assign({ me: pub(me), today: mwToday(), now: Date.now(), cal: { link: calPath(me.id, co.v), inc: Object.assign({}, CAL_DEF, co.inc || {}) } }, await familyData(me)));
 }
 async function familyPost(req, me) {
   if (!["student", "parent"].includes(me.role)) return fail("This part is for students and parents.", 403);
@@ -792,6 +793,11 @@ async function familyPost(req, me) {
     const r = schoolRow(b.row, me, false); if (r.error) return fail(r.error);
     await writeKv("lhq_school", old => { const o = Object.assign({}, old), M = Object.assign({}, o[kids[0].key]); if (M[r.id] && M[r.id].ok) return o; M[r.id] = r; o[kids[0].key] = M; return o; });
     return json({ ok: true, id: r.id });
+  }
+  if (b.action === "calopt") {   // what goes into this person's calendar link, or a new link (the old one stops working)
+    const I = {}; ["sra", "as", "blk", "dt", "pay"].forEach(x => { if (b.inc && x in b.inc) I[x] = b.inc[x] ? 1 : 0; });
+    const o = await writeKv("lhq_calopt", old => { const o = Object.assign({}, old), M = Object.assign({}, o[me.id]); if (b.renew) M.v = (M.v || 0) + 1; M.inc = Object.assign({}, M.inc, I); o[me.id] = M; return o; });
+    return json({ ok: true, link: calPath(me.id, (o[me.id] || {}).v), inc: Object.assign({}, CAL_DEF, (o[me.id] || {}).inc) });
   }
   if (b.action === "sxp") {   // the student's own sharing choices (hide focus and study totals from tutors)
     if (me.role !== "student" || !kids[0]) return fail("Only the student.", 403);
@@ -1343,28 +1349,59 @@ async function tutorGet(me) {
   const d = await tutorData(me), x = await tutorExtras(me, d);
   return json(Object.assign({ me: pub(me), cards: d.cards, entries: d.entries, classes: d.classes, reports: d.reports, now: Date.now() }, x));
 }
-/* A private calendar link per tutor (for Google Calendar or an iPhone): their LHQ sessions from two weeks ago to twelve
-   weeks ahead, rebuilt every time the phone asks. The link carries a signature instead of a sign-in. */
-const calSig = id => crypto.createHmac("sha256", secret()).update("cal:" + id).digest("hex").slice(0, 24);
-const calPath = id => `/api/hub/cal/${id}.${calSig(id)}.ics`;
+/* A private calendar link per person (for Google Calendar or an iPhone), from two weeks ago to twelve weeks ahead, rebuilt
+   every time the phone asks. The link carries a signature instead of a sign-in; "New link" changes it (the old one stops).
+   Tutors: their sessions, make-ups, SRA days and assessments they set. Students: sessions, make-ups, and what they choose
+   (SRA days, assessments, their own blocks and dates). Parents: their children's sessions, assessments and payment dates. */
+const calSig = (id, v) => crypto.createHmac("sha256", secret()).update("cal:" + id + (v ? ":" + v : "")).digest("hex").slice(0, 24);
+const calPath = (id, v) => `/api/hub/cal/${id}.${calSig(id, v)}.ics`;
+const CAL_DEF = { sra: 1, as: 1, blk: 0, dt: 1, pay: 1 };
 async function calFeed(path) {
   const m = /^cal\/([\w-]{3,40})\.([a-f0-9]{24})\.ics$/.exec(path);
-  if (!m || !crypto.timingSafeEqual(Buffer.from(m[2]), Buffer.from(calSig(m[1])))) return new Response("Not found", { status: 404 });
+  const opt = m ? (((await store().get("kv/lhq_calopt", { type: "json" })) || {})[m[1]] || {}) : {};
+  if (!m || !crypto.timingSafeEqual(Buffer.from(m[2]), Buffer.from(calSig(m[1], opt.v)))) return new Response("Not found", { status: 404 });
   const p = (await getPeople()).find(x => x.id === m[1] && x.active !== false);
   if (!p) return new Response("Not found", { status: 404 });
-  await import("../../site/schedule.js"); const S = globalThis.SCHED;
+  await import("../../site/schedule.js"); const S = globalThis.SCHED, inc = Object.assign({}, CAL_DEF, opt.inc || {});
   const cards = (await readAll("doc/")).filter(d => d.type === "card");
-  const t0 = new Date(Date.now() - 14 * 864e5), t1 = new Date(Date.now() + 84 * 864e5), day = d => d.toISOString().slice(0, 10);
-  const L = S.sessions(cards, day(t0), day(t1), { tutor: p.name }).filter(e => e.a != null && e.b != null);
+  const t0 = new Date(Date.now() - 14 * 864e5), t1 = new Date(Date.now() + 84 * 864e5), day = d => d.toISOString().slice(0, 10), A = day(t0), Z = day(t1);
   const esc = v => String(v || "").replace(/[\\;,]/g, x => "\\" + x).replace(/\n/g, "\\n");
   const utc = (date, mins) => { const [y, mo, d] = date.split("-").map(Number); const t = new Date(Date.UTC(y, mo - 1, d, 0, mins) - 2 * 3600e3);   // Malawi is UTC+2 all year
     return t.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, ""); };
-  const now = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
-  const ev = L.map(e => ["BEGIN:VEVENT", `UID:${e.card}-${e.k.replace(/[^a-z0-9]/g, "")}-${e.date}@lhq-hub`, `DTSTAMP:${now}`, `DTSTART:${utc(e.date, e.a)}`, `DTEND:${utc(e.date, e.b)}`,
-    `SUMMARY:${esc(e.student + " · " + e.sub)}`, `LOCATION:${esc(e.where || "LHQ")}`, `DESCRIPTION:${esc("LHQ tuition · " + (e.number || "") + "\nCheck LHQ Hub for any change made today.")}`, "END:VEVENT"].join("\r\n"));
+  const now = new Date().toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, ""), ev = [], uid = s => String(s).replace(/[^a-z0-9-]/gi, "").slice(0, 80);
+  const timed = (id, date, a, b, sum, loc, desc) => ev.push(["BEGIN:VEVENT", `UID:${uid(id)}@lhq-hub`, `DTSTAMP:${now}`, `DTSTART:${utc(date, a)}`, `DTEND:${utc(date, b)}`, `SUMMARY:${esc(sum)}`, loc ? `LOCATION:${esc(loc)}` : "", desc ? `DESCRIPTION:${esc(desc)}` : "", "END:VEVENT"].filter(Boolean).join("\r\n"));
+  const allday = (id, date, sum, desc, to) => { const nx = new Date(Date.parse((to || date) + "T00:00:00Z") + 864e5).toISOString().slice(0, 10).replace(/-/g, "");
+    ev.push(["BEGIN:VEVENT", `UID:${uid(id)}@lhq-hub`, `DTSTAMP:${now}`, `DTSTART;VALUE=DATE:${date.replace(/-/g, "")}`, `DTEND;VALUE=DATE:${nx}`, `SUMMARY:${esc(sum)}`, desc ? `DESCRIPTION:${esc(desc)}` : "", "TRANSP:TRANSPARENT", "END:VEVENT"].filter(Boolean).join("\r\n")); };
+  const ses = (L, label) => L.filter(e => e.a != null && e.b != null).forEach(e => timed(`${e.card}-${e.k}-${e.date}`, e.date, e.a, e.b, label(e), e.where || "LHQ", "LHQ tuition · " + (e.number || "") + "\nCheck LHQ Hub for any change made today."));
+  if (isTutor(p) && !["student", "parent"].includes(p.role)) {
+    ses(S.sessions(cards, A, Z, { tutor: p.name }), e => e.student + " · " + e.sub);
+    Object.values(((await store().get("kv/lhq_makeups", { type: "json" })) || {})).filter(x => x && nk(x.tutor) === nk(p.name) && x.status !== "no" && x.d >= A && x.d <= Z && S.mins(x.s) != null)
+      .forEach(x => timed("mu-" + x.id, x.d, S.mins(x.s), S.mins(x.e), `Make-up · ${x.st} · ${x.sub}${x.status === "ok" ? "" : " (waiting for LHQ)"}`, "LHQ"));
+    const logs = (await store().get("kv/lhq_logs", { type: "json" })) || {}, E = Object.values(logs.e || {}).filter(e => e && !e.x && nk(e.tutor || "") === nk(p.name));
+    E.filter(e => e.ty === "a" && e.d >= A && e.d <= Z).forEach(e => allday("as-" + e.id, e.d, `Assessment · ${e.st} · ${e.sub}`, (e.tp || []).join(", ")));
+    await import("../../site/sra.js"); const SR = globalThis.SRA, items = S.items(cards.filter(c => (c.subjects || []).some(x => nk(x.tutor) === nk(p.name))), mwToday(), 45).filter(it => nk(it.tutor) === nk(p.name));
+    const L = SR.build(items.map(it => ({ k: it.k, days: it.days, a: it.pa, b: it.b, st: it.st, sub: it.sub, periods: it.periods })), Object.values(logs.e || {}).filter(e => e && !e.x), mwToday()), by = {};
+    L.filter(x => x.giveOn && x.giveOn >= mwToday() && x.giveOn <= Z && !x.pack).forEach(x => { (by[x.giveOn] = by[x.giveOn] || []).push(x); });
+    Object.entries(by).forEach(([d, X]) => allday("sra-" + nk(p.name) + "-" + d, d, `SRAs to give · ${X.length}`, X.map(x => `${x.st} · ${x.topic} ${x.stage ? "R" + x.stage : "LD"}`).join("\n")));
+  } else if (p.role === "student" || p.role === "parent") {
+    const fd = await familyData(p), K = fd.kids || [], plan = p.role === "student" ? ((await store().get("kv/lhq_plan", { type: "json" })) || {}) : {};
+    for (const k of K) {
+      const who = p.role === "parent" ? k.name.split(" ")[0] + " · " : "";
+      ses(S.sessions(cards, A, Z, { student: k.name }), e => who + e.sub + (e.tutor ? " · " + e.tutor : ""));
+      (k.makeups || []).filter(x => x.d >= A && x.d <= Z && S.mins(x.s) != null).forEach(x => timed("mu-" + (x.id || x.d + x.s), x.d, S.mins(x.s), S.mins(x.e), `${who}Make-up · ${x.sub}`, "LHQ"));
+      if (inc.sra && p.role === "student") { const by = {}; (k.sras || []).filter(x => x.doOn >= mwToday() && x.doOn <= Z).forEach(x => { (by[x.doOn] = by[x.doOn] || []).push(x); });
+        Object.entries(by).forEach(([d, X]) => allday("sra-" + nk(k.name) + "-" + d, d, `SRAs · ${X.length}`, X.map(x => `${x.sub} · ${x.topic} ${x.stage ? "R" + x.stage : "LD"} · ARS then SRA`).join("\n"))); }
+      if (inc.as) (k.coming || []).filter(a => a.d >= A && a.d <= Z).forEach(a => allday(`as-${nk(k.name)}-${a.d}-${nk(a.sub)}`, a.d, `${who}Assessment · ${a.sub}`, (a.tp || []).join(", ")));
+      if (p.role === "student") { const P = Object.values(plan[nk(k.name)] || {});
+        if (inc.dt) P.filter(b => b.all && (b.to || b.from) >= A).forEach(b => allday("dt-" + b.id, b.from, b.name, "", b.to || ""));
+        if (inc.blk) for (let d = mwToday(); d <= S.addDays(mwToday(), 28); d = S.addDays(d, 1)) P.filter(b => !b.all && blockOn(b, d)).forEach(b => timed(`blk-${b.id}-${d}`, d, S.mins(b.s), S.mins(b.e), b.name || "Study", "", b.sub || "")); }
+      if (inc.pay && p.role === "parent") (k.pay || []).filter(x => x.type === "invoice" && x.balance > 0.5 && (x.due || x.dueDate)).forEach(x => allday("pay-" + x.id, x.due || x.dueDate, `Payment due · ${x.number} · MKW ${Math.round(x.balance).toLocaleString("en-US")}`, "LHQ Learning Solutions"));
+    }
+  }
   const body = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//LHQ Learning Solutions//LHQ Hub//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", `X-WR-CALNAME:${esc("LHQ · " + p.name)}`, "X-WR-TIMEZONE:Africa/Blantyre", "REFRESH-INTERVAL;VALUE=DURATION:PT6H", ...ev, "END:VCALENDAR"].join("\r\n") + "\r\n";
   return new Response(body, { status: 200, headers: { "content-type": "text/calendar; charset=utf-8", "cache-control": "no-store" } });
 }
+
 
 /* a tutor's own unavailable times, what they've acknowledged, and cards they've been taken off (to be told once) */
 /* a student's own time, for their tutors: dates they share (with that subject's tutor or all), busy times they chose to tell
@@ -1443,7 +1480,7 @@ async function tutorExtras(me, d) {
   const exam = await examPack(d.keys, new Set([...d.keys].map(k => k.split("|")[0])), globalThis.SCHED.items(d.cards, mwToday()), d.entries, await store().get("kv/lhq_settings", { type: "json" }));
   const kset = (await store().get("kv/lhq_settings", { type: "json" })) || {};
   const sx = await studentTime([...new Set([...d.keys].map(k => k.split("|")[0]))], new Set(d.cards.flatMap(c => (c.subjects || []).filter(x => nk(x.tutor) === mk).map(x => nk(c.student) + "|" + nk(x.name)))), !!kset.tsee);
-  return { sx, tsee: !!kset.tsee, asks: Object.values(((await store().get("kv/lhq_asks", { type: "json" })) || {})).filter(a => a && nk(a.tutor) === mk && !a.done), avail: (av || {})[mk] || [], acks, gone, ackFrom: ack._from, calLink: calPath(me.id), makeups, reqs, clashes: await tutorClashes(me), sradone, says, notices, exam, kpiOn: !!((kset.kpi || {}).tutors) };
+  return { sx, tsee: !!kset.tsee, asks: Object.values(((await store().get("kv/lhq_asks", { type: "json" })) || {})).filter(a => a && nk(a.tutor) === mk && !a.done), avail: (av || {})[mk] || [], acks, gone, ackFrom: ack._from, calLink: calPath(me.id, (((await store().get("kv/lhq_calopt", { type: "json" })) || {})[me.id] || {}).v), makeups, reqs, clashes: await tutorClashes(me), sradone, says, notices, exam, kpiOn: !!((kset.kpi || {}).tutors) };
 }
 async function tutorPost(req, me) {
   if (!isTutor(me)) return fail("This part is for tutors.", 403);

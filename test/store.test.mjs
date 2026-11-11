@@ -587,6 +587,13 @@ test("phone notifications: devices, choices, events, quiet hours and the 07:00 s
   assert.equal((await call("school", { action: "ok", st: "Kettie Gondwe", id: sr.j.id }, DIR)).status, 200);
   await call("family", { action: "school", row: { term: "Term 1", kind: "mid", sub: "Geography", gr: "A" } }, stu);
   row = (await call("family", null, stu, "GET")).j.kids[0].sx.school[0]; assert.ok(row.ok && row.gr === "B", "a checked result can't be changed by the student");
+  /* the student's calendar link: sessions always; their dates; blocks only when chosen; a new link stops the old one */
+  const cal = (await call("family", null, stu, "GET")).j.cal; assert.equal(cal.inc.blk, 0, "own blocks off by default");
+  let ics = await (await hub(new Request("http://x" + cal.link), {})).text();
+  assert.match(ics, /SUMMARY:Geography/); assert.match(ics, /SUMMARY:School sports day/); assert.ok(!/SUMMARY:Swimming/.test(ics), "blocks not in yet");
+  const c2 = (await call("family", { action: "calopt", inc: { blk: 1 }, renew: 1 }, stu)).j; assert.notEqual(c2.link, cal.link);
+  assert.equal((await hub(new Request("http://x" + cal.link), {})).status, 404, "the old link stops");
+  ics = await (await hub(new Request("http://x" + c2.link), {})).text(); assert.match(ics, /SUMMARY:Swimming/, "blocks when chosen");
   const st = (await call("state", null, DIR, "GET")).j; assert.ok(!st.kv.lhq_push, "devices never go to anyone's browser");
   hubMod._setPushSender(null);
 });

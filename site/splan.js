@@ -88,7 +88,7 @@ window.SPLAN = (function(){
       <div class="card pad sp-tls">${rows.map(r => r.h).join('') || '<p class="empty">Nothing planned.</p>'}</div>
       ${pm ? `${inB.length ? `<div class="h2">In your blocks</div><div class="card">${inB.map(x => `<button class="it" style="width:100%" data-sped="${pm.indexOf(x)}"><span class="t"><b>${esc(x.label)}</b><small>${x.s}–${x.e} · in ${esc((B.find(b => b.id === x.blk) || {}).name || 'Study')}</small></span><span class="chev">›</span></button>`).join('')}</div>` : ''}
         ${pm.length ? '' : '<p class="note">Nothing due. Free time stays free.</p>'}
-        <div class="row" style="gap:8px">${pm.some(x => !x.blk) ? `<button class="btn n" style="flex:1" data-spadd>Add ${pm.filter(x => !x.blk).length} block${pm.filter(x => !x.blk).length === 1 ? '' : 's'}</button>` : ''}<button class="btn" style="flex:1" data-spclear>Close</button></div>
+        <div style="display:flex;gap:8px">${pm.some(x => !x.blk) ? `<button class="btn n" style="flex:1" data-spadd>Add ${pm.filter(x => !x.blk).length} block${pm.filter(x => !x.blk).length === 1 ? '' : 's'}</button>` : ''}<button class="btn" style="flex:1" data-spclear>Close</button></div>
         <p class="note" style="margin-top:8px">Tap a suggestion to change its time, swap or remove it. <button class="sp-lnk" data-sprules>How it's chosen</button></p>` : ''}
       ${mine ? `<button class="btn ${pm ? '' : 'n'} full" style="margin-top:10px" data-spnew="${d}">+ Add</button>` : `<p class="note">Their own blocks stay private.</p>`}`;
   }
@@ -153,7 +153,7 @@ window.SPLAN = (function(){
           ${x.D.length ? `<em class="${x.D.some(b => b.busy) ? 'bz' : ''}">★</em>` : ''}</span></a>`).join('')}</div>
       <div class="sp-lg"><span><i class="k-l"></i>LHQ 🔒</span><span><i class="k-study"></i>Study</span><span><i class="k-act"></i>Activity</span><span><i class="k-school"></i>School</span><span><i class="k-rest"></i>Rest</span><span>★ date</span></div>
       <div class="mcs sp-mcs">${[['tS', 'Study', dur(tot(b => b.type === 'study' || b.type === 'rev'))], ['tA', 'Activities', dur(tot(b => b.type === 'act'))], ['tL', 'LHQ', all.reduce((a, x) => a + x.S.length, 0)]].map(([id, l, v]) => `<button type="button" class="mc" data-spw="${id}|${mon}"><span class="l">${l}</span><span class="v">${v}<span class="mca">›</span></span></button>`).join('')}</div>
-      <div class="row" style="gap:8px"><button class="btn n" style="flex:1" data-spnew="${T() >= mon && T() <= add(mon, 6) ? T() : mon}">+ Add</button><button class="btn" style="flex:1" data-spcopy="${mon}">Copy a day</button></div>
+      <div style="display:flex;gap:8px"><button class="btn n" style="flex:1" data-spnew="${T() >= mon && T() <= add(mon, 6) ? T() : mon}">+ Add</button><button class="btn" style="flex:1" data-spcopy="${mon}">Copy a day</button></div>
       <button class="btn full" style="margin-top:8px" data-spsug="${mon}">Suggested week</button>`;
   }
   function weekSheet(k, id, mon){
