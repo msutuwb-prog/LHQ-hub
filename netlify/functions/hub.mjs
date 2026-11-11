@@ -424,6 +424,7 @@ const money = n => "MKW " + Math.round(Number(n) || 0).toLocaleString("en-US");
 const dayL = d => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(d || "")); if (!m) return d || ""; const t = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
   return `${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][t.getUTCDay()]} ${+m[3]} ${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][+m[2] - 1]}`; };
 const docName = d => `${WORDT[d.type || "quote"] || "document"} ${d.number || ""}`.trim() + (d.student || d.name ? " · " + (d.student || d.name) : "");
+const monthL = m => { const [y, n] = String(m || "").split("-"); return n ? ["January","February","March","April","May","June","July","August","September","October","November","December"][+n - 1] + " " + y : String(m || ""); };
 async function act(me, area, action, summary, entity, entityId, data) {
   if (!dbMode() || !me) return;
   try { await q("INSERT INTO activity (id, actor_id, action, area, entity, entity_id, summary, data) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
@@ -431,13 +432,13 @@ async function act(me, area, action, summary, entity, entityId, data) {
   catch (e) { console.error("activity", e.message); }
 }
 const AREA_SEE = { documents: () => true, students: () => true, teaching: () => true, sessions: () => true, people: () => true, settings: () => true,
-  money: p => can(p, "spend") || can(p, "pl"), budgets: p => can(p, "pl"), pay: p => isDirector(p) };
+  money: p => can(p, "spend") || can(p, "pl"), budgets: p => can(p, "pl"), pay: p => isDirector(p) || can(p, "tpay") };
 async function activityList(req, me) {
   if (!staff(me)) return fail("Only LHQ admin can see activity.", 403);
   if (!dbMode()) return json({ rows: [], off: true });
   const u = new URL(req.url).searchParams, from = u.get("from") || "1970-01-01", area = u.get("area") || "", who = u.get("who") || "", before = u.get("before") || "";
   const areas = Object.keys(AREA_SEE).filter(a => AREA_SEE[a](me) && (!area || area.split(",").includes(a)));
-  const rows = await q(`SELECT a.id, a.action, a.area, a.entity, a.entity_id, a.summary, a.created_at, coalesce(p.name, a.data->>'who', 'LHQ Hub') AS who, p.role
+  const rows = await q(`SELECT a.id, a.action, a.area, a.entity, a.entity_id, a.summary, a.created_at, a.data, coalesce(p.name, a.data->>'who', 'LHQ Hub') AS who, p.role
     FROM activity a LEFT JOIN people p ON p.id = a.actor_id
     WHERE NOT a.del AND a.area = ANY($1) AND a.created_at >= $2::timestamptz AND ($3 = '' OR coalesce(p.name, a.data->>'who') = $3) AND ($4 = '' OR a.created_at < $4::timestamptz)
     ORDER BY a.created_at DESC, a.id LIMIT 300`, [areas, from, who, before]);
@@ -454,7 +455,7 @@ async function syncActivity(me, writes, kvIn, kvOld, merged) {
   for (const w of writes) {
     if (w.del) { const t = await store().get("trash/" + w.del, { type: "json" }).catch(() => null); await act(me, "documents", "doc.delete", `Deleted ${t ? docName(t) : w.del}`, "documents", w.del); continue; }
     const d = w.d, l0 = (d.log || [])[(d.log || []).length - 1] || {}, last = l0.at === d.updatedAt ? l0 : { a: w.prev ? "edited" : "created" }, amt = d.type === "receipt" ? d.receivedAmt : d.total;
-    const verb = { created: "Made", edited: "Edited", emailed: "Emailed", whatsapp: "Sent on WhatsApp", paid: "Recorded a payment on" }[last.a] || "Saved";
+    const verb = { created: "New", edited: "Edited", emailed: "Emailed", whatsapp: "Sent on WhatsApp", paid: "Recorded a payment on" }[last.a] || "Saved";
     const action = "doc." + (last.a || "save");
     if (last.a === "edited" && await one("SELECT 1 FROM activity WHERE entity_id = $1 AND action = 'doc.edited' AND data->>'who' = $2 AND created_at > now() - interval '30 minutes'", [d.id, me.name]).catch(() => null)) continue;
     await act(me, "documents", action, `${verb} ${docName(d)}${amt ? " · " + money(amt) : ""}${last.to ? " to " + last.to : ""}`, "documents", d.id);
@@ -473,7 +474,7 @@ async function syncActivity(me, writes, kvIn, kvOld, merged) {
       for (const x of ch.slice(0, 10)) await act(me, "students", old[x] ? "student.edit" : "student.add", `${old[x] ? "Updated the details of" : "Added student"} ${(now[x] || {}).name || x}`, "students", x);
     } else if (k === "lhq_settings") {
       const ch = Object.keys(Object.assign({}, old, now)).filter(f => canon(old[f]) !== canon(now[f]));
-      if (ch.length) await act(me, "settings", "settings.edit", `Changed ${ch.map(f => ({ levels: "Year & level", spendCats: "spending categories", heardFrom: "how families hear about LHQ", methods: "payment methods", tutors: "tutors on cards", tutorInfo: "tutors' contacts", openHours: "opening hours" }[f] || String(f).replace(/([A-Z])/g, " $1").toLowerCase())).join(", ")}`, "settings", k);
+      if (ch.length) await act(me, "settings", "settings.edit", `Changed ${ch.map(f => ({ levels: "Year and level", spendCats: "spending categories", heardFrom: "how families hear about LHQ", methods: "payment methods", tutors: "tutors on cards", tutorInfo: "tutors' contacts", openHours: "opening hours", payDates: "payment dates", terms: "school terms", kpi: "tutor KPI targets", grades: "grade boundaries", exams: "exam dates", payHow: "how to pay" }[f] || String(f).replace(/([A-Z])/g, " $1").toLowerCase())).join(", ")}`, "settings", k);
     } else if (k === "lhq_templates") { if (canon(old) !== canon(now)) await act(me, "settings", "messages.edit", "Changed the message wording", "settings", k); }
     else if (k === "lhq_budget") { if (canon(old) !== canon(now)) await act(me, "budgets", "budget.edit", "Changed the budgets", "settings", k); }
     else if (k === "lhq_logs") {
@@ -891,7 +892,7 @@ async function payGet(req, me) {
   const P = await payLib(), ctx = await payCtx(), tn = P.nk(me.name), m = ctx.t.slice(0, 7);
   const slips = Object.entries(ctx.pay.slips || {}).filter(([k]) => k.startsWith(tn + "|")).map(([k, v]) => Object.assign({ m: k.split("|")[1] }, v)).sort((a, b) => b.m.localeCompare(a.m));
   const cur = P.month(ctx, me.name, m);
-  return json({ name: me.name, m, now: { paid: cur.paid, notPaid: cur.notPaid, held: cur.held, label: cur.label }, slips, place: P.placeNow(ctx.pay, me.name, ctx.t) });
+  return json({ name: me.name, m, now: { m, paid: cur.paid, notPaid: cur.notPaid, held: cur.held, label: cur.label }, slips, place: P.placeNow(ctx.pay, me.name, ctx.t) });
 }
 async function payPost(req, me) {
   const b = await req.json().catch(() => ({})), now = Date.now(), P = await payLib(), tutor = String(b.tutor || "").trim().slice(0, 80), m = String(b.m || "");
@@ -902,10 +903,10 @@ async function payPost(req, me) {
     if (!sl) return fail("That payslip isn't confirmed yet.", 409);
     if (b.action === "sign") { if (sl.st === "signed") return json({ ok: true });
       await writeKv("lhq_pay", old => { const o = Object.assign({}, old); o.slips = Object.assign({}, o.slips); o.slips[k2] = Object.assign({}, o.slips[k2], { st: "signed", sAt: now }); return o; });
-      await act(me, "pay", "payslip.sign", `${me.name} signed the ${m} payslip`, "pay", k2); return json({ ok: true }); }
+      await act(me, "pay", "payslip.sign", `${me.name} · ${monthL(m)} payslip signed`, "pay", k2); return json({ ok: true }); }
     const note = String(b.note || "").trim().slice(0, 500); if (!note) return fail("Say what's wrong.");
     await writeKv("lhq_pay", old => { const o = Object.assign({}, old); o.slips = Object.assign({}, o.slips); o.slips[k2] = Object.assign({}, o.slips[k2], { q: { note, at: now } }); return o; });
-    await act(me, "pay", "payslip.query", `${me.name} queried the ${m} payslip: "${note}"`, "pay", k2); return json({ ok: true });
+    await act(me, "pay", "payslip.query", `${me.name} · ${monthL(m)} payslip queried: "${note}"`, "pay", k2); return json({ ok: true });
   }
   if (!(isDirector(me) || can(me, "tpay"))) return fail("You don't have permission for tutor pay.", 403);
   if (b.action === "rules" || b.action === "place" || b.action === "unconfirm") { if (!isDirector(me)) return fail("Only the Director can change this.", 403); }
@@ -913,8 +914,10 @@ async function payPost(req, me) {
     const R = {}; Object.keys(P.DEF).forEach(k => { if (k === "progs") return; if (k === "after") { if (/^\d{2}:\d{2}$/.test(String(b.rules?.after || ""))) R.after = b.rules.after; return; }
       const v = +(b.rules || {})[k]; if (Number.isFinite(v) && v >= 0 && v <= 10000000) R[k] = v; });
     R.progs = (Array.isArray(b.rules?.progs) ? b.rules.progs : []).map(x => ({ name: String(x.name || "").trim().slice(0, 60), rate: Math.max(0, Math.min(1000000, +x.rate || 0)) })).filter(x => x.name && x.rate);
+    const was = P.rules(((await payCtx()).pay) || {}), PL = { inp: "In person", onl: "Online", cap: "Monthly cap", after: "After hours from", salary: "Salary", transport: "Transport", lunch: "Lunch", lunchH: "Lunch from (hours)", overtime: "Overtime", lenTerm: "Session (term)", lenHol: "Session (holiday)", grace: "Grace (min)" };
+    const ch = Object.keys(PL).filter(k => R[k] != null && String(R[k]) !== String(was[k])).map(k => `${PL[k]} ${typeof R[k] === "number" && R[k] >= 1000 ? R[k].toLocaleString("en-US") : R[k]} (was ${typeof was[k] === "number" && was[k] >= 1000 ? was[k].toLocaleString("en-US") : was[k]})`);
     await writeKv("lhq_pay", old => Object.assign({}, old, { rules: R }));
-    await act(me, "pay", "pay.rules", "Changed the tutor pay settings", "pay", null); return json({ ok: true });
+    await act(me, "pay", "pay.rules", ch.length ? "Tutor pay: " + ch.slice(0, 3).join(" · ") + (ch.length > 3 ? ` +${ch.length - 3}` : "") : "Tutor pay settings saved", "pay", null); return json({ ok: true });
   }
   if (b.action === "place") {
     if (!tutor || !["full", "part"].includes(b.p) || !/^\d{4}-\d{2}-\d{2}$/.test(String(b.from || ""))) return fail("Choose full-time or part-time and a date.");
@@ -931,20 +934,20 @@ async function payPost(req, me) {
     if (kind === "bonus" && !isDirector(me)) return fail("Only the Director gives bonuses.", 403);
     const id = "pi" + now.toString(36), it = { id, tutor, m, kind, amt, label: String(b.label || "").trim().slice(0, 80), note: String(b.note || "").trim().slice(0, 200), d: /^\d{4}-\d{2}-\d{2}$/.test(String(b.d || "")) ? b.d : "", by: me.name, at: now };
     await writeKv("lhq_pay", old => { const o = Object.assign({}, old); o.items = Object.assign({}, o.items, { [id]: it }); return o; });
-    await act(me, "pay", "pay.item", `${kind[0].toUpperCase() + kind.slice(1)} for ${tutor} (${m}): MKW ${amt.toLocaleString("en-US")}`, "pay", tutor); return json({ ok: true, id });
+    await act(me, "pay", "pay.item", `${kind[0].toUpperCase() + kind.slice(1)} · MKW ${amt.toLocaleString("en-US")} · ${tutor} · ${monthL(m)} payslip${it.label && it.label.toLowerCase() !== kind ? " · " + it.label : ""}`, "pay", tutor); return json({ ok: true, id });
   }
   if (b.action === "confirm") {
     if (slip) return fail("Already confirmed.", 409);
     const x = P.month(ctx, tutor, m), snap = { tutor: x.tutor, m: x.m, label: x.label, place: x.place, lines: x.lines, total: x.total, paid: x.paid, notPaid: x.notPaid, held: x.held };
     await writeKv("lhq_pay", old => { const o = Object.assign({}, old); o.slips = Object.assign({}, o.slips, { [key]: { st: "confirmed", snap, by: me.name, at: now } }); return o; });
-    await act(me, "pay", "payslip.confirm", `Confirmed ${tutor}'s ${m} payslip: MKW ${x.total.toLocaleString("en-US")}`, "pay", key);
+    await act(me, "pay", "payslip.confirm", `${tutor} · ${monthL(m)} payslip confirmed · MKW ${x.total.toLocaleString("en-US")}`, "pay", key);
     await pushSafe(await idsOfTutor(tutor), "pay", { title: `Payslip · ${x.label}`, body: `MKW ${x.total.toLocaleString("en-US")} · check it and sign`, url: "/#teach/pay" });
     return json({ ok: true, total: x.total });
   }
   if (b.action === "unconfirm") {
     if (!slip) return json({ ok: true }); if (slip.st === "signed") return fail("Signed payslips stay as they are.", 409);
     await writeKv("lhq_pay", old => { const o = Object.assign({}, old); o.slips = Object.assign({}, o.slips); delete o.slips[key]; return o; });
-    await act(me, "pay", "payslip.unconfirm", `Reopened ${tutor}'s ${m} payslip`, "pay", key); return json({ ok: true });
+    await act(me, "pay", "payslip.unconfirm", `${tutor} · ${monthL(m)} payslip reopened`, "pay", key); return json({ ok: true });
   }
   return fail("Unknown action.");
 }
@@ -1382,13 +1385,26 @@ async function tutorPost(req, me) {
     const before = await store().get("kv/lhq_logs", { type: "json" });
     await writeKv("lhq_logs", old => mergeLogs(old, { e: add }));
     const fresh = Object.values(add).filter(e => !((before && before.e) || {})[e.id]), edits = Object.keys(add).length - fresh.length;
-    const TY = { s: "session", g: "SRA given", r: "SRA marked", w: "assessment mark", p: "take-home pack", a: "assessment scheduled" }, cnt = {};
-    fresh.forEach(e => { const t = TY[e.ty] || "line"; cnt[t] = (cnt[t] || 0) + 1; });
-    const sess = fresh.filter(e => e.ty === "s"), first = sess[0] || fresh[0];
-    const outs = fresh.filter(e => e.ty === "p");
-    if (outs.length && outs.length === fresh.length) await act(me, "teaching", "pack.out", `Handed over ${outs.length === 1 ? "a take-home pack" : outs.length + " take-home packs"} · ${[...new Set(outs.map(e => e.st + " · " + e.sub))].slice(0, 4).join(", ")}`, "logs", outs[0].id);
-    else if (fresh.length === 1 && first) await act(me, "teaching", "log.add", `Logged a ${TY[first.ty] || "line"} · ${first.st} · ${first.sub} · ${dayL(first.d)}`, "logs", first.id);
-    else if (fresh.length) await act(me, "teaching", "log.add", `Logged ${Object.entries(cnt).map(([t, n]) => n + " " + t + (n === 1 ? "" : "s")).join(", ")}${sess.length ? " · " + [...new Set(sess.map(e => e.st))].slice(0, 4).join(", ") : ""}`, "logs", first.id);
+    /* in words, one line per kind: sessions logged, cancellations (who cancelled), SRAs given and marked (with the ARS), assessments marked and scheduled, take-home packs */
+    const nm = L => { const u = [...new Set(L.map(e => e.st).filter(Boolean))]; return u.slice(0, 4).join(", ") + (u.length > 4 ? ` +${u.length - 4}` : ""); };
+    const AKL = k => ({ t: "Weekly", w: "Weekly", m: "Monthly", k: "Past paper", p: "Past paper" })[k] || "Weekly";
+    const pc = e => Number(e.mx) > 0 && e.sc != null && e.sc !== "" && !isNaN(Number(e.sc)) ? Number(e.sc) / Number(e.mx) * 100 : null;
+    const of = t => fresh.filter(e => e.ty === t && !e.x);
+    const sess = of("s"), first = sess[0] || fresh[0];
+    if (sess.length) await act(me, "teaching", "log.add", `Logged ${sess.length === 1 ? "a session" : sess.length + " sessions"} · ${nm(sess)}${sess.length === 1 ? " · " + sess[0].sub + " · " + dayL(sess[0].d) : ""}`, "logs", sess[0].id, { n: sess.length });
+    const canc = Object.values(add).filter(e => e.ty === "s" && !e.x && e.a === "cancelled" && e.cb && (!prev[e.id] || prev[e.id].a !== "cancelled" || prev[e.id].cb !== e.cb));
+    for (const e of canc.slice(0, 10)) await act(me, "sessions", "session.cancel", `Cancelled by ${({ tutor: me.name, lhq: "LHQ", student: "the student" })[e.cb] || "?"} · ${e.st} · ${e.sub} · ${dayL(e.d)} · make-up owed`, "logs", e.id, { cb: e.cb });
+    const gv = of("g"); if (gv.length) await act(me, "teaching", "sra.give", `Gave ${gv.length} SRA${gv.length === 1 ? "" : "s"} · ${nm(gv)}`, "logs", gv[0].id, { n: gv.length });
+    const mk = Object.values(add).filter(e => e.ty === "r" && !e.x && (!prev[e.id] || prev[e.id].sc !== e.sc || prev[e.id].ars !== e.ars || prev[e.id].na !== e.na));
+    if (mk.length) { const wa = mk.filter(e => !e.na && e.ars != null && e.ars !== "").length;
+      await act(me, "teaching", "sra.mark", `Marked ${mk.length} SRA${mk.length === 1 ? "" : "s"} · ${wa} with the ARS · ${nm(mk)}`, "logs", mk[0].id, { n: mk.length, ars: wa, ids: mk.slice(0, 40).map(e => e.id) }); }
+    const wm = {}; Object.values(add).filter(e => e.ty === "w" && !e.x && pc(e) != null && (!prev[e.id] || prev[e.id].sc !== e.sc)).forEach(e => { const k = [e.ag || e.ak, e.sub, e.d].join("|"); (wm[k] = wm[k] || []).push(e); });
+    for (const L of Object.values(wm)) { const av = Math.round(L.reduce((a, e) => a + pc(e), 0) / L.length);
+      await act(me, "teaching", "assess.mark", `Marked ${AKL(L[0].ak)} · ${L[0].sub} · ${dayL(L[0].d)} · ${L.length === 1 ? L[0].st + " · " + av + "%" : L.length + " students · average " + av + "%"}`, "logs", L[0].id, { n: L.length, av, ids: L.slice(0, 40).map(e => e.id) }); }
+    const sc = {}; of("a").forEach(e => { const k = e.ag || e.id; (sc[k] = sc[k] || []).push(e); });
+    for (const L of Object.values(sc)) await act(me, "teaching", "assess.add", `Scheduled ${AKL(L[0].ak)} · ${L[0].sub} · ${dayL(L[0].d)}${L[0].s ? " " + L[0].s : ""} · ${nm(L)}`, "logs", L[0].id, { n: L.length });
+    const outs = of("p");
+    if (outs.length) await act(me, "teaching", "pack.out", `Handed over ${outs.length === 1 ? "a take-home pack" : outs.length + " take-home packs"} · ${[...new Set(outs.map(e => e.st + " · " + e.sub))].slice(0, 4).join(", ")}`, "logs", outs[0].id);
     if (edits) await act(me, "teaching", "log.edit", `Changed ${edits} logged line${edits === 1 ? "" : "s"}`, "logs", null);
     return json({ ok: true, saved: Object.values(add) });
   }

@@ -317,7 +317,7 @@ export async function manage(me, b) {
         else await T.q("INSERT INTO students (id, key, name, person_id) VALUES ($1, $2, $3, $4)", [newId("st"), key, name, id]);
       }
       for (const sid of kids) await T.q("INSERT INTO guardians (id, parent_id, student_id) VALUES ($1, $2, $3) ON CONFLICT (parent_id, student_id) DO UPDATE SET del = false", [newId("gu"), id, sid]);
-      await T.q("INSERT INTO activity (id, actor_id, action, area, entity, entity_id, summary) VALUES ($1, $2, 'person.add', 'people', 'people', $3, $4)", [newId("ac"), me.id, id, `Added ${name} (${role}) · username ${username}`]);
+      await T.q("INSERT INTO activity (id, actor_id, action, area, entity, entity_id, summary) VALUES ($1, $2, 'person.add', 'people', 'people', $3, $4)", [newId("ac"), me.id, id, `New ${({ director: "Director", admin: "Admin", tutor: "tutor", student: "student", parent: "parent", bdo: "BDO" })[role] || role} account · ${name}`]);
       return Object.assign({ id, name, role, username }, await makeCode(T, me, id));
     }
     const p = await T.one("SELECT * FROM people WHERE id = $1 AND NOT del", [b.id]);

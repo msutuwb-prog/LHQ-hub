@@ -280,14 +280,14 @@ test("activity: every save leaves a line, in words, by whom; Admin doesn't see w
   assert.equal(r.status, 200, JSON.stringify(r.j));
   const S = r.j.rows.map(x => x.summary);
   const has = (re, msg) => assert.ok(S.some(x => re.test(x)), msg + "\n" + S.slice(0, 40).join("\n"));
-  has(/^Made receipt RCT-0001 · Thoko Banda · MKW 240,000$/, "a new receipt");
+  has(/^New receipt RCT-0001 · Thoko Banda · MKW 240,000$/, "a new receipt");
   has(/^Edited invoice INV-0001 · Thoko Banda · MKW 260,000$/, "an edit");
   has(/^Deleted quote Q-0001 · Thoko Banda$/, "a delete, by name");
   has(/^Restored quote Q-0001/, "a restore");
   has(/^Recorded spending · Utilities · MKW 45,000/, "spending recorded");
   has(/^Deleted spending · Utilities/, "spending deleted");
   has(/^Added student Natasha Chirwa$/, "a student added");
-  has(/^Changed levels$|^Changed Year & level$/, "a list changed");
+  has(/^Changed levels$|^Changed Year and level$/, "a list changed");
   has(/^Logged a session · Thoko Banda · Mathematics · Wed 4 Nov$/, "a tutor's log, in their name");
   has(/^Sent the daily report for Wed 4 Nov/, "a daily report");
   has(/^Settled Thoko Banda · Mathematics · Tue 3 Nov with Emmanuel Mkwamba: 20 min taken off$/, "a settlement");
@@ -299,6 +299,17 @@ test("activity: every save leaves a line, in words, by whom; Admin doesn't see w
   assert.ok(w.j.rows.length && w.j.rows.every(x => x.who === "Emmanuel Mkwamba"), "filter by person");
   const tok = (await call("signin", { id: "emmanuel.mkwamba", password: "Maths!2026x" })).j.token;
   assert.equal((await call("activity", null, tok, "GET")).status, 403, "tutors don't see the Activity page");
+  // SRA marks with the ARS, an assessment marked, a cancellation with who cancelled: each one line in words
+  const marks = [{ id: "r1aaaa", ty: "r", k: "thoko banda|mathematics", st: "Thoko Banda", sub: "Mathematics", d: "2026-11-05", tk: "Number", rv: 2, sc: 7, mx: 10, ars: 4.5, ao: 6 },
+    { id: "r2aaaa", ty: "r", k: "thoko banda|mathematics", st: "Thoko Banda", sub: "Mathematics", d: "2026-11-05", tk: "Algebra", rv: 1, sc: 5, mx: 10, na: 1 },
+    { id: "w1aaaa", ty: "w", k: "thoko banda|mathematics", st: "Thoko Banda", sub: "Mathematics", d: "2026-11-05", ak: "m", sc: 33, mx: 50 },
+    { id: "s9aaaa", ty: "s", k: "thoko banda|mathematics", st: "Thoko Banda", sub: "Mathematics", d: "2026-11-05", a: "cancelled", cb: "lhq" }];
+  const mr = await call("tutor", { action: "entries", entries: marks }, tok); assert.equal(mr.status, 200, JSON.stringify(mr.j));
+  const A = (await call("activity", null, DIR, "GET")).j.rows, sm = A.map(x => x.summary);
+  const mrow = A.find(x => x.action === "sra.mark");
+  assert.match(mrow.summary, /^Marked 2 SRAs · 1 with the ARS · Thoko Banda$/); assert.deepEqual([mrow.data.n, mrow.data.ars], [2, 1], "counts kept for In numbers");
+  assert.ok(sm.includes("Marked Monthly · Mathematics · Thu 5 Nov · Thoko Banda · 66%"), sm.slice(0, 8).join("\n"));
+  assert.ok(sm.includes("Cancelled by LHQ · Thoko Banda · Mathematics · Thu 5 Nov · make-up owed"), "who cancelled");
 });
 
 test("tutor's times: unavailable blocks, Got it / Can't make this time, taken off a card, and the phone calendar link", async () => {

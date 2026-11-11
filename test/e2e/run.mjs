@@ -148,7 +148,7 @@ try {
 
   /* 7. Activity: the Director sees who did what */
   await go(D, "#activity", 2500); const av = await text(D);
-  const want = [["Catherine Mkwinda", /Made receipt RCT-0001 · Linga Shaba · MKW 120,000/], ["Emmanuel Mkwamba", /Logged 2 sessions/], ["Emmanuel Mkwamba", /Teaching them together: Linga Shaba and Tadala Phiri/],
+  const want = [["Catherine Mkwinda", /New receipt RCT-0001 · Linga Shaba · MKW 120,000/], ["Emmanuel Mkwamba", /Logged 2 sessions/], ["Emmanuel Mkwamba", /Teaching them together: Linga Shaba and Tadala Phiri/],
     ["Emmanuel Mkwamba", /Moved Tadala Phiri's Mathematics from Thu 14:00–15:00/], ["Wanangwa Msutu", /Settled Linga Shaba/], ["Catherine Mkwinda", /Recorded spending · Stationery · MKW 45,000/]];
   const actRows = await sql("SELECT a.summary, coalesce(p.name, a.data->>'who') who FROM activity a LEFT JOIN people p ON p.id = a.actor_id");
   // the page tells stories: session logs show as one row ("2 sessions logged"); the rest show their own words

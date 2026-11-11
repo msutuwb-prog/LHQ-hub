@@ -120,6 +120,9 @@ a.it:hover .t b,button.it:hover .t b{text-decoration:underline;text-underline-of
 .ac-sel{width:auto;flex:1;min-width:120px;max-width:240px}
 .ac-tks .tk .cbx{border-color:var(--c,var(--line))}.ac-tks .tk.on .cbx{background:var(--c,var(--accent));border-color:var(--c,var(--accent));color:#fff}
 .ac-r{align-items:flex-start}
+.ac-i,.ac-tks{--payc:#9a6a00}[data-theme=dark] .ac-i,[data-theme=dark] .ac-tks{--payc:#f4c35a}
+.ac-mcs{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px}.ac-mcs .mc{cursor:pointer;font:inherit;color:inherit;padding:12px 14px}.ac-mcs .mc:hover{border-color:var(--muted)}.ac-mcs .mc .v{font-size:22px;font-weight:800;color:var(--brand);display:flex;align-items:center;gap:3px}.ac-mcs .mc .v .mca{opacity:.55;font-size:16px}.ac-mcs .mc .s{font-size:12px;color:var(--muted)}.ac-mcs .mc.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.ac-r{font:inherit}.ac-r .chev{margin-left:6px;align-self:center}
 .ac-i{--pu:#6d4fc4;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;flex:none;color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent);margin-top:1px}
 .ac-tks{--pu:#6d4fc4}
 .ac-tm{color:var(--muted);font-size:12px;white-space:nowrap;margin-left:auto;padding:2px 0 0 8px}
@@ -130,7 +133,7 @@ a.it:hover .t b,button.it:hover .t b{text-decoration:underline;text-underline-of
 .ac-f div{background:var(--bg);border-radius:10px;padding:8px 10px}
 .ac-f small{display:block;font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
 .ac-f b{font-size:19px;color:var(--brand);font-variant-numeric:tabular-nums}
-.ac-ph{display:none}
+.ac-ph,.ac-ph.mcs{display:none}
 .ac-who{width:100%;background:none;border:0;text-align:left;font:inherit;color:inherit;cursor:pointer}
 .ac-who.on .t b{color:var(--brand);text-decoration:underline}
 .ac-c{margin-left:auto;color:var(--muted)}
@@ -142,7 +145,7 @@ a.it:hover .t b,button.it:hover .t b{text-decoration:underline;text-underline-of
 .ac-cols>div:last-child{display:none}
 @container (min-width:860px){.ac-cols>div:last-child{display:block}#actWho{display:none}}
 @media (min-width:700px){#actKind{display:none}}
-@media (max-width:699px){.ac-tks{display:none}.ac-ph{display:grid;grid-template-columns:repeat(3,1fr);margin-bottom:12px}.ac-bar .seg{flex:1 1 100%}.ac-bar .seg button{flex:1}}
+@media (max-width:699px){.ac-tks{display:none}.ac-ph,.ac-ph.mcs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:12px}.ac-bar .seg{flex:1 1 100%}.ac-bar .seg button{flex:1}}
 table.says{width:100%;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums;min-width:560px}
 table.says th{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;text-align:right;padding:12px 8px 6px;font-weight:800}
 table.says td{padding:10px 8px;border-top:1px solid var(--line2);text-align:right}
@@ -1142,7 +1145,7 @@ async function actLoad(more){
   }catch(e){ ACT.err = e.message; }
   ACT.busy = false; if(route.page === 'activity') render();
 }
-const actHref = x => x.entity === 'documents' && x.action !== 'doc.delete' ? D('d=' + x.entity_id) : x.entity === 'logs' && x.area === 'sessions' ? '#confirm/' + encodeURIComponent(x.entity_id) : x.area === 'money' ? '#biz/spending' : x.entity === 'students' && x.entity_id ? stuLink(x.entity_id) : x.area === 'settings' ? '#set/lists' : x.area === 'people' ? '#set/people' : x.action === 'doc.delete' ? '#set/deleted' : '';
+const actHref = x => x.entity === 'documents' && x.action !== 'doc.delete' ? D('d=' + x.entity_id) : x.entity === 'logs' && x.area === 'sessions' ? '#confirm/' + encodeURIComponent(x.entity_id) : x.area === 'money' ? '#biz/spending' : x.entity === 'students' && x.entity_id ? stuLink(x.entity_id) : x.area === 'settings' ? '' : x.area === 'people' ? '#set/people' : x.action === 'pay.rules' ? '#set/tpay' : x.area === 'pay' ? '#pay' : x.action === 'session.cancel' ? '#confirm/' + encodeURIComponent(x.entity_id) : x.action === 'assess.add' ? '#calendar' : x.action === 'kpi.review' || /^kpi\./.test(x.action) ? '#kpi' : x.action === 'doc.delete' ? '#set/deleted' : '';
 /* Who was active: people by role (staff, tutors, students, parents), how much each did in the period, and who did nothing */
 const ROLEG = r => ['tutor','student','parent'].includes(r) ? r : 'staff';
 const GRPL = {staff:'Staff', tutor:'Tutors', student:'Students', parent:'Parents'};
@@ -1182,7 +1185,7 @@ function actPeopleSheet(){
 }
 
 /* what each kind looks like: icon and colour; account events fold into one row */
-const AKIND = {money:['cash','--ok'], budgets:['bank','--ok'], pay:['card','--ok'], documents:['invoice','--bl'], sessions:['clock','--am'], teaching:['list','--pu'], students:['users','--brand'], people:['key','--muted'], settings:['layout','--muted']};
+const AKIND = {money:['cash','--ok'], budgets:['bank','--ok'], pay:['cash','--payc'], documents:['invoice','--bl'], sessions:['clock','--am'], teaching:['list','--pu'], students:['users','--brand'], people:['key','--muted'], settings:['layout','--muted']};
 const QUIET = a => a === 'password' || a === 'person.code';
 const STEP = x => ({'session.dispute':'✕ not right', 'session.keep':'kept the times', 'session.accept':'accepted', 'session.settle':'settled', 'session.confirm':'✓ confirmed'})[x.action] || (x.action === 'session.reply' ? (/LHQ/.test(x.summary) ? 'sent to LHQ' : 'OK') : x.summary);
 /* one day's rows become stories: a dispute is one row with its steps; session logs, confirmations and account events are one row each */
@@ -1191,23 +1194,44 @@ function actStories(L){
   const span = G => { const a = hmS(G[G.length - 1].created_at), b = hmS(G[0].created_at); return a === b ? a : a + '–' + b; };
   const by = (G, f) => { const m = new Map(); G.forEach(x => { const k = f(x); m.set(k, (m.get(k) || 0) + (x.n || 1)); }); return [...m.entries()].sort((p, q) => q[1] - p[1]); };
   const list = E => E.slice(0, 3).map(([k, n]) => `${k} ${n}`).join(' · ') + (E.length > 3 ? ` · +${E.length - 3}` : '');
-  const logs = L.filter(x => x.action === 'log.add' && /^Logged \d+ session/.test(x.summary)).map(x => Object.assign(x, {n: +x.summary.match(/^Logged (\d+)/)[1]}));
+  const nOf = x => +((x.data || {}).n) || +((x.summary.match(/^Logged (\d+) session/) || [])[1]) || (/^Logged a session/.test(x.summary) ? 1 : 0);
+  const logs = L.filter(x => x.action === 'log.add' && nOf(x)).map(x => Object.assign(x, {n: nOf(x)}));
+  const marks = L.filter(x => x.action === 'sra.mark');
   const conf = L.filter(x => x.action === 'session.confirm'), quiet = L.filter(x => QUIET(x.action));
-  const story = {}; L.filter(x => /^session\.(dispute|keep|accept|reply|settle)$/.test(x.action)).forEach(x => (story[x.entity_id] = story[x.entity_id] || []).push(x));
+  const story = {}; L.filter(x => /^session\.(dispute|keep|accept|reply|settle)$/.test(x.action) || /^payslip\./.test(x.action)).forEach(x => (story[x.entity_id] = story[x.entity_id] || []).push(x));
   L.forEach(x => {
     if(used.has(x)) return;
     if(logs.includes(x)){ logs.forEach(y => used.add(y)); const n = logs.reduce((a, y) => a + y.n, 0), T = by(logs, y => y.who);
-      out.push({x, area:'teaching', head:`${n} session${n === 1 ? '' : 's'} logged`, sub: T.length > 1 ? list(T) : '', who: T.length === 1 ? T[0][0] : `${T.length} tutors`, tm:span(logs), href:'#calendar'}); return; }
+      out.push({x, area:'teaching', head:`${n} session${n === 1 ? '' : 's'} logged`, sub: T.length > 1 ? list(T) : '', who: T.length === 1 ? T[0][0] : `${T.length} tutors`, tm:span(logs), sheet:'list', G:logs}); return; }
+    if(marks.includes(x)){ marks.forEach(y => used.add(y)); const n = marks.reduce((a, y) => a + (+(y.data || {}).n || 1), 0), w = marks.reduce((a, y) => a + (+(y.data || {}).ars || 0), 0), T = by(marks.map(y => Object.assign({}, y, {n: +(y.data || {}).n || 1})), y => y.who);
+      out.push({x, area:'teaching', head:`${n} SRA${n === 1 ? '' : 's'} marked · ${w} with the ARS`, sub: T.length > 1 ? list(T) : '', who: T.length === 1 ? T[0][0] : `${T.length} tutors`, tm:span(marks), sheet:'marks', G:marks}); return; }
     if(conf.includes(x)){ conf.forEach(y => used.add(y)); const T = by(conf, y => y.who);
-      out.push({x, area:'sessions', head:`${conf.length} session${conf.length === 1 ? '' : 's'} confirmed`, sub: T.length > 1 ? list(T) : '', who: T.length === 1 ? T[0][0] : `${T.length} people`, tm:span(conf), href:'#sessions'}); return; }
-    if(quiet.includes(x)){ quiet.forEach(y => used.add(y)); out.push({x, area:'people', head:`${quiet.length} account event${quiet.length === 1 ? '' : 's'}`, sub:[...new Set(quiet.map(y => y.action === 'person.code' ? 'setup codes' : 'passwords'))].join(' and ') + ' · ' + [...new Set(quiet.map(y => first(y.who || '')))].slice(0, 4).join(', '), who:'', tm:span(quiet), href:'#set/people', quiet:true}); return; }
+      out.push({x, area:'sessions', head:`${conf.length} session${conf.length === 1 ? '' : 's'} confirmed`, sub: T.length > 1 ? list(T) : '', who: T.length === 1 ? T[0][0] : `${T.length} people`, tm:span(conf), sheet:'list', G:conf}); return; }
+    if(quiet.includes(x)){ quiet.forEach(y => used.add(y)); out.push({x, area:'people', head:`${quiet.length} account event${quiet.length === 1 ? '' : 's'}`, sub:[...new Set(quiet.map(y => y.action === 'person.code' ? 'setup codes' : 'passwords'))].join(' and ') + ' · ' + [...new Set(quiet.map(y => first(y.who || '')))].slice(0, 4).join(', '), who:'', tm:span(quiet), sheet:'list', G:quiet, quiet:true}); return; }
     const G = x.entity_id && story[x.entity_id];
+    if(G && G.length > 1 && /^payslip\./.test(x.action)){ G.forEach(y => used.add(y)); const last = G[0], m = (G.find(y => y.action === 'payslip.confirm') || last).summary;
+      out.push({x:last, area:'pay', head: m.replace(' confirmed', '').replace(/^(.+?) · (.+? payslip)/, '$2 · $1') + ' · ' + ({'payslip.sign':'signed', 'payslip.query':'queried', 'payslip.unconfirm':'reopened', 'payslip.confirm':'confirmed'})[last.action], sub:'',
+        steps: G.slice().reverse().map(y => [first(y.who || ''), ({'payslip.confirm':'confirmed', 'payslip.sign':'signed', 'payslip.query':'queried', 'payslip.unconfirm':'reopened'})[y.action]]), who:'', tm:span(G), href:'#pay/' + encodeURIComponent(last.summary.split(' · ')[0]) + '/' + ((last.entity_id || '').split('|')[1] || '')}); return; }
     if(G && G.length > 1){ G.forEach(y => used.add(y)); const last = G[0], d0 = G.find(y => y.action === 'session.dispute') || last, m = d0.summary.match(/(?:Said|Settled|Sent|Kept their times on|Accepted) (.+?)'s (.+?) with ([^:]+?)(?: wasn't right| to LHQ|:|$)/);
       out.push({x:last, area:'sessions', head: last.action === 'session.settle' ? 'Disputed session settled' + (/(\d+) min/.test(last.summary) ? ` · ${last.summary.match(/(\d+) min/)[1]} min off` : '') : 'Disputed session', sub: m ? `${m[1]} · ${m[2]} · ${m[3]}` : '',
         steps: G.slice().reverse().map(y => [first(y.who || ''), STEP(y)]), who:'', tm:span(G), href:actHref(last)}); return; }
     used.add(x); out.push({x, area:x.area, head:x.summary, sub:'', who:x.who ? `${x.who}${x.role ? ' · ' + ({director:'Director', admin:'Admin', tutor:'Tutor', student:'Student', parent:'Parent', bdo:'BDO'}[x.role] || x.role) : ''}` : '', tm:hmS(x.created_at), href:actHref(x)});
   });
   return out;
+}
+function actSheet(i){
+  const s0 = (ACT.S || [])[i]; if(!s0) return;
+  const hmS = t => new Date(t).toTimeString().slice(0, 5), E = (store.get('lhq_logs', {e:{}}) || {}).e || {};
+  const half = n => n == null || n === '' ? '–' : String(n).replace(/\.5$/, '½').replace(/^0½$/, '½');
+  let rows = '';
+  if(s0.sheet === 'marks'){
+    const ids = s0.G.flatMap(y => (y.data || {}).ids || []), L = ids.map(id => E[id]).filter(Boolean);
+    rows = L.map(e => `<div class="it"><span class="t"><b>${esc(e.st)} · ${esc(e.tk || '')} ${e.rv ? 'R' + e.rv : 'LD'}</b><small>${esc(e.sub)} · ${esc(e.tutor || '')}</small></span><b style="white-space:nowrap">${e.na ? 'No ARS' : 'ARS ' + half(e.ars) + (e.ao ? ' / ' + e.ao : '')} · SRA ${esc(String(e.sc ?? '–'))}${e.mx ? ' / ' + esc(String(e.mx)) : ''}</b></div>`).join('')
+      || s0.G.map(y => `<div class="it"><span class="t"><b>${esc(y.summary)}</b><small>${esc(y.who || '')} · ${hmS(y.created_at)}</small></span></div>`).join('');
+  } else rows = (s0.G || [s0.x]).map(y => { const h = actHref(y); return `<${h ? `a class="it" href="${h}"` : 'div class="it"'}><span class="t"><b>${esc(y.summary)}</b><small>${esc(y.who || 'LHQ Hub')} · ${hmS(y.created_at)}</small></span>${h ? '<span class="chev">›</span>' : ''}</${h ? 'a' : 'div'}>`; }).join('');
+  const more = s0.area === 'settings' ? '<a class="btn full" href="#settings" style="margin-top:4px">Settings</a>' : s0.href ? `<a class="btn full" href="${s0.href}" style="margin-top:4px">Open</a>` : '';
+  openSheet(`<div class="hx"><h3>${esc(s0.head)}</h3><button class="ib" data-close>✕</button></div><p class="sp">${esc([s0.sub, s0.who, s0.tm].filter(Boolean).join(' · '))}</p><div class="card">${rows}</div>${more}`);
+  document.querySelectorAll('#sheet a').forEach(a => a.addEventListener('click', () => closeSheet()));
 }
 P.activity = () => {
   if(!isDir() && me().role !== 'admin') return `${crumb('#home', 'Home')}<p class="empty">Activity is for the Director and Admin.</p>`;
@@ -1216,16 +1240,21 @@ P.activity = () => {
   const tk = HD.isoOf(new Date()), dl = d => d === tk ? 'Today' : d === HD.addDays(tk, -1) ? 'Yesterday' : nice(d);
   const areas = (ACT.areas.length ? ACT.areas : Object.keys(AREAL)).filter(a => AREAL[a]);
   const one = AF.areas.size === 1 ? [...AF.areas][0] : '';
-  const row = s => { const k = AKIND[s.area] || ['list', '--muted'], tag = s.href ? `a href="${s.href}"` : 'div';
-    return `<${tag} class="it ac-r"><span class="ac-i" style="--c:var(${k[1]})">${ic(k[0], 16, 2)}</span><span class="t"><b>${esc(s.head)}</b>${s.sub ? `<small>${esc(s.sub)}</small>` : ''}${s.steps ? `<span class="ac-st">${s.steps.map(([w, v]) => `<span><b>${esc(w)}</b> ${esc(v)}</span>`).join('')}</span>` : ''}${s.who ? `<small>${esc(s.who)}</small>` : ''}</span><span class="ac-tm">${s.tm}</span></${tag.split(' ')[0]}>`; };
+  ACT.S = [];
+  const row = s => { const k = AKIND[s.area] || ['list', '--muted'], i = ACT.S.push(s) - 1, tag = s.href && !s.sheet ? `a href="${s.href}"` : `button type="button" data-acts="${i}"`;
+    return `<${tag} class="it ac-r"><span class="ac-i" style="--c:var(${k[1]})">${ic(k[0], 16, 2)}</span><span class="t"><b>${esc(s.head)}</b>${s.sub ? `<small>${esc(s.sub)}</small>` : ''}${s.steps ? `<span class="ac-st">${s.steps.map(([w, v]) => `<span><b>${esc(w)}</b> ${esc(v)}</span>`).join('')}</span>` : ''}${s.who ? `<small>${esc(s.who)}</small>` : ''}</span><span class="ac-tm">${s.tm}</span><span class="chev">›</span></${tag.split(' ')[0]}>`; };
   const feed = Object.entries(days).map(([d, L]) => { const S0 = actStories(L); return `<div class="h2">${dl(d)} <em>${S0.length}</em></div><div class="card">${S0.map(row).join('')}</div>`; }).join('')
     || (ACT.busy ? '<p class="note">Loading…</p>' : '<div class="card"><p class="empty">Nothing in this period.</p></div>');
   /* in numbers, and who was active, for the period shown */
   const R = ACT.rows, cnt = f => R.filter(f).length;
   const logged = R.filter(x => x.action === 'log.add').reduce((a, x) => a + (+((x.summary.match(/^Logged (\d+) session/) || [])[1] || 0)), 0);
-  const figs = [['Money', cnt(x => x.area === 'money' && /recorded/.test(x.action))], ['Documents', cnt(x => x.area === 'documents' && !/delete/.test(x.action))], ['Logged', logged], ['Confirmed', cnt(x => x.action === 'session.confirm')], ['Disputes', cnt(x => x.action === 'session.dispute')], ['Accounts', cnt(x => x.action === 'person.add')]];
+  const marks = R.filter(x => x.action === 'sra.mark'), nM = marks.reduce((a, x) => a + (+(x.data || {}).n || 1), 0), nA = marks.reduce((a, x) => a + (+(x.data || {}).ars || 0), 0);
+  const nLog = R.filter(x => x.action === 'log.add').reduce((a, x) => a + (+((x.data || {}).n) || +((x.summary.match(/^Logged (\d+) session/) || [])[1] || 0) || (/^Logged a session/.test(x.summary) ? 1 : 0)), 0);
+  const figs = [['Money', 'cash', cnt(x => x.area === 'money' && /recorded/.test(x.action)), 'recorded', 'money'], ['Documents', 'quote', cnt(x => x.area === 'documents' && !/delete/.test(x.action)), 'new or changed', 'documents'], ['Logged', 'clock', nLog, 'sessions', 'teaching'], ['SRAs marked', 'list', nM, `${nA} with the ARS`, 'teaching'], ['Confirmed', 'check', cnt(x => x.action === 'session.confirm'), 'sessions', 'sessions'], ['Disputes', 'alert', cnt(x => x.action === 'session.dispute'), 'raised', 'sessions'], ['Accounts', 'users', cnt(x => x.action === 'person.add'), 'new', 'people']]
+    .concat(areas.includes('pay') ? [['Payslips', 'cash', cnt(x => x.action === 'payslip.confirm'), `${cnt(x => x.action === 'payslip.sign')} signed`, 'pay']] : []);
+  const tile = ([l, i, n, sub, a]) => `<button type="button" class="mc${one === a ? ' on' : ''}" data-actf="${a}"><span class="l">${ic(i, 15, 2)}${l}</span><span class="v">${n}<span class="mca">›</span></span><span class="s">${esc(sub)}</span></button>`;
   const PP = actPeoplePanel(false), G0 = actPeople(), nAct = Object.values(G0).reduce((a, g) => a + g.act.length, 0), nQ = Object.values(G0).reduce((a, g) => a + g.quiet.length, 0);
-  const side = `<div><div class="h2">In numbers</div><div class="card ac-f">${figs.map(([l, n]) => `<div><small>${l}</small><b>${n}</b></div>`).join('')}</div>
+  const side = `<div><div class="h2">In numbers</div><div class="mcs ac-mcs">${figs.map(tile).join('')}</div>
     <div class="h2">Who was active</div>${PP.head}<div class="card">${PP.list}${PP.more ? `<button class="btn sm" data-actall style="margin:8px 0 10px">All ${PP.more}</button>` : ''}</div></div>`;
   /* who is shown: their role, how much, their page */
   const selP = AF.who && (() => { const c = ACT.counts.find(x => x.who === AF.who) || {}, x = {name: AF.who, role: c.role || ((HD.people ? HD.people() : []).find(p => p.name === AF.who) || {}).role, n: c.n || 0}, h = personHref(x);
@@ -1238,7 +1267,7 @@ P.activity = () => {
     <select class="in ac-sel" id="actWho" aria-label="Person"><option value="">Everyone</option>${(G => Object.keys(GRPL).filter(k => G[k].act.length).map(k => `<optgroup label="${GRPL[k]}">${G[k].act.map(x => `<option value="${esc(x.name)}" ${AF.who === x.name ? 'selected' : ''}>${esc(x.name)} (${x.n})</option>`).join('')}</optgroup>`).join(''))(actPeople())}</select></div>
   <div class="tks ac-tks"><button class="tk${AF.areas.size ? '' : ' on'}" data-acta=""><span class="cbx">${AF.areas.size ? '' : '✓'}</span>All</button>${areas.map(a => `<button class="tk${AF.areas.has(a) ? ' on' : ''}" data-acta="${a}" aria-pressed="${AF.areas.has(a)}" style="--c:var(${(AKIND[a] || [])[1] || '--muted'})"><span class="cbx">${AF.areas.has(a) ? '✓' : ''}</span>${AREAL[a]}</button>`).join('')}</div>
   ${ACT.err ? `<p class="note">${esc(ACT.err)}</p>` : ''}
-  <div class="ac-ph card ac-f">${figs.slice(0, 3).map(([l, n]) => `<div><small>${l}</small><b>${n}</b></div>`).join('')}</div>
+  <div class="ac-ph mcs ac-mcs">${[figs[0], figs[2], figs[3], figs[4]].map(tile).join('')}</div>
   ${selP || pplRow}
   <div class="hcols ac-cols"><div>${feed}${ACT.more ? '<button class="btn" data-actmore>Show earlier</button>' : ''}</div>${side}</div>`;
 };
@@ -1766,6 +1795,8 @@ function bind(){
   on('[data-actw]', el => { AF.when = el.dataset.actw; actLoad(); });
   on('[data-acta]', el => { const a = el.dataset.acta; if(!a) AF.areas.clear(); else AF.areas.has(a) ? AF.areas.delete(a) : AF.areas.add(a); actLoad(); });
   on('[data-actmore]', () => actLoad(true));
+  on('[data-acts]', el => actSheet(+el.dataset.acts));
+  on('[data-actf]', el => { const a = el.dataset.actf; if(AF.areas.size === 1 && AF.areas.has(a)) AF.areas.clear(); else { AF.areas.clear(); AF.areas.add(a); } actLoad(); });
   if($('actWho')) $('actWho').onchange = () => { AF.who = $('actWho').value; actLoad(); };
   if($('actKind')) $('actKind').onchange = () => { AF.areas.clear(); if($('actKind').value) AF.areas.add($('actKind').value); actLoad(); };
   on('[data-actwho]', el => { AF.who = AF.who === el.dataset.actwho ? '' : el.dataset.actwho; actLoad(); });
