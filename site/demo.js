@@ -225,7 +225,7 @@
           logs[eid] = e;
           // a weekly assessment about every third session, drifting up (most students) or down
           if(a !== 'absent' && n % 3 === 0){ const wid = 'dw' + (++uid).toString(36), p0 = Math.max(15, Math.min(98, wb + wn * wt + Math.round(rnd() * 10 - 5)));
-            logs[wid] = {id:wid, k:key, st:card.student, sub:sub.name, d:iso(d), ty:'w', ak: wn % 4 === 3 ? 'm' : wn % 7 === 5 ? 't' : 'w', tp:[topics[ti % topics.length]], mx:50, sc:Math.round(p0 / 2), wid:'w' + wid, md:iso(d), at:t + 18 * 3600e3, tutor:sub.tutor}; wn++; }
+            logs[wid] = {id:wid, k:key, st:card.student, sub:sub.name, d:iso(d), ty:'w', ak: wn % 4 === 3 ? 'm' : wn % 7 === 5 ? 'p' : 'w', tp:[topics[ti % topics.length]], mx:50, sc:Math.round(p0 / 2), wid:'w' + wid, md:iso(d), at:t + 18 * 3600e3, tutor:sub.tutor}; wn++; }
           if(a !== 'absent' && n % 2 === 0){
             // topic finished: SRA reviews 1, 3, 7 and 14 days later
             const topic = topics[ti % topics.length]; e.fin = [topic];   // its Learning Day: the SRA schedule starts here
@@ -233,7 +233,9 @@
               const rt = t + g * DAY; if(rt >= T) return;
               const h = rnd() < .78 ? 'o' : rnd() < .6 ? 'l' : 'm', rid = 'dr' + (++uid).toString(36);
               const r = {id:rid, k:key, st:card.student, sub:sub.name, d:iso(new Date(rt)), ty:'r', v:2, tk:topic, rv:ri + 1, h, at:rt + 17 * 3600e3, tutor:sub.tutor};
-              if(h !== 'm'){ r.mx = 10; r.sc = 4 + Math.floor(rnd() * 7); }
+              if(h !== 'm'){ r.mx = 10; r.sc = 4 + Math.floor(rnd() * 7);
+                // the ARS before it: out of the topic's objectives; about 1 in 9 without one (no extra random draws, so the rest of the demo stays the same)
+                const hv = (uid * 7919) % 100, ao = 4 + topic.length % 5; if(hv < 11) r.na = 1; else { r.ao = ao; r.ars = Math.max(0, Math.min(ao, Math.round((r.sc / 10 * ao - 0.5 + (hv % 3) * 0.5) * 2) / 2)); } }
               logs[rid] = r;
             });
             ti++;
@@ -243,7 +245,7 @@
         if(new Date(card.periodEnd).getTime() > T + 7 * DAY && rnd() < .25){
           for(let t = T + 3 * DAY, i = 0; i < 14; i++, t += DAY){ const d = new Date(t); if(!sub.days.some(x => DN[x] === d.getDay())) continue;
             const aid = 'da' + (++uid).toString(36), mock = rnd() < .3;
-            logs[aid] = {id:aid, k:key, st:card.student, sub:sub.name, d:iso(d), ty:'a', s: sub.start || '', ak: mock ? 'k' : 'm', tp: mock ? [] : topics.slice(0, 2), mx: mock ? 80 : 50, ag:'g' + aid, at:T - DAY, tutor:sub.tutor}; break; }
+            logs[aid] = {id:aid, k:key, st:card.student, sub:sub.name, d:iso(d), ty:'a', s: sub.start || '', ak: mock ? 'p' : 'm', tp: mock ? [] : topics.slice(0, 2), mx: mock ? 80 : 50, ag:'g' + aid, at:T - DAY, tutor:sub.tutor}; break; }
         }
         if(n > 3){
           const cid = 'dc' + (++uid).toString(36);

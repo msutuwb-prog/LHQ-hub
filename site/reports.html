@@ -109,10 +109,10 @@ table.log td{padding:6px 8px;border-bottom:1px solid #eef1f5;vertical-align:top}
 .rp .glance{font-size:10px;letter-spacing:1.4px;color:#a86a00;font-weight:700;text-transform:uppercase;margin:0 0 4px}
 .rp .who h1{margin:0;color:#073763;font-size:29px;line-height:1.1;font-weight:700}
 .rp .who p{margin:4px 0 0;color:#5f6b7d;font-size:14px}
-.rp .figs{display:grid;grid-template-columns:repeat(4,1fr);margin:18px 0 20px}
+.rp .figs{display:grid;grid-template-columns:repeat(5,1fr);margin:18px 0 20px}
 .rp .figs div{padding:2px 14px;border-left:1px solid #dde2ea}
 .rp .figs div:first-child{padding-left:0;border-left:0}
-.rp .figs b{display:block;color:#073763;font-size:26px;line-height:1.05;font-weight:700}
+.rp .figs b{display:block;color:#073763;font-size:23px;line-height:1.05;font-weight:700}
 .rp .figs small{display:block;color:#5f6b7d;font-size:10.5px;letter-spacing:1px;text-transform:uppercase;margin-top:5px}
 .rp .sec{color:#5f6b7d;font-size:10.5px;letter-spacing:1.6px;text-transform:uppercase;font-weight:700;margin:0 0 6px;padding-bottom:6px;border-bottom:1px solid #073763}
 .rp table{width:100%;border-collapse:collapse;font-size:13.5px}
@@ -336,19 +336,26 @@ function studentModel(name, a, b){
     // sessions the tutor couldn't teach aren't the student's attendance: they show as make-ups owed instead
     const sess = X.filter(e=>e.ty==='s' && inP(e) && e.a!=='cancelled').sort((x,y)=>x.d.localeCompare(y.d));
     const attended = sess.filter(e=>e.a!=='absent').length, absences = sess.filter(e=>e.a==='absent').map(e=>e.d);
-    const tests = sess.filter(e=>pct(e)!=null).map(pct);
-    const gradeTo = end => avg(X.filter(e=>e.ty==='s' && pct(e)!=null && e.d <= end && (!ps || e.d >= ps)).map(pct));
+    /* assessments: Weekly, Monthly, Past paper (a score on an older session log counts as Weekly; Topical as Weekly, Mock as Past paper) */
+    const akT = e => e.ty==='s' ? 'w' : e.ak==='t' ? 'w' : e.ak==='k' ? 'p' : (e.ak || 'w');
+    const AS = X.filter(e=>((e.ty==='w' && !e.abs) || e.ty==='s') && pct(e)!=null).sort((x,y)=>x.d.localeCompare(y.d));
+    const tests = AS.filter(e=>akT(e)==='w' && inP(e)).map(pct), monthly = AS.filter(e=>akT(e)==='m' && inP(e)).map(pct), papers = AS.filter(e=>akT(e)==='p' && inP(e)).map(pct);
+    const gradeTo = end => avg(AS.filter(e=>akT(e)==='w' && e.d <= end && (!ps || e.d >= ps)).map(pct));
     const gNow = gradeTo(b), gPrev = gradeTo(addDays(a, -1));
     const weeklyG = [3,2,1,0].map(k=>gradeTo(addDays(b, -7*k)));
     const sras = X.filter(e=>e.ty==='r' && inP(e));
     const sraAll = X.filter(e=>e.ty==='r' && (!ps || e.d >= ps) && e.d <= b && pct(e)!=null).map(pct);
-    const topicTests = avg(X.filter(e=>e.ty==='s' && pct(e)!=null && (!ps || e.d >= ps) && e.d <= b).map(pct));
+    const topicTests = avg(AS.filter(e=>akT(e)==='w' && (!ps || e.d >= ps) && e.d <= b).map(pct));
+    /* ARS: recall before each SRA handed in (not part of any grade) */
+    const inSras = sras.filter(e=>e.h!=='m' && pct(e)!=null), arsP = e => !e.na && +e.ao > 0 && e.ars!=null && e.ars!=='' ? Math.round(+e.ars / +e.ao * 100) : null;
+    const arsL = inSras.map(arsP).filter(v=>v!=null);
     const notes = sess.filter(e=>e.n).map(e=>e.n);
     const cm = X.filter(e=>e.ty==='c' && e.d <= b && e.d >= addDays(a, -21)).sort((x,y)=>y.d.localeCompare(x.d))[0] || null;
     const byTopic = {};
     sras.forEach(e=>{ const t = byTopic[e.tk] || (byTopic[e.tk] = {due:0, on:0, late:0, miss:0}); t.due++; if(e.h==='o') t.on++; else if(e.h==='l') t.late++; else t.miss++; });
     return Object.assign({}, s, {
       sessions:sess.length, attended, absences, tests, testAvg:avg(tests), lastTest: tests.length ? tests[tests.length-1] : null,
+      monthly, moAvg:avg(monthly), papers, ppAvg:avg(papers), sraIn:inSras.length, arsN:arsL.length, arsAvg:avg(arsL),
       gNow, gPrev, weeklyG, trend: gNow==null || gPrev==null ? 0 : Math.sign(rank(letter(gPrev)) - rank(letter(gNow))),
       topicsCovered:[...new Set(sess.flatMap(e=>e.tp||[]))],
       sraDue:sras.length, sraOn:sras.filter(e=>e.h==='o').length, sraLate:sras.filter(e=>e.h==='l').length, sraMiss:sras.filter(e=>e.h==='m').length,
@@ -357,18 +364,19 @@ function studentModel(name, a, b){
     });
   });
   const T = k => res.reduce((x,s)=>x + s[k], 0);
-  const allTests = res.flatMap(s=>s.tests);
+  const allTests = res.flatMap(s=>s.tests), allMo = res.flatMap(s=>s.monthly), allArs = res.flatMap(s=>s.arsN ? [s.arsAvg] : []);
   const grades = res.map(s=>s.gNow).filter(x=>x!=null);
   return {name: info.student || name, level: info.level || '', exam: info.exam || '', periodStart: info.periodStart || '', periodEnd: info.periodEnd || '',
-    subjects: res, a, b, sessions:T('sessions'), attended:T('attended'), testAvg:avg(allTests), testCount:allTests.length,
+    subjects: res, a, b, sessions:T('sessions'), attended:T('attended'), testAvg:avg(allTests), testCount:allTests.length, moAvg:avg(allMo), moCount:allMo.length, sraIn:T('sraIn'), arsN:T('arsN'), arsAvg:avg(allArs),
     sraDue:T('sraDue'), sraOn:T('sraOn'), overall: avg(grades)};
 }
 function watchItems(m){   // for parents: at most 3, most important first
   const out = [];
-  m.subjects.forEach(s=>{ if(s.trend < 0) out.push([0, 'r', `<b>${esc(s.name)}</b> · working grade moved from ${letter(s.gPrev)} to ${letter(s.gNow)}. We're giving extra practice on the topics behind it; encouraging regular revision at home helps.`]); });
+  m.subjects.forEach(s=>{ if(s.trend < 0) out.push([0, 'r', `<b>${esc(s.name)}</b> · weekly grade moved from ${letter(s.gPrev)} to ${letter(s.gNow)}. We're giving extra practice on the topics behind it; encouraging regular revision at home helps.`]); });
   m.subjects.forEach(s=>{ if(s.sraMiss) out.push([1, 'r', `<b>${esc(s.name)}</b> · ${s.sraMiss} SRA${s.sraMiss>1?'s':''} not handed in. Please check they are done each week.`]); });
   m.subjects.forEach(s=>{ if(s.absences.length) out.push([2, 'a', `<b>${esc(s.name)}</b> · missed ${s.absences.map(nice).join(', ')}. A make-up session will be arranged.`]); });
   m.subjects.forEach(s=>{ if(s.sraLate){ const topics = Object.entries(s.sraTopics).filter(([,t])=>t.late).map(([k])=>k); out.push([3, 'a', `<b>${esc(s.name)}</b> · ${s.sraLate} SRA${s.sraLate>1?'s':''} handed in late${topics.length?` (${esc(topics.join(', '))})`:''}. Handing them in on time keeps revision on schedule.`]); } });
+  m.subjects.forEach(s=>{ const n = s.sraIn - s.arsN; if(n > 0) out.push([4, 'a', `<b>${esc(s.name)}</b> · ${n} SRA${n>1?'s':''} handed in without the ARS. Recalling first, with notes closed, is what makes a topic stick.`]); });
   return out.sort((x,y)=>x[0]-y[0]).slice(0, 3);
 }
 function adminFlags(m){
@@ -381,7 +389,7 @@ function adminFlags(m){
     if(s.sraMiss) out.push(['t-red','SRA', `${who}: ${s.sraMiss} not handed in`]);
     if(s.sraLate) out.push(['t-amb','SRA', `${who}: ${s.sraLate} late`]);
     if(s.sraAvgAdmin!=null && s.testAvgAdmin!=null && s.sraAvgAdmin - s.testAvgAdmin >= 20)
-      out.push(['t-amb','Check SRAs', `${who}: home SRAs average ${s.sraAvgAdmin}% but topical tests ${s.testAvgAdmin}%`]);
+      out.push(['t-amb','Check SRAs', `${who}: home SRAs average ${s.sraAvgAdmin}% but weekly assessments ${s.testAvgAdmin}%`]);
   });
   return out;
 }

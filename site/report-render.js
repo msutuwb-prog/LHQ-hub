@@ -1,7 +1,7 @@
 /* Draws the parent reports (weekly / 2-weekly / monthly) and exports them as image and PDF.
    Uses the helpers defined in reports.html (studentModel, watchItems, letter, nice, range …). */
 
-const REP_FOOT = '<div class="ft"><span>LHQ Learning Solutions · 0992 525 250 · learnhqes@gmail.com</span><span>Working grade: average of topical assessments taken at LHQ this tuition period (weekly, or every two weeks where topics are longer). LHQ scale: A* 90+, A 80–89, B 70–79, C 60–69, D 50–59. Not an official Cambridge grade. SRAs are spaced repetition reviews done at home.</span></div>';
+const REP_FOOT = '<div class="ft"><span>LHQ Learning Solutions · 0992 525 250 · learnhqes@gmail.com</span><span>Grade: average of the weekly assessments taken at LHQ this tuition period (or every two weeks where topics are longer); monthly assessments and past papers are shown separately. LHQ scale: A* 90+, A 80–89, B 70–79, C 60–69, D 50–59. Not an official Cambridge grade. SRAs are spaced repetition reviews done at home; the ARS (Active Recall Sheet) before each one is shown for practice and is not part of any grade.</span></div>';
 const ARROW = t => t > 0 ? '<span class="up">↑</span>' : t < 0 ? '<span class="dn">↓</span>' : '<span class="fl">→</span>';
 const firstName = n => String(n||'').trim().split(/\s+/)[0] || 'The student';
 
@@ -14,7 +14,8 @@ function draftComment(m){
   if(m.sessions){
     let s = `${n} attended ${m.attended} of ${m.sessions} session${m.sessions===1?'':'s'} (${Math.round(m.attended/m.sessions*100)}%)`;
     const parts = [];
-    if(m.testCount) parts.push(`took ${m.testCount} topical assessment${m.testCount===1?'':'s'} (average ${m.testAvg}%)`);
+    if(m.testCount) parts.push(`took ${m.testCount} weekly assessment${m.testCount===1?'':'s'} (average ${m.testAvg}%)`);
+    if(m.moCount) parts.push(`${m.moCount} monthly (average ${m.moAvg}%)`);
     if(m.sraDue) parts.push(`handed in ${m.sraOn} of ${m.sraDue} SRAs on time`);
     if(parts.length) s += (parts.length===1 ? ' and ' : ', ') + parts.join(parts.length===1 ? '' : ' and ');
     S.push(s + '.');
@@ -50,9 +51,11 @@ function figsHTML(m, monthly){
   const status = w ? `<b style="color:#a86a00">${w} thing${w>1?'s':''} to work on</b><small>See “Where we'd like your help”</small>` : `<b style="color:#1f7a4d">All on track</b><small>Nothing needs your help this time</small>`;
   return `<div class="figs">
     <div><b>${m.attended} / ${m.sessions}</b><small>Sessions attended${m.sessions ? ` · ${Math.round(m.attended/m.sessions*100)}%` : ''}</small></div>
-    <div><b>${m.testAvg!=null ? m.testAvg + '%' : '–'}</b><small>Topical assessments${monthly && m.testCount ? ` · ${m.testCount} taken` : ''}</small></div>
+    <div><b>${m.testAvg!=null ? m.testAvg + '%' : '–'}</b><small>Weekly assessments${monthly && m.testCount ? ` · ${m.testCount}` : ''}</small></div>
+    ${monthly ? `<div><b>${m.moAvg!=null ? m.moAvg + '%' : '–'}</b><small>Monthly assessments${m.moCount ? ` · ${m.moCount}` : ''}</small></div>` : ''}
     <div><b>${m.sraDue ? `${m.sraOn} / ${m.sraDue}` : '–'}</b><small>SRAs on time</small></div>
-    ${monthly ? `<div><b>${m.overall!=null ? `${letter(m.overall)} <span style="font-size:16px;color:#5f6b7d;font-weight:400">${m.overall}%</span>` : '–'}</b><small>Overall working grade</small></div>` : `<div>${status}</div>`}
+    <div><b>${m.arsAvg!=null ? m.arsAvg + '%' : '–'}</b><small>Recall (ARS)${m.sraIn ? ` · ${m.arsN} of ${m.sraIn}` : ''}</small></div>
+    ${monthly ? '' : `<div>${status}</div>`}
   </div>`;
 }
 function dotFor(s){ return s.trend < 0 || s.sraMiss ? 'r' : (s.absences.length || s.sraLate) ? 'a' : 'g'; }
@@ -80,14 +83,14 @@ function weeklyHTML(m, ed){
   const two = state.freq==='2';
   const rows = m.subjects.map(s=>`<tr><td><b>${esc(s.name)}</b><span class="sub">${esc(s.topicsCovered.join(', ') || (s.sessions ? '' : 'no session logged'))}</span></td>
     <td class="c">${s.sessions ? `${s.attended} / ${s.sessions}${s.absences.length ? ' <span class="dn">●</span>' : ''}` : '<span class="fl">–</span>'}</td>
-    <td class="c">${testCell(s, !two)}</td><td class="c">${sraCell(s)}</td><td class="c">${gradeCell(s)}</td></tr>`).join('');
+    <td class="c">${testCell(s, !two)}</td><td class="c">${sraCell(s)}</td><td class="c">${s.arsAvg!=null ? s.arsAvg + '%' + (s.arsN < s.sraIn ? `<span class="sub">${s.sraIn - s.arsN} without</span>` : '') : '<span class="fl">–</span>'}</td><td class="c">${gradeCell(s)}</td></tr>`).join('');
   const notes = m.subjects.map(s=>{ const t = ed.notes && s.name in ed.notes ? ed.notes[s.name] : s.note; return t ? `<p><b>${esc(s.name)}</b> · ${esc(t)}</p>` : ''; }).join('');
   const wk = Math.max(1, Math.round(((parseISO(m.b) - parseISO(m.periodStart || m.a)) / 86400000 + 1) / 7));
   const inTuition = m.periodStart && m.b >= m.periodStart;
   const sub = (inTuition ? (two && wk > 1 ? `Weeks ${wk-1}–${wk} · ` : `Week ${wk} · `) : '') + range(m.a, m.b, true);
   return `<div class="rp wk">${headHTML(two ? '2-WEEKLY REPORT' : 'WEEKLY REPORT', sub)}${whoHTML(m, false)}${figsHTML(m, false)}
     <div class="sec">${two ? 'These two weeks' : 'This week'}</div>
-    <table><tr><th>Subject</th><th class="c">Attended</th><th class="c">Topical test</th><th class="c">SRAs on time</th><th class="c">Working grade</th></tr>${rows}</table>
+    <table><tr><th>Subject</th><th class="c">Attended</th><th class="c">Weekly</th><th class="c">SRAs on time</th><th class="c">Recall (ARS)</th><th class="c">Grade</th></tr>${rows}</table>
     ${watchHTML(m)}
     ${notes ? `<div class="sec" style="margin-top:18px">From the tutors</div><div class="notes">${notes}</div>` : ''}
     ${REP_FOOT}</div>`;
@@ -97,12 +100,12 @@ function weeklyHTML(m, ed){
 function monthlyBlocks(m, ed){
   const rows = m.subjects.map(s=>`<tr><td><b>${esc(s.name)}</b><span class="sub">${esc([s.code, s.tier].filter(Boolean).join(' · '))}</span></td><td>${esc(s.tutor||'')}</td>
     <td class="c">${s.sessions ? `${s.attended} / ${s.sessions}${s.absences.length ? ' <span class="dn">●</span>' : ''}` : '<span class="fl">–</span>'}</td>
-    <td class="c">${s.testAvg!=null ? s.testAvg + '%' : '<span class="fl">–</span>'}</td><td class="c">${s.sraDue ? `${s.sraOn} / ${s.sraDue}${s.sraOn<s.sraDue ? ' <span class="dn">●</span>' : ''}` : '<span class="fl">–</span>'}</td>
+    <td class="c">${s.testAvg!=null ? s.testAvg + '%' : '<span class="fl">–</span>'}</td><td class="c">${s.moAvg!=null ? s.moAvg + '%' : '<span class="fl">–</span>'}</td><td class="c">${s.ppAvg!=null ? s.ppAvg + '%' : '<span class="fl">–</span>'}</td><td class="c">${s.arsAvg!=null ? s.arsAvg + '%' : '<span class="fl">–</span>'}</td><td class="c">${s.sraDue ? `${s.sraOn} / ${s.sraDue}${s.sraOn<s.sraDue ? ' <span class="dn">●</span>' : ''}` : '<span class="fl">–</span>'}</td>
     <td class="c">${s.gNow!=null ? `<span class="gr">${letter(s.gNow)}</span> ${ARROW(s.trend)}` : '<span class="fl">–</span>'}</td><td class="c">${spark(s.weeklyG)}</td></tr>`).join('');
   const comment = 'overall' in ed ? ed.overall : draftComment(m);
   const first = [
     headHTML('PROGRESS REPORT', `Monthly · ${range(m.a, m.b)} · issued ${longDate(today())}`) + '<div class="glance">At a glance</div>' + whoHTML(m, true) + figsHTML(m, true) +
-    `<div class="sec">Summary by subject</div><table><tr><th>Subject</th><th>Tutor</th><th class="c">Attended</th><th class="c">Topical avg</th><th class="c">SRAs on time</th><th class="c">Grade</th><th class="c">4 weeks</th></tr>${rows}</table>`
+    `<div class="sec">Summary by subject</div><table><tr><th>Subject</th><th>Tutor</th><th class="c">Attended</th><th class="c">Weekly</th><th class="c">Monthly</th><th class="c">Past paper</th><th class="c">ARS</th><th class="c">SRAs on time</th><th class="c">Grade</th><th class="c">4 weeks</th></tr>${rows}</table>`
   ];
   const flow = [];
   const w = watchHTML(m); if(w) flow.push(w);
@@ -125,7 +128,7 @@ function monthlyBlocks(m, ed){
     const ul = t => '<ul>' + String(t||'').split('\n').map(x=>x.trim()).filter(Boolean).map(x=>`<li>${esc(x)}</li>`).join('') + '</ul>';
     const cols = cm && (cm.cs || cm.ci || cm.cn) ? `<div class="cols"><div><h4>Strengths</h4>${ul(cm.cs)}</div><div><h4>To improve</h4>${ul(cm.ci)}</div><div><h4>Next steps</h4>${ul(cm.cn)}</div></div>` : '';
     detail.push(`${i===0 ? '<div class="sec" style="margin-top:20px">Subject reports</div>' : ''}<div class="subj"><h3>${esc(s.name)} <small>${esc([s.code, s.tier].filter(Boolean).join(' · '))}</small>${s.tutor ? `<em>Tutor: <b>${esc(s.tutor)}</b></em>` : ''}</h3>
-      ${!s.sessions && !s.sraDue && s.gNow==null ? '<p style="font-size:12.5px;color:#7a8494;margin:6px 0 0">No sessions logged for this period.</p>' : `<div class="sfig"><div><b>${s.sessions ? `${s.attended} / ${s.sessions}` : '–'}</b><small>Attended</small></div><div><b>${s.testAvg!=null ? s.testAvg+'%' : '–'}</b><small>Topical avg${s.tf===2?' · 2-weekly':''}</small></div><div><b>${s.sraDue ? `${s.sraOn} / ${s.sraDue}` : '–'}</b><small>SRAs on time</small></div><div><b>${s.gNow!=null ? `${letter(s.gNow)} ${ARROW(s.trend)}` : '–'}</b><small>Grade</small></div></div>`}
+      ${!s.sessions && !s.sraDue && s.gNow==null ? '<p style="font-size:12.5px;color:#7a8494;margin:6px 0 0">No sessions logged for this period.</p>' : `<div class="sfig"><div><b>${s.sessions ? `${s.attended} / ${s.sessions}` : '–'}</b><small>Attended</small></div><div><b>${s.testAvg!=null ? s.testAvg+'%' : '–'}</b><small>Weekly${s.tf===2?' · 2-weekly':''}</small></div><div><b>${s.moAvg!=null ? s.moAvg+'%' : '–'}</b><small>Monthly</small></div><div><b>${s.arsAvg!=null ? s.arsAvg+'%' : '–'}</b><small>Recall (ARS)</small></div><div><b>${s.sraDue ? `${s.sraOn} / ${s.sraDue}` : '–'}</b><small>SRAs on time</small></div><div><b>${s.gNow!=null ? `${letter(s.gNow)} ${ARROW(s.trend)}` : '–'}</b><small>Grade</small></div></div>`}
       ${s.topicsCovered.length ? `<div class="tp"><b>Topics this month:</b> ${esc(s.topicsCovered.join(', '))}</div>` : ''}${cols}</div>`);
   });
   return {first, flow, detail};

@@ -7,7 +7,7 @@ const card = { id: "c1", type: "card", student: "Ruth Banda", periodStart: "2026
 const k = "ruth banda|physics", at = (d, h = 15) => Date.parse(d + `T${String(h - 2).padStart(2, "0")}:00:00Z`);
 const s = (d, x = {}) => Object.assign({ id: "s" + d, ty: "s", k, st: "Ruth Banda", sub: "Physics", d, a: "attended", t1: "14:00", t2: "14:50", tutor: "Peter Mvula", c: at(d), at: at(d) }, x);
 const ctx = (entries, extra = {}) => Object.assign({ cards: [card], entries, treps: [], makeups: [], sreports: {}, targets: {}, kpi: {}, set: {}, t }, extra);
-const r = { a: "2026-11-02", b: "2026-11-08" };   // Tue 3, Thu 5
+const r = { a: "2026-11-02", b: "2026-11-08" }, r0 = r;   // Tue 3, Thu 5
 test("sessions taught as planned: a student's absence isn't counted; a missing log counts against", () => {
   const f = K.figures(ctx([s("2026-11-03"), s("2026-11-05", { a: "absent" })]), "Peter Mvula", r).ses;
   assert.equal(f.k, 1); assert.equal(f.n, 1);
@@ -37,4 +37,9 @@ test("periods: week from Monday, month, and terms from Settings", () => {
   assert.deepEqual([K.range("week", t).a, K.range("week", t).b], ["2026-11-09", "2026-11-15"]);
   assert.equal(K.range("term", t, [["Term 1", "2026-09-01", "2026-12-11"]]).a, "2026-09-01");
   assert.equal(K.shift(K.range("month", t), -1).a, "2026-10-01");
+});
+test("watched: ARS collected with the SRAs a tutor marked", () => {
+  const r = (d, x) => Object.assign({ id: "r" + d + JSON.stringify(x), ty: "r", v: 2, k, st: "Ruth Banda", sub: "Physics", d, tk: "Forces", rv: 1, h: "o", sc: 7, mx: 10, tutor: "Peter Mvula", at: at(d) }, x);
+  const f = K.figures(ctx([s("2026-11-03"), r("2026-11-03", { ars: 4.5, ao: 6 }), r("2026-11-05", { na: 1 }), r("2026-11-05", { h: "m", sc: "" })]), "Peter Mvula", r0).ars;
+  assert.equal(f.k, 1); assert.equal(f.n, 2, "not handed in doesn't count");
 });

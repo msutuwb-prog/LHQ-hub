@@ -24,6 +24,7 @@ if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash)
 <script src="store.js"></script>
 <script src="sync.js"></script>
 <script src="defaults.js"></script>
+<script src="payplan.js"></script>
 <script src="hubdata.js"></script>
 <script src="schedule.js"></script>
 <script src="sreport.js"></script>
@@ -45,6 +46,7 @@ if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash)
 <script src="kpiui.js"></script>
 <script src="push.js"></script>
 <script src="teach.js"></script>
+<script src="famdocs.js"></script>
 <script src="family.js"></script>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -65,14 +67,16 @@ a{color:inherit}
 .ph p{margin:3px 0 0;color:var(--muted);font-size:13.5px}
 .crumb{display:inline-flex;align-items:center;gap:4px;border:0;background:none;color:var(--muted);font-weight:700;font-size:13.5px;padding:4px 0;margin:0 0 4px;text-decoration:none}
 .crumb:hover{color:var(--ink)}
-.tp-row{display:grid;grid-template-columns:150px 110px minmax(0,1fr) minmax(0,1fr) 36px;gap:6px;align-items:center;margin-bottom:8px}@media (max-width:620px){.tp-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 36px}.tp-row input:nth-child(3),.tp-row input:nth-child(4){grid-column:1/-1}}
+.pd-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line2)}.pd-row:first-of-type{border-top:0}.pd-row .t{flex:1;min-width:0}.pd-row .t small{display:block;color:var(--muted);font-size:12.5px}.pd-row input{width:170px;flex:none}
+.pd-fast{padding:10px 0;border-top:1px solid var(--line2)}.pd-fh{display:flex;gap:8px;align-items:center;margin-bottom:8px}.pd-fh input{flex:1;min-width:0}.pd-ds{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}@media (max-width:620px){.pd-ds{grid-template-columns:repeat(2,minmax(0,1fr))}.pd-row input{width:150px}}
+.tp-row{display:grid;grid-template-columns:150px 120px 110px minmax(0,1fr) minmax(0,1fr) 36px;gap:6px;align-items:center;margin-bottom:8px}@media (max-width:760px){.tp-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr);padding-bottom:8px;border-bottom:1px solid var(--line2)}.tp-row input:nth-child(5){grid-column:1/-1}.tp-row .ib{justify-self:end;grid-column:1/-1}}
 .tm-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 36px;gap:6px;align-items:center;margin-bottom:8px}@media (max-width:520px){.tm-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 36px}.tm-row input:first-child{grid-column:1/-1}}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--line);background:var(--surface);color:var(--brand);border-radius:11px;padding:9px 14px;font-weight:800;font-size:13.5px;min-height:40px;white-space:nowrap;text-decoration:none}
 .btn:hover{border-color:var(--muted)}
 .btn.n{background:var(--accent);border-color:var(--accent);color:var(--onaccent)}
 .btn.g{background:var(--wa);border-color:var(--wa);color:#fff}
 .btn.rd{color:var(--rd)}
-.btn.full{width:100%;margin-top:8px}
+.btn.full{width:100%;margin-top:8px;white-space:normal;text-align:center;min-width:0}
 .btn.sm{min-height:32px;padding:6px 11px;font-size:12.5px;border-radius:9px}
 .btn:disabled{opacity:.45;cursor:default}
 .acts{display:flex;gap:8px;flex-wrap:wrap}
@@ -1441,7 +1445,7 @@ let termDraft = null;
 S.terms = () => { const L = termDraft || (window.MIN ? MIN.terms() : []).map(t => t.slice());
   termDraft = L;
   return `<h2 class="sec-h">School terms</h2><div class="card pad">${L.map((t, i) => `<div class="tm-row"><input class="in" data-tm="${i}:0" value="${esc(t[0])}" aria-label="Name"><input class="in" type="date" data-tm="${i}:1" value="${esc(t[1])}" aria-label="Starts"><input class="in" type="date" data-tm="${i}:2" value="${esc(t[2])}" aria-label="Ends"><button class="ib" data-tmrm="${i}" aria-label="Remove">✕</button></div>`).join('')}
-    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"><button class="btn" id="tmAdd">+ Term</button><button class="btn n" id="tmSave">Save</button></div></div><p class="note">Holidays are the gaps between terms. Used by Money in.</p>`; };
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"><button class="btn" id="tmAdd">+ Term</button><button class="btn n" id="termSave">Save</button></div></div><p class="note">Holidays are the gaps between terms. Used by Money in.</p>`; };
 let bandSc = 'al', exTab = 'series', topDraft = null;
 S.kpi = () => { const c = KPI.conf(settingsKV()), sw = (id, on, t, sub) => `<div class="it"><span class="t"><b>${t}</b><small>${sub}</small></span><button class="lp-sw${on ? ' on' : ''}" id="${id}" role="switch" aria-checked="${on}" aria-label="${t}"></button></div>`;
   return `<h2 class="sec-h">Tutor KPIs</h2><div class="h2">Who sees it</div><div class="card">${sw('kAdm', c.admin, 'Admin', 'All tutors · with Tutors access')}${sw('kTut', c.tutors, 'Tutors', 'Their own · Week and Month')}</div>
@@ -1454,10 +1458,10 @@ S.bands = () => { const E0 = EXAMS, cur = E0.bandsOf(bandSc, settingsKV());
     <div class="card pad">${E0.GRADES[bandSc].map(g => `<div class="it" style="padding:6px 0"><span class="ex-gr">${esc(g)}</span><span class="t"></span><input class="in" style="width:80px;text-align:right" inputmode="numeric" data-bnd="${esc(g)}" value="${esc(cur[g])}"> %</div>`).join('')}</div>
     <div class="acts"><button class="btn n" id="bndSave">Save</button><button class="btn" id="bndReset">Cambridge-style default</button></div>`; };
 S.exams = () => { const E0 = EXAMS, set = settingsKV(), I = (window.EXAMDATA || {}).series || {}, fix = set.examFix || {};
-  const tabs = `<div class="chips"><button class="chip${exTab === 'series' ? ' on' : ''}" data-extab="series">Exam series</button><button class="chip${exTab === 'top' ? ' on' : ''}" data-extab="top">Topical dates</button></div>`;
+  const tabs = `<div class="chips"><button class="chip${exTab === 'series' ? ' on' : ''}" data-extab="series">Exam series</button><button class="chip${exTab === 'top' ? ' on' : ''}" data-extab="top">Assessment dates</button></div>`;
   if(exTab === 'top'){ const L = topDraft || (set.topicals || []).map(x => Object.assign({}, x)); topDraft = L;
-    return `<h2 class="sec-h">Exams</h2>${tabs}<div class="card pad">${L.map((x, i) => `<div class="tp-row"><input class="in" type="date" data-tp="${i}:d" value="${esc(x.d || '')}" aria-label="Date"><select class="in" data-tp="${i}:ex" aria-label="Exam">${E0.EX.map(([k, l]) => `<option value="${k}" ${x.ex === k ? 'selected' : ''}>${esc(E0.EXS[k])}</option>`).join('')}</select><input class="in" data-tp="${i}:sub" value="${esc(x.sub || '')}" placeholder="Subject" aria-label="Subject"><input class="in" data-tp="${i}:tp" value="${esc(x.tp || '')}" placeholder="Topics" aria-label="Topics"><button class="ib" data-tprm="${i}" aria-label="Remove">✕</button></div>`).join('') || '<p class="empty" style="margin:0 0 8px">None yet.</p>'}
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"><button class="btn" id="tpAdd">+ Topical</button><button class="btn n" id="tpSave">Save</button></div></div><p class="note">Shows on the students' Practice and calendar, and on their tutors' Home.</p>`; }
+    return `<h2 class="sec-h">Exams</h2>${tabs}<div class="card pad">${L.map((x, i) => `<div class="tp-row"><input class="in" type="date" data-tp="${i}:d" value="${esc(x.d || '')}" aria-label="Date"><select class="in" data-tp="${i}:ak" aria-label="Type">${[['w','Weekly'],['m','Monthly'],['p','Past paper']].map(([k, l]) => `<option value="${k}" ${(x.ak || 'm') === k ? 'selected' : ''}>${l}</option>`).join('')}</select><select class="in" data-tp="${i}:ex" aria-label="Exam">${E0.EX.map(([k, l]) => `<option value="${k}" ${x.ex === k ? 'selected' : ''}>${esc(E0.EXS[k])}</option>`).join('')}</select><input class="in" data-tp="${i}:sub" value="${esc(x.sub || '')}" placeholder="Subject" aria-label="Subject"><input class="in" data-tp="${i}:tp" value="${esc(x.tp || '')}" placeholder="Topics" aria-label="Topics"><button class="ib" data-tprm="${i}" aria-label="Remove">✕</button></div>`).join('') || '<p class="empty" style="margin:0 0 8px">None yet.</p>'}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"><button class="btn" id="tpAdd">+ Assessment</button><button class="btn n" id="tpSave">Save</button></div></div><p class="note">Shows on the students' Practice and calendar, and on their tutors' Home.</p>`; }
   return `<h2 class="sec-h">Exams</h2>${tabs}<div class="card"><div class="it"><span class="t"><b>Zone</b><small>Malawi</small></span><b>${esc((window.EXAMDATA || {}).zone || '3')}</b></div>
     ${Object.entries(I).map(([sr, x]) => { const n = (E0.rowsAll(set)[sr] || []).length; return `<div class="it"><span class="t"><b>${esc(x.name)} · ${x.exams.map(k => E0.EXS[k]).filter((v, i, a) => a.indexOf(v) === i).join(', ')}</b><small>${n ? n + ' papers' : 'Not published yet'}</small></span>${n ? '<span class="ex-st ok"><i>✓</i></span>' : '<span class="ex-st no"><i></i></span>'}</div>`; }).join('')}</div>
     <a class="btn" href="#exams">Exam timetable</a>
@@ -1518,7 +1522,7 @@ function peoplePw(){
   const F = [['all','Everyone'],['need','Needs something'],['staff','Staff'],['student','Students'],['parent','Parents']];
   const list = all.filter(p => peopleShow === 'all' || (peopleShow === 'need' ? need(p) : peopleShow === 'staff' ? ['director','admin','tutor','bdo'].includes(p.role) : p.role === peopleShow));
   return `<h2 class="sec-h">People & access</h2><p class="sec-p">${all.length} accounts · ${all.filter(need).length} need something. ${D0 ? 'Admin manages students, parents and tutors; only you add or reset Admin and BDO accounts.' : 'You manage students, parents and tutors. Admin and BDO accounts are managed by Wanangwa.'}</p>
-  <div class="seg" style="margin-bottom:12px;flex-wrap:wrap">${F.map(([k, l]) => `<button class="${peopleShow === k ? 'on' : ''}" data-pshow="${k}">${l}</button>`).join('')}</div>
+  <div class="seg" style="margin-bottom:12px;display:flex;flex-wrap:wrap;max-width:100%">${F.map(([k, l]) => `<button class="${peopleShow === k ? 'on' : ''}" data-pshow="${k}">${l}</button>`).join('')}</div>
   <div class="card">${list.map(p => { const self = p.id === me().id, mine = mayManage(p);
     return `<a class="it" ${mine ? `href="#person/${p.id}"` : self ? 'href="#set/account"' : 'style="cursor:default"'}><span class="av">${inits(p.name)}</span><span class="t"><b>${esc(p.name)}${self ? ' (you)' : ''}</b><small>${roleText(p)} · ${esc(p.username || '')}${p.children && p.children.length ? ' · ' + esc(p.children.join(', ')) : ''}${p.seen && p.status === 'active' ? ' · last in ' + ago(p.seen) : ''}</small></span>${pStatus(p)}${mine ? '<span class="chev">›</span>' : ''}</a>`; }).join('') || '<p class="empty">Nobody here.</p>'}</div>
   ${D0 || can('tutors') ? `<button class="btn n" id="addPerson">${ic('plus',16,2.2)} Add a person</button>` : ''}`;
@@ -1607,7 +1611,19 @@ S.company = () => { const s = settingsKV();
 S.payments = () => { const s = settingsKV();
   return `<h2 class="sec-h">Payments & due dates</h2><p class="sec-p">Defaults for new documents. Each document can still be changed.</p>
   <div class="card pad"><div class="r2">${fieldRow('c_rate','Default cost per session (MKW)',s.rate,'inputmode="decimal"')}${fieldRow('c_validDays','Quotes valid for (days)',s.validDays,'inputmode="numeric"')}${fieldRow('c_dueDays','Invoices due after (days, 0 = same day)',s.dueDays,'inputmode="numeric"')}${fieldRow('c_graceDays','Instalment grace period (days)',s.graceDays,'inputmode="numeric"')}</div>
-  <button class="btn n" data-save="rate,validDays,dueDays,graceDays">Save</button></div>`; };
+  <button class="btn n" data-save="rate,validDays,dueDays,graceDays">Save</button></div>
+  ${payDatesHTML()}`; };
+/* payment dates parents see as Next payment: term fees per term, fast track intakes' dates; holiday tuition is due before the first session */
+let pdDraft = null;
+function payDatesHTML(){
+  const P = pdDraft || (pdDraft = JSON.parse(JSON.stringify(Object.assign({term: {}, fast: []}, settingsKV().payDates || {})))), T = window.MIN ? MIN.terms() : [];
+  return `<div class="h2" style="margin-top:18px">Payment dates <em>parents see these</em></div>
+  <div class="card pad"><div class="cap">Term to term · fees due</div>${T.map(t => `<div class="pd-row"><span class="t"><b>${esc(t[0])}</b><small>${nice(t[1])} – ${nice(t[2])}</small></span><input class="in" type="date" data-pdt="${esc(t[1])}" value="${esc(P.term[t[1]] || t[1])}" aria-label="${esc(t[0])} fees due"></div>`).join('') || '<p class="empty" style="margin:0">Add the school terms first.</p>'}
+    <div class="cap" style="margin-top:16px">Fast track intakes</div>${P.fast.map((x, i) => `<div class="pd-fast"><div class="pd-fh"><input class="in" data-pdn="${i}" value="${esc(x.name || '')}" placeholder="e.g. IGCSE Fast track · Sep 2026" aria-label="Intake"><button class="ib" data-pdrm="${i}" aria-label="Remove">✕</button></div>
+      <div class="pd-ds">${[0, 1, 2, 3].map(j => `<input class="in" type="date" data-pdd="${i}:${j}" value="${esc((x.dates || [])[j] || '')}" aria-label="Payment ${j + 1}">`).join('')}</div></div>`).join('')}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn" id="pdAdd">+ Intake</button><button class="btn n" id="pdSave">Save</button></div>
+    <p class="note" style="margin:12px 0 0">Holiday tuition: due before the first session.</p></div>`;
+}
 
 const nextFor = t => { const c = Object.assign({quote: store.get('lhq_lastnum', 1037), invoice:0, receipt:0, card:0}, store.get('lhq_counters', {})); saved.forEach(d => { const p = parseNo(d.number); if(p && p.type === typeOf(d) && p.n > (c[p.type] || 0)) c[p.type] = p.n; }); return (c[t] || 0) + 1; };
 const usedMax = t => saved.reduce((m, d) => { const p = parseNo(d.number); return p && p.type === t && typeOf(d) === t && p.n > m ? p.n : m; }, 0);
@@ -1773,8 +1789,8 @@ function bind(){
   document.querySelectorAll('[data-extab]').forEach(b => b.onclick = () => { exTab = b.dataset.extab; topDraft = null; render(); });
   document.querySelectorAll('[data-tp]').forEach(el => el.onchange = () => { const [i, f] = el.dataset.tp.split(':'); if(topDraft && topDraft[+i]) topDraft[+i][f] = el.value; });
   document.querySelectorAll('[data-tprm]').forEach(el => el.onclick = () => { topDraft.splice(+el.dataset.tprm, 1); render(); });
-  if($('tpAdd')) $('tpAdd').onclick = () => { topDraft.push({id: 't' + Date.now().toString(36), d: '', ex: 'I', sub: '', tp: ''}); render(); };
-  if($('tpSave')) $('tpSave').onclick = () => { const L = topDraft.filter(x => x.d && String(x.sub).trim()).map(x => ({id: x.id || 't' + Math.random().toString(36).slice(2, 8), d: x.d, ex: x.ex, sub: String(x.sub).trim(), tp: String(x.tp || '').trim()})).sort((a, b) => a.d.localeCompare(b.d)); saveSettings({topicals: L}); topDraft = null; toast('Saved'); render(); };
+  if($('tpAdd')) $('tpAdd').onclick = () => { topDraft.push({id: 't' + Date.now().toString(36), d: '', ak: 'm', ex: 'I', sub: '', tp: ''}); render(); };
+  if($('tpSave')) $('tpSave').onclick = () => { const L = topDraft.filter(x => x.d && String(x.sub).trim()).map(x => ({id: x.id || 't' + Math.random().toString(36).slice(2, 8), d: x.d, ak: x.ak || 'm', ex: x.ex, sub: String(x.sub).trim(), tp: String(x.tp || '').trim()})).sort((a, b) => a.d.localeCompare(b.d)); saveSettings({topicals: L}); topDraft = null; toast('Saved'); render(); };
   if($('fxSave')) $('fxSave').onclick = () => { const sr = $('fxSr').value, cc = $('fxCc').value.trim(), d = $('fxD').value;
     if(!/^\d{4}\/\d{2}$/.test(cc) || !d){ toast('Give the paper (e.g. 0580/22) and its date'); return; }
     if(!(EXAMS.rowsAll({})[sr] || []).some(p => p.code + '/' + p.comp === cc)){ toast('That paper isn\'t in this series'); return; }
@@ -1785,7 +1801,15 @@ function bind(){
     EXUI.targetSheet({k, name: s0.name || it.st, sub: it.sub, i: EXUI.info(k, EXUI.staffPack([it], E), M.w), onSaved: async () => { await hub.pull(); render(); }}); });
   if(route.page === 'exams' && window.EXUI) EXUI.bindTimetable(render);
   if(route.page === 'kpi' && window.KPIUI) KPIUI.bindDir();
-  if($('tmSave')) $('tmSave').onclick = () => { const L = termDraft.filter(t => t[0].trim() && t[1] && t[2]); if(L.some(t => t[1] > t[2])){ toast('A term ends before it starts'); return; } saveSettings({terms: L.map(t => [t[0].trim(), t[1], t[2]])}); termDraft = null; render(); };
+  document.querySelectorAll('[data-pdt]').forEach(el => el.onchange = () => { pdDraft.term[el.dataset.pdt] = el.value; });
+  document.querySelectorAll('[data-pdn]').forEach(el => el.oninput = () => { pdDraft.fast[+el.dataset.pdn].name = el.value; });
+  document.querySelectorAll('[data-pdd]').forEach(el => el.onchange = () => { const [i, j] = el.dataset.pdd.split(':').map(Number), x = pdDraft.fast[i]; x.dates = x.dates || []; x.dates[j] = el.value; });
+  document.querySelectorAll('[data-pdrm]').forEach(el => el.onclick = () => { pdDraft.fast.splice(+el.dataset.pdrm, 1); render(); });
+  if($('pdAdd')) $('pdAdd').onclick = () => { pdDraft.fast.push({id: 'f' + Date.now().toString(36), name: '', dates: []}); render(); };
+  if($('pdSave')) $('pdSave').onclick = () => { const fast = pdDraft.fast.map(x => ({id: x.id || 'f' + Math.random().toString(36).slice(2, 8), name: String(x.name || '').trim(), dates: (x.dates || []).filter(Boolean).sort()})).filter(x => x.name && x.dates.length);
+    if(pdDraft.fast.some(x => String(x.name || '').trim() && !(x.dates || []).filter(Boolean).length)){ toast('Give each intake at least one payment date'); return; }
+    const term = {}; Object.entries(pdDraft.term).forEach(([a, d]) => { if(d) term[a] = d; }); saveSettings({payDates: {term, fast}}); pdDraft = null; render(); };
+  if($('termSave')) $('termSave').onclick = () => { const L = termDraft.filter(t => t[0].trim() && t[1] && t[2]); if(L.some(t => t[1] > t[2])){ toast('A term ends before it starts'); return; } saveSettings({terms: L.map(t => [t[0].trim(), t[1], t[2]])}); termDraft = null; render(); };
   if($('ohSave')) $('ohSave').onclick = () => { const o = {}; ['Mo','Tu','We','Th','Fr','Sa','Su'].forEach(d => { const a = $('oh' + d + 'a').value, b = $('oh' + d + 'b').value; o[d] = a && b && a < b ? [a, b] : null; }); saveSettings({openHours: o}); };
   document.querySelectorAll('[data-view]').forEach(el => el.onclick = async () => { const v = el.dataset.view, s0 = hub.session();
     if(s0 && s0.me){ s0.me.view = v; localStorage.setItem('lhq_session', JSON.stringify(s0)); } LHQNav.section(route.page); render();

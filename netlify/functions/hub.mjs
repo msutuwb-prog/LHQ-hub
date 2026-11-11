@@ -694,8 +694,20 @@ async function familyData(me) {
     if (me.role === "parent") {
       const mine = docs.filter(d => nk(d.student) === kid.key && ["invoice", "receipt", "quote"].includes(d.type || "quote"));
       const num = v => Number(String(v || "").replace(/[^\d.-]/g, "")) || 0;
-      pay = mine.sort((a, b) => (b.date || "").localeCompare(a.date || "")).slice(0, 30).map(d => { const total = num(d.total), paid = d.type === "invoice" ? num(d.paid) : 0;
-        return { id: d.id, type: d.type || "quote", number: d.number, date: d.date, total, received: num(d.received), paid, balance: d.type === "invoice" ? Math.max(0, total - paid) : 0, due: d.dueDate || d.validUntil || "", over: d.type === "invoice" && total - paid > 0.5 && (d.dueDate || "9") < t }; });
+      await import("../../site/payplan.js"); const PP = globalThis.PAYPLAN;
+      /* the same sums as the document page: sessions × cost less the discount; paid from the invoice and its receipts */
+      const totOf = d => { if (!Array.isArray(d.items) || !d.items.length) return num(d.total); const sub = d.items.reduce((s, it) => s + num(it.sessions) * num(it.cost), 0);
+        const dc = Math.round(Math.min(Math.max(d.discType === "amt" ? num(d.discValue) : sub * num(d.discValue) / 100, 0), sub) * 100) / 100; return sub - dc; };
+      const rcOf = n => docs.filter(r => r.type === "receipt" && String(r.ref || "").trim().toUpperCase() === String(n || "").trim().toUpperCase());
+      const grace = Math.max(0, Math.round(Number((set && set.graceDays) ?? 3) || 0));
+      pay = mine.sort((a, b) => (b.date || "").localeCompare(a.date || "")).slice(0, 30).map(d => { const total = totOf(d);
+        const paid = d.type === "invoice" ? Math.max(num(d.paid), ...rcOf(d.number).map(r => num(r.prevPaid) + num(r.received))) : 0, bal = d.type === "invoice" ? Math.max(0, Math.round((total - paid) * 100) / 100) : 0;
+        const R = d.type === "invoice" && bal > 0.5 ? PP.rows(d, total, t) : null, nx = R ? PP.mark(R, paid) : null;
+        const due = nx ? nx.due : d.dueDate || d.validUntil || "";
+        return { id: d.id, type: d.type || "quote", number: d.number, date: d.date, total, received: num(d.received), prevPaid: num(d.prevPaid), paid, balance: bal, due,
+          over: d.type === "invoice" && bal > 0.5 && !!due && PP.add(due, R ? grace : 0) < t, ref: d.ref || "", tt: d.tt || "", ps: d.periodStart || "", pe: d.periodEnd || "", method: d.method || "",
+          items: (d.items || []).map(it => ({ d: it.desc || it.subject || "Tuition", n: num(it.sessions), c: num(it.cost) })), disc: Array.isArray(d.items) && d.items.length ? Math.round((d.items.reduce((s, it) => s + num(it.sessions) * num(it.cost), 0) - total) * 100) / 100 : 0,
+          rows: R ? R.map(x => ({ short: x.short, amt: x.amt, due: x.due, paid: x.paid })) : null, next: nx ? { short: nx.short, left: nx.left, due: nx.due } : null }; });
     }
     /* today's report (students only): today's sessions from the card and confirmed make-ups, what was sent, and this week's question if not yet answered */
     let report = null;
@@ -711,13 +723,18 @@ async function familyData(me) {
     /* marks: weekly assessments and SRA scores, as percentages, for the charts on Progress */
     const pcOf = e => Number(e.mx) > 0 && e.sc != null && e.sc !== "" && !isNaN(Number(e.sc)) ? Math.max(0, Math.min(100, Math.round(Number(e.sc) / Number(e.mx) * 100))) : null;
     const coming = ent.filter(e => e.ty === "a" && e.d >= t && e.d <= S.addDays(t, 14)).sort((a, b) => (a.d + (a.s || "")).localeCompare(b.d + (b.s || ""))).map(e => ({ d: e.d, s: e.s || "", sub: e.sub, ak: e.ak || "w", tp: e.tp || [] }));
-    const marks = { w: ent.filter(e => e.ty === "w" && !e.abs && pcOf(e) != null).map(e => ({ sub: e.sub, d: e.d, p: pcOf(e), ak: e.ak || "w" })),
-      r: ent.filter(e => e.ty === "r" && e.tk && pcOf(e) != null).map(e => ({ sub: e.sub, tk: e.tk, rv: Number(e.rv) || 0, p: pcOf(e), d: e.d }))
+    const marks = { w: ent.filter(e => e.ty === "w" && !e.abs && pcOf(e) != null).map(e => ({ sub: e.sub, d: e.d, p: pcOf(e), ak: e.ak === "t" ? "w" : e.ak === "k" ? "p" : (e.ak || "w") })),
+      r: ent.filter(e => e.ty === "r" && e.tk && pcOf(e) != null).map(e => ({ sub: e.sub, tk: e.tk, rv: Number(e.rv) || 0, p: pcOf(e), d: e.d, a: e.na ? -1 : Number(e.ao) > 0 && e.ars != null && e.ars !== "" ? Math.max(0, Math.min(100, Math.round(Number(e.ars) / Number(e.ao) * 100))) : -1 }))
         .concat(sras.filter(x => x.pack && x.status !== "in" && x.self).map(x => ({ sub: x.sub, tk: x.topic, rv: x.stage, p: pcOf(x.self), d: x.doOn, self: 1 })).filter(x => x.p != null)),
       p: sras.filter(x => x.pack && x.status !== "in" && !x.self).map(x => ({ sub: x.sub, tk: x.topic, rv: x.stage, d: x.doOn })) };
     makeups.forEach(m => { m.told = toldOf(m.d, m.sub); m.k = kid.key + "|" + nk(m.sub); });
     const exam = await examPack(new Set(its.map(it => it.k)), new Set([kid.key]), its, ent, set);
-    return Object.assign({}, kid, { exam, confirmer, canConfirm, subjects, sessions, toConfirm, answers, sras, week, changes, makeups, pay, report, marks, coming, lhqPhone: String((set && set.phone) || SETTINGS_DEFAULT.phone).replace(/\D/g, "") });
+    /* parents: what the downloads need (all sessions, SRAs handed in, tutors' comments; terms and payment dates; how to pay) */
+    const extra = me.role !== "parent" ? {} : { hist: { s: ent.filter(e => e.ty === "s").map(e => [e.d, e.sub, e.a || "attended", e.tp || []]), r: ent.filter(e => e.ty === "r").map(e => [e.d, e.sub, e.h || "o"]),
+        c: ent.filter(e => e.ty === "c").sort((a, b) => b.d.localeCompare(a.d)).slice(0, 12).map(e => ({ d: e.d, sub: e.sub, cs: e.cs || "", ci: e.ci || "", cn: e.cn || "" })),
+        n: ent.filter(e => e.ty === "s" && e.n).sort((a, b) => b.d.localeCompare(a.d)).slice(0, 8).map(e => ({ d: e.d, sub: e.sub, n: e.n })) },
+      terms: (set && set.terms) || null, payDates: (set && set.payDates) || {}, payInfo: ["bank", "accname", "branch", "accno", "mobile", "phone", "email"].reduce((o, k) => (o[k] = (set && set[k]) || SETTINGS_DEFAULT[k] || "", o), {}) };
+    return Object.assign({}, kid, extra, { exam, confirmer, canConfirm, subjects, sessions, toConfirm, answers, sras, week, changes, makeups, pay, report, marks, coming, lhqPhone: String((set && set.phone) || SETTINGS_DEFAULT.phone).replace(/\D/g, "") });
   })) };
 }
 async function familyGet(me) {

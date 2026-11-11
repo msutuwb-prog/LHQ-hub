@@ -13,7 +13,7 @@
   const W3 = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'], M3 = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const dl = d => { const x = new Date(ms(d)); return `${W3[x.getUTCDay()]} ${x.getUTCDate()} ${M3[x.getUTCMonth()]}`; };
   const CORE = [['ses','Sessions taught as planned',95],['ont','Started and finished on time',95],['log','Logged on the day',95],['rep','Daily report sent',100],['sra','SRAs on their day, marked in 2 days',90],['mku','Make-ups booked within 7 days',90]];
-  const WATCH = [['otr','Students on track'],['agr','Assessments since they started'],['ren','Renewals'],['obs','Observation'],['rat','Session rating'],['pre','Came prepared'],['gui','Guide before the session']];
+  const WATCH = [['otr','Students on track'],['agr','Assessments since they started'],['ars','ARS with SRAs'],['ren','Renewals'],['obs','Observation'],['rat','Session rating'],['pre','Came prepared'],['gui','Guide before the session']];
   const FEEDBACK = ['rat','pre','gui'];
   const CRIT = ['Prepared and on time','Explanations','Checks understanding','Student engagement','Uses SRAs and assessments','Time used well'];
   const conf = set => { const k = (set || {}).kpi || {}; return {tg: Object.assign({}, Object.fromEntries(CORE.map(c => [c[0], c[2]])), k.tg || {}), run: +k.run || 2, many: +k.many || 3, admin: !!k.admin, tutors: !!k.tutors}; };
@@ -126,6 +126,11 @@
       out.rat = {id: 'rat', n: L.length, val: st ? String(st.rate) : '–', num: st ? st.rate : null, rows: R};
       out.pre = {id: 'pre', n: L.length, val: st ? st.prep + '%' : '–', num: st ? st.prep : null, rows: R};
       out.gui = {id: 'gui', n: L.length, val: st ? st.gb + '%' : '–', num: st ? st.gb : null, rows: R}; }
+    /* ARS collected with the SRAs they marked (handed in) */
+    { const R = []; let ok = 0, n = 0;
+      mineE.filter(x => x.ty === 'r' && x.v === 2 && x.h !== 'm' && x.d >= r.a && x.d <= e).forEach(x => { const has = !x.na && +x.ao > 0 && x.ars != null && x.ars !== ''; n++; if(has) ok++;
+        R.push(row(has ? 'ok' : 'bad', `${x.tk} ${x.rv ? 'R' + x.rv : 'LD'} · ${x.st}`, has ? `ARS ${x.ars}/${x.ao}` : 'no ARS', '', x.d)); });
+      out.ars = {id: 'ars', k: ok, n, val: n ? `${ok} of ${n}` : '–', num: n ? ok / n * 100 : null, rows: R.sort((x, y) => (x.mk === 'ok') - (y.mk === 'ok') || y.sort.localeCompare(x.sort))}; }
     out.students = new Set(its.map(it => it.k.split('|')[0])).size;
     return out;
   }
@@ -133,7 +138,7 @@
   function lhq(ctx, r, all){
     const F = (all || tutors(ctx)).map(tu => figures(ctx, tu, r)), o = {};
     CORE.forEach(([id]) => { const k = F.reduce((s, f) => s + (f[id].k || 0), 0), n = F.reduce((s, f) => s + (f[id].n || 0), 0); o[id] = n ? Math.round(k / n * 100) : null; });
-    ['otr','ren'].forEach(id => { const k = F.reduce((s, f) => s + (f[id].k || 0), 0), n = F.reduce((s, f) => s + (f[id].n || 0), 0); o[id] = n ? Math.round(k / n * 100) + '%' : '–'; });
+    ['otr','ren','ars'].forEach(id => { const k = F.reduce((s, f) => s + (f[id].k || 0), 0), n = F.reduce((s, f) => s + (f[id].n || 0), 0); o[id] = n ? Math.round(k / n * 100) + '%' : '–'; });
     const av = (id, fmt) => { const L = F.map(f => f[id]).filter(x => x.num != null); return L.length ? fmt(L.reduce((s, x) => s + x.num, 0) / L.length) : '–'; };
     o.agr = av('agr', v => (v >= 0 ? '+' : '') + Math.round(v) + ' pts'); o.obs = av('obs', v => v.toFixed(1));
     const SL = G.SREP ? G.SREP.rows(ctx.sreports || {}).filter(x => x.d >= r.a && x.d <= (r.b < ctx.t ? r.b : ctx.t)) : [], st = SL.length ? G.SREP.stats(SL) : null;

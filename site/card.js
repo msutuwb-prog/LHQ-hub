@@ -141,7 +141,7 @@ function cardFieldCfg(key){
       set:v=>{ const lv = cardLevelSet(doc.level); const nk = v ? (cardAllListKeys(lv).find(k=>cardListLabel(k, lv)===v) || '') : '';
         s.noList = !nk;
         if(nk!==s.list){ s.list = nk; s.picks = {}; s.details = {}; s.openCh=''; } }},
-    tf: {title:'Topical assessments', noun:'option', list:()=>['Weekly','Every 2 weeks'], get:()=>s.tf || 'Weekly', set:set('tf')},
+    tf: {title:'Assessments', noun:'option', list:()=>['Weekly','Every 2 weeks'], get:()=>s.tf || 'Weekly', set:set('tf')},
     tier: {title:'Paper', noun:'option', clear:'Not set', list:()=>['Extended','Core'], get:()=>s.tier, set:set('tier')},
     tutor: {title:'Tutor', noun:'tutor', clear:'To be confirmed', list:()=>{ /* the Tutors list in Settings, plus everyone who teaches and can sign in */ const L = lines(settings.tutors), P = (window.HD ? HD.people() : []).filter(p=>p.tutor && p.active !== false).map(p=>p.name); P.forEach(n=>{ if(!L.some(x=>x.toLowerCase()===n.toLowerCase())) L.push(n); }); return L; }, get:()=>s.tutor, set:set('tutor')},
     mins: {title:'Session length', noun:'length', clear:'Not set', list:()=>lines(settings.sessionLengths), get:()=>s.mins, set:set('mins')},
@@ -223,7 +223,7 @@ function renderCardEditor(){
           <label><span>Sessions</span><input data-k="sessions" value="${esc(s.sessions)}" inputmode="numeric"></label>
           <div class="fld"><span class="lbl">Session length</span>${cardPickBtn(`cs:${i}:mins`, s.mins, 'Choose')}</div>
         </div>
-        <div class="fld"><span class="lbl">Topical assessments</span>${cardPickBtn(`cs:${i}:tf`, s.tf || 'Weekly', 'Weekly')}</div>
+        <div class="fld"><span class="lbl">Assessments</span>${cardPickBtn(`cs:${i}:tf`, s.tf || 'Weekly', 'Weekly')}</div>
         <div class="cs-times">
           <label><span>Start time (optional)</span><input type="time" data-k="start" value="${esc(s.start)}"></label>
           <span class="cs-dash">–</span>

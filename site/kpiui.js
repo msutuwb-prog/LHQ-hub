@@ -28,7 +28,7 @@ window.KPIUI = (function(){
   }
   function watched(F, L, who){
     return K().WATCH.map(([id, name]) => { const f = F[id] || {}, fb = K().FEEDBACK.includes(id), open = !(who === 'tutor' && fb) && (f.rows || []).length;
-      const cnt = id === 'otr' ? 'students with a target' : id === 'agr' ? `${f.n || 0} students` : id === 'ren' ? 'periods ended' : id === 'obs' ? f.note : `${f.n || 0} answers`;
+      const cnt = id === 'otr' ? 'students with a target' : id === 'agr' ? `${f.n || 0} students` : id === 'ren' ? 'periods ended' : id === 'ars' ? 'SRAs marked' : id === 'obs' ? f.note : `${f.n || 0} answers`;
       return `<button class="kp-f" ${open ? `data-kd="${id}"` : 'disabled'}><b>${esc(name)}</b><span class="v">${esc(f.few ? '–' : f.val || '–')}</span><span class="chev">${open ? '›' : ''}</span><small>${f.few ? '<span>Not enough answers yet</span>' : `<span>${esc(cnt)}</span>`}<span>LHQ ${esc(L[id] != null ? L[id] : '–')}</span></small></button>`; }).join('');
   }
   function page(M, who){

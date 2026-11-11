@@ -206,6 +206,10 @@ window.PERF = (function(){
   }
   const isTaught = e => e.a === 'attended' || e.a === 'late';
   const testPc = e => e.sc !== '' && e.sc != null && num(e.mx) > 0 ? num(e.sc) / num(e.mx) * 100 : null;
+  /* assessments only (not SRAs): Weekly, Monthly, Past paper; a score on an older session log counts as Weekly, Topical as Weekly, Mock as Past paper */
+  const isTest = e => ((e.ty === 'w' && !e.abs) || e.ty === 's') && testPc(e) != null;
+  const akT = e => e.ty === 's' || e.ak === 't' ? 'w' : e.ak === 'k' ? 'p' : (e.ak || 'w'), AKL = {w: 'Weekly', m: 'Monthly', p: 'Past paper'};
+  const arsPc = e => !e.na && num(e.ao) > 0 && e.ars != null && e.ars !== '' ? num(e.ars) / num(e.ao) * 100 : null;
   const avg = L => L.length ? Math.round(sum(L) / L.length) : null;
   const pcs = v => v == null ? '–' : v + '%';
 
@@ -218,7 +222,7 @@ window.PERF = (function(){
     const studs = new Set(SJ.map(j => j.s.key)), name = k => anon ? 'A student' : ((HD.students().find(s => s.key === k) || {}).name || k);
     const prevE = logsIn(R.prev.from, R.prev.to).filter(e => e.ty === 's'), prevSJ = subjIn(R.prev.from, R.prev.to);
     const prevPl = sum(prevSJ, j => plannedIn(j.card, j.x, R.prev.from, R.prev.to)), prevDone = prevE.filter(isTaught).length;
-    const tests = E.map(testPc).filter(v => v != null), out = [];
+    const tests = E.filter(isTest).map(testPc), out = [];
     if(has('summary')){
       out.push(sec('Summary', `<div class="pf-ks">${kp('Students taught', studs.size, `${SJ.length} subject${SJ.length === 1 ? '' : 's'}`)}${kp('Sessions delivered', `${done} of ${pl}`, `${pcs(pc(done, pl))} of planned · before ${prevE.length && prevPl ? pcs(pc(prevDone, prevPl)) : 'no logs'}`)}
         ${kp('Missed', absent + cant, `${absent} student absent · ${cant} tutor couldn't teach`)}${kp('Test average', pcs(avg(tests)), `${tests.length} test${tests.length === 1 ? '' : 's'}`)}</div>
@@ -227,7 +231,7 @@ window.PERF = (function(){
     if(has('delivery')){
       const bySub = {}; SJ.forEach(j => { const o = bySub[j.x.name] = bySub[j.x.name] || {st: new Set(), pl: 0, done: 0, miss: 0, T: []}; o.st.add(j.s.key); o.pl += plannedIn(j.card, j.x, R.from, R.to < t ? R.to : t); });
       S.forEach(e => { const o = bySub[e.sub]; if(!o) return; if(isTaught(e)) o.done++; else o.miss++; });
-      E.forEach(e => { const o = bySub[e.sub], v = testPc(e); if(o && v != null) o.T.push(v); });
+      E.filter(isTest).forEach(e => { const o = bySub[e.sub], v = testPc(e); if(o) o.T.push(v); });
       out.push(sec('Delivery by subject', table(['Subject', 'Students', 'Planned', 'Delivered', 'Rate', 'Missed', 'Test avg'], srt(Object.fromEntries(Object.entries(bySub).map(([k, o]) => [k, o.st.size]))).map(([k]) => { const o = bySub[k];
         return {c: [esc(k), o.st.size, o.pl, o.done, `<b style="color:${pc(o.done, o.pl) >= 90 ? '#1f7a4d' : pc(o.done, o.pl) >= 70 ? '#7a5400' : '#b42318'}">${pcs(pc(o.done, o.pl))}</b>`, o.miss, pcs(avg(o.T))]}; }))));
       const wk = []; for(let d = mondayOf(R.from); d <= R.to; d = addDays(d, 7)) wk.push(d);
@@ -270,7 +274,7 @@ window.PERF = (function(){
       const delay = S.filter(e => e.at).map(e => Math.max(0, HD.dayDiff(e.d, HD.isoOf(new Date(e.at)))));
       return {n, J, L, S, studs: new Set(J.map(j => j.s.key)).size, pl: sum(J, j => plannedIn(j.card, j.x, R.from, end)), done: S.filter(isTaught).length, cant: S.filter(e => e.a === 'cancelled').length, absent: S.filter(e => e.a === 'absent').length,
         hrs: sum(S.filter(isTaught), e => { const m = String(j0(J, e).mins || '1 hour'); return (/min/i.test(m) ? parseFloat(m) / 60 : parseFloat(m) || 1); }), delay: delay.length ? Math.round(sum(delay) / delay.length * 10) / 10 : null, late: delay.filter(d => d > 2).length,
-        tests: avg(L.map(testPc).filter(v => v != null)), owed: sum(HD.students(), s => { const cd = s.cur && s.cur.card; return cd ? sum(HD.makeups(cd).filter(x => lw(x.tutor) === lw(n)), x => x.owed) : 0; })}; };
+        tests: avg(L.filter(isTest).map(testPc)), owed: sum(HD.students(), s => { const cd = s.cur && s.cur.card; return cd ? sum(HD.makeups(cd).filter(x => lw(x.tutor) === lw(n)), x => x.owed) : 0; })}; };
     const j0 = (J, e) => (J.find(j => j.k === e.k.split('|')[0] + '|' + sk(e.sub)) || {x: {}}).x;
     const D = T.map(of), out = [];
     if(has('summary')){
@@ -280,7 +284,7 @@ window.PERF = (function(){
     }
     if(has('students')) D.forEach(d => { if(!d.J.length) return;
       out.push(sec(`${esc(d.n)}: students`, table(['Student', 'Subject', 'Planned', 'Taught', 'Absent', 'Test avg', 'Last log'], d.J.filter((j, i, a) => a.findIndex(y => y.k === j.k) === i).map(j0 => { const same = d.J.filter(y => y.k === j0.k), j = Object.assign({}, j0, {pl: sum(same, y => plannedIn(y.card, y.x, R.from, end))}); const L = d.L.filter(e => e.k.split('|')[0] + '|' + sk(e.sub) === j.k), S = L.filter(e => e.ty === 's'), last = L.map(e => e.d).sort().pop();
-        return {c: [esc(anon ? 'A student' : j.s.name), esc(j.x.name), j.pl, S.filter(isTaught).length, S.filter(e => e.a === 'absent').length, pcs(avg(L.map(testPc).filter(v => v != null))), last ? nice(last) : '<b style="color:#b42318">none</b>']}; })))); });
+        return {c: [esc(anon ? 'A student' : j.s.name), esc(j.x.name), j.pl, S.filter(isTaught).length, S.filter(e => e.a === 'absent').length, pcs(avg(L.filter(isTest).map(testPc))), last ? nice(last) : '<b style="color:#b42318">none</b>']}; })))); });
     if(has('logging')){
       const late = D.flatMap(d => d.S.filter(e => e.at && HD.dayDiff(e.d, HD.isoOf(new Date(e.at))) > 2).map(e => [d.n, e]));
       out.push(sec('Logging', `<div class="pf-ks">${kp('Logs in these dates', sum(D, d => d.S.length))}${kp('Logged over 2 days late', late.length)}${kp('Tutors with no logs', D.filter(d => d.pl && !d.S.length).length)}${kp('Make-ups owed now', sum(D, d => d.owed))}</div>
@@ -300,11 +304,11 @@ window.PERF = (function(){
     const R = range(c), has = k => c.s.includes(k), t = today(), end = R.to < t ? R.to : t;
     const SJ = subjIn(R.from, R.to).filter(j => j.s.key === st.key), E = logsIn(R.from, R.to).filter(e => e.k && e.k.split('|')[0] === st.key), S = E.filter(e => e.ty === 's');
     const pl = sum(SJ, j => plannedIn(j.card, j.x, R.from, end)), done = S.filter(isTaught).length, held = S.filter(e => e.a !== 'cancelled').length;
-    const tests = E.filter(e => testPc(e) != null).sort((a, b) => a.d.localeCompare(b.d)), out = [];
+    const tests = E.filter(isTest).sort((a, b) => a.d.localeCompare(b.d)), out = [];
     const subs = [...new Set(SJ.map(j => j.x.name))];
     if(has('summary')){
       out.push(sec(esc(st.name), `<p style="margin:0 0 8px">${esc([st.level, st.school].filter(Boolean).join(' · '))}</p>
-        <div class="pf-ks">${kp('Attendance', held ? pcs(pc(S.filter(isTaught).length, held)) : '–', `${S.filter(isTaught).length} of ${held} sessions`)}${kp('Sessions', `${done} of ${pl}`, 'taught of planned so far')}${kp('Test average', pcs(avg(tests.map(testPc))), `${tests.length} test${tests.length === 1 ? '' : 's'}`)}${kp('Subjects', subs.length, subs.join(', '))}</div>
+        <div class="pf-ks">${kp('Attendance', held ? pcs(pc(S.filter(isTaught).length, held)) : '–', `${S.filter(isTaught).length} of ${held} sessions`)}${kp('Sessions', `${done} of ${pl}`, 'taught of planned so far')}${kp('Weekly average', pcs(avg(tests.filter(e => akT(e) === 'w').map(testPc))), `${tests.filter(e => akT(e) === 'w').length} weekly · ${tests.filter(e => akT(e) === 'm').length} monthly`)}${kp('Subjects', subs.length, subs.join(', '))}</div>
         <h3>Subjects and tutors</h3>${table(['Subject', 'Tutor', 'Days and times'], SJ.filter((j, i, a) => a.findIndex(y => y.x.name === j.x.name) === i).map(j => ({c: [esc(j.x.name), esc(j.x.tutor || 'To be confirmed'), esc((j.x.days || []).map(d => ({Mo:'Mon',Tu:'Tue',We:'Wed',Th:'Thu',Fr:'Fri',Sa:'Sat',Su:'Sun'})[d] || d).join(', ') + (j.x.start ? ' · ' + j.x.start + '–' + (j.x.end || '') : ''))]})))}`, 'first'));
     }
     if(has('attendance')){
@@ -316,13 +320,19 @@ window.PERF = (function(){
       out.push(sec('Topics covered', Object.keys(T).length ? Object.entries(T).map(([k, L]) => `<h3>${esc(k)} · ${L.length}</h3><p style="margin:0">${L.map(esc).join(' · ')}</p>`).join('') : '<p class="pf-n">No topics logged yet in these dates.</p>'));
     }
     if(has('tests')){
-      const bySub = subs.filter(n => tests.some(e => e.sub === n)).map(n => { const L = tests.filter(e => e.sub === n), v = L.map(testPc); return {n, L, v, avg: avg(v), first: Math.round(v[0]), last: Math.round(v[v.length - 1]), best: Math.round(Math.max(...v))}; });
-      const wk = []; if(tests.length) for(let d = mondayOf(tests[0].d); d <= tests[tests.length - 1].d; d = addDays(d, 7)) wk.push(d);
+      const bySub = subs.filter(n => tests.some(e => e.sub === n)).map(n => { const L = tests.filter(e => e.sub === n && akT(e) === 'w'), v = L.map(testPc); return {n, L, v}; });
+      const rowsT = subs.flatMap(n => ['w', 'm', 'p'].map(k => { const L = tests.filter(e => e.sub === n && akT(e) === k), v = L.map(testPc); return L.length ? {n, k, L, avg: avg(v), first: Math.round(v[0]), last: Math.round(v[v.length - 1]), best: Math.round(Math.max(...v))} : null; }).filter(Boolean));
+      const wT = tests.filter(e => akT(e) === 'w'), wk = []; if(wT.length) for(let d = mondayOf(wT[0].d); d <= wT[wT.length - 1].d; d = addDays(d, 7)) wk.push(d);
       const series = bySub.map((x, i) => { let lastV = null; return {name: x.n, col: ['#073763','#f4b223','#1a74b0','#2c7a4b','#a85a14'][i % 5], vals: wk.map(w => { const v = x.L.filter(e => e.d >= w && e.d <= addDays(w, 6)).map(testPc); if(v.length) lastV = Math.round(sum(v) / v.length); return lastV == null ? 0 : lastV; })}; });
-      out.push(sec('Test scores', tests.length ? table(['Subject', 'Tests', 'Average', 'First', 'Latest', 'Best'], bySub.map(x => ({c: [esc(x.n), x.L.length, `<b>${x.avg}%</b>`, x.first + '%', `${x.last}% ${x.last > x.first ? '<i class="up">▲</i>' : x.last < x.first ? '<i class="dn">▼</i>' : ''}`, x.best + '%']})))
-        + (wk.length > 1 ? `<h3>Weekly average</h3><div class="pf-chart">${lit(INS.lineChart(wk.map(w => nice(w)), series, {fmt: v => Math.round(v) + '%', fmtTip: v => v + '%', h: 190, label: 'Test scores'})).replace(/width="100%" style="min-width:520px"/, 'width="714" height="188"')}</div>` : '')
-        + (c.aud === 'internal' ? '<h3>Every test</h3>' + table(['Date', 'Subject', 'Score', '%'], tests.map(e => ({c: [nice(e.d), esc(e.sub), `${e.sc} / ${e.mx}`, `${Math.round(testPc(e))}%`]}))) : '')
-        : '<p class="pf-n">No tests logged yet in these dates.</p>'));
+      out.push(sec('Assessments', tests.length ? table(['Subject', 'Type', 'Taken', 'Average', 'First', 'Latest', 'Best'], rowsT.map(x => ({c: [esc(x.n), AKL[x.k], x.L.length, `<b>${x.avg}%</b>`, x.first + '%', `${x.last}% ${x.last > x.first ? '<i class="up">▲</i>' : x.last < x.first ? '<i class="dn">▼</i>' : ''}`, x.best + '%']})))
+        + (wk.length > 1 ? `<h3>Weekly assessments</h3><div class="pf-chart">${lit(INS.lineChart(wk.map(w => nice(w)), series, {fmt: v => Math.round(v) + '%', fmtTip: v => v + '%', h: 190, label: 'Test scores'})).replace(/width="100%" style="min-width:520px"/, 'width="714" height="188"')}</div>` : '')
+        + (c.aud === 'internal' ? '<h3>Every assessment</h3>' + table(['Date', 'Subject', 'Type', 'Score', '%'], tests.map(e => ({c: [nice(e.d), esc(e.sub), AKL[akT(e)], `${e.sc} / ${e.mx}`, `${Math.round(testPc(e))}%`]}))) : '')
+        : '<p class="pf-n">No assessments marked yet in these dates.</p>'));
+    }
+    if(has('recall')){
+      const R0 = E.filter(e => e.ty === 'r' && e.h !== 'm' && testPc(e) != null);
+      const rows = subs.map(n => { const L = R0.filter(e => e.sub === n), A = L.map(arsPc).filter(v => v != null); return L.length ? {c: [esc(n), L.length, `${L.filter(e => e.h === 'o').length}`, pcs(avg(L.map(testPc))), `${A.length} of ${L.length}`, A.length ? `<b>${pcs(avg(A))}</b>` : '–']} : null; }).filter(Boolean);
+      out.push(sec('SRAs and recall', rows.length ? table(['Subject', 'SRAs in', 'On time', 'SRA average', 'With an ARS', 'ARS recall'], rows, {note: 'The ARS (Active Recall Sheet) is done from memory before each SRA. It is shown for practice and is not part of any grade.'}) : '<p class="pf-n">No SRAs handed in yet in these dates.</p>'));
     }
     if(has('comments')){
       const C = E.filter(e => e.ty === 'c').sort((a, b) => b.d.localeCompare(a.d)), notes = S.filter(e => e.n).sort((a, b) => b.d.localeCompare(a.d)).slice(0, 8);
@@ -348,8 +358,8 @@ window.PERF = (function(){
       SECTIONS: [['summary','Summary'],['students','Each tutor’s students'],['logging','Logging'],['makeups','Make-ups owed']],
       AUD: {director: {n: 'Director', s: ['summary','students','logging','makeups'], anon: false, money: false}, tutor: {n: 'The tutor’s own copy', s: ['summary','students','makeups'], anon: false, money: false}}, build: buildTutor, pick: 'tutor'},
     student: {t: 'Student report', d: 'One student: attendance, sessions, topics covered, test scores, tutors’ comments, next steps and (for LHQ) payments.', need: 'pl|students|cards', dflt: 'period',
-      SECTIONS: [['summary','Summary'],['attendance','Attendance'],['topics','Topics covered'],['tests','Test scores'],['comments','Tutors’ comments'],['next','Next steps'],['payments','Payments']],
-      AUD: {parent: {n: 'Parent', s: ['summary','attendance','topics','tests','comments','next'], anon: false, money: false}, internal: {n: 'Inside LHQ', s: ['summary','attendance','topics','tests','comments','next','payments'], anon: false, money: true}}, build: buildStudent, pick: 'student'},
+      SECTIONS: [['summary','Summary'],['attendance','Attendance'],['topics','Topics covered'],['tests','Assessments'],['recall','SRAs and recall'],['comments','Tutors’ comments'],['next','Next steps'],['payments','Payments']],
+      AUD: {parent: {n: 'Parent', s: ['summary','attendance','topics','tests','recall','comments','next'], anon: false, money: false}, internal: {n: 'Inside LHQ', s: ['summary','attendance','topics','tests','recall','comments','next','payments'], anon: false, money: true}}, build: buildStudent, pick: 'student'},
   };
   const okK = k => KINDS[k] && KINDS[k].need.split('|').some(x => can(x));
   function build(c){ return KINDS[rk].build(c); }

@@ -47,7 +47,7 @@
     if(side) side.innerHTML = `<a class="hn-logo" href="index.html#${{tutor:'teach', student:'me', parent:'me'}[who().role] || 'home'}"><img class="lhq-logo" src="${logo}" alt="LHQ Learning Solutions"></a>
       ${['tutor','student','parent'].includes(who().role) ? '' : `<a class="hn-new" href="index.html#new">${ic('plus',18,2.4)}<span>New</span></a>`}
       ${(SL => SL.map(([k,l,h]) => `<a class="hn-i ${onKey(SL)===k?'on':''}" href="${h}">${ic(l === 'Home' ? 'home' : k,20)}<span>${l}</span></a>`).join(''))(sideItems())}`;
-    const BL = items(); if(bar) bar.innerHTML = BL.map(([k,l,h]) => `<a class="${onKey(BL)===k?'on':''}" href="${h}">${ic(l === 'Home' ? 'home' : k,22)}${l}</a>`).join('');
+    const BL = items(); if(bar) bar.innerHTML = BL.map(([k,l,h]) => `<a class="${onKey(BL)===k?'on':''}" href="${h}">${ic(l === 'Home' ? 'home' : k,22)}<span class="hn-l">${l}</span></a>`).join('');
   }
   function mount(section){
     current = section;

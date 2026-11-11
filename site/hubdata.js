@@ -58,14 +58,12 @@
     const paid = Math.max(num(inv.paid), fromRcts), balance = Math.round((tot - paid) * 100) / 100;
     const st = {total:tot, paid, balance, text:'', cls:'', over:false, grace:false, paidUp: tot > 0 && balance <= 0.005};
     if(st.paidUp){ st.text = 'Paid'; st.cls = 'ok'; return st; }
-    if(inv.plan === 'half'){
-      const a1 = Math.round(tot * 50) / 100, d1 = inv.plan1 || inv.periodStart || inv.date || t;
-      let mid = addDays(d1, 14);
-      if(inv.periodStart && inv.periodEnd){ const days = dayDiff(inv.periodStart, inv.periodEnd) + 1, w = Math.round(days / 7); mid = w >= 2 ? addDays(inv.periodStart, Math.floor(w / 2) * 7) : addDays(inv.periodStart, Math.floor(days / 2)); }
-      const d2 = inv.plan2 || mid;
-      st.rows = [{short:'1st 50%', amt:a1, due:d1, paid: paid >= a1 - 0.005}, {short:'2nd 50%', amt:tot - a1, due:d2, paid: paid >= tot - 0.005}];
-      const next = paid < a1 - 0.005 ? {n:1, short:'1st instalment', due:d1, left:a1 - paid} : {n:2, short:'2nd instalment', due:d2, left:tot - Math.max(paid, a1)};
-      st.next = next; st.plan = true; st.firstPaid = paid >= a1 - 0.005;
+    const PR = (inv.plan === 'half' || inv.plan === 'set') && window.PAYPLAN ? PAYPLAN.rows(inv, tot, t) : null;
+    if(PR){
+      const nx = PAYPLAN.mark(PR, paid);
+      st.rows = PR.map(r => ({short: r.n === 1 && inv.plan === 'half' ? '1st 50%' : r.n === 2 && inv.plan === 'half' ? '2nd 50%' : r.short, amt: r.amt, due: r.due, paid: r.paid}));
+      const next = {n: nx.n, short: nx.short, due: nx.due, left: nx.left};
+      st.next = next; st.plan = true; st.firstPaid = PR[0].paid;
       const end = addDays(next.due, grace());
       if(t > end){ st.over = true; st.text = `${next.short} overdue`; st.cls = 'rd'; }
       else if(t > next.due){ st.grace = true; st.text = `${next.short} in grace until ${nice(end)}`; st.cls = 'am'; }

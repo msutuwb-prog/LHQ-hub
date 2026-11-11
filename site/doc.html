@@ -21,6 +21,7 @@
 <script src="store.js"></script>
 <script src="sync.js"></script>
 <script src="defaults.js"></script>
+<script src="payplan.js"></script>
 <script src="hubdata.js"></script>
 <script src="schedule.js"></script>
 <script src="nav.js"></script>
@@ -645,9 +646,15 @@ body[data-mode=view] .dp-aside{grid-area:aside}
           <input id="f_discReason" placeholder="Reason, e.g. Sibling" aria-label="Discount reason (prints on the document)">
         </div>
       </div>
+      <div class="fld" id="ttRow" style="margin-top:14px;margin-bottom:0"><span class="lbl">Tuition</span>
+        <div class="seg" id="ttSeg" role="group" aria-label="Tuition" style="max-width:420px;margin-bottom:10px">
+          <button type="button" data-t="term">Term to term</button><button type="button" data-t="fast">Fast track</button><button type="button" data-t="hol">Holiday</button>
+        </div>
+        <div id="ftkRow" hidden><select class="in" id="f_ftk" aria-label="Fast track intake" style="max-width:420px"></select><p class="hint" id="ftkHint" style="margin:4px 0 0"></p></div>
+      </div>
       <div class="fld lm" id="planRow" style="margin-top:14px;margin-bottom:0"><span class="lbl">Payment</span>
-        <div class="seg seg2" id="planSeg" role="group" aria-label="Payment" style="max-width:380px;margin-bottom:10px">
-          <button type="button" data-p="" class="on">Pay in full</button><button type="button" data-p="half">50/50 plan</button>
+        <div class="seg seg2" id="planSeg" role="group" aria-label="Payment" style="max-width:420px;margin-bottom:10px">
+          <button type="button" data-p="" class="on">Pay in full</button><button type="button" data-p="half">50/50 plan</button><button type="button" data-p="set" hidden>Intake dates</button>
         </div>
         <div class="grid2" id="planDates" hidden>
           <div class="fld"><span class="lbl">1st 50% due by</span><button type="button" class="date-btn" data-cal="plan1" id="btnPlan1" aria-haspopup="dialog" aria-expanded="false"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span></span></button></div>
@@ -992,7 +999,7 @@ function periodText(d = doc){
 const DOC_FIELDS = { id:null, type:'quote', number:'', date:'', dueDate:'', ref:'', name:'', student:'', level:'', address:'', email:'', phone:'',
   forWhat:'', periodStart:'', periodEnd:'', period:'', items:[], discType:'pct', discValue:'', discReason:'',
   paid:'', received:'', prevPaid:'', method:'Bank transfer', payRef:'', receivedBy:'',
-  school:'', exam:'', where:'', cardNote:'', subjects:[], intake:'', checklistId:'', incOff:[], plan:'', plan1:'', plan2:'', noInstLine:false };
+  school:'', exam:'', where:'', cardNote:'', subjects:[], intake:'', checklistId:'', incOff:[], plan:'', plan1:'', plan2:'', planD:[], tt:'', ftk:'', noInstLine:false };
 const normalize = d => Object.assign(JSON.parse(JSON.stringify(DOC_FIELDS)), d || {});
 function defaultDue(type, from){
   if(type==='quote') return addDays(from, num(settings.validDays) || 30);
@@ -1057,24 +1064,23 @@ if(!doc.date) doc.date = todayISO();
    Coordinates in points, taken from the original PDF (612 x 792 pt). */
 /* ---------- payment plan: 50% at the start, 50% half-way through the tuition period ---------- */
 function planInfo(d = doc){
-  if(d.plan!=='half' || d.type==='card' || d.type==='quote') return null;   // quotes are always in full
-  const t = totals(d), a1 = Math.round(t.total*50)/100, a2 = Math.round((t.total - a1)*100)/100;
-  const start = d.periodStart || d.date || todayISO();
-  const date1 = d.plan1 || start;
-  // the 2nd instalment is due on the first day of the second half, counted in whole weeks (4 weeks -> start of week 3)
-  let mid = addDays(date1, 14);
-  if(d.periodStart && d.periodEnd){
-    const days = dayDiff(d.periodStart, d.periodEnd) + 1, weeks = Math.round(days / 7);
-    mid = weeks >= 2 ? addDays(d.periodStart, Math.floor(weeks / 2) * 7) : addDays(d.periodStart, Math.floor(days / 2));
-  }
-  const date2 = d.plan2 || mid;
+  if((d.plan!=='half' && d.plan!=='set') || d.type==='card' || d.type==='quote') return null;   // quotes are always in full
+  const t = totals(d), rows = PAYPLAN.rows(d, t.total, todayISO()); if(!rows) return null;
   const paid = d.type==='invoice' ? t.paid : d.type==='receipt' ? t.prevPaid + t.received : 0;
-  const rows = [{n:1, label:'1st instalment (50%)', short:'1st instalment', amt:a1, due:date1, paid: paid >= a1 - 0.005},
-                {n:2, label:'2nd instalment (50%)', short:'2nd instalment', amt:a2, due:date2, paid: paid >= t.total - 0.005}];
-  const next = rows.find(r=>!r.paid) || null;
-  // what is still owed on the next instalment (part payments count towards it)
-  if(next) next.left = Math.round((next.n===1 ? a1 - paid : t.total - Math.max(paid, a1))*100)/100;
+  const next = PAYPLAN.mark(rows, paid) || null;
   return {rows, next, paid, total:t.total};
+}
+/* tuition type, and a fast track intake's payment dates (Settings › Payments & due dates) */
+const fastIntakes = () => ((settings.payDates || {}).fast || []).filter(x => x && (x.dates || []).filter(Boolean).length);
+function fillTT(){
+  const inv = doc.type==='invoice';
+  F('ttRow').hidden = !(inv || doc.type==='quote');
+  document.querySelectorAll('#ttSeg button').forEach(b=>b.classList.toggle('on', b.dataset.t===(doc.tt||'')));
+  const L = fastIntakes(), sel = F('f_ftk');
+  F('ftkRow').hidden = !(inv && doc.tt==='fast');
+  sel.innerHTML = '<option value="">Choose the intake…</option>' + L.map(x=>`<option value="${esc(x.id)}" ${doc.ftk===x.id?'selected':''}>${esc(x.name)} · ${x.dates.filter(Boolean).length} payments</option>`).join('');
+  F('ftkHint').textContent = L.length ? '' : 'Add intakes in Settings › Payments & due dates.';
+  document.querySelector('#planSeg [data-p="set"]').hidden = !(doc.plan==='set');
 }
 /* Receipts: quick amounts (the instalment due, the whole balance, or another amount) and what the amount means */
 function drawPayPick(t){
@@ -1249,7 +1255,9 @@ function fillPlan(){
   F('planDates').hidden = !P; F('planHint').hidden = !P;
   F('planRow').hidden = doc.type!=='invoice';
   F('instLineRow').hidden = doc.type!=='quote'; F('f_instLine').checked = !doc.noInstLine;
+  fillTT();
   if(!P) return;
+  if(doc.plan==='set'){ F('planDates').hidden = true; F('planHint').textContent = P.rows.map(r=>`MKW ${money(r.amt)} by ${niceDate(r.due)}`).join(' · ') + '. From the intake\'s dates.'; return; }
   setBtnText(F('btnPlan1'), wkDate(P.rows[0].due), 'Choose');
   setBtnText(F('btnPlan2'), wkDate(P.rows[1].due), 'Choose');
   F('planHint').textContent = `MKW ${money(P.rows[0].amt)} + MKW ${money(P.rows[1].amt)}. ${doc.plan2 ? '' : 'The 2nd date is half-way through the tuition period. '}Tap a date to change it.`;
@@ -1524,6 +1532,11 @@ window.addEventListener('scroll', e=>{ if(!F('picker').hidden && !isSheet() && !
 
 F('f_instLine').addEventListener('change', e=>{ doc.noInstLine = !e.target.checked; update(); });
 document.querySelectorAll('#planSeg button').forEach(b=>b.addEventListener('click', ()=>{ doc.plan = b.dataset.p; fillPlan(); update(); }));
+document.querySelectorAll('#ttSeg button').forEach(b=>b.addEventListener('click', ()=>{ doc.tt = doc.tt===b.dataset.t ? '' : b.dataset.t;
+  if(doc.tt!=='fast' && doc.plan==='set'){ doc.plan = ''; doc.planD = []; doc.ftk = ''; }
+  if(doc.tt==='hol' && doc.periodStart && doc.type==='invoice' && !doc.plan) doc.dueDate = doc.periodStart;   // holiday tuition: paid before the first session
+  fillPlan(); fillDates(); update(); }));
+F('f_ftk').addEventListener('change', ()=>{ const x = fastIntakes().find(y=>y.id===F('f_ftk').value); doc.ftk = x ? x.id : ''; if(x){ doc.plan = 'set'; doc.planD = x.dates.filter(Boolean).slice(); } else if(doc.plan==='set'){ doc.plan = ''; doc.planD = []; } fillPlan(); update(); });
 F('incChips').addEventListener('click', e=>{
   const b = e.target.closest('[data-inc]'); if(!b) return;
   const x = b.dataset.inc, off = (doc.incOff || []).slice();
