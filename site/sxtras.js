@@ -222,6 +222,16 @@ window.SX = (function(){
   }
   async function saveRem(ch){ const rem = Object.assign({sra: 7, block: 1}, ((remS.prefs || {}).rem) || {}, ch); try{ const r = await hub.api('push', {method: 'POST', body: JSON.stringify(Object.assign({action: 'rem'}, rem))}); remS.prefs = Object.assign({}, remS.prefs, {rem: r.rem}); toast('Saved'); render(); }catch(e){ toast(e.message); } }
 
+  /* ---------- Sharing: what tutors see of the student's own time ---------- */
+  function sharing(k){
+    css(); const X = k.sx || {}, swb = (on, id, dis) => `<button class="sp-sw ${on ? 'on' : ''}" ${dis ? 'disabled' : ''} data-sxsh="${id}" aria-label="On or off" style="width:46px;height:28px;border-radius:99px;border:0;background:${on ? 'var(--ok)' : 'var(--line)'};position:relative;flex:none"><i style="position:absolute;top:3px;left:${on ? 21 : 3}px;width:22px;height:22px;border-radius:50%;background:#fff"></i></button>`;
+    return `<a class="crumb" href="#me/more">‹ More</a><div class="ph"><div class="tt"><h1>Sharing</h1><p>What your tutors see</p></div></div>
+      <div class="h2">With your tutors</div><div class="card">
+        ${X.tsee ? `<div class="it"><span class="t"><b>Focus and study totals</b><small>This week's focus time and study planned</small></span>${swb(!X.hide, 'tot')}</div>` : `<div class="it"><span class="t"><b>Focus and study totals</b><small>Off at LHQ</small></span><span class="note">Off</span></div>`}
+        <a class="it" href="#me/week"><span class="t"><b>Your dates and busy times</b><small>You choose for each one when you add it</small></span><span class="chev">›</span></a>
+        <div class="it"><span class="t"><b>Study blocks</b><small>Names and times</small></span><span class="note">🔒 private</span></div></div>
+      <div class="h2">Always shared 🔒</div><div class="card">${['Sessions and attendance','SRAs, ARS and marks','Assessments'].map(a => `<div class="it"><span class="t">${a}</span><span>🔒</span></div>`).join('')}</div>`;
+  }
   /* ---------- the bar: Home, Practice, two of their choice, More ---------- */
   const CHOICE = [['mcal','Calendar','index.html#me/calendar'],['mprog','Progress','index.html#me/progress'],['mfocus','Focus','index.html#me/focus'],['mrep','Report','index.html#me/report']];
   const barPicks = () => { const p = read('lhq_sxbar', ['mcal', 'mprog']).filter(x => CHOICE.some(c => c[0] === x)); return p.length === 2 ? p : ['mcal', 'mprog']; };
@@ -252,9 +262,10 @@ window.SX = (function(){
     document.querySelectorAll('[data-sxblk]').forEach(b => b.onclick = () => blockSheet(k, b.dataset.sxblk));
     if($('sxRemS')) $('sxRemS').onchange = () => saveRem({sra: +$('sxRemS').value});
     if($('sxRemB')) $('sxRemB').onclick = () => saveRem({block: (((remS.prefs || {}).rem) || {}).block === 'off' ? 1 : 'off'});
+    document.querySelectorAll('[data-sxsh=tot]').forEach(b => b.onclick = async () => { const hide = !((k.sx || {}).hide); try{ await hub.api('family', {method: 'POST', body: JSON.stringify({action: 'sxp', hide})}); k.sx.hide = hide; toast(hide ? 'Tutors don\'t see your totals' : 'Tutors see your weekly totals'); render(); }catch(e){ toast(e.message); } });
     document.querySelectorAll('[data-sxbar]').forEach(b => b.onclick = () => { let P = barPicks(); const id = b.dataset.sxbar; if(P.includes(id)) return; P = [P[1], id]; write('lhq_sxbar', P); render(); if(window.LHQNav && LHQNav.refresh) LHQNav.refresh(); });
   }
   /* parents and tutors: the week's totals only */
   function weekTotals(k){ const mon = mondayOf(T()), f = weekFocus(k, mon).reduce((a, x) => a + x.m, 0), st0 = (k.sx || {}).study || 0; return {focus: f, study: st0}; }
-  return {memory, homeCards, focusPage, habits, dayView, reminders, barPage, barPicks, CHOICE, bind, weekTotals, hmin, tick};
+  return {sharing, memory, homeCards, focusPage, habits, dayView, reminders, barPage, barPicks, CHOICE, bind, weekTotals, hmin, tick};
 })();

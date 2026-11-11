@@ -281,7 +281,8 @@
     const lhq_focus = {}, lhq_plan = {}, SB = ['Mathematics','Physics','Chemistry','Biology','English'];
     Object.keys(recs).forEach((k, i) => { const L = []; for(let n = 1; n <= 24; n++){ if(rnd() < .45) continue; const d = iso(new Date(T - n * DAY)); L.push({d, m: (i + n) % 3 ? 25 : 50, sub: SB[(i + n) % 5], tk: '', at: T - n * DAY}); } lhq_focus[k] = L;
       if(i % 2 === 0) lhq_plan[k] = {bdemo1: {id: 'bdemo1', name: 'Revision', type: 'rev', sub: SB[i % 5], s: '19:00', e: '20:00', rep: 'weekdays', days: [], from: iso(new Date(T - 20 * DAY)), until: '', at: T - 20 * DAY},
-        bdemo2: {id: 'bdemo2', name: 'Football', type: 'act', sub: '', s: '16:00', e: '17:30', rep: 'days', days: [3, 6], from: iso(new Date(T - 20 * DAY)), until: '', at: T - 20 * DAY}}; });
+        bdemo2: {id: 'bdemo2', name: 'Football', type: 'act', sub: '', s: '16:00', e: '17:30', rep: 'days', days: [3, 6], from: iso(new Date(T - 20 * DAY)), until: '', busy: 1, sh: 'busy', rem: [15], at: T - 20 * DAY},
+        bdemo3: {id: 'bdemo3', all: 1, name: 'School sports day', type: 'school', sub: '', from: iso(new Date(T + 7 * DAY)), to: '', busy: 1, sh: 'all', cd: 1, at: T - 20 * DAY}}; });
     return {docs, trash, people:PEOPLE, kv:{lhq_focus, lhq_plan, lhq_treps:{e:treps}, lhq_makeups:makeups, lhq_students:recs, lhq_logs:{e:logs, imports}, lhq_counters:{quote:C.quote, invoice:C.invoice, receipt:C.receipt + 1, card:C.card}, lhq_spend:money.spend, lhq_budget:money.budget, lhq_targets:targets, lhq_pay:{
       place: Object.fromEntries([...new Set(Object.values(POOL).flat())].map(n => [n.toLowerCase(), [{p: ['Catherine Mkwinda','Emmanuel Mkwamba'].includes(n) ? 'full' : 'part', from: '2026-01-01'}]])),
       items: {pi1: {id: 'pi1', tutor: 'Peter Mvula', m: iso(new Date(T)).slice(0, 7), kind: 'advance', amt: 30000, label: 'Advance', d: iso(new Date(T - 4 * DAY)), by: 'Wanangwa Msutu', at: T - 4 * DAY},

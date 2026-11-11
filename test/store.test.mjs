@@ -562,6 +562,19 @@ test("phone notifications: devices, choices, events, quiet hours and the 07:00 s
   await hubMod.pushTick(null, at("16:00")); assert.ok(sent.some(m => m.title === "Swimming · 16:00–17:00"), "at the start");
   assert.equal((await call("family", { action: "snooze", id: swb.id, m: 10 }, stu)).status, 200);
   const P2 = (await call("family", null, stu, "GET")).j.kids[0].sx.plan.find(b => b.id === swb.id); assert.equal(P2.snz.d, day(0), "snoozed today");
+  /* tutors see what the student shares: the date by name, busy times without names; totals only with the Director's switch, unless the student hides them */
+  let tg = (await call("tutor", null, tok, "GET")).j.sx["kettie gondwe"];
+  assert.equal(tg.dates[0].name, "School sports day"); assert.deepEqual(tg.busy[0], { d: day(0), s: "16:00", e: "17:00" }, "busy, no name"); assert.ok(!JSON.stringify(tg.busy).includes("Swimming"));
+  assert.equal(tg.hidden, "lhq", "off at LHQ by default"); assert.ok(!tg.w);
+  const set0 = (await call("state", null, DIR, "GET")).j.kv.lhq_settings || {};
+  assert.equal((await call("sync", { kv: { lhq_settings: Object.assign({}, set0, { tsee: true }) } }, DIR)).status, 200);
+  tg = (await call("tutor", null, tok, "GET")).j.sx["kettie gondwe"]; assert.equal(tg.w.length, 5, "5 weeks of totals");
+  await call("family", { action: "sxp", hide: 1 }, stu); tg = (await call("tutor", null, tok, "GET")).j.sx["kettie gondwe"]; assert.equal(tg.hidden, "student"); assert.ok(!tg.w, "the student hid them");
+  const ask = await call("tutor", { action: "askmove", k: "kettie gondwe|geography", d: day(1), s: "23:58", st: "Kettie Gondwe", sub: "Geography", why: "School sports day" }, tok); assert.equal(ask.status, 200, JSON.stringify(ask.j));
+  assert.equal((await call("tutor", { action: "askmove", k: "someone|else", d: day(1) }, tok)).status, 403, "only their own students");
+  assert.equal((await call("asks", { id: ask.j.id, how: "moved" }, tok)).status, 403, "LHQ decides");
+  assert.equal((await call("asks", { id: ask.j.id, how: "moved", note: "Now Friday" }, DIR)).status, 200);
+  assert.equal((await call("tutor", null, tok, "GET")).j.asks.length, 0, "handled");
   const st = (await call("state", null, DIR, "GET")).j; assert.ok(!st.kv.lhq_push, "devices never go to anyone's browser");
   hubMod._setPushSender(null);
 });

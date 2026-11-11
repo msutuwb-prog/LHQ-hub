@@ -268,6 +268,7 @@ window.FAM = (function(){
       <a class="it" href="#me/habits"><span class="t"><b>Habits</b></span><span class="chev">›</span></a>
       ${isParent() ? '' : `<a class="it" href="#me/focus"><span class="t"><b>Focus</b></span><span class="chev">›</span></a>
       <a class="it" href="#me/reminders"><span class="t"><b>Reminders</b></span><span class="chev">›</span></a>
+      <a class="it" href="#me/sharing"><span class="t"><b>Sharing</b></span><span class="chev">›</span></a>
       <a class="it" href="#me/bar"><span class="t"><b>Edit the bar</b></span><span class="chev">›</span></a>`}
       <a class="it" href="#exams"><span class="t"><b>Exam timetable</b></span><span class="chev">›</span></a>
       <a class="it" href="#set/notifications"><span class="t"><b>Notifications</b></span><span class="chev">›</span></a>
@@ -321,7 +322,8 @@ window.FAM = (function(){
       if(window.SPLAN && ['day','week','year','blk','snooze'].includes(sub0)) return SPLAN.page(k, sub0, a1, route.args[2], route.args[3]);
       if(!isParent() && sub0 === 'focus') return SX.focusPage(k, a1 ? decodeURIComponent(a1) : '');
       if(!isParent() && sub0 === 'reminders') return SX.reminders();
-      if(!isParent() && sub0 === 'bar') return SX.barPage(); } }
+      if(!isParent() && sub0 === 'bar') return SX.barPage();
+      if(!isParent() && sub0 === 'sharing') return SX.sharing(k); } }
     return home();
   }
 

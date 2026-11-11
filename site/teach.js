@@ -66,6 +66,9 @@ window.TUT = (function(){
 .t-kv{display:grid;grid-template-columns:auto 1fr;gap:6px 12px;font-size:13.5px}.t-kv span{color:var(--muted)}.t-kv b{font-weight:700;text-align:right}
 .t-pbar{display:block;height:6px;border-radius:99px;background:var(--gr-bg);overflow:hidden;margin:6px 0 3px;position:relative}.t-pbar i{display:block;height:100%;background:var(--gold)}
 .t-pbar b{position:absolute;top:0;bottom:0;width:2px;background:var(--ink);opacity:.55}
+.t-w5{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px;margin-top:10px}.t-w5 button{border:0;background:none;cursor:pointer;padding:4px 0;border-radius:8px;color:inherit;font:inherit}.t-w5 button:hover{background:var(--hover)}.t-w5 span{display:flex;gap:3px;justify-content:center;align-items:flex-end;height:74px}.t-w5 i{width:10px;border-radius:3px 3px 0 0}.t-w5 small{display:block;font-size:11px;color:var(--muted);text-align:center}
+.t-w5 i.f,.t-lg i.f{background:var(--accent)}.t-w5 i.p,.t-lg i.p{background:var(--gold)}.t-lg{display:flex;gap:12px;font-size:11.5px;color:var(--muted);margin-top:4px}.t-lg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
+.t-tk{width:28px;height:28px;border-radius:50%;border:2px solid var(--line);background:var(--surface);flex:none;cursor:pointer;color:#fff;font-weight:900}.t-tk.on{background:var(--ok);border-color:var(--ok)}.cal-d .t-star{position:absolute;top:2px;right:4px;font-style:normal;font-size:10px;color:var(--gold)}.cal-d{position:relative}
 .t-sgrid{display:grid;grid-template-columns:minmax(0,1.5fr) repeat(6,minmax(0,1fr));gap:4px;font-size:12px;align-items:center}
 .t-sgrid .h{font-size:10px;font-weight:800;color:var(--muted);text-align:center}.t-sgrid .t{font-weight:700;font-size:12.5px}
 .t-sgrid .c{text-align:center;border-radius:6px;padding:4px 0;font-weight:800}
@@ -88,7 +91,7 @@ window.TUT = (function(){
     if(loading) return loading;
     loading = (async () => {
       await flush();
-      try{ const j = await hub.api('tutor'); data = {cards: j.cards || [], entries: j.entries || [], classes: j.classes || [], reports: j.reports || [], avail: j.avail || [], acks: j.acks || {}, gone: j.gone || [], ackFrom: j.ackFrom || 0, calLink: j.calLink || '', makeups: j.makeups || [], reqs: j.reqs || {}, clashes: j.clashes || [], says: j.says || null, sradone: j.sradone || {}, notices: j.notices || [], exam: j.exam || null, kpiOn: !!j.kpiOn, at: Date.now()}; write(CK, data); err = ''; }
+      try{ const j = await hub.api('tutor'); data = {cards: j.cards || [], entries: j.entries || [], classes: j.classes || [], reports: j.reports || [], avail: j.avail || [], acks: j.acks || {}, gone: j.gone || [], ackFrom: j.ackFrom || 0, calLink: j.calLink || '', makeups: j.makeups || [], reqs: j.reqs || {}, clashes: j.clashes || [], says: j.says || null, sradone: j.sradone || {}, notices: j.notices || [], exam: j.exam || null, kpiOn: !!j.kpiOn, sx: j.sx || {}, tsee: !!j.tsee, asks: j.asks || [], at: Date.now()}; write(CK, data); err = ''; }
       catch(e){ err = navigator.onLine ? e.message : 'offline'; }
       loading = null; if(!form) render();
     })();
@@ -345,6 +348,34 @@ window.TUT = (function(){
   }
   const evRow = ev => { const st = ev.log ? (ev.log.a === 'absent' ? 'absent' : ev.log.a === 'cancelled' ? 'cancelled' : 'had') : '';
     return `<a class="it" href="${ev.mu ? '#teach/makeups' : '#teach/log/' + encodeURIComponent(ev.k)}" style="${ev.clash ? 'border-left:3px solid ' + (ev.ck === 'group' ? 'var(--am)' : 'var(--rd)') : ev.mu && ev.mu.status === 'asked' ? 'border-left:3px dashed var(--am)' : ''}"><span class="cal-t">${ev.s || '?'}<small>${ev.e || ''}</small></span><span class="t"><b style="${st === 'absent' || st === 'cancelled' ? 'text-decoration:line-through;color:var(--muted)' : ''}">${esc(ev.student)} · ${esc(ev.sub)}</b><small>${ev.mu ? (ev.mu.status === 'asked' ? 'Make-up · waiting for LHQ' : 'Make-up · confirmed') : esc(ev.where || '')}${st ? ' · ' + {had:'✓ logged', absent:'student absent', cancelled:'cancelled'}[st] : ''}${!st && ev.k && noticeOf(ev.k, ev.date) ? ` · <span class="t-tl">${esc(toldL(noticeOf(ev.k, ev.date)))}</span>` : ''}${ev.clash ? ' · <span style="color:var(--rd);font-weight:700">' + (ev.un ? 'in your unavailable time' : 'clash') + '</span>' : ''}</small></span><span class="chev">›</span></a>`; };
+  /* what a student chose to share: dates (by name) and busy times (no names) */
+  const sxOf = st => ((data.sx || {})[nk(st)]) || {};
+  const datesOn = (st, d) => (sxOf(st).dates || []).filter(x => d >= x.from && d <= (x.to || x.from));
+  const busyHit = ev => (sxOf(ev.student).busy || []).find(b => b.d === ev.date && ev.a != null && mins(b.s) < ev.b && ev.a < mins(b.e));
+  const askBtn = (ev, why) => ev.k ? `<button class="btn sm" type="button" data-taskmv="${esc(JSON.stringify({k: ev.k, d: ev.date, s: ev.s || '', st: ev.student, sub: ev.sub, why}))}">Ask LHQ to move</button>` : '';
+  function sharedRows(x, L){
+    const out = [], seen = new Set();
+    [...new Set(items().map(it => it.st))].forEach(st => datesOn(st, x).forEach(dt => { const ev = L.find(e => nk(e.student) === nk(st)), key = st + dt.name; if(seen.has(key)) return; seen.add(key);
+      const asked = ev && (data.asks || []).some(a => a.k === ev.k && a.d === x);
+      out.push(`<div class="it" style="${ev && dt.busy ? 'border-left:3px solid var(--rd)' : ''}"><span class="cal-t" style="color:${ev && dt.busy ? 'var(--rd)' : 'var(--gold)'};font-size:16px">★</span><span class="t"><b>${esc(short(st))}: ${esc(dt.name)}</b><small>${esc(({exam: 'Exam paper', season: 'Exam season', school: 'School date', hol: 'Holiday', other: 'Their date'})[dt.type] || 'Their date')}${dt.busy ? ' · busy' : ''}${ev ? ' · ' + esc(ev.sub) + ' ' + (ev.s || '') + ' that day' : ''}</small></span>${ev && dt.busy ? (asked ? '<span class="note">Asked LHQ</span>' : askBtn(ev, dt.name)) : ''}</div>`); }));
+    L.forEach(ev => { const b = busyHit(ev); if(!b) return; const asked = (data.asks || []).some(a => a.k === ev.k && a.d === x);
+      out.push(`<div class="it" style="border-left:3px solid var(--rd)"><span class="cal-t" style="color:var(--rd)">${b.s}<small>${b.e}</small></span><span class="t"><b>${esc(short(ev.student))} busy</b><small>Overlaps ${esc(ev.sub)} ${ev.s} · told by ${esc(ev.student.split(' ')[0])}</small></span>${asked ? '<span class="note">Asked LHQ</span>' : askBtn(ev, 'busy ' + b.s + '–' + b.e)}</div>`); });
+    return out.join('');
+  }
+  /* Plan my day (tutor): prepare before each session (SRAs to give and collect, dates the student shared), mark what's waiting, then the report */
+  function tPlan(d, L){
+    if(!L.length) return '';
+    const nowM = d === today() ? new Date().getHours() * 60 + new Date().getMinutes() : -1, S = sras(), T0 = L.filter(e => e.a != null && !(e.log && ['absent','cancelled'].includes(e.log.a)) && !(e.mu && e.mu.status === 'no')).sort((p, q) => p.a - q.a), dn = (() => { try{ return JSON.parse(localStorage.getItem('lhq_tsteps') || '{}'); }catch(e){ return {}; } })(), out = [];
+    if(!T0.length) return '';
+    const T1 = T0.filter((e, i) => e.a > nowM && T0.findIndex(y => y.a === e.a && nk(y.student) === nk(e.student)) === i);
+    T1.forEach(ev => { const give = S.filter(x => x.k === ev.k && x.giveOn === d && ['give','upcoming'].includes(x.status)), back = S.filter(x => x.k === ev.k && x.due === d && ['collect','late','given'].includes(x.status)), dt = datesOn(ev.student, d);
+      out.push({a: ev.a - 15, b: ev.a - 5, t: 'Prepare: ' + short(ev.student), s: [give.length ? 'Give ' + give.map(x => x.topic + ' ' + (x.stage ? 'R' + x.stage : 'LD')).join(', ') : '', back.length ? 'Collect ' + back.map(x => x.topic + ' ' + (x.stage ? 'R' + x.stage : 'LD')).join(', ') : '', dt.length ? '★ ' + dt.map(x => x.name).join(', ') : ''].filter(Boolean).join(' · ') || 'Topic and notes for today'}); });
+    const last = Math.max(...T0.map(e => e.b || e.a + 50)), mark = S.filter(x => x.status === 'in' && !x.score).length, wa = live().filter(e => e.ty === 'w' && (e.sc == null || e.sc === '')).length;
+    if(mark + wa) out.push({a: last + 10, b: last + 40, t: 'Mark: ' + [wa ? wa + ' assessment' + (wa === 1 ? '' : 's') : '', mark ? mark + ' SRA' + (mark === 1 ? '' : 's') : ''].filter(Boolean).join(' · '), s: 'Waiting for marks'});
+    out.push({a: last + (mark + wa ? 40 : 10), b: last + (mark + wa ? 55 : 25), t: 'Daily report', s: 'Before you leave'});
+    const hhmm = m => SCHED.hhmm(Math.max(0, m)), key = (i, x) => d + '|' + x.t;
+    return `<div class="h2">Plan my day <em>suggested</em></div><div class="card">${out.sort((p, q) => p.a - q.a).map((x, i) => `<div class="it"><span class="cal-t">${hhmm(x.a)}<small>${hhmm(x.b)}</small></span><span class="t"><b>${esc(x.t)}</b><small>${esc(x.s)}</small></span><button type="button" class="t-tk ${dn[key(i, x)] ? 'on' : ''}" data-ttk="${esc(key(i, x))}" aria-label="Done">${dn[key(i, x)] ? '✓' : ''}</button></div>`).join('')}</div>`;
+  }
   function calPage(view, d){
     calView = ['day','week','month'].includes(view) ? view : calView; calDate = /^\d{4}-\d{2}-\d{2}$/.test(d || '') ? d : (calDate || today());
     const t = today(), go = (v, x) => `#teach/cal/${v}/${x}`;
@@ -360,14 +391,14 @@ window.TUT = (function(){
     if(calView === 'month'){
       const first = wkStart(from), cells = []; for(let x = first; x <= to || cells.length % 7; x = HD.addDays(x, 1)) cells.push(x);
       body = `<div class="cal-m">${DORDER.map(k => `<span class="h">${DN[k]}</span>`).join('')}${cells.map(x => { const L = byD[x] || [], out = x < from || x > to;
-        return `<a class="cal-d${out ? ' out' : ''}${x === t ? ' now' : ''}" href="${go('day', x)}"><b>${+x.slice(8)}</b>${L.length ? `<small${L.some(e => e.clash) ? ' class="cl"' : ''}>${L.length}</small>` : ''}</a>`; }).join('')}</div>`;
+        return `<a class="cal-d${out ? ' out' : ''}${x === t ? ' now' : ''}" href="${go('day', x)}"><b>${+x.slice(8)}</b>${L.length ? `<small${L.some(e => e.clash || busyHit(e) || datesOn(e.student, x).some(y => y.busy)) ? ' class="cl"' : ''}>${L.length}</small>` : ''}${[...new Set(items().map(it => it.st))].some(st => datesOn(st, x).length) ? '<i class="t-star">★</i>' : ''}</a>`; }).join('')}</div>`;
     } else {
       const days = []; for(let x = from; x <= to; x = HD.addDays(x, 1)) days.push(x);
       const un = d => (data.avail || []).filter(u => u.d === SCHED.dayCode(d));
       body = days.map(x => { const L = byD[x] || [], U = un(x); if(calView === 'week' && !L.length && !U.length) return '';
-        return `<div class="h2">${x === t ? 'Today · ' : ''}${WEEKDAY[HD.parseISO(x).getDay()]} ${nice(x)} <em>${L.length || ''}</em></div><div class="card">${L.map(evRow).join('')}${U.map(u => `<div class="it" style="opacity:.75"><span class="cal-t">${u.s}<small>${u.e}</small></span><span class="t"><b>Not available</b><small>${esc(u.note || '')}</small></span></div>`).join('') || '<p class="empty">No sessions.</p>'}</div>`; }).join('') || '<p class="empty">No sessions this week.</p>';
+        return `<div class="h2">${x === t ? 'Today · ' : ''}${WEEKDAY[HD.parseISO(x).getDay()]} ${nice(x)} <em>${L.length || ''}</em></div><div class="card">${L.map(evRow).join('')}${sharedRows(x, L)}${U.map(u => `<div class="it" style="opacity:.75"><span class="cal-t">${u.s}<small>${u.e}</small></span><span class="t"><b>Not available</b><small>${esc(u.note || '')}</small></span></div>`).join('') || (L.length ? '' : '<p class="empty">No sessions.</p>')}</div>`; }).join('') || '<p class="empty">No sessions this week.</p>';
     }
-    return backHome() + head('Calendar', `Your sessions from your tuition cards${nCl ? ` · <b style="color:var(--rd)">${nCl} clash${nCl === 1 ? '' : 'es'}</b>` : ''}`, `<div class="acts"><a class="btn" href="#teach/avail">Times I can't teach</a></div>`) + seg + nav + body +
+    return backHome() + head('Calendar', `Your sessions from your tuition cards${nCl ? ` · <b style="color:var(--rd)">${nCl} clash${nCl === 1 ? '' : 'es'}</b>` : ''}`, `<div class="acts"><a class="btn" href="#teach/avail">Times I can't teach</a></div>`) + seg + nav + body + (calView === 'day' ? tPlan(calDate, byD[calDate] || []) : '') +
       `<div class="h2">On your phone</div><div class="card pad"><p style="margin:0 0 8px">Add your LHQ sessions to Google Calendar or your iPhone, next to your own appointments. They update when a card changes (your phone checks every few hours, so check the Hub for anything changed today).</p>
       <div class="acts"><a class="btn n" href="${'webcal://' + location.host + (data.calLink || '')}">Add to my calendar</a><button class="btn" data-tcallink>Copy the link</button></div>
       <p class="note" style="margin:8px 0 0">Google: Other calendars › From URL. iPhone: Settings › Calendar › Accounts › Add Subscribed Calendar. Keep it private.</p></div>`;
@@ -522,15 +553,22 @@ window.TUT = (function(){
       (I.length ? `<div class="card">${I.map(it => { const S = sessions(it); return `<a class="it" href="#teach/student/${encodeURIComponent(it.k)}" style="align-items:flex-start"><span class="t"><b>${esc(it.st)}</b><small>${esc(it.sub)} · ${S.had} of ${S.planned || '?'} had · ${S.remaining} left${S.owed ? ` · ${S.owed} make-up${S.owed > 1 ? 's' : ''} owed` : ''}</small>${bar(S)}</span>${S.behind ? `<span class="tag am">${S.behind} behind</span>` : '<span class="tag ok">On track</span>'}</a>`; }).join('')}</div><p class="note">Dark mark: where they should be today.</p>`
         : '<p class="empty">No students yet. They appear when LHQ puts you on a tuition card.</p>');
   }
-  const SECS = {target:'Target and exams', ses:'Sessions and make-ups', sra:'SRA scores by review', wa:'Assessments', logs:'Recent logs', topics:'Topics finished', time:'Timetable'};
+  const SECS = {study:'Study and dates', target:'Target and exams', ses:'Sessions and make-ups', sra:'SRA scores by review', wa:'Assessments', logs:'Recent logs', topics:'Topics finished', time:'Timetable'};
   function studentPage(k){
     const it = itemOf(k); if(!it) return backHome() + '<p class="empty">That student isn\'t on your tuition cards.</p>';
-    const S = sessions(it), ed = editing === 'tstudent', on = (myCards('tstudent') || ['target','ses','sra','wa','time']).filter(x => SECS[x]);
+    const S = sessions(it), ed = editing === 'tstudent', on = (myCards('tstudent') || ['target','study','ses','sra','wa','time']).filter(x => SECS[x]);
     const L = sras().filter(x => x.k === k), byT = new Map(); L.forEach(x => { if(!byT.has(x.topic)) byT.set(x.topic, []); byT.get(x.topic).push(x); });
     const cell = x => { const p = x && x.score ? Math.round(x.score.sc / x.score.mx * 100) : null; return p == null ? '<span class="c" style="color:var(--muted)">·</span>' : `<span class="c ${p >= 75 ? 'ok' : p >= 60 ? 'am' : 'rd'}">${p}</span>`; };
     const W = live().filter(e => e.ty === 'w' && e.k === k && e.sc != null && e.sc !== '' && +e.mx > 0).sort((a, b) => a.d.localeCompare(b.d)).slice(-6);
     const xi = exInfo(k);
+    const sxx = sxOf(it.st), SW = sxx.w || [], cur = SW[SW.length - 1], prv = SW[SW.length - 2], hmn = m => m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ' ' + String(m % 60).padStart(2, '0') : ''}` : `${m} min`;
+    const dlt = (a, b) => b == null ? '' : `${a >= b ? '▲' : '▼'} ${hmn(Math.abs(a - b))} on last week`, mx = Math.max(1, ...SW.map(w => Math.max(w.f, w.p)));
     const SEC = {
+      study: () => `<div class="card pad" style="margin:0"><div class="cap">Study this week</div>${cur ? `<div class="mcs" style="grid-template-columns:repeat(2,minmax(0,1fr));gap:8px"><button type="button" class="mc" data-tsx="f"><span class="l">Focus time</span><span class="v">${hmn(cur.f)}<span class="mca">›</span></span><span class="s">${dlt(cur.f, prv && prv.f)}</span></button><button type="button" class="mc" data-tsx="p"><span class="l">Study planned</span><span class="v">${hmn(cur.p)}<span class="mca">›</span></span><span class="s">${dlt(cur.p, prv && prv.p)}</span></button></div>
+          <div class="it" style="padding:8px 0"><span class="t"><b>${esc(it.sub)}</b><small>Your subject · focus this week</small></span><b>${hmn((cur.bySub || {})[it.sub] || 0)}</b></div>
+          <div class="t-w5">${SW.map((w, i) => `<button type="button" data-tsx="w${i}"><span><i style="height:${Math.round(w.f / mx * 70)}px" class="f"></i><i style="height:${Math.round(w.p / mx * 70)}px" class="p"></i></span><small>${+w.mon.slice(8)} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+w.mon.slice(5, 7) - 1]}</small></button>`).join('')}</div>
+          <div class="t-lg"><span><i class="f"></i>Focus</span><span><i class="p"></i>Planned</span></div>` : `<p class="note" style="margin:0">${sxx.hidden === 'student' ? esc(it.st.split(' ')[0]) + ' keeps these private.' : 'Off at LHQ.'}</p>`}
+        ${(sxx.dates || []).length ? `<div class="cap" style="margin-top:12px">Dates ${esc(it.st.split(' ')[0])} shares</div>${sxx.dates.slice(0, 4).map(x => `<div class="it" style="padding:6px 0"><span style="color:${x.busy ? 'var(--rd)' : 'var(--gold)'}">★</span><span class="t"><b>${esc(x.name)}</b><small>${nice(x.from)}${x.to ? ' – ' + nice(x.to) : ''}${x.busy ? ' · busy' : ''}</small></span></div>`).join('')}` : ''}</div>`,
       target: () => xi ? `<div style="margin:0">${EXUI.block(xi, `data-textg="${esc(k)}"`, true).replace('class="card pad ex-blk"', 'class="card pad ex-blk" style="margin:0"')}</div>` : '<div class="card pad" style="margin:0"><p class="empty" style="margin:0">Loading…</p></div>',
       ses: () => `<div class="card pad" style="margin:0"><div class="cap">Sessions · ${it.pa ? nice(it.pa) : '?'} – ${it.b ? nice(it.b) : '?'}</div>
         <div class="t-ses"><div><b>${S.planned || '?'}</b><small>Planned</small></div><div><b>${S.had}</b><small>Had</small></div><div><b>${S.remaining}</b><small>Remaining</small></div></div>${bar(S)}
@@ -989,6 +1027,15 @@ window.TUT = (function(){
       openSheet(`<div class="hx"><h3>Send the clash to LHQ</h3><button class="ib" data-close>✕</button></div><label class="f"><span>Anything LHQ should know (optional)</span><input class="in" id="tclN" placeholder="e.g. Tadala can only do Tuesdays"></label><button class="btn n full" id="tclGo">Send to LHQ</button>`);
       $('tclGo').onclick = () => clashDo('admin', key, $('tclN').value); });
     on('[data-tclmove]', el => { const c = (data.clashes || []).find(x => x.key === el.dataset.tclmove); if(c) window.clashMove(c, {me: myName(), after: fetchData}); });
+    on('[data-taskmv]', el => { const {k, d, s: s0, st, sub: sb, why} = JSON.parse(el.dataset.taskmv);
+      openSheet(`<div class="hx"><h3>Ask LHQ to move it</h3><button class="ib" data-close>✕</button></div><p class="sp">${esc(st)} · ${esc(sb)} · ${nice(d)} ${esc(s0)}</p><label class="f"><span>Why</span><input class="in" id="tAskW" value="${esc(why)}"></label><button class="btn n full" id="tAskGo">Send to LHQ</button><p class="note" style="margin-top:8px">LHQ moves it or keeps it, and you're told.</p>`);
+      $('tAskGo').onclick = async () => { try{ await hub.api('tutor', {method: 'POST', body: JSON.stringify({action: 'askmove', k, d, s: s0, st, sub: sb, why: $('tAskW').value})}); (data.asks = data.asks || []).push({k, d}); closeSheet(); toast('Sent to LHQ'); render(); }catch(e){ toast(e.message); } }; });
+    on('[data-ttk]', el => { let D = {}; try{ D = JSON.parse(localStorage.getItem('lhq_tsteps') || '{}'); }catch(e){} const id = el.dataset.ttk; if(D[id]) delete D[id]; else D[id] = Date.now(); try{ localStorage.setItem('lhq_tsteps', JSON.stringify(D)); }catch(e){} render(); });
+    on('[data-tsx]', el => { const it = itemOf(decodeURIComponent((location.hash.split('/')[2]) || '')); if(!it) return; const x = sxOf(it.st), W = x.w || [], v = el.dataset.tsx, cur = W[W.length - 1] || {}, hmn = m => m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ' ' + String(m % 60).padStart(2, '0') : ''}` : `${m} min`;
+      const rows = v === 'f' ? (cur.rounds || []).map(r => `<div class="it"><span class="t"><b>${esc(r[1] || 'Focus')}</b><small>${nice(r[0])}</small></span><b>${r[2]} min</b></div>`).join('')
+        : v === 'p' ? `<div class="it"><span class="t"><b>Study and Revision blocks</b><small>Week of ${nice(cur.mon)} · names and times stay private</small></span><b>${hmn(cur.p || 0)}</b></div>`
+        : (w => `<div class="it"><span class="t"><b>Focus time</b><small>finished rounds</small></span><b>${hmn(w.f)}</b></div><div class="it"><span class="t"><b>Study planned</b><small>Study and Revision blocks</small></span><b>${hmn(w.p)}</b></div>${Object.entries(w.bySub || {}).map(([sb, m]) => `<div class="it"><span class="t">${esc(sb || 'No subject')}</span><b>${hmn(m)}</b></div>`).join('')}`)(W[+v.slice(1)] || {});
+      openSheet(`<div class="hx"><h3>${v === 'f' ? 'Focus time · ' + hmn(cur.f || 0) : v === 'p' ? 'Study planned · ' + hmn(cur.p || 0) : 'Week of ' + nice((W[+v.slice(1)] || {}).mon || '')}</h3><button class="ib" data-close>✕</button></div><p class="sp">${esc(it.st)}${v === 'f' ? ' · this week · subjects, not topics' : ''}</p><div class="card">${rows || '<p class="empty">None.</p>'}</div>`); });
     on('[data-tcallink]', async () => { const u = location.origin + (data.calLink || ''); try{ await navigator.clipboard.writeText(u); toast('Link copied'); }catch(e){ prompt('Copy this link:', u); } });
     on('[data-tgive]', el => { const x = unref(el.dataset.tgive); if(x) saveEntries(giveEntries([x]), true).then(ok => ok && toast(el.dataset.early ? 'Given early · still done on its review day · comes back after ' + nice(x.doOn) : 'Marked as given')); });
     on('[data-tpkprint]', el => { const p = packOf(el.dataset.tpkprint); if(p) printPack(p); });

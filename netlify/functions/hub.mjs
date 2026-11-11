@@ -63,7 +63,7 @@ async function usesDbStore() {
 /* compare two values whatever order their keys come in (the database keeps keys in its own order) */
 const canon = v => JSON.stringify(v, (k, x) => x && typeof x === "object" && !Array.isArray(x) ? Object.keys(x).sort().reduce((o, key) => (o[key] = x[key], o), {}) : x);
 
-const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes", "lhq_treps", "lhq_avail", "lhq_cardack", "lhq_makeups", "lhq_reqs", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams", "lhq_kpi", "lhq_pay"];
+const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes", "lhq_treps", "lhq_avail", "lhq_cardack", "lhq_makeups", "lhq_reqs", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams", "lhq_kpi", "lhq_pay", "lhq_asks"];
 
 /* ---------- roles and permissions ---------- */
 const PERMS = ["quotes", "receipts", "cards", "delete", "restore", "students", "money", "tpay", "tutors", "msgs", "numbering", "backup", "classes", "moveclass", "spend", "pl"];
@@ -75,7 +75,7 @@ const LIST_FIELDS = ["subjects", "levels", "methods", "includes", "tutors", "gra
 const KV_READ = { lhq_spend: p => can(p, "spend") || can(p, "pl"), lhq_income: p => can(p, "spend") || can(p, "pl"), lhq_budget: p => can(p, "pl"),
   lhq_sreports: p => isDirector(p) || can(p, "tutors"),
   lhq_kpi: p => isDirector(p) || can(p, "tutors"),
-  lhq_pay: p => isDirector(p) || can(p, "tpay") };   // tutor pay: rules, placements, items, payslips (tutors get their own payslips through /api/hub/pay)   // tutor KPIs: observations, reviews (admin sees them only when the Director switches it on)   // students' daily reports: never tutors (they get averages only)
+  lhq_pay: p => isDirector(p) || can(p, "tpay"), lhq_asks: p => isDirector(p) || can(p, "tutors") };   // tutor pay: rules, placements, items, payslips (tutors get their own payslips through /api/hub/pay)   // tutor KPIs: observations, reviews (admin sees them only when the Director switches it on)   // students' daily reports: never tutors (they get averages only)
 const MERGED = ["lhq_spend", "lhq_income"];   // recorded on several devices at once: merged entry by entry
 /* Spending is recorded on several devices at once, so entries are merged one by one (newest wins) instead of the whole list being replaced.
    Deleting marks an entry del:true, so a device that hasn't heard about it yet can't bring it back. */
@@ -321,7 +321,7 @@ async function checkSync(me, upserts, deletes, kv) {
       const ch = Object.keys(v || {}).filter(id => canon(v[id]) !== canon(old[id]) && (!old[id] || (v[id].at || 0) >= (old[id].at || 0)));
       if (ch.length && !can(me, "spend")) return "You don't have permission to record spending.";
       if (ch.some(id => old[id] && old[id].by !== me.name)) return "You can only change spending you recorded. Ask the Director to change the others.";
-    } else if (["lhq_makeups", "lhq_reqs", "lhq_treps", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams", "lhq_kpi", "lhq_pay"].includes(k)) {
+    } else if (["lhq_makeups", "lhq_reqs", "lhq_treps", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams", "lhq_kpi", "lhq_pay", "lhq_asks"].includes(k)) {
       if (changedKeys(old, v).length) return "Make-ups, requisitions, clashes, targets and tutors' reports change through their own buttons.";
     } else if (k === "lhq_avail" || k === "lhq_cardack") {
       if (changedKeys(old, v).length && !can(me, "tutors")) return "You don't have permission to change tutors' times.";
@@ -748,7 +748,7 @@ async function familyData(me) {
     const sx = { wk: allS.filter(x => x.doOn >= mon && x.doOn <= S.addDays(mon, 6) && !x.pack).map(x => { const id = [x.k, x.topic, x.stage].join("|"); return { sub: x.sub, topic: x.topic, stage: x.stage, doOn: x.doOn, status: x.status, done: !!(done || {})[id] || x.status === "in" }; }),
       pk: allS.filter(x => x.pack && x.doOn >= S.addDays(t, -120) && x.doOn <= t).map(x => { const id = [x.k, x.topic, x.stage].join("|"); return { sub: x.sub, topic: x.topic, stage: x.stage, doOn: x.doOn, done: !!(done || {})[id] || x.status === "in" }; }),
       rep: Object.keys(((sreps || {})[kid.key]) || {}), focus: (((focus || {})[kid.key]) || []).filter(x => x.d >= S.addDays(t, -120)),
-      plan: me.role === "student" ? Object.values(((plan || {})[kid.key]) || {}) : null,
+      plan: me.role === "student" ? Object.values(((plan || {})[kid.key]) || {}) : null, tsee: !!(set || {}).tsee, hide: !!((((await store().get("kv/lhq_sxp", { type: "json" })) || {})[kid.key]) || {}).hide,
       study: (() => { const P = Object.values(((plan || {})[kid.key]) || {}).filter(b => !b.all && (b.type === "study" || b.type === "rev")); let m = 0;   // planned study minutes this week, for parents and tutors
         for (let i = 0; i < 7; i++) { const d = S.addDays(mon, i); P.forEach(b => { if (blockOn(b, d)) m += Math.max(0, (S.mins(b.e) || 0) - (S.mins(b.s) || 0)); }); } return m; })() };
     const extra = me.role !== "parent" ? { sx, hist: { s: ent.filter(e => e.ty === "s").map(e => [e.d, e.sub, e.a || "attended", e.tp || [], e.cb || ""]), r: ent.filter(e => e.ty === "r").map(e => [e.d, e.sub, e.h || "o"]) } } : { sx, hist: { s: ent.filter(e => e.ty === "s").map(e => [e.d, e.sub, e.a || "attended", e.tp || []]), r: ent.filter(e => e.ty === "r").map(e => [e.d, e.sub, e.h || "o"]),
@@ -779,6 +779,11 @@ async function familyPost(req, me) {
     const m = Math.round(+b.m || 0), d = /^\d{4}-\d{2}-\d{2}$/.test(String(b.d || "")) ? b.d : mwToday(); if (!(m > 0 && m <= 120)) return fail("Check the minutes.");
     const row = { d, m, sub: txt(b.sub, 60), tk: txt(b.tk, 80), at: now };
     await writeKv("lhq_focus", old => { const o = Object.assign({}, old), L = (o[kids[0].key] || []).concat([row]); o[kids[0].key] = L.slice(-600); return o; });
+    return json({ ok: true });
+  }
+  if (b.action === "sxp") {   // the student's own sharing choices (hide focus and study totals from tutors)
+    if (me.role !== "student" || !kids[0]) return fail("Only the student.", 403);
+    await writeKv("lhq_sxp", old => { const o = Object.assign({}, old); o[kids[0].key] = Object.assign({}, o[kids[0].key], { hide: b.hide ? 1 : 0 }); return o; });
     return json({ ok: true });
   }
   if (b.action === "snooze") {   // remind again in 5, 10 or 15 minutes (the 5-minute reminder run sends it)
@@ -1350,6 +1355,36 @@ async function calFeed(path) {
 }
 
 /* a tutor's own unavailable times, what they've acknowledged, and cards they've been taken off (to be told once) */
+/* a student's own time, for their tutors: dates they share (with that subject's tutor or all), busy times they chose to tell
+   (no names), and, when the Director allows it and the student doesn't hide them, weekly focus time and planned study (totals) */
+async function studentTime(stKeys, mySubs, tsee) {
+  const [focus, plan, sxp] = await Promise.all(["lhq_focus", "lhq_plan", "lhq_sxp"].map(k => store().get("kv/" + k, { type: "json" })));
+  await import("../../site/schedule.js"); const S = globalThis.SCHED, t = mwToday(), mon = S.addDays(t, -((new Date(t + "T00:00:00Z").getUTCDay() + 6) % 7)), out = {};
+  for (const st of stKeys) {
+    const P = Object.values((plan || {})[st] || {}).filter(b => b && b.from), F = ((focus || {})[st] || []), hide = !!(((sxp || {})[st] || {}).hide), o = {};
+    o.dates = P.filter(b => b.all && (b.sh === "all" || (b.sh === "sub" && mySubs.has(st + "|" + nk(b.sub)))) && (b.to || b.from) >= S.addDays(t, -7)).map(b => ({ name: b.name, type: b.type, from: b.from, to: b.to || "", busy: b.busy ? 1 : 0, sub: b.sub || "" }));
+    o.busy = []; for (let i = -1; i < 28; i++) { const d = S.addDays(t, i); P.filter(b => !b.all && b.busy && b.sh === "busy" && blockOn(b, d)).forEach(b => o.busy.push({ d, s: b.s, e: b.e })); }
+    if (tsee && !hide) {
+      o.w = []; for (let i = 4; i >= 0; i--) { const a = S.addDays(mon, -7 * i), z = S.addDays(a, 6); let pl = 0;
+        for (let j = 0; j < 7; j++) { const d = S.addDays(a, j); P.filter(b => !b.all && (b.type === "study" || b.type === "rev") && blockOn(b, d)).forEach(b => { pl += Math.max(0, (S.mins(b.e) || 0) - (S.mins(b.s) || 0)); }); }
+        const L = F.filter(x => x.d >= a && x.d <= z); o.w.push({ mon: a, f: L.reduce((s2, x) => s2 + (x.m || 0), 0), p: pl, bySub: L.reduce((m, x) => { m[x.sub || ""] = (m[x.sub || ""] || 0) + (x.m || 0); return m; }, {}), rounds: i === 0 ? L.map(x => [x.d, x.sub || "", x.m]) : undefined }); }
+    } else o.hidden = tsee ? "student" : "lhq";
+    out[st] = o;
+  }
+  return out;
+}
+/* LHQ marks a tutor's request to move a session as handled (moved, or kept), with an optional note to the tutor */
+const txt0 = (v, n) => String(v || "").trim().slice(0, n), hm0 = v => /^\d{1,2}:\d{2}$/.test(String(v || "")) ? v : "";
+async function asksPost(req, me) {
+  if (!(isDirector(me) || can(me, "tutors"))) return fail("You don't have permission.", 403);
+  const b = await req.json().catch(() => ({})), cur = ((await store().get("kv/lhq_asks", { type: "json" })) || {})[b.id];
+  if (!cur) return fail("Not found.", 404);
+  const how = b.how === "kept" ? "kept" : "moved", note = txt0(b.note, 160);
+  await writeKv("lhq_asks", old => Object.assign({}, old, { [b.id]: Object.assign({}, cur, { done: Date.now(), how, note, by: me.name }) }));
+  await act(me, "sessions", "session.askdone", `${how === "moved" ? "Moved" : "Kept"} ${cur.st}'s ${cur.sub} on ${dayL(cur.d)} (asked by ${cur.tutor})${note ? " · " + note : ""}`, "logs", b.id);
+  pushSafe(await idsOfTutor(cur.tutor), "decided", { title: `${cur.st} · ${how === "moved" ? "session moved" : "session stays"}`, body: `${cur.sub} · ${dayL(cur.d)}${note ? " · " + note : ""}`, url: "/#teach/cal" });
+  return json({ ok: true });
+}
 async function tutorExtras(me, d) {
   const mk = nk(me.name);
   let [av, ack] = await Promise.all(["lhq_avail", "lhq_cardack"].map(k => store().get("kv/" + k, { type: "json" })));
@@ -1372,12 +1407,22 @@ async function tutorExtras(me, d) {
   await import("../../site/schedule.js");
   const exam = await examPack(d.keys, new Set([...d.keys].map(k => k.split("|")[0])), globalThis.SCHED.items(d.cards, mwToday()), d.entries, await store().get("kv/lhq_settings", { type: "json" }));
   const kset = (await store().get("kv/lhq_settings", { type: "json" })) || {};
-  return { avail: (av || {})[mk] || [], acks, gone, ackFrom: ack._from, calLink: calPath(me.id), makeups, reqs, clashes: await tutorClashes(me), sradone, says, notices, exam, kpiOn: !!((kset.kpi || {}).tutors) };
+  const sx = await studentTime([...new Set([...d.keys].map(k => k.split("|")[0]))], new Set(d.cards.flatMap(c => (c.subjects || []).filter(x => nk(x.tutor) === mk).map(x => nk(c.student) + "|" + nk(x.name)))), !!kset.tsee);
+  return { sx, tsee: !!kset.tsee, asks: Object.values(((await store().get("kv/lhq_asks", { type: "json" })) || {})).filter(a => a && nk(a.tutor) === mk && !a.done), avail: (av || {})[mk] || [], acks, gone, ackFrom: ack._from, calLink: calPath(me.id), makeups, reqs, clashes: await tutorClashes(me), sradone, says, notices, exam, kpiOn: !!((kset.kpi || {}).tutors) };
 }
 async function tutorPost(req, me) {
   if (!isTutor(me)) return fail("This part is for tutors.", 403);
   const b = await req.json().catch(() => ({}));
   const d = await tutorData(me), now = Date.now();
+  if (b.action === "askmove") {
+    const k = String(b.k || ""); if (!d.keys.has(k)) return fail("That student isn't on your cards.", 403);
+    const id = "q" + now.toString(36), st = txt0(b.st, 80), sub = txt0(b.sub, 60), dd = /^\d{4}-\d{2}-\d{2}$/.test(String(b.d || "")) ? b.d : "", why = txt0(b.why, 120);
+    if (!dd) return fail("Which day?");
+    await writeKv("lhq_asks", old => Object.assign({}, old, { [id]: { id, k, st, sub, d: dd, s: hm0(b.s) || "", why, tutor: me.name, at: now } }));
+    await act(me, "sessions", "session.askmove", `Asked LHQ to move ${st}'s ${sub} on ${dayL(dd)}${why ? " · " + why : ""}`, "logs", id);
+    pushSafe((await getPeople()).filter(p => p.active !== false && (isDirector(p) || can(p, "tutors"))).map(p => p.id), "dispute", { title: `${st} · move a session?`, body: `${sub} · ${dayL(dd)}${why ? " · " + why : ""} · ${me.name}`, url: "/#home" });
+    return json({ ok: true, id });
+  }
   if (b.action === "entries") {
     const list = (Array.isArray(b.entries) ? b.entries : []).slice(0, 200);
     for (const e of list) {
@@ -1564,6 +1609,7 @@ export default async (req, context) => {
     if (req.method === "POST" && path === "makeup") return await decideMakeup(req, me);
     if (req.method === "POST" && path === "req") return await decideReq(req, me);
     if (req.method === "POST" && path === "clash") return await clashAction(req, me);
+    if (req.method === "POST" && path === "asks") return await asksPost(req, me);
     if (req.method === "GET" && path === "family") return await familyGet(me);
     if (req.method === "POST" && path === "family") return await familyPost(req, me);
     if (req.method === "POST" && path === "confirmer") return await setConfirmer(req, me);
