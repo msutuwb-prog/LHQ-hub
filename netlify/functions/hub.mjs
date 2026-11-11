@@ -63,7 +63,7 @@ async function usesDbStore() {
 /* compare two values whatever order their keys come in (the database keeps keys in its own order) */
 const canon = v => JSON.stringify(v, (k, x) => x && typeof x === "object" && !Array.isArray(x) ? Object.keys(x).sort().reduce((o, key) => (o[key] = x[key], o), {}) : x);
 
-const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes", "lhq_treps", "lhq_avail", "lhq_cardack", "lhq_makeups", "lhq_reqs", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams", "lhq_kpi", "lhq_pay", "lhq_asks", "lhq_school"];
+const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes", "lhq_treps", "lhq_avail", "lhq_cardack", "lhq_makeups", "lhq_reqs", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams", "lhq_kpi", "lhq_pay", "lhq_asks", "lhq_school", "lhq_fu", "lhq_obj"];
 
 /* ---------- roles and permissions ---------- */
 const PERMS = ["quotes", "receipts", "cards", "delete", "restore", "students", "money", "tpay", "tutors", "msgs", "numbering", "backup", "classes", "moveclass", "spend", "pl"];
@@ -75,7 +75,7 @@ const LIST_FIELDS = ["subjects", "levels", "methods", "includes", "tutors", "gra
 const KV_READ = { lhq_spend: p => can(p, "spend") || can(p, "pl"), lhq_income: p => can(p, "spend") || can(p, "pl"), lhq_budget: p => can(p, "pl"),
   lhq_sreports: p => isDirector(p) || can(p, "tutors"),
   lhq_kpi: p => isDirector(p) || can(p, "tutors"),
-  lhq_pay: p => isDirector(p) || can(p, "tpay"), lhq_asks: p => isDirector(p) || can(p, "tutors"), lhq_school: p => isDirector(p) || can(p, "students") || can(p, "tutors") };   // tutor pay: rules, placements, items, payslips (tutors get their own payslips through /api/hub/pay)   // tutor KPIs: observations, reviews (admin sees them only when the Director switches it on)   // students' daily reports: never tutors (they get averages only)
+  lhq_pay: p => isDirector(p) || can(p, "tpay"), lhq_asks: p => isDirector(p) || can(p, "tutors"), lhq_school: p => isDirector(p) || can(p, "students") || can(p, "tutors"), lhq_fu: p => isDirector(p) || can(p, "tutors") };   // tutor pay: rules, placements, items, payslips (tutors get their own payslips through /api/hub/pay)   // tutor KPIs: observations, reviews (admin sees them only when the Director switches it on)   // students' daily reports: never tutors (they get averages only)
 const MERGED = ["lhq_spend", "lhq_income"];   // recorded on several devices at once: merged entry by entry
 /* Spending is recorded on several devices at once, so entries are merged one by one (newest wins) instead of the whole list being replaced.
    Deleting marks an entry del:true, so a device that hasn't heard about it yet can't bring it back. */
@@ -321,7 +321,7 @@ async function checkSync(me, upserts, deletes, kv) {
       const ch = Object.keys(v || {}).filter(id => canon(v[id]) !== canon(old[id]) && (!old[id] || (v[id].at || 0) >= (old[id].at || 0)));
       if (ch.length && !can(me, "spend")) return "You don't have permission to record spending.";
       if (ch.some(id => old[id] && old[id].by !== me.name)) return "You can only change spending you recorded. Ask the Director to change the others.";
-    } else if (["lhq_makeups", "lhq_reqs", "lhq_treps", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams", "lhq_kpi", "lhq_pay", "lhq_asks", "lhq_school"].includes(k)) {
+    } else if (["lhq_makeups", "lhq_reqs", "lhq_treps", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams", "lhq_kpi", "lhq_pay", "lhq_asks", "lhq_school", "lhq_fu", "lhq_obj"].includes(k)) {
       if (changedKeys(old, v).length) return "Make-ups, requisitions, clashes, targets and tutors' reports change through their own buttons.";
     } else if (k === "lhq_avail" || k === "lhq_cardack") {
       if (changedKeys(old, v).length && !can(me, "tutors")) return "You don't have permission to change tutors' times.";
@@ -1480,12 +1480,48 @@ async function tutorExtras(me, d) {
   const exam = await examPack(d.keys, new Set([...d.keys].map(k => k.split("|")[0])), globalThis.SCHED.items(d.cards, mwToday()), d.entries, await store().get("kv/lhq_settings", { type: "json" }));
   const kset = (await store().get("kv/lhq_settings", { type: "json" })) || {};
   const sx = await studentTime([...new Set([...d.keys].map(k => k.split("|")[0]))], new Set(d.cards.flatMap(c => (c.subjects || []).filter(x => nk(x.tutor) === mk).map(x => nk(c.student) + "|" + nk(x.name)))), !!kset.tsee);
-  return { sx, tsee: !!kset.tsee, asks: Object.values(((await store().get("kv/lhq_asks", { type: "json" })) || {})).filter(a => a && nk(a.tutor) === mk && !a.done), avail: (av || {})[mk] || [], acks, gone, ackFrom: ack._from, calLink: calPath(me.id, (((await store().get("kv/lhq_calopt", { type: "json" })) || {})[me.id] || {}).v), makeups, reqs, clashes: await tutorClashes(me), sradone, says, notices, exam, kpiOn: !!((kset.kpi || {}).tutors) };
+  const fuAll = (await store().get("kv/lhq_fu", { type: "json" })) || {};
+  return { obj: { on: !!((kset.obj || {}).on), subs: ((kset.obj || {}).subs) || [], L: (await store().get("kv/lhq_obj", { type: "json" })) || {} }, fu: Object.values(fuAll).filter(f => f && !f.x && d.keys.has(f.k)), sx, tsee: !!kset.tsee, asks: Object.values(((await store().get("kv/lhq_asks", { type: "json" })) || {})).filter(a => a && nk(a.tutor) === mk && !a.done), avail: (av || {})[mk] || [], acks, gone, ackFrom: ack._from, calLink: calPath(me.id, (((await store().get("kv/lhq_calopt", { type: "json" })) || {})[me.id] || {}).v), makeups, reqs, clashes: await tutorClashes(me), sradone, says, notices, exam, kpiOn: !!((kset.kpi || {}).tutors) };
 }
 async function tutorPost(req, me) {
   if (!isTutor(me)) return fail("This part is for tutors.", 403);
   const b = await req.json().catch(() => ({}));
   const d = await tutorData(me), now = Date.now();
+  if (b.action === "obj") {   // a topic's objectives for the ARS, kept for every student of that subject
+    const sub = txt0(b.sub, 60), tk = txt0(b.tk, 120), l = (Array.isArray(b.l) ? b.l : []).map(x => txt0(x, 120)).filter(Boolean).slice(0, 30);
+    if (!sub || !tk) return fail("Which topic?");
+    if (!d.cards.some(c => (c.subjects || []).some(x => nk(x.tutor) === nk(me.name) && nk(x.name) === nk(sub)))) return fail("That subject isn't on your cards.", 403);
+    const key = nk(sub) + "|" + nk(tk);
+    await writeKv("lhq_obj", old => { const o = Object.assign({}, old); if (l.length) o[key] = { sub, tk, l, by: me.name, at: now }; else delete o[key]; return o; });
+    await act(me, "teaching", "obj.set", `${l.length ? "Set" : "Cleared"} the objectives for ${sub} · ${tk}${l.length ? " · " + l.length : ""}`, "logs", key);
+    return json({ ok: true });
+  }
+  if (b.action === "fu") {   // a follow-up on a weak topic: reteach next session, retest, or take-home sheets; earlier SRA marks never change
+    const all = (await store().get("kv/lhq_fu", { type: "json" })) || {}, ACT = { reteach: "Reteach next session", retest: "Retest", take: "Take-home" };
+    if (b.op === "add") {
+      const k = String(b.k || ""); if (!d.keys.has(k)) return fail("That student isn't on your cards.", 403);
+      if (!ACT[b.act]) return fail("Which follow-up?");
+      const by = /^\d{4}-\d{2}-\d{2}$/.test(String(b.by || "")) ? b.by : ""; if (!by) return fail("By when?");
+      const id = "f" + now.toString(36), f = { id, k, st: txt0(b.st, 80), sub: txt0(b.sub, 60), tk: txt0(b.tk, 120), act: b.act, tutor: me.name, set: mwToday(), by, foc: txt0(b.foc, 120), before: Math.max(0, Math.min(100, Math.round(Number(b.before) || 0))), at: now };
+      await writeKv("lhq_fu", old => Object.assign({}, old, { [id]: f }));
+      await act(me, "teaching", "fu.add", `Follow-up · ${ACT[f.act]} · ${f.st} · ${f.sub} · ${f.tk} · by ${dayL(by)}`, "logs", id);
+      return json({ ok: true, id, f });
+    }
+    const cur = all[b.id]; if (!cur || cur.x || !d.keys.has(cur.k)) return fail("That follow-up isn't here any more.", 404);
+    if (b.op === "res") {   // the retest mark, or the take-home sheets' own mark
+      const pc = Math.round(Number(b.pc)); if (!(pc >= 0 && pc <= 100)) return fail("Check the mark.");
+      const dd = /^\d{4}-\d{2}-\d{2}$/.test(String(b.d || "")) ? b.d : mwToday(), f = Object.assign({}, cur, cur.act === "take" ? { th: { pc, d: dd } } : { res: { pc, d: dd, at: now } });
+      await writeKv("lhq_fu", old => Object.assign({}, old, { [cur.id]: f }));
+      await act(me, "teaching", "fu.res", `${cur.act === "take" ? "Take-home sheets" : "Retest"} · ${cur.st} · ${cur.tk} · ${pc}% (was ${cur.before}%)`, "logs", cur.id);
+      return json({ ok: true, f });
+    }
+    if (b.op === "del") {
+      await writeKv("lhq_fu", old => Object.assign({}, old, { [cur.id]: Object.assign({}, cur, { x: now }) }));
+      await act(me, "teaching", "fu.del", `Removed a follow-up · ${cur.st} · ${cur.tk}`, "logs", cur.id);
+      return json({ ok: true });
+    }
+    return fail("Unknown follow-up action.");
+  }
   if (b.action === "askmove") {
     const k = String(b.k || ""); if (!d.keys.has(k)) return fail("That student isn't on your cards.", 403);
     const id = "q" + now.toString(36), st = txt0(b.st, 80), sub = txt0(b.sub, 60), dd = /^\d{4}-\d{2}-\d{2}$/.test(String(b.d || "")) ? b.d : "", why = txt0(b.why, 120);

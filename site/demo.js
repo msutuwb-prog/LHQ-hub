@@ -283,7 +283,18 @@
       if(i % 2 === 0) lhq_plan[k] = {bdemo1: {id: 'bdemo1', name: 'Revision', type: 'rev', sub: SB[i % 5], s: '19:00', e: '20:00', rep: 'weekdays', days: [], from: iso(new Date(T - 20 * DAY)), until: '', at: T - 20 * DAY},
         bdemo2: {id: 'bdemo2', name: 'Football', type: 'act', sub: '', s: '16:00', e: '17:30', rep: 'days', days: [3, 6], from: iso(new Date(T - 20 * DAY)), until: '', busy: 1, sh: 'busy', rem: [15], at: T - 20 * DAY},
         bdemo3: {id: 'bdemo3', all: 1, name: 'School sports day', type: 'school', sub: '', from: iso(new Date(T + 7 * DAY)), to: '', busy: 1, sh: 'all', cd: 1, at: T - 20 * DAY}}; });
-    return {docs, trash, people:PEOPLE, kv:{lhq_focus, lhq_plan, lhq_treps:{e:treps}, lhq_makeups:makeups, lhq_students:recs, lhq_logs:{e:logs, imports}, lhq_counters:{quote:C.quote, invoice:C.invoice, receipt:C.receipt + 1, card:C.card}, lhq_spend:money.spend, lhq_budget:money.budget, lhq_targets:targets, lhq_pay:{
+    /* follow-ups on weak topics (no random draws, so the rest of the demo stays the same) and objectives on recent ARSs where the topic is a syllabus chapter */
+    const chap = tk => { for(const L of Object.keys(window.TOPICS || {})) for(const n of Object.keys(TOPICS[L])){ const c = ((TOPICS[L][n] || {}).topics || []).find(t => t && t.sub && t.t === tk); if(c) return c.sub.map(x => x.t); } return null; };
+    Object.values(logs).forEach((e, i) => { if(e.ty !== 'r' || e.na || !(+e.ao > 0) || e.d < iso(new Date(T - 45 * DAY))) return; const L = chap(e.tk); if(!L) return;
+      const om = {}; L.forEach((n, j) => { const h = (i * 31 + j * 17) % 10; om[n] = h < 6 ? 2 : h < 8 ? 1 : 0; }); e.om = om; e.ao = L.length; e.ars = L.reduce((a, n) => a + om[n], 0) / 2; });
+    const lhq_fu = {}, pcOf = e => e.mx ? Math.round(e.sc / e.mx * 100) : null, seenFu = new Set(), ACTS = ['retest', 'reteach', 'take'];
+    const FC = Object.values(logs).filter(e => e.ty === 'r' && e.h !== 'm' && pcOf(e) != null && pcOf(e) < 60 && e.d >= iso(new Date(T - 40 * DAY)) && e.d <= iso(new Date(T - 3 * DAY))).sort((a, b) => a.d.localeCompare(b.d)).filter(e => { const key = e.k + '|' + e.tk; if(seenFu.has(key)) return false; seenFu.add(key); return true; });
+    FC.slice(0, 8).concat(FC.length > 14 ? FC.slice(-6) : []).forEach((e, i) => {
+      const act = ACTS[i % 3], id = 'fdemo' + i, by = iso(new Date(new Date(e.d + 'T12:00:00').getTime() + (act === 'take' ? 7 : 14) * DAY)), f = {id, k: e.k, st: e.st, sub: e.sub, tk: e.tk, act, tutor: e.tutor, set: e.d, by, foc: '', before: pcOf(e), at: new Date(e.d + 'T18:00:00').getTime()};
+      if(act === 'retest' && by < iso(now) && i % 4) f.res = {pc: Math.min(100, pcOf(e) + (i % 2 ? 22 : 4)), d: by, at: f.at + 14 * DAY};
+      if(act === 'take' && i % 2) f.th = {pc: 70 + i % 20, d: by};
+      lhq_fu[id] = f; });
+    return {docs, trash, people:PEOPLE, kv:{lhq_fu, lhq_focus, lhq_plan, lhq_treps:{e:treps}, lhq_makeups:makeups, lhq_students:recs, lhq_logs:{e:logs, imports}, lhq_counters:{quote:C.quote, invoice:C.invoice, receipt:C.receipt + 1, card:C.card}, lhq_spend:money.spend, lhq_budget:money.budget, lhq_targets:targets, lhq_pay:{
       place: Object.fromEntries([...new Set(Object.values(POOL).flat())].map(n => [n.toLowerCase(), [{p: ['Catherine Mkwinda','Emmanuel Mkwamba'].includes(n) ? 'full' : 'part', from: '2026-01-01'}]])),
       items: {pi1: {id: 'pi1', tutor: 'Peter Mvula', m: iso(new Date(T)).slice(0, 7), kind: 'advance', amt: 30000, label: 'Advance', d: iso(new Date(T - 4 * DAY)), by: 'Wanangwa Msutu', at: T - 4 * DAY},
         pi2: {id: 'pi2', tutor: 'Emmanuel Mkwamba', m: iso(new Date(T)).slice(0, 7), kind: 'allowance', amt: 10000, label: 'Transport · exam invigilation', d: iso(new Date(T - 2 * DAY)), by: 'Wanangwa Msutu', at: T - 2 * DAY}}}}};

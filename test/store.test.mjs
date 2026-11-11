@@ -594,6 +594,24 @@ test("phone notifications: devices, choices, events, quiet hours and the 07:00 s
   const c2 = (await call("family", { action: "calopt", inc: { blk: 1 }, renew: 1 }, stu)).j; assert.notEqual(c2.link, cal.link);
   assert.equal((await hub(new Request("http://x" + cal.link), {})).status, 404, "the old link stops");
   ics = await (await hub(new Request("http://x" + c2.link), {})).text(); assert.match(ics, /SUMMARY:Swimming/, "blocks when chosen");
+  /* ARS by objective: off until the Director turns it on; a topic's objectives are kept for every student of that subject */
+  let tj = (await call("tutor", null, tok, "GET")).j; assert.equal(tj.obj.on, false, "off by default");
+  const set1 = (await call("state", null, DIR, "GET")).j.kv.lhq_settings || {};
+  assert.equal((await call("sync", { kv: { lhq_settings: Object.assign({}, set1, { obj: { on: true, subs: ["Geography"] } }) } }, DIR)).status, 200);
+  assert.equal((await call("tutor", { action: "obj", sub: "Geography", tk: "Rivers", l: ["Erosion", " ", "Deposition"] }, tok)).status, 200);
+  assert.equal((await call("tutor", { action: "obj", sub: "Latin", tk: "Verbs", l: ["Tenses"] }, tok)).status, 403, "only their own subjects");
+  tj = (await call("tutor", null, tok, "GET")).j; assert.equal(tj.obj.on, true); assert.deepEqual(tj.obj.L["geography|rivers"].l, ["Erosion", "Deposition"]);
+  /* follow-ups: the tutor sets one on a weak topic; a retest result closes it; take-home marks stand alone; earlier marks never change */
+  const fa = await call("tutor", { action: "fu", op: "add", k: "kettie gondwe|geography", st: "Kettie Gondwe", sub: "Geography", tk: "Rivers", act: "retest", by: day(7), before: 48 }, tok); assert.equal(fa.status, 200, JSON.stringify(fa.j));
+  assert.equal((await call("tutor", { action: "fu", op: "add", k: "someone|else", act: "retest", by: day(7) }, tok)).status, 403, "only their own students");
+  assert.equal((await call("tutor", { action: "fu", op: "add", k: "kettie gondwe|geography", act: "clinic", by: day(7) }, tok)).status, 400, "no clinics");
+  assert.equal((await call("tutor", { action: "fu", op: "res", id: fa.j.id, pc: 140 }, tok)).status, 400, "a mark out of 100");
+  const fr = await call("tutor", { action: "fu", op: "res", id: fa.j.id, pc: 71 }, tok); assert.equal(fr.j.f.res.pc, 71);
+  const ft = await call("tutor", { action: "fu", op: "add", k: "kettie gondwe|geography", st: "Kettie Gondwe", sub: "Geography", tk: "Coasts", act: "take", by: day(5), before: 52 }, tok);
+  const ftr = await call("tutor", { action: "fu", op: "res", id: ft.j.id, pc: 80 }, tok); assert.equal(ftr.j.f.th.pc, 80, "take-home: its own mark"); assert.ok(!ftr.j.f.res, "doesn't close it");
+  tj = (await call("tutor", null, tok, "GET")).j; assert.equal(tj.fu.length, 2);
+  assert.equal((await call("tutor", { action: "fu", op: "del", id: ft.j.id }, tok)).status, 200); assert.equal((await call("tutor", null, tok, "GET")).j.fu.length, 1, "removed");
+  assert.ok(((await call("state", null, DIR, "GET")).j.kv.lhq_fu || {})[fa.j.id], "the Director sees them");
   const st = (await call("state", null, DIR, "GET")).j; assert.ok(!st.kv.lhq_push, "devices never go to anyone's browser");
   hubMod._setPushSender(null);
 });

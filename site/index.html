@@ -47,6 +47,7 @@ if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash)
 <script src="tpay.js"></script>
 <script src="tpayui.js"></script>
 <script src="srafig.js"></script>
+<script src="fu.js"></script>
 <script src="push.js"></script>
 <script src="teach.js"></script>
 <script src="famdocs.js"></script>
@@ -497,7 +498,7 @@ function render(){
   if(render.lastH !== location.hash){ document.documentElement.classList.remove('lean-open'); render.lastH = location.hash; }
   if(me().role === 'tutor' && !['teach','settings','set','exams'].includes(route.page)){ location.replace('#teach'); route = {page:'teach', args:[]}; }
   if(['student','parent'].includes(me().role) && !['me','settings','set','exams'].includes(route.page)){ location.replace('#me'); route = {page:'me', args:[]}; }
-  const sec = route.page === 'me' ? ({practice:'mprac', calendar:'mcal', progress:'mprog', sessions:'mprog', subject:'mprog', payments:'mpay', more:'more', habits: me().role === 'parent' ? 'more' : 'mprog', day:'mcal', week:'mcal', year:'mcal', blk:'mcal', review:'mprog', school:'mprog', reflect:'mprog', sounds:'more', sharing:'more', callink:'more', focus:'mfocus', report:'mrep', reminders:'more', bar:'more'}[route.args[0]] || 'me') : route.page === 'teach' && me().role === 'tutor' ? ({sra:'tsra', report:'trep', cal:'tcal', avail:'tcal'}[route.args[0]] || 'teach') : {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', teach:'teach', tutors:'tutors', bookings:'tutors', reqs:'tutors', sessions:'tutors', confirm:'tutors', clashes:'tutors', calendar:'calendar', says:'tutors', more:'more'}[route.page] || route.page;
+  const sec = route.page === 'me' ? ({practice:'mprac', calendar:'mcal', progress:'mprog', sessions:'mprog', subject:'mprog', payments:'mpay', more:'more', habits: me().role === 'parent' ? 'more' : 'mprog', day:'mcal', week:'mcal', year:'mcal', blk:'mcal', review:'mprog', school:'mprog', reflect:'mprog', sounds:'more', sharing:'more', callink:'more', focus:'mfocus', report:'mrep', reminders:'more', bar:'more'}[route.args[0]] || 'me') : route.page === 'teach' && me().role === 'tutor' ? ({sra:'tsra', fu:'tsra', report:'trep', cal:'tcal', avail:'tcal'}[route.args[0]] || 'teach') : {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', srafig:'reports', fu:'reports', teach:'teach', tutors:'tutors', bookings:'tutors', reqs:'tutors', sessions:'tutors', confirm:'tutors', clashes:'tutors', calendar:'calendar', says:'tutors', more:'more'}[route.page] || route.page;
   LHQNav.section(sec);
   const m = $('main');
   m.className = 'main' + (['edithome','new','tutors','teach'].includes(route.page) ? ' narrow' : '');
@@ -591,6 +592,7 @@ function attention(list){
     { const L7 = Object.values((store.get('lhq_logs', {e:{}}) || {}).e || {}).filter(e => e && !e.x && e.ty === 's' && e.a === 'late' && e.d >= addDays(t, -6)), byS = {};
       L7.forEach(e => { (byS[e.k.split('|')[0]] = byS[e.k.split('|')[0]] || []).push(e); });
       Object.values(byS).filter(L => L.length >= 2).forEach(L => out.push({w:0, g:'late2', s:{name:`${L[0].st} late ${L.length} times this week`}, href:stuLink(L[0].k.split('|')[0], 'sessions'), ico:'clock', col:'--am', sub:L.map(e => `${e.sub} · ${nice(e.d)}`).join(' · ')})); }
+    if(window.FUP && (isDir() || can('tutors'))){ const O = FUP.overdue(); if(O.length) out.push({w:0, s:{name:`${O.length} follow-up${O.length === 1 ? '' : 's'} overdue`}, href:'#fu', ico:'clock', col:'--am', sub:O.slice(0, 3).map(f => `${f.st} · ${f.tk} · ${f.tutor}`).join(' · ')}); }
     { const A = Object.values(store.get('lhq_asks', {}) || {}).filter(a => a && !a.done); if(A.length) out.push({w:-1, s:{name: A.length === 1 ? `${A[0].st}: move ${A[0].sub} on ${nice(A[0].d)}?` : `${A.length} sessions tutors asked to move`}, href:'#asks', ico:'clock', col:'--am', sub: A.slice(0, 2).map(a => `${a.st} · ${a.why || a.sub} · ${a.tutor}`).join(' · ')}); }
     const behind = sessionRows().filter(r => r.T.behind >= 2);
     if(behind.length) out.push({w:-1, s:{name:`${behind.length} student${behind.length === 1 ? '' : 's'} behind on sessions`}, href:'#sessions/behind', ico:'clock', col:'--am', sub:behind.slice(0, 3).map(r => `${r.it.st} · ${r.it.sub} ${r.T.behind} behind`).join(' · '), btn:['See', '#sessions/behind']});
@@ -1412,6 +1414,7 @@ LHQSearch.provider = () => {
   if(can('pl') && window.MIN){ const t = today(), q = MIN.periodOf('term', t);
     pages.push({t:'Money in · today', k:'received payments day', href:'#biz/money/d' + t, ic:I('cash')}, {t:'Money in · this week', k:'received payments week', href:'#biz/money/' + MIN.key(MIN.periodOf('week', t)), ic:I('cash')},
       {t:'Money in · this term', k:'received payments school term holiday', href:'#biz/money/' + MIN.key(q), ic:I('cash')}, {t:'Money in · this year', k:'received payments financial year half', href:'#biz/money/' + MIN.key(MIN.periodOf('year', t)), ic:I('cash')}); }
+  if(can('tutors')) pages.push({t:'Topics · hardest first', k:'topic difficulty hardest sra ars assessments', href:'#srafig/topics', ic:I('rep')}, {t:'Follow-ups', k:'follow up reteach retest take-home worked weak topics', href:'#fu', ic:I('rep')});
   if(can('tutors')) pages.push({t:'SRA figures', k:'sra reviews average topics dropping fading handed in ars recall', href:'#srafig', ic:I('rep')});
   if(window.TPAYUI && TPAYUI.may()) pages.push({t:'Tutor pay', k:'pay payslip salary allowance advance deduction bonus overtime cap', href:'#pay', ic:I('cash')});
   if(window.KPIUI && KPIUI.may()) pages.push({t:'Tutor KPIs', k:'performance falling short slipping meeting observation review renewals', href:'#kpi', ic:I('users')});
@@ -1448,7 +1451,8 @@ P.me = (sub, a1, a2) => FAM.page(sub, a1, a2);
 P.kpi = a1 => KPIUI.route(a1);
 /* tutor pay (tpay.js, tpayui.js): the Director, and Admin with Tutor pay */
 P.pay = a1 => TPAYUI.route(a1);
-P.srafig = () => SRAFIG.page();
+P.srafig = a1 => a1 === 'topics' ? SRAFIG.topicsPage() : SRAFIG.page();
+P.fu = () => { SRAFIG.ensure(); return FUP.page(); };
 P.sounds = () => SOUNDS.page('#set/notifications');
 /* tutors' requests to move a session that falls on a student's busy date: LHQ moves it (from Calendar › Clashes or the card) or keeps it */
 P.asks = () => { const L = Object.values(store.get('lhq_asks', {}) || {}).filter(a => a && !a.done).sort((a, b) => a.d.localeCompare(b.d)), D = Object.values(store.get('lhq_asks', {}) || {}).filter(a => a && a.done).sort((a, b) => b.done - a.done).slice(0, 10);
@@ -1506,7 +1510,9 @@ S.terms = () => { const L = termDraft || (window.MIN ? MIN.terms() : []).map(t =
 let bandSc = 'al', exTab = 'series', topDraft = null;
 S.tpay = () => TPAYUI.settings();
 S.teachset = () => { const c = settingsKV(), sw = (id, on, t, sub) => `<div class="it"><span class="t"><b>${t}</b><small>${sub}</small></span><button class="lp-sw${on ? ' on' : ''}" id="${id}" role="switch" aria-checked="${on}" aria-label="${t}"></button></div>`;
-  return `<h2 class="sec-h">Teaching</h2><div class="card">${sw('tsSee', !!c.tsee, 'Tutors see focus and study', 'Each student\'s weekly totals · students can hide theirs')}</div><p class="sec-p">Never block names, times or topics. Dates and busy times students choose to share reach their tutors either way.</p>`; };
+  return `<h2 class="sec-h">Teaching</h2><div class="card">${sw('tsSee', !!c.tsee, 'Tutors see focus and study', 'Each student\'s weekly totals · students can hide theirs')}</div><p class="sec-p">Never block names, times or topics. Dates and busy times students choose to share reach their tutors either way.</p>
+    <div class="card">${sw('tsObj', !!(c.obj || {}).on, 'ARS by objective', 'Tutors tap what wasn\'t recalled')}</div>${(c.obj || {}).on ? (() => { const on = (c.obj.subs || []), all = [...new Set(saved.filter(d => d.type === 'card').flatMap(d => (d.subjects || []).map(x => x.name)).filter(Boolean))].sort();
+      return `<div class="h2">Subjects <em>${on.length ? on.length : 'all'}</em></div><div class="chips">${all.map(x => `<button class="chip${on.some(y => SCHED.nk(y) === SCHED.nk(x)) ? ' on' : ''}" data-tsobs="${esc(x)}">${esc(x)}</button>`).join('')}</div><p class="sec-p">None ticked: every subject.</p>`; })() : '<p class="sec-p">Off: the ARS is one number. Turn on once tutors are briefed.</p>'}`; };
 S.kpi = () => { const c = KPI.conf(settingsKV()), sw = (id, on, t, sub) => `<div class="it"><span class="t"><b>${t}</b><small>${sub}</small></span><button class="lp-sw${on ? ' on' : ''}" id="${id}" role="switch" aria-checked="${on}" aria-label="${t}"></button></div>`;
   return `<h2 class="sec-h">Tutor KPIs</h2><div class="h2">Who sees it</div><div class="card">${sw('kAdm', c.admin, 'Admin', 'All tutors · with Tutors access')}${sw('kTut', c.tutors, 'Tutors', 'Their own · Week and Month')}</div>
     <div class="h2">Targets</div><div class="card pad">${KPI.CORE.map(([id, n]) => `<div class="it" style="padding:6px 0"><span class="t">${esc(n)}</span><input class="in" style="width:80px;text-align:right" inputmode="numeric" data-ktg="${id}" value="${c.tg[id]}"> %</div>`).join('')}</div>
@@ -1842,6 +1848,8 @@ function bind(){
   document.querySelectorAll('[data-bsc]').forEach(b => b.onclick = () => { bandSc = b.dataset.bsc; render(); });
   const kSaveConf = patch => saveSettings({kpi: Object.assign({}, settingsKV().kpi || {}, patch)});
   if($('tsSee')) $('tsSee').onclick = () => { saveSettings({tsee: !settingsKV().tsee}); render(); };
+  if($('tsObj')) $('tsObj').onclick = () => { const o = Object.assign({subs: []}, settingsKV().obj); o.on = !o.on; saveSettings({obj: o}); render(); };
+  document.querySelectorAll('[data-tsobs]').forEach(b => b.onclick = () => { const o = Object.assign({subs: []}, settingsKV().obj), x = b.dataset.tsobs, has = (o.subs || []).some(y => SCHED.nk(y) === SCHED.nk(x)); o.subs = has ? o.subs.filter(y => SCHED.nk(y) !== SCHED.nk(x)) : (o.subs || []).concat(x); saveSettings({obj: o}); render(); });
   document.querySelectorAll('[data-askd]').forEach(b => b.onclick = async () => { const [id, how] = b.dataset.askd.split('|'); try{ await hub.api('asks', {method: 'POST', body: JSON.stringify({id, how})}); await hub.pull(); toast(how === 'moved' ? 'Marked moved · tutor told' : 'Kept · tutor told'); render(); }catch(e){ toast(e.message); } });
   if($('kAdm')) $('kAdm').onclick = () => { kSaveConf({admin: !KPI.conf(settingsKV()).admin}); render(); };
   if($('kTut')) $('kTut').onclick = () => { kSaveConf({tutors: !KPI.conf(settingsKV()).tutors}); render(); };
@@ -1867,7 +1875,8 @@ function bind(){
     EXUI.targetSheet({k, name: s0.name || it.st, sub: it.sub, i: EXUI.info(k, EXUI.staffPack([it], E), M.w), onSaved: async () => { await hub.pull(); render(); }}); });
   if(route.page === 'exams' && window.EXUI) EXUI.bindTimetable(render);
   if(route.page === 'kpi' && window.KPIUI) KPIUI.bindDir();
-  if(window.SRAFIG && (route.page === 'srafig' || route.page === 'student')) SRAFIG.bind();
+  if(window.SRAFIG && (route.page === 'srafig' || route.page === 'student')){ SRAFIG.bind(); SRAFIG.tdBind(); }
+  if(window.FUP && route.page === 'fu') FUP.bind();
   if(window.REV && route.page === 'student') REV.bindLHQ();
   if(window.SOUNDS && route.page === 'sounds') SOUNDS.bind();
   if(window.TPAYUI && (route.page === 'pay' || (route.page === 'set' && /tpay/.test(location.hash)))) TPAYUI.bind();

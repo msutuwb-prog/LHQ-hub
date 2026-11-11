@@ -43,6 +43,9 @@ window.TUT = (function(){
 .t-x{border:0;background:none;color:var(--muted);font-size:20px;line-height:1;padding:2px 6px;cursor:pointer}
 .t-tl .tm{width:44px;flex:none;font-weight:800;font-size:13px;color:var(--muted)}
 .t-ico{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;flex:none;font-weight:800}
+.t-obl{border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:10px}.t-ob{display:flex;align-items:center;gap:12px;width:100%;padding:10px 12px;border:0;border-top:1px solid var(--line2);background:none;font:inherit;color:var(--ink);text-align:left;cursor:pointer}.t-ob:first-child{border-top:0}.t-ob:hover{background:var(--hover)}
+.t-obm{width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-weight:900;flex:none;font-size:13px}.t-obm.o2{background:var(--ok);color:#fff}.t-obm.o1{background:var(--am-bg);color:var(--am);box-shadow:inset 0 0 0 2px var(--am)}.t-obm.o0{background:var(--rd-bg);color:var(--rd);box-shadow:inset 0 0 0 2px var(--rd)}
+.t-obt{display:flex;align-items:center;gap:10px;margin-bottom:10px}.t-obt b{font-size:16px}.t-obt span{flex:1;color:var(--brand);font-weight:800}
 .t-ars{display:grid;grid-template-columns:auto auto 64px 1fr;gap:10px;align-items:center}.t-ars>span{color:var(--muted)}.t-ars>b{color:var(--brand);font-size:17px;text-align:right}.t-stp{display:flex;align-items:center;gap:6px}.t-stp button{width:42px;height:42px;border-radius:12px;border:1.5px solid var(--line);background:var(--surface);color:var(--ink);font:inherit;font-size:20px;font-weight:800;cursor:pointer}.t-stp b{min-width:46px;text-align:center;font-size:22px;color:var(--ink)}
 .t-score{display:grid;grid-template-columns:1fr auto 1fr 56px;gap:8px;align-items:center}.t-score span{color:var(--muted)}.t-score b{color:var(--brand);font-size:17px;text-align:right}
 .t-marks{display:grid;grid-template-columns:1fr 78px 56px;gap:8px;align-items:center}.t-marks .nm{font-weight:700}.t-marks b{text-align:right;color:var(--brand)}
@@ -70,6 +73,7 @@ window.TUT = (function(){
 .t-w5 i.f,.t-lg i.f{background:var(--accent)}.t-w5 i.p,.t-lg i.p{background:var(--gold)}.t-lg{display:flex;gap:12px;font-size:11.5px;color:var(--muted);margin-top:4px}.t-lg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:4px;vertical-align:-1px}
 .t-tk{width:28px;height:28px;border-radius:50%;border:2px solid var(--line);background:var(--surface);flex:none;cursor:pointer;color:#fff;font-weight:900}.t-tk.on{background:var(--ok);border-color:var(--ok)}.cal-d .t-star{position:absolute;top:2px;right:4px;font-style:normal;font-size:10px;color:var(--gold)}.cal-d{position:relative}
 .t-sgrid{display:grid;grid-template-columns:minmax(0,1.5fr) repeat(6,minmax(0,1fr));gap:4px;font-size:12px;align-items:center}
+.t-sgrid .t-tl{cursor:pointer;border-radius:6px}.t-sgrid .t-tl:hover{background:var(--hover)}
 .t-sgrid .h{font-size:10px;font-weight:800;color:var(--muted);text-align:center}.t-sgrid .t{font-weight:700;font-size:12.5px}
 .t-sgrid .c{text-align:center;border-radius:6px;padding:4px 0;font-weight:800}
 .t-sec{margin-bottom:14px}.t-sec.ed{border:1.5px dashed var(--line);border-radius:18px;padding:8px}
@@ -91,7 +95,7 @@ window.TUT = (function(){
     if(loading) return loading;
     loading = (async () => {
       await flush();
-      try{ const j = await hub.api('tutor'); data = {cards: j.cards || [], entries: j.entries || [], classes: j.classes || [], reports: j.reports || [], avail: j.avail || [], acks: j.acks || {}, gone: j.gone || [], ackFrom: j.ackFrom || 0, calLink: j.calLink || '', makeups: j.makeups || [], reqs: j.reqs || {}, clashes: j.clashes || [], says: j.says || null, sradone: j.sradone || {}, notices: j.notices || [], exam: j.exam || null, kpiOn: !!j.kpiOn, sx: j.sx || {}, tsee: !!j.tsee, asks: j.asks || [], at: Date.now()}; write(CK, data); err = ''; }
+      try{ const j = await hub.api('tutor'); data = {cards: j.cards || [], entries: j.entries || [], classes: j.classes || [], reports: j.reports || [], avail: j.avail || [], acks: j.acks || {}, gone: j.gone || [], ackFrom: j.ackFrom || 0, calLink: j.calLink || '', makeups: j.makeups || [], reqs: j.reqs || {}, clashes: j.clashes || [], says: j.says || null, sradone: j.sradone || {}, notices: j.notices || [], exam: j.exam || null, kpiOn: !!j.kpiOn, sx: j.sx || {}, tsee: !!j.tsee, asks: j.asks || [], obj: j.obj || {on: false, subs: [], L: {}}, fu: j.fu || [], at: Date.now()}; write(CK, data); err = ''; }
       catch(e){ err = navigator.onLine ? e.message : 'offline'; }
       loading = null; if(!form) render();
     })();
@@ -152,15 +156,31 @@ window.TUT = (function(){
   /* ARS (Active Recall Sheet): done from memory before every SRA, on paper; the Hub keeps the total, in ½ steps, out of the topic's objectives */
   const half = v => v == null || v === '' ? '–' : +v === .5 ? '½' : String(Math.floor(+v)) + (+v % 1 ? '½' : '');
   const aoOf = tk => { const L = live().filter(e => e.ty === 'r' && e.tk === tk && +e.ao > 0).sort((a, b) => (b.at || 0) - (a.at || 0) || (b.d || '').localeCompare(a.d || '')); return L.length ? String(L[0].ao) : ''; };
-  const arsHTML = (a, card = true) => { const p = !a.na && a.ars != null && +a.ao > 0 ? pct(a.ars, a.ao) : '';
-    const inner = `<div class="cap">ARS <small style="text-transform:none;letter-spacing:0">· recall before the SRA</small></div>${a.na ? '' : `<div class="t-ars"><div class="t-stp"><button type="button" data-ars="m" aria-label="Half a mark less">−</button><b>${half(a.ars)}</b><button type="button" data-ars="p" aria-label="Half a mark more">+</button></div><span>of</span><input class="in" data-arso inputmode="numeric" value="${esc(a.ao || '')}" placeholder="?" aria-label="ARS out of"><b>${p}</b></div><p class="note" style="margin:6px 0 10px">Out of: the topic's objectives · kept for the topic</p>`}
-      <button type="button" role="checkbox" aria-checked="${!!a.na}" class="t-opt${a.na ? ' on' : ''}" data-ars="na"><span class="t-ind s"></span><span class="tx">No ARS handed in<small>The SRA marks still save</small></span></button>`;
+  /* ARS by objective (Director switch, per subject): tap what wasn't recalled, ✓ → ½ → ✕; the score is the objectives recalled, ½ counts half */
+  const OBJ = () => (data && data.obj) || {on: false, subs: [], L: {}};
+  const objOn = sub => { const o = OBJ(); return !!sub && o.on && (!(o.subs || []).length || o.subs.some(x => SCHED.nk(x) === SCHED.nk(sub))); };
+  const defObj = tk => { const T = window.TOPICS || {}; for(const L of Object.keys(T)) for(const n of Object.keys(T[L])){ const c = ((T[L][n] || {}).topics || []).find(t => t && t.sub && SCHED.nk(t.t) === SCHED.nk(tk)); if(c) return c.sub.map(x => x.t); } return []; };
+  const objList = (sub, tk) => { const v = (OBJ().L || {})[SCHED.nk(sub) + '|' + SCHED.nk(tk)]; return v && (v.l || []).length ? v.l : defObj(tk); };
+  const OBM = ['✕', '½', '✓'];
+  const omSync = a => { if(a.na || !objOn(a.osub)) return null; const L = objList(a.osub, a.otk); if(!L.length) return null;
+    const o = {}; L.forEach(n => o[n] = a.om && a.om[n] != null ? +a.om[n] : 2); a.om = o; a.ao = String(L.length); a.ars = L.reduce((s, n) => s + o[n], 0) / 2; return L; };
+  const arsHTML = (a, card = true) => { const L = omSync(a), p = !a.na && a.ars != null && +a.ao > 0 ? pct(a.ars, a.ao) : '';
+    const edit = `<div class="cap">Objectives · ${esc(a.otk || '')}</div><textarea class="in" data-arsl rows="6" placeholder="One per line">${esc((a.otk ? objList(a.osub, a.otk) : []).join('\n'))}</textarea><p class="note" style="margin:6px 0 8px">Kept for the topic · every student</p><div style="display:flex;gap:8px"><button type="button" class="btn" style="flex:1" data-ars="edx">Cancel</button><button type="button" class="btn n" style="flex:1" data-ars="eds">Save objectives</button></div>`;
+    const objs = L ? `<div class="cap">ARS <small style="text-transform:none;letter-spacing:0">· tap what wasn't recalled</small></div><div class="t-obl">${L.map((n, i) => `<button type="button" class="t-ob" data-ars="o${i}"><span class="t-obm o${a.om[n]}">${OBM[a.om[n]]}</span><span>${esc(n)}</span></button>`).join('')}</div>
+      <div class="t-obt"><b>ARS ${half(a.ars)} / ${L.length}</b><span>${p}</span><button type="button" class="btn sm" data-ars="ed">${PEN()}</button></div>` : '';
+    const num = `<div class="cap">ARS <small style="text-transform:none;letter-spacing:0">· recall before the SRA</small></div>${a.na ? '' : `<div class="t-ars"><div class="t-stp"><button type="button" data-ars="m" aria-label="Half a mark less">−</button><b>${half(a.ars)}</b><button type="button" data-ars="p" aria-label="Half a mark more">+</button></div><span>of</span><input class="in" data-arso inputmode="numeric" value="${esc(a.ao || '')}" placeholder="?" aria-label="ARS out of"><b>${p}</b></div><p class="note" style="margin:6px 0 10px">Out of: the topic's objectives · kept for the topic</p>${objOn(a.osub) && a.otk ? `<button type="button" class="btn sm" data-ars="ed" style="margin-bottom:10px">${ic('plus',14,2.4)} Add the objectives</button>` : ''}`}`;
+    const naB = `<button type="button" role="checkbox" aria-checked="${!!a.na}" class="t-opt${a.na ? ' on' : ''}" data-ars="na"><span class="t-ind s"></span><span class="tx">No ARS handed in<small>The SRA marks still save</small></span></button>`;
+    const inner = a.edObj ? edit : (objs || num) + naB;
     return card ? `<div class="card pad">${inner}</div>` : `<div style="margin-top:14px">${inner}</div>`; };
-  const bindArs = (root, a, again) => { root.querySelectorAll('[data-ars]').forEach(b => b.onclick = () => { const k = b.dataset.ars, mx = +a.ao > 0 ? +a.ao : 99;
-      if(k === 'na') a.na = !a.na; else if(k === 'p') a.ars = Math.min(mx, a.ars == null ? .5 : +a.ars + .5); else a.ars = Math.max(0, a.ars == null ? 0 : +a.ars - .5); again(); });
+  const bindArs = (root, a, again) => { root.querySelectorAll('[data-ars]').forEach(b => b.onclick = async () => { const k = b.dataset.ars, mx = +a.ao > 0 ? +a.ao : 99;
+      if(/^o\d+$/.test(k)){ const L = objList(a.osub, a.otk), n = L[+k.slice(1)]; if(n != null) a.om[n] = (a.om[n] + 2) % 3; }
+      else if(k === 'ed') a.edObj = true; else if(k === 'edx') a.edObj = false;
+      else if(k === 'eds'){ const t = root.querySelector('[data-arsl]'), l = (t ? t.value : '').split('\n').map(x => x.trim()).filter(Boolean);
+        try{ await hub.api('tutor', {method: 'POST', body: JSON.stringify({action: 'obj', sub: a.osub, tk: a.otk, l})}); const o = OBJ(); o.L = o.L || {}; const key = SCHED.nk(a.osub) + '|' + SCHED.nk(a.otk); if(l.length) o.L[key] = {sub: a.osub, tk: a.otk, l}; else delete o.L[key]; if(data){ data.obj = o; write(CK, data); } a.edObj = false; a.om = null; toast('Objectives saved'); }catch(e){ toast(e.message); return; } }
+      else if(k === 'na') a.na = !a.na; else if(k === 'p') a.ars = Math.min(mx, a.ars == null ? .5 : +a.ars + .5); else a.ars = Math.max(0, a.ars == null ? 0 : +a.ars - .5); again(); });
     const o = root.querySelector('[data-arso]'); if(o) o.onchange = () => { const v = parseInt(o.value, 10); a.ao = v > 0 ? String(Math.min(v, 40)) : ''; if(a.ars != null && +a.ao > 0) a.ars = Math.min(+a.ars, +a.ao); again(); }; };
   const arsOk = a => a.na || (a.ars != null && +a.ao > 0 && +a.ars <= +a.ao);
-  const arsTo = (e, a) => { delete e.ars; delete e.ao; delete e.na; if(a.na) e.na = 1; else { e.ars = +a.ars; e.ao = +a.ao; } return e; };
+  const arsTo = (e, a) => { delete e.ars; delete e.ao; delete e.na; delete e.om; if(a.na) e.na = 1; else { const L = omSync(a); e.ars = +a.ars; e.ao = +a.ao; if(L) e.om = Object.assign({}, a.om); } return e; };
   const taught = a => a !== 'absent' && a !== 'cancelled';
   const weekEnd = t => addDays(t, (7 - HD.parseISO(t).getDay()) % 7);
   const weekStart = t => addDays(t, -((HD.parseISO(t).getDay() + 6) % 7));
@@ -290,6 +310,7 @@ window.TUT = (function(){
     tolds().filter(n => n.d >= today() && Date.now() - n.at < 7 * 864e5).forEach(n => info.push({t:`${short(n.name)}: ${n.kind === 'late' ? `about ${n.mins} min late` : "can't come"}`, s:`${n.sub} · ${n.d === today() ? 'today' : nice(n.d)} ${n.s}${n.why ? ' · ' + n.why.toLowerCase() : ''}`, at:n.at, href:'#teach'}));
     Object.values(data.reqs || {}).filter(v => v && v.at && Date.now() - v.at < 7 * 864e5).forEach(v => info.push({t:`${v.item}: ${v.s}`, s:v.note || '', at:v.at, href:'#teach'}));
     (data.entries || []).filter(e => e && e.cf && e.cf.agreed && e.cf.at && Date.now() - e.cf.at < 7 * 864e5 && SCHED.nk(e.tutor) === SCHED.nk(myName())).forEach(e => info.push({t:`${short(e.st)} agreed`, s:`${e.sub} · ${nice(e.d)}`, at:e.cf.at, href:'#teach'}));
+    if(window.FUP) (data.fu || []).filter(f => !f.x && f.by < today() && !FUP.after(f, live())).forEach(f => need.push({t:`Follow-up overdue · ${short(f.st)}`, s:`${f.tk} · ${FUP.ACT[f.act]} · by ${nice(f.by)}`, href:'#teach/fu'}));
     return {need, info};
   }
   /* clashes on their cards: they have the final say */
@@ -471,6 +492,7 @@ window.TUT = (function(){
     if(sub === 'pay') return window.TPAYUI ? TPAYUI.myPay() : '';
     if(sub === 'perf') return `<a class="crumb" href="#teach">‹ Home</a><div class="ph"><div class="tt"><h1>My performance</h1></div></div>${data && data.kpiOn && window.KPIUI ? KPIUI.tutorView(render) : '<p class="empty">Not available.</p>'}`;
     if(sub === 'sra') return sraPage(a1 || 'today');
+    if(sub === 'fu') return fuPage();
     if(sub === 'report') return reportPage();
     if(sub === 'classes') return classesPage();
     if(sub === 'class') return classPage(a1);
@@ -486,6 +508,7 @@ window.TUT = (function(){
     sra:{t:'SRAs today', d:'To give and to collect today', f:() => { const T = SRA.today(sras(), today()); return {href:'#teach/sra', v:`${T.give.length} <small>to give</small>`, s:`${T.collect.length} to collect`}; }},
     collect:{t:'SRAs to collect', d:'Due back, marks still to enter', f:() => { const n = SRA.today(sras(), today()).collect.length; return {href:'#teach/sra', v:`${n} <small>due back</small>`, s:'marks still to enter', warn: n}; }},
     wam:{t:'Assessments to mark', d:'Given, marks not entered', f:() => { const P = pendingWa(); return {href:'#teach/wa', v:`${P.length} <small>waiting</small>`, s: P.length ? 'oldest given ' + nice(P[0].d) : 'all marked', warn: P.some(w => w.d < today())}; }},
+    fu:{t:'Follow-ups', d:'Weak topics: reteach, retest, take-home', f:() => { const E = live(), t = today(), F = (data.fu || []).filter(f => !f.x && !FUP.after(f, E)), o = F.filter(f => f.by < t).length; return {href:'#teach/fu', v:`${F.length} <small>open</small>`, s: o ? o + ' overdue' : 'none overdue', warn: o}; }},
     hours:{t:'Hours this month', d:'From the sessions you logged', f:() => { const m = today().slice(0, 7), seen = new Set(); let h = 0;
       live().filter(e => e.ty === 's' && taught(e.a) && (e.d || '').startsWith(m)).forEach(e => { const g = e.grp || e.id; if(seen.has(g)) return; seen.add(g); h += hoursOf(e); });
       return {href:'#teach/report', v:`${Math.round(h * 10) / 10} <small>h taught</small>`, s:'from logged sessions'}; }},
@@ -576,8 +599,8 @@ window.TUT = (function(){
         <p class="note" style="margin:4px 0 12px">${S.behind ? `<b style="color:var(--am)">${S.behind} behind</b> where ${esc(it.st.split(' ')[0])} should be by today (${S.expected}).` : 'On track for today.'}</p>
         <div class="t-kv"><span>Missed · student absent</span><b>${S.absent}</b><span>Missed · cancelled</span><b>${S.cancelled}</b><span>Make-ups had</span><b>${S.made}</b><span>Make-ups owed</span><b>${S.owed}</b></div></div>`,
       sra: () => `<div class="card pad" style="margin:0"><div class="cap">SRA scores by review <small style="text-transform:none;letter-spacing:0">· %</small></div>
-        ${byT.size ? `<div class="t-sgrid"><span></span>${['LD','R1','R2','R3','R4','R5'].map(h => `<span class="h">${h}</span>`).join('')}${[...byT.entries()].map(([t, X]) => `<span class="t">${esc(t)}</span>${[0,1,2,3,4,5].map(i => cell(X.find(x => x.stage === i))).join('')}`).join('')}</div>
-        <p class="note">Lower than the last review: the topic is fading.</p>` : '<p class="empty" style="margin:0">No topics finished yet.</p>'}</div>`,
+        ${byT.size ? `<div class="t-sgrid"><span></span>${['LD','R1','R2','R3','R4','R5'].map(h => `<span class="h">${h}</span>`).join('')}${[...byT.entries()].map(([t, X]) => `<span class="t t-tl" role="button" tabindex="0" data-ttop="${esc(JSON.stringify({k, tk: t}))}">${esc(t)} ›</span>${[0,1,2,3,4,5].map(i => cell(X.find(x => x.stage === i))).join('')}`).join('')}</div>
+        <p class="note">Lower than the last review: the topic is fading. Tap a topic to follow it up.</p>${(n => n ? `<a class="it" href="#teach/fu" style="padding:8px 0"><span class="t"><b>Follow-ups</b><small>${n} open</small></span><span class="chev">›</span></a>` : '')((data.fu || []).filter(f => f.k === k && !f.x && !FUP.after(f, live())).length)}` : '<p class="empty" style="margin:0">No topics finished yet.</p>'}</div>`,
       wa: () => `<div class="card pad" style="margin:0"><div class="cap">Assessments</div>${W.length ? `<div style="display:flex;align-items:flex-end;gap:8px;height:90px">${W.map((e, i) => { const p = Math.round(e.sc / e.mx * 100); return `<div style="flex:1;text-align:center;font-size:11.5px;font-weight:800;color:var(--muted)" title="${nice(e.d)}"><div style="height:${Math.max(4, p * .7)}px;background:${i === W.length - 1 ? 'var(--gold)' : 'var(--bl-bg)'};border-radius:6px 6px 2px 2px;margin-bottom:4px"></div>${p}%</div>`; }).join('')}</div>` : '<p class="empty" style="margin:0">No marks yet.</p>'}</div>`,
       logs: () => { const E = live().filter(e => e.k === k && ['s','r','w'].includes(e.ty)).sort((a, b) => (b.d || '').localeCompare(a.d || '') || (b.at || 0) - (a.at || 0)).slice(0, 8);
         return `<div class="card pad" style="margin:0"><div class="cap">Recent logs</div>${E.map(e => `<div class="it"><span class="t"><b>${nice(e.d)} · ${e.ty === 's' ? 'Session · ' + (ATTL[e.a] || e.a) : e.ty === 'r' ? 'SRA ' + (e.h === 'm' ? 'not handed in' : 'marks ' + (e.sc ?? '') + '/' + (e.mx ?? '')) : 'Weekly assessment' + (e.sc != null && e.sc !== '' ? ' ' + e.sc + '/' + e.mx : ' given')}</b><small>${esc(e.ty === 's' ? [(e.tp || []).join(', '), cfText([e])].filter(Boolean).join(' · ') : e.ty === 'r' ? e.tk + ' · ' + SRA.label(e.rv) : (e.tp || []).join(', '))}</small></span></div>`).join('') || '<p class="empty" style="margin:0">Nothing logged yet.</p>'}</div>`; },
@@ -706,7 +729,7 @@ window.TUT = (function(){
     const I = items(), L = sras();
     if(!mform){
       if(v.startsWith('edit:')){ const e = live().find(x => x.id === decodeURIComponent(v.slice(5))); if(!e) return backHome() + '<p class="empty">That log isn\'t here any more.</p>';
-        mform = {edit: e.id, k: e.k, sra: e.man ? 'man' : [e.k, e.tk, e.rv].map(encodeURIComponent).join('/'), tk: e.tk, rv: String(e.rv), h: e.h || 'o', sc: e.sc ?? '', mx: e.mx ?? '10', d: e.d, ars: e.ars ?? null, ao: e.ao ? String(e.ao) : aoOf(e.tk), na: !!e.na}; }
+        mform = {edit: e.id, k: e.k, sra: e.man ? 'man' : [e.k, e.tk, e.rv].map(encodeURIComponent).join('/'), tk: e.tk, rv: String(e.rv), h: e.h || 'o', sc: e.sc ?? '', mx: e.mx ?? '10', d: e.d, ars: e.ars ?? null, ao: e.ao ? String(e.ao) : aoOf(e.tk), na: !!e.na, om: e.om || null}; }
       else { const x = v && !v.startsWith('stu:') ? unref(v) : null, k0 = v.startsWith('stu:') ? v.slice(4) : ''; mform = {k: x ? x.k : k0, sra: x ? ref(x) : '', tk: '', rv: '', h: 'o', sc: '', mx: '10', d: today(), ars: null, ao: x ? aoOf(x.topic) : '', na: false}; }
     }
     const f = mform, out = L.filter(x => x.k === f.k && ['given','collect','late','home'].includes(x.status) || (f.edit && ref(x) === f.sra && x.k === f.k)), it = itemOf(f.k);
@@ -719,7 +742,7 @@ window.TUT = (function(){
       ${f.sra ? `<div class="card pad"><div class="cap">Marks</div><div class="t-score"><input class="in" inputmode="decimal" data-tin="sc" data-tpc="mpc" value="${esc(f.sc)}" aria-label="Marks"><span>/</span><input class="in" inputmode="decimal" data-tin="mx" data-tpc="mpc" value="${esc(f.mx)}" aria-label="Out of"><b id="mpc">${pct(f.sc, f.mx)}</b></div>
         <label class="f" style="margin:14px 0 0"><span>Handed in on</span><input class="in" type="date" data-tin="d" value="${f.d}" max="${today()}"></label>
         <p class="note">Change the date for an earlier SRA.</p></div>
-        ${(() => { if(!f.ao){ const tk0 = f.sra === 'man' ? f.tk : decodeURIComponent((f.sra.split('/')[1]) || ''); if(tk0) f.ao = aoOf(tk0); } return arsHTML(f); })()}
+        ${(() => { const tk0 = f.sra === 'man' ? f.tk : decodeURIComponent((f.sra.split('/')[1]) || ''); if(!f.ao && tk0) f.ao = aoOf(tk0); if(f.otk !== tk0) f.om = f.otk == null ? f.om : null; f.osub = it ? it.sub : ''; f.otk = tk0; return arsHTML(f); })()}
         <button class="btn n full" type="button" id="tmSave">${f.edit ? 'Save changes' : 'Save marks'}</button>${f.edit ? '<button class="btn rd full" type="button" id="tmDel" style="margin-top:8px">Delete this log</button>' : ''}` : ''}`;
   }
   function saveMarks(){
@@ -808,6 +831,44 @@ window.TUT = (function(){
   }
 
   /* ---------- the SRA tracker ---------- */
+  /* ---------- a student's topic: by objective, and a follow-up (Reteach next session, Retest, Take-home) ---------- */
+  let fuf = null;
+  const fuDef = (act, it) => act === 'reteach' ? SRA.nextDay(it || {days: []}, addDays(today(), 1)) : addDays(today(), act === 'take' ? 7 : 14);
+  function topicSheet(k, tk){
+    const it = itemOf(k); if(!it) return; const E = live(), t = today(), b0 = FUP.before(E, k, tk), L = objOn(it.sub) ? objList(it.sub, tk) : [], M = L.length ? FUP.mastery(E, k, tk, L) : [];
+    const F = (data.fu || []).filter(f => f.k === k && SCHED.nk(f.tk) === SCHED.nk(tk) && !f.x).sort((a, b) => (b.at || 0) - (a.at || 0)), op = F.find(f => !FUP.after(f, E)), done = F.filter(f => f !== op);
+    if(!fuf || fuf.k !== k || fuf.tk !== tk) fuf = {k, tk, act: 'retest', by: fuDef('retest', it), foc: ''};
+    const ms = M.filter(m => m.c === 'g' || m.c === 'y').length, wk = M.filter(m => m.w).length;
+    const mast = L.length ? `<div class="cap">By objective</div><div class="card">${M.map(m => `<div class="it"><span class="t-obm o${m.c === 'g' ? 2 : m.c === 'y' ? 1 : m.c === 'r' ? 0 : ''}" style="${m.c ? '' : 'border:2px solid var(--line)'}">${m.c === 'g' ? '✓' : m.c === 'y' ? '½' : m.c === 'r' ? '✕' : ''}</span><span class="t"><b>${esc(m.n)}</b><small>${m.s}</small></span></div>`).join('')}</div><p class="note" style="margin:-6px 0 12px">${ms} secure or developing · ${wk} weak · secure: recalled at the last 2 ARSs</p>` : '';
+    const opB = op ? (() => { const need = op.act === 'retest' || (op.act === 'take' && !op.th);
+      return `<div class="cap">Follow-up · ${FUP.ACT[op.act]}</div><div class="card">${FUP.detail(op, E, t)}</div>
+        ${need ? `<div class="cap">${op.act === 'retest' ? 'Retest marks' : 'Take-home sheets · their own mark'}</div><div class="t-score"><input class="in" id="fuSc" inputmode="decimal" aria-label="Marks"><span>/</span><input class="in" id="fuMx" inputmode="decimal" value="10" aria-label="Out of"><b id="fuPc"></b></div>
+          <button class="btn n full" type="button" id="fuRes" style="margin-top:12px">Save ${op.act === 'retest' ? 'retest' : 'take-home'} marks</button>` : `<p class="note">Closes with the next SRA on the topic.</p>`}
+        <button class="btn full" type="button" id="fuDel" style="margin-top:8px">Remove this follow-up</button>
+        <p class="note">${op.act === 'take' ? 'Take-home marks stand alone. ' : ''}Earlier SRA marks stay as they were.</p>`; })()
+      : `<div class="cap">Follow up</div><div class="t-opts" role="radiogroup">${Object.entries(FUP.ACT).map(([a, l]) => `<button type="button" role="radio" aria-checked="${fuf.act === a}" class="t-opt${fuf.act === a ? ' on' : ''}" data-fuact="${a}"><span class="t-ind c"></span><span class="tx">${l}</span></button>`).join('')}</div>
+        <label class="f" style="margin-top:10px"><span>${fuf.act === 'retest' ? 'Retest by' : fuf.act === 'reteach' ? 'Reteach on' : 'Check by'}</span><input class="in" type="date" id="fuBy" value="${fuf.by}" min="${t}"></label>
+        ${M.some(m => m.w) ? `<div class="cap">Focus on</div><div class="chips">${M.filter(m => m.w).map(m => `<button class="chip${fuf.foc === m.n ? ' on' : ''}" data-fufoc="${esc(m.n)}">${esc(m.n)}</button>`).join('')}</div>` : `<label class="f"><span>Focus on (optional)</span><input class="in" id="fuFoc" value="${esc(fuf.foc)}" autocomplete="off"></label>`}
+        <button class="btn n full" type="button" id="fuGo" ${b0 == null ? 'disabled' : ''}>Save</button><p class="note">${b0 == null ? 'Needs a marked SRA on the topic first.' : fuf.act === 'retest' ? 'The retest goes into the SRA tracker. Earlier SRA marks stay as they were.' : fuf.act === 'take' ? 'Take-home marks stand alone; the next SRA on the topic shows if it worked.' : 'The next SRA on the topic shows if it worked.'}</p>`;
+    openSheet(`<div class="hx"><h3>${esc(tk)} · ${esc(short(it.st))}</h3><button class="ib" data-close>✕</button></div><p class="sp">${esc(it.sub)} · latest SRA ${b0 == null ? '–' : b0 + '%'}</p>${mast}${opB}
+      ${done.length ? `<div class="cap">Earlier follow-ups</div><div class="card">${done.map(f => { const l = FUP.line(f, E, t); return `<div class="it"><span class="t"><b>${FUP.ACT[f.act]}</b><small>${l.sub}${f.th ? ' · take-home ' + f.th.pc + '%' : ''}</small></span><b style="color:${l.s === 'worked' ? 'var(--ok)' : 'var(--am)'}">${l.s === 'worked' ? 'worked' : 'not yet'}</b></div>`; }).join('')}</div>` : ''}`);
+    bindSheet();
+    const post = async body => { try{ const j = await hub.api('tutor', {method: 'POST', body: JSON.stringify(Object.assign({action: 'fu'}, body))}); return j; }catch(e){ toast(e.message); return null; } };
+    const again = () => { topicSheet(k, tk); };
+    document.querySelectorAll('[data-fuact]').forEach(b => b.onclick = () => { fuf.act = b.dataset.fuact; fuf.by = fuDef(fuf.act, it); again(); });
+    document.querySelectorAll('[data-fufoc]').forEach(b => b.onclick = () => { fuf.foc = fuf.foc === b.dataset.fufoc ? '' : b.dataset.fufoc; again(); });
+    if($('fuBy')) $('fuBy').onchange = () => { fuf.by = $('fuBy').value || fuf.by; };
+    if($('fuFoc')) $('fuFoc').oninput = () => { fuf.foc = $('fuFoc').value; };
+    if($('fuGo')) $('fuGo').onclick = async () => { const j = await post({op: 'add', k, st: it.st, sub: it.sub, tk, act: fuf.act, by: fuf.by, foc: fuf.foc, before: b0}); if(!j) return; (data.fu = data.fu || []).push(j.f); write(CK, data); fuf = null; toast(FUP.ACT[j.f.act] + ' · by ' + nice(j.f.by)); again(); render(); };
+    if($('fuSc')){ const up = () => $('fuPc').textContent = pct($('fuSc').value, $('fuMx').value); $('fuSc').oninput = up; $('fuMx').oninput = up; }
+    if($('fuRes')) $('fuRes').onclick = async () => { const sc = $('fuSc').value.trim(), mx = $('fuMx').value.trim(); if(!pct(sc, mx)){ toast('Check the marks'); return; }
+      const j = await post({op: 'res', id: op.id, pc: +sc / +mx * 100, d: t}); if(!j) return; data.fu = (data.fu || []).map(f => f.id === op.id ? j.f : f); write(CK, data); toast('Saved · ' + pct(sc, mx)); again(); render(); };
+    if($('fuDel')) $('fuDel').onclick = async () => { const j = await post({op: 'del', id: op.id}); if(!j) return; data.fu = (data.fu || []).filter(f => f.id !== op.id); write(CK, data); toast('Removed'); again(); render(); };
+  }
+  function fuPage(){
+    const E = live(), t = today(), rank = {overdue: 0, open: 1, not: 2, worked: 3}, F = (data.fu || []).filter(f => !f.x).map(f => Object.assign({l: FUP.line(f, E, t)}, f)).sort((a, b) => rank[a.l.s] - rank[b.l.s] || a.by.localeCompare(b.by));
+    return back('#teach/sra', 'SRA tracker') + head('Follow-ups', 'Weak topics: reteach, retest, take-home') + `<div class="card">${F.map(f => `<button class="it" type="button" data-ttop="${esc(JSON.stringify({k: f.k, tk: f.tk}))}"><span class="t-obm o${f.l.s === 'worked' ? 2 : f.l.s === 'overdue' ? 0 : 1}">${f.l.s === 'worked' ? '✓' : f.l.s === 'not' ? '–' : '!'}</span><span class="t"><b>${esc(f.tk)} · ${esc(short(f.st))}</b><small>${f.l.sub}</small></span><span class="chev">›</span></button>`).join('') || '<p class="empty">None yet. Tap a topic on a student\'s page to follow it up.</p>'}</div><p class="note">A result closes it: the retest, or the next SRA on the topic. Overdue shows in Needs attention.</p>`;
+  }
   function sraPage(tab){
     const L = sras().filter(x => !x.paused), t = today(), T = SRA.today(L, t);
     const tabs = `<div class="t-segw" role="tablist">${[['today','Today'],['week','7 days'],['students','By student'],['pack','Take-home']].map(([k, l]) => `<a role="tab" aria-selected="${tab === k}" class="${tab === k ? 'on' : ''}" href="#teach/sra/${k}">${l}</a>`).join('')}</div>`;
@@ -835,9 +896,10 @@ window.TUT = (function(){
         <div class="h2">Print for ${T.printDay === addDays(t, 1) ? 'tomorrow' : nice(T.printDay)} <em>${(n => n + (n === 1 ? ' copy' : ' copies'))(T.print.reduce((a, g) => a + g.students.length, 0))}</em></div>
         <div class="card">${T.print.map(g => `<div class="it"><span class="t"><b>${esc(g.topic)} · ${g.label}</b><small>${esc(g.sub)} · for ${g.students.map(s => esc(s.st.split(' ')[0])).join(', ')} · ARS + SRA · the sheet says "Do on ${nice(g.students[0].doOn)}"</small></span><span class="tag bl">× ${g.students.length}</span></div>`).join('') || '<p class="empty">Nothing to print yet.</p>'}</div>
         <p class="note" style="margin:-6px 2px 14px">Printing is manual for now.</p>
+        ${(RT => RT.length ? `<div class="h2">Retests <em>${RT.length}</em></div><div class="card">${RT.map(f => `<button class="it" type="button" data-ttop="${esc(JSON.stringify({k: f.k, tk: f.tk}))}"><span class="t"><b>${esc(short(f.st))} · ${esc(f.tk)}</b><small>${esc(f.sub)} · by ${nice(f.by)}${f.by < t ? ' · <span style="color:var(--rd);font-weight:800">overdue</span>' : ''} · was ${f.before}%</small></span><span class="chev">›</span></button>`).join('')}</div>` : '')((data.fu || []).filter(f => !f.x && f.act === 'retest' && !f.res).sort((a, b) => a.by.localeCompare(b.by)))}
         <div class="h2">Out with students <em>${O.length}</em></div><div class="card">${O.map(x => `<div class="it"><span class="t"><b>${esc(short(x.st))} · ${esc(x.topic)}</b><small>${x.label} · given ${nice(x.given.d)} · due back ${nice(x.due)}</small></span></div>`).join('') || '<p class="empty">None.</p>'}</div>`;
     }
-    return (tutorRole() ? '' : backHome()) + head('SRA tracker', 'When each SRA is given, done and collected', `<div class="acts">${logBtn()}</div>`) + tabs + body;
+    return (tutorRole() ? '' : backHome()) + head('SRA tracker', 'When each SRA is given, done and collected', `<div class="acts"><a class="btn" href="#teach/fu">Follow-ups</a>${logBtn()}</div>`) + tabs + body;
   }
   /* ---------- the take-home pack: reviews after a student's last session, printed and handed over at that session ---------- */
   const packKey = p => encodeURIComponent(p.k + '|' + p.on);
@@ -896,7 +958,7 @@ window.TUT = (function(){
       <button class="btn full" type="button" id="thNo" style="margin-top:8px">Not handed in · due ${nice(nxt)}</button>
       <p class="note">Not handed in: moves to the next session, marked late.</p>`);
     const up = () => $('thPc').textContent = pct($('thSc').value, $('thMx').value); $('thSc').oninput = up; $('thMx').oninput = up;
-    const A = {ars: null, ao: aoOf(x.topic), na: false}, drawA = () => { const b = $('thArs'); if(!b) return; b.innerHTML = arsHTML(A, false); bindArs(b, A, drawA); }; drawA();
+    const A = {ars: null, ao: aoOf(x.topic), na: false, osub: x.sub, otk: x.topic}, drawA = () => { const b = $('thArs'); if(!b) return; b.innerHTML = arsHTML(A, false); bindArs(b, A, drawA); }; drawA();
     const base = {ty:'r', v:2, k:x.k, st:x.st, sub:x.sub, d:today(), tk:x.topic, rv:x.stage};
     $('thGo').onclick = () => { const sc = $('thSc').value.trim(), mx = $('thMx').value.trim(); if(!pct(sc, mx)){ toast('Check the marks'); return; }
       if(!arsOk(A)){ toast(+A.ao > 0 ? 'Add the ARS score, or tick No ARS' : 'Add what the ARS is out of'); return; }
@@ -1007,6 +1069,7 @@ window.TUT = (function(){
     document.querySelectorAll('[data-textg]').forEach(b => b.onclick = () => { const k = b.dataset.textg, it = itemOf(k), i = exInfo(k); if(!it || !i) return;
       EXUI.targetSheet({k, name: it.st, sub: it.sub, i, onSaved: async () => { await fetchData(); render(); }}); });
     const on = (sel, fn) => document.querySelectorAll('#main ' + sel).forEach(el => el.onclick = ev => fn(el, ev));
+    on('[data-ttop]', el => { try{ const o = JSON.parse(el.dataset.ttop); topicSheet(o.k, o.tk); }catch(e){} });
     // the report dot on the bar
     document.querySelectorAll('.t-dot').forEach(x => x.remove());
     if(data && tutorRole()){ const due = !todayRep(); document.querySelectorAll('a[href$="#teach/report"]').forEach(a => { if(a.closest('#main')) return; const d = document.createElement('span'); d.className = 't-dot' + (due ? '' : ' ok'); d.title = due ? 'Today\'s report is due' : 'Today\'s report is sent'; a.appendChild(d); }); }
