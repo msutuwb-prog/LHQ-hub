@@ -63,7 +63,7 @@ async function usesDbStore() {
 /* compare two values whatever order their keys come in (the database keeps keys in its own order) */
 const canon = v => JSON.stringify(v, (k, x) => x && typeof x === "object" && !Array.isArray(x) ? Object.keys(x).sort().reduce((o, key) => (o[key] = x[key], o), {}) : x);
 
-const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes", "lhq_treps", "lhq_avail", "lhq_cardack", "lhq_makeups", "lhq_reqs", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams", "lhq_kpi", "lhq_pay", "lhq_asks"];
+const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes", "lhq_treps", "lhq_avail", "lhq_cardack", "lhq_makeups", "lhq_reqs", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams", "lhq_kpi", "lhq_pay", "lhq_asks", "lhq_school"];
 
 /* ---------- roles and permissions ---------- */
 const PERMS = ["quotes", "receipts", "cards", "delete", "restore", "students", "money", "tpay", "tutors", "msgs", "numbering", "backup", "classes", "moveclass", "spend", "pl"];
@@ -75,7 +75,7 @@ const LIST_FIELDS = ["subjects", "levels", "methods", "includes", "tutors", "gra
 const KV_READ = { lhq_spend: p => can(p, "spend") || can(p, "pl"), lhq_income: p => can(p, "spend") || can(p, "pl"), lhq_budget: p => can(p, "pl"),
   lhq_sreports: p => isDirector(p) || can(p, "tutors"),
   lhq_kpi: p => isDirector(p) || can(p, "tutors"),
-  lhq_pay: p => isDirector(p) || can(p, "tpay"), lhq_asks: p => isDirector(p) || can(p, "tutors") };   // tutor pay: rules, placements, items, payslips (tutors get their own payslips through /api/hub/pay)   // tutor KPIs: observations, reviews (admin sees them only when the Director switches it on)   // students' daily reports: never tutors (they get averages only)
+  lhq_pay: p => isDirector(p) || can(p, "tpay"), lhq_asks: p => isDirector(p) || can(p, "tutors"), lhq_school: p => isDirector(p) || can(p, "students") || can(p, "tutors") };   // tutor pay: rules, placements, items, payslips (tutors get their own payslips through /api/hub/pay)   // tutor KPIs: observations, reviews (admin sees them only when the Director switches it on)   // students' daily reports: never tutors (they get averages only)
 const MERGED = ["lhq_spend", "lhq_income"];   // recorded on several devices at once: merged entry by entry
 /* Spending is recorded on several devices at once, so entries are merged one by one (newest wins) instead of the whole list being replaced.
    Deleting marks an entry del:true, so a device that hasn't heard about it yet can't bring it back. */
@@ -321,7 +321,7 @@ async function checkSync(me, upserts, deletes, kv) {
       const ch = Object.keys(v || {}).filter(id => canon(v[id]) !== canon(old[id]) && (!old[id] || (v[id].at || 0) >= (old[id].at || 0)));
       if (ch.length && !can(me, "spend")) return "You don't have permission to record spending.";
       if (ch.some(id => old[id] && old[id].by !== me.name)) return "You can only change spending you recorded. Ask the Director to change the others.";
-    } else if (["lhq_makeups", "lhq_reqs", "lhq_treps", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams", "lhq_kpi", "lhq_pay", "lhq_asks"].includes(k)) {
+    } else if (["lhq_makeups", "lhq_reqs", "lhq_treps", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams", "lhq_kpi", "lhq_pay", "lhq_asks", "lhq_school"].includes(k)) {
       if (changedKeys(old, v).length) return "Make-ups, requisitions, clashes, targets and tutors' reports change through their own buttons.";
     } else if (k === "lhq_avail" || k === "lhq_cardack") {
       if (changedKeys(old, v).length && !can(me, "tutors")) return "You don't have permission to change tutors' times.";
@@ -748,7 +748,7 @@ async function familyData(me) {
     const sx = { wk: allS.filter(x => x.doOn >= mon && x.doOn <= S.addDays(mon, 6) && !x.pack).map(x => { const id = [x.k, x.topic, x.stage].join("|"); return { sub: x.sub, topic: x.topic, stage: x.stage, doOn: x.doOn, status: x.status, done: !!(done || {})[id] || x.status === "in" }; }),
       pk: allS.filter(x => x.pack && x.doOn >= S.addDays(t, -120) && x.doOn <= t).map(x => { const id = [x.k, x.topic, x.stage].join("|"); return { sub: x.sub, topic: x.topic, stage: x.stage, doOn: x.doOn, done: !!(done || {})[id] || x.status === "in" }; }),
       rep: Object.keys(((sreps || {})[kid.key]) || {}), focus: (((focus || {})[kid.key]) || []).filter(x => x.d >= S.addDays(t, -120)),
-      plan: me.role === "student" ? Object.values(((plan || {})[kid.key]) || {}) : null, tsee: !!(set || {}).tsee, hide: !!((((await store().get("kv/lhq_sxp", { type: "json" })) || {})[kid.key]) || {}).hide,
+      plan: me.role === "student" ? Object.values(((plan || {})[kid.key]) || {}) : null, tsee: !!(set || {}).tsee, hide: !!((((await store().get("kv/lhq_sxp", { type: "json" })) || {})[kid.key]) || {}).hide, refl: me.role === "student" ? (((((await store().get("kv/lhq_sxp", { type: "json" })) || {})[kid.key]) || {}).refl || {}) : null, school: Object.values((((await store().get("kv/lhq_school", { type: "json" })) || {})[kid.key]) || {}),
       study: (() => { const P = Object.values(((plan || {})[kid.key]) || {}).filter(b => !b.all && (b.type === "study" || b.type === "rev")); let m = 0;   // planned study minutes this week, for parents and tutors
         for (let i = 0; i < 7; i++) { const d = S.addDays(mon, i); P.forEach(b => { if (blockOn(b, d)) m += Math.max(0, (S.mins(b.e) || 0) - (S.mins(b.s) || 0)); }); } return m; })() };
     const extra = me.role !== "parent" ? { sx, hist: { s: ent.filter(e => e.ty === "s").map(e => [e.d, e.sub, e.a || "attended", e.tp || [], e.cb || ""]), r: ent.filter(e => e.ty === "r").map(e => [e.d, e.sub, e.h || "o"]) } } : { sx, hist: { s: ent.filter(e => e.ty === "s").map(e => [e.d, e.sub, e.a || "attended", e.tp || []]), r: ent.filter(e => e.ty === "r").map(e => [e.d, e.sub, e.h || "o"]),
@@ -780,6 +780,18 @@ async function familyPost(req, me) {
     const row = { d, m, sub: txt(b.sub, 60), tk: txt(b.tk, 80), at: now };
     await writeKv("lhq_focus", old => { const o = Object.assign({}, old), L = (o[kids[0].key] || []).concat([row]); o[kids[0].key] = L.slice(-600); return o; });
     return json({ ok: true });
+  }
+  if (b.action === "reflect") {   // the weekly reflection: private to the student (never sent to tutors, parents or LHQ)
+    if (me.role !== "student" || !kids[0]) return fail("Only the student.", 403);
+    const wk = /^\d{4}-\d{2}-\d{2}$/.test(String(b.wk || "")) ? b.wk : ""; if (!wk) return fail("Which week?");
+    await writeKv("lhq_sxp", old => { const o = Object.assign({}, old), M = Object.assign({}, o[kids[0].key]); M.refl = Object.assign({}, M.refl, { [wk]: { a: txt(b.a, 600), b: txt(b.b, 600), at: now } }); o[kids[0].key] = M; return o; });
+    return json({ ok: true });
+  }
+  if (b.action === "school") {   // a school result the student adds: shows "LHQ checks" until LHQ confirms it
+    if (me.role !== "student" || !kids[0]) return fail("Only the student or LHQ adds school results.", 403);
+    const r = schoolRow(b.row, me, false); if (r.error) return fail(r.error);
+    await writeKv("lhq_school", old => { const o = Object.assign({}, old), M = Object.assign({}, o[kids[0].key]); if (M[r.id] && M[r.id].ok) return o; M[r.id] = r; o[kids[0].key] = M; return o; });
+    return json({ ok: true, id: r.id });
   }
   if (b.action === "sxp") {   // the student's own sharing choices (hide focus and study totals from tutors)
     if (me.role !== "student" || !kids[0]) return fail("Only the student.", 403);
@@ -1373,6 +1385,29 @@ async function studentTime(stKeys, mySubs, tsee) {
   }
   return out;
 }
+/* school results: one row per student, term, mid-term or end of term, and subject; the school's own grade and a % if given */
+function schoolRow(x, me, ok) {
+  x = x || {}; const sub = String(x.sub || "").trim().slice(0, 60), term = String(x.term || "").trim().slice(0, 40), kind = x.kind === "end" ? "end" : "mid";
+  if (!sub || !term) return { error: "Choose the term and subject." };
+  const gr = String(x.gr || "").trim().slice(0, 12), pc = x.pc === "" || x.pc == null ? null : Math.max(0, Math.min(100, Math.round(Number(x.pc))));
+  if (!gr && pc == null) return { error: "Add the grade or the %." }; if (pc != null && isNaN(pc)) return { error: "The % should be a number." };
+  const id = "s" + crypto.createHash("sha1").update([term, kind, nk(sub)].join("|")).digest("hex").slice(0, 10);
+  return { id, term, kind, sub, gr, pc, by: me.name, role: me.role, at: Date.now(), ok: ok ? { by: me.name, at: Date.now() } : null, out: x.out ? 1 : 0 };
+}
+async function schoolPost(req, me) {
+  if (!(isDirector(me) || can(me, "students"))) return fail("You don't have permission.", 403);
+  const b = await req.json().catch(() => ({})), st = nk(b.st || ""); if (!st) return fail("Which student?");
+  if (b.action === "ok" || b.action === "del") {
+    const cur = ((((await store().get("kv/lhq_school", { type: "json" })) || {})[st]) || {})[b.id]; if (!cur) return fail("Not found.", 404);
+    await writeKv("lhq_school", old => { const o = Object.assign({}, old), M = Object.assign({}, o[st]); if (b.action === "del") delete M[b.id]; else M[b.id] = Object.assign({}, M[b.id], { ok: { by: me.name, at: Date.now() } }); o[st] = M; return o; });
+    await act(me, "students", "school." + b.action, `${b.action === "ok" ? "Checked" : "Removed"} a school result · ${b.st} · ${cur.sub} ${cur.gr || ""}${cur.pc != null ? " · " + cur.pc + "%" : ""}`, "student", st);
+    return json({ ok: true });
+  }
+  const r = schoolRow(b.row, me, true); if (r.error) return fail(r.error);
+  await writeKv("lhq_school", old => { const o = Object.assign({}, old), M = Object.assign({}, o[st]); M[r.id] = r; o[st] = M; return o; });
+  await act(me, "students", "school.add", `School result · ${b.st} · ${r.sub} ${r.gr}${r.pc != null ? " · " + r.pc + "%" : ""} · ${r.term} ${r.kind === "end" ? "end of term" : "mid-term"}`, "student", st);
+  return json({ ok: true, id: r.id });
+}
 /* LHQ marks a tutor's request to move a session as handled (moved, or kept), with an optional note to the tutor */
 const txt0 = (v, n) => String(v || "").trim().slice(0, n), hm0 = v => /^\d{1,2}:\d{2}$/.test(String(v || "")) ? v : "";
 async function asksPost(req, me) {
@@ -1610,6 +1645,7 @@ export default async (req, context) => {
     if (req.method === "POST" && path === "req") return await decideReq(req, me);
     if (req.method === "POST" && path === "clash") return await clashAction(req, me);
     if (req.method === "POST" && path === "asks") return await asksPost(req, me);
+    if (req.method === "POST" && path === "school") return await schoolPost(req, me);
     if (req.method === "GET" && path === "family") return await familyGet(me);
     if (req.method === "POST" && path === "family") return await familyPost(req, me);
     if (req.method === "POST" && path === "confirmer") return await setConfirmer(req, me);

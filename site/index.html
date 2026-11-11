@@ -52,6 +52,7 @@ if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash)
 <script src="famdocs.js"></script>
 <script src="sxtras.js"></script>
 <script src="splan.js"></script>
+<script src="review.js"></script>
 <script src="family.js"></script>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -494,7 +495,7 @@ function render(){
   if(render.lastH !== location.hash){ document.documentElement.classList.remove('lean-open'); render.lastH = location.hash; }
   if(me().role === 'tutor' && !['teach','settings','set','exams'].includes(route.page)){ location.replace('#teach'); route = {page:'teach', args:[]}; }
   if(['student','parent'].includes(me().role) && !['me','settings','set','exams'].includes(route.page)){ location.replace('#me'); route = {page:'me', args:[]}; }
-  const sec = route.page === 'me' ? ({practice:'mprac', calendar:'mcal', progress:'mprog', sessions:'mprog', subject:'mprog', payments:'mpay', more:'more', habits: me().role === 'parent' ? 'more' : 'mprog', day:'mcal', week:'mcal', year:'mcal', blk:'mcal', focus:'mfocus', report:'mrep', reminders:'more', bar:'more'}[route.args[0]] || 'me') : route.page === 'teach' && me().role === 'tutor' ? ({sra:'tsra', report:'trep', cal:'tcal', avail:'tcal'}[route.args[0]] || 'teach') : {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', teach:'teach', tutors:'tutors', bookings:'tutors', reqs:'tutors', sessions:'tutors', confirm:'tutors', clashes:'tutors', calendar:'calendar', says:'tutors', more:'more'}[route.page] || route.page;
+  const sec = route.page === 'me' ? ({practice:'mprac', calendar:'mcal', progress:'mprog', sessions:'mprog', subject:'mprog', payments:'mpay', more:'more', habits: me().role === 'parent' ? 'more' : 'mprog', day:'mcal', week:'mcal', year:'mcal', blk:'mcal', review:'mprog', school:'mprog', reflect:'mprog', focus:'mfocus', report:'mrep', reminders:'more', bar:'more'}[route.args[0]] || 'me') : route.page === 'teach' && me().role === 'tutor' ? ({sra:'tsra', report:'trep', cal:'tcal', avail:'tcal'}[route.args[0]] || 'teach') : {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', teach:'teach', tutors:'tutors', bookings:'tutors', reqs:'tutors', sessions:'tutors', confirm:'tutors', clashes:'tutors', calendar:'calendar', says:'tutors', more:'more'}[route.page] || route.page;
   LHQNav.section(sec);
   const m = $('main');
   m.className = 'main' + (['edithome','new','tutors','teach'].includes(route.page) ? ' narrow' : '');
@@ -801,7 +802,7 @@ P.student = (key, tab = 'overview') => {
       return `<div class="card pad mk-pack"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><b>Take-home pack</b><small class="note" style="margin:0">to ${nice(last)}</small></div>
         <p style="margin:6px 0 8px"><b>${n} of ${S.length} done</b><span class="note" style="margin:0"> · ${self.length} self-marked${avg != null ? ' · average ' + avg + '%' : ''} · on their day ${onDay} of ${n}</span></p>
         ${PK.map(p => `<div class="it"><span class="cfm" style="${p.out ? 'background:var(--ok);border-color:var(--ok);color:#fff' : 'border:2px solid var(--' + (p.on < HD.today() ? 'rd' : 'line') + ')'}">${p.out ? '✓' : ''}</span><span class="t"><b>${esc(p.sub)} · ${p.sheets.length} sheet${p.sheets.length === 1 ? '' : 's'}</b><small${!p.out && p.on < HD.today() ? ' style="color:var(--rd)"' : ''}>${p.out ? `Handed over ${nice(p.out.d)}${p.out.by ? ' · ' + esc(p.out.by) : ''}` : `${p.on < HD.today() ? 'Not handed over' : 'Last session ' + nice(p.on)} · ${esc(p.tutor || '')}`}</small></span></div>`).join('')}</div>`; })() : '';
-    body = tgt + pk + (B.length ? `<div class="mk-cards" style="${MARKS.cols(B.length)}">${B.map(x => `<div class="card pad"><div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><b>${esc(x.sub)}</b>${x.last != null ? `<span class="mk-big">${x.last}%${MARKS.change(x.diff)}</span>` : ''}</div><p class="note" style="margin:0 0 4px">Assessments</p>${MARKS.line(x, 340, 160)}${MARKS.avgs(x)}</div>`).join('')}</div>
+    body = tgt + (window.REV && (isDir() || can('students') || can('tutors')) ? REV.lhqCard(s.name) : '') + pk + (B.length ? `<div class="mk-cards" style="${MARKS.cols(B.length)}">${B.map(x => `<div class="card pad"><div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><b>${esc(x.sub)}</b>${x.last != null ? `<span class="mk-big">${x.last}%${MARKS.change(x.diff)}</span>` : ''}</div><p class="note" style="margin:0 0 4px">Assessments</p>${MARKS.line(x, 340, 160)}${MARKS.avgs(x)}</div>`).join('')}</div>
       <div class="h2">SRAs <em>% at each review</em></div><div class="mk-cards" style="${MARKS.cols(B.length)}">${B.map(x => `<div class="card pad"><b style="display:block;margin-bottom:6px">${esc(x.sub)}</b>${MARKS.grid(x)}</div>`).join('')}</div>`
       : '<p class="empty">No marks yet.</p>');
   }
@@ -1859,6 +1860,7 @@ function bind(){
   if(route.page === 'exams' && window.EXUI) EXUI.bindTimetable(render);
   if(route.page === 'kpi' && window.KPIUI) KPIUI.bindDir();
   if(window.SRAFIG && (route.page === 'srafig' || route.page === 'student')) SRAFIG.bind();
+  if(window.REV && route.page === 'student') REV.bindLHQ();
   if(window.TPAYUI && (route.page === 'pay' || (route.page === 'set' && /tpay/.test(location.hash)))) TPAYUI.bind();
   document.querySelectorAll('[data-pdt]').forEach(el => el.onchange = () => { pdDraft.term[el.dataset.pdt] = el.value; });
   document.querySelectorAll('[data-pdn]').forEach(el => el.oninput = () => { pdDraft.fast[+el.dataset.pdn].name = el.value; });

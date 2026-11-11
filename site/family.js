@@ -231,7 +231,7 @@ window.FAM = (function(){
     const R0 = window.FDOC ? FDOC.range(k, 'tp', T()) : null;
     const dlb = isParent() && window.FDOC ? `<div class="h2">Report</div><div class="seg f-per">${FDOC.PER.map(([p, l]) => `<button type="button" class="${perSel === p ? 'on' : ''}" data-fper="${p}">${l.replace('This tuition period', 'Tuition period')}</button>`).join('')}</div>
       <button class="btn n full f-dl" type="button" data-fdl="rep">${DLI} Download report</button><p class="note" style="margin:6px 2px 14px">${(R => esc(R.label) + ' · ' + FDOC.rangeL(R))(FDOC.range(k, perSel, T()))}</p>` : '';
-    return `<div class="ph"><div class="tt"><h1>${isParent() ? 'Sessions' : 'Progress'}</h1>${R0 ? `<p>${esc(R0.label)} · ${FDOC.rangeL(R0)}</p>` : ''}</div><div class="acts"><a class="btn" href="#me/exams">${isParent() ? 'Exams' : 'My exams'}</a></div></div>${kidChips()}${tg}${marks}${window.SX ? (W => `<div class="h2">This week</div><div class="card"><a class="it" href="#me/habits"><span class="t"><b>Habits</b><small>Attendance, SRAs on their day, reports</small></span><span class="chev">›</span></a><button class="it" style="width:100%" data-sxd="ftime"><span class="t"><b>Focus time</b><small>Finished rounds</small></span><b>${SX.hmin(W.focus)}</b><span class="chev">›</span></button><div class="it"><span class="t"><b>Study planned</b><small>${isParent() ? 'Their own blocks: total only' : '<a href="#me/day">Plan in Day view</a>'}</small></span><b>${SX.hmin(W.study)}</b></div></div>`)(SX.weekTotals(k)) : ''}<div class="h2">Sessions <button class="btn sm" data-fhelp style="padding:2px 8px;border-radius:50%">?</button></div><div class="card">${k.subjects.map(sesRow).join('') || '<p class="empty">No tuition this period.</p>'}</div>${dlb}`;
+    return `<div class="ph"><div class="tt"><h1>${isParent() ? 'Sessions' : 'Progress'}</h1>${R0 ? `<p>${esc(R0.label)} · ${FDOC.rangeL(R0)}</p>` : ''}</div><div class="acts"><a class="btn" href="#me/exams">${isParent() ? 'Exams' : 'My exams'}</a></div></div>${kidChips()}${tg}${marks}${window.SX ? (W => `<div class="h2">This week</div><div class="card"><a class="it" href="#me/review"><span class="t"><b>Review</b><small>Week, month, term, year</small></span><span class="chev">›</span></a><a class="it" href="#me/habits"><span class="t"><b>Habits</b><small>Attendance, SRAs on their day, reports</small></span><span class="chev">›</span></a><a class="it" href="#me/school"><span class="t"><b>School results</b></span><span class="chev">›</span></a><button class="it" style="width:100%" data-sxd="ftime"><span class="t"><b>Focus time</b><small>Finished rounds</small></span><b>${SX.hmin(W.focus)}</b><span class="chev">›</span></button><div class="it"><span class="t"><b>Study planned</b><small>${isParent() ? 'Their own blocks: total only' : '<a href="#me/day">Plan in Day view</a>'}</small></span><b>${SX.hmin(W.study)}</b></div></div>`)(SX.weekTotals(k)) : ''}<div class="h2">Sessions <button class="btn sm" data-fhelp style="padding:2px 8px;border-radius:50%">?</button></div><div class="card">${k.subjects.map(sesRow).join('') || '<p class="empty">No tuition this period.</p>'}</div>${dlb}`;
   }
   function subject(kk){
     const k = kids().find(x => x.subjects.some(s => s.k === kk)) || kid(); if(!k) return emptyNoKids();
@@ -243,6 +243,7 @@ window.FAM = (function(){
       ${(M => M && (M.w.length || M.sra.length) ? `<div class="card pad"><b>Assessments</b><p class="note" style="margin:0 0 4px">% each time</p>${MARKS.line(M)}${MARKS.avgs(M)}</div>
         <div class="card pad"><b>What ${isParent() ? 'they remember' : 'you remember'} (SRAs)</b><p class="note" style="margin:0 0 8px">% at each review of a topic</p>${MARKS.grid(M)}</div>` : '')(window.MARKS && MARKS.bySubject(k.marks || {}).find(m => m.sub === x.sub))}
       <div class="card pad"><div class="f-four"><div><b>${x.planned}</b><small>Planned</small></div><div><b>${x.had}</b><small>Had</small></div><div><b>${x.remaining}</b><small>Left</small></div><div><b>${x.owed}</b><small>Owed</small></div></div></div>
+      ${window.REV ? REV.chart(k, x.sub) : ''}
       <div class="h2">${x.times.map(t => `${DAYN[t.d]} ${t.s}`).join(' · ')}</div>
       ${xi && xi.pace ? EXUI.block(xi, '', true).replace(/^[\s\S]*?(<div class="h2">Syllabus)/, '$1') : xi && xi.papers.length ? EXUI.block(xi, '', true).replace(/^[\s\S]*?(<div class="h2">Exams)/, '$1') : ''}
       <div class="card">${L.map(e => `<div class="it">${stMark(e)}<span class="t"><b>${day(e.d)}${e.mk ? ' · make-up' : ''}</b><small>${e.a === 'absent' || e.a === 'cancelled' ? '' : esc(e.t1) + '–' + esc(e.t2) + ' · '}${esc(stText(e))}</small></span>${k.canConfirm && e.st === 'waiting' ? `<button class="f-ok" data-fcf="yes:${esc(e.id)}">✓</button><button class="f-no" data-fcf="no:${esc(e.id)}">✕</button>` : ''}</div>`).join('') || '<p class="empty">No sessions logged yet.</p>'}</div>`;
@@ -323,7 +324,10 @@ window.FAM = (function(){
       if(!isParent() && sub0 === 'focus') return SX.focusPage(k, a1 ? decodeURIComponent(a1) : '');
       if(!isParent() && sub0 === 'reminders') return SX.reminders();
       if(!isParent() && sub0 === 'bar') return SX.barPage();
-      if(!isParent() && sub0 === 'sharing') return SX.sharing(k); } }
+      if(!isParent() && sub0 === 'sharing') return SX.sharing(k);
+      if(window.REV && sub0 === 'review') return kidChips() + REV.page(k, a1, route.args[2]);
+      if(window.REV && sub0 === 'school') return kidChips() + REV.school(k);
+      if(window.REV && !isParent() && sub0 === 'reflect') return REV.reflect(k, a1); } }
     return home();
   }
 
@@ -347,6 +351,7 @@ window.FAM = (function(){
   function bind(){
     if(window.SX) SX.bind(kid());
     if(window.SPLAN) SPLAN.bind(kid());
+    if(window.REV) REV.bind(kid());
     document.querySelectorAll('[data-fgo]').forEach(b => b.onclick = () => { location.hash = b.dataset.fgo; });
     document.querySelectorAll('[data-fextg]').forEach(b => b.onclick = () => { const k = kid(), x = k && k.subjects.find(y => y.k === b.dataset.fextg); if(!x) return;
       EXUI.targetSheet({k: x.k, name: k.name, sub: sub(x.sub), i: exInfo(k, x), onSaved: async () => { await fetchData(); render(); }}); });

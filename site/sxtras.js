@@ -141,7 +141,7 @@ window.SX = (function(){
   let hPer = 'w4';
   function range(k, p, t){
     if(p === 'w') { const m = mondayOf(t); return {a: m, b: t, pa: add(m, -7), pb: add(m, -1), l: 'This week', pl: 'last week'}; }
-    if(p === 'term' && window.MIN){ const L = MIN.terms().filter(x => x[1] <= t).sort((a, b) => b[1].localeCompare(a[1])); if(L[0]) return {a: L[0][1], b: t, pa: L[1] ? L[1][1] : add(L[0][1], -90), pb: L[1] ? L[1][2] : add(L[0][1], -1), l: L[0][0], pl: L[1] ? L[1][0] : 'the term before'}; }
+    if(p === 'term' && (k.terms || window.MIN)){ const L = (k.terms && k.terms.length ? k.terms : MIN.terms()).filter(x => x[1] <= t).sort((a, b) => b[1].localeCompare(a[1])); if(L[0]) return {a: L[0][1], b: t, pa: L[1] ? L[1][1] : add(L[0][1], -90), pb: L[1] ? L[1][2] : add(L[0][1], -1), l: L[0][0], pl: L[1] ? L[1][0] : 'the term before'}; }
     return {a: add(t, -27), b: t, pa: add(t, -55), pb: add(t, -28), l: 'Last 4 weeks', pl: 'the 4 before'};
   }
   function habitRows(k, a, b){

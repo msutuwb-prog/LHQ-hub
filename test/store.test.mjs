@@ -575,6 +575,18 @@ test("phone notifications: devices, choices, events, quiet hours and the 07:00 s
   assert.equal((await call("asks", { id: ask.j.id, how: "moved" }, tok)).status, 403, "LHQ decides");
   assert.equal((await call("asks", { id: ask.j.id, how: "moved", note: "Now Friday" }, DIR)).status, 200);
   assert.equal((await call("tutor", null, tok, "GET")).j.asks.length, 0, "handled");
+  /* the weekly reflection stays with the student; school results: the student adds, LHQ checks */
+  assert.equal((await call("family", { action: "reflect", wk: day(0), a: "SRAs on the day", b: "Revise thermal physics" }, stu)).status, 200);
+  const fam = (await call("family", null, stu, "GET")).j.kids[0].sx; assert.equal(fam.refl[day(0)].b, "Revise thermal physics");
+  assert.ok(!JSON.stringify((await call("tutor", null, tok, "GET")).j).includes("Revise thermal physics"), "never to the tutor");
+  assert.ok(!JSON.stringify((await call("state", null, DIR, "GET")).j).includes("Revise thermal physics"), "nor to LHQ");
+  assert.equal((await call("family", { action: "school", row: { term: "Term 1", kind: "mid", sub: "Geography" } }, stu)).status, 400, "a grade or a %");
+  const sr = await call("family", { action: "school", row: { term: "Term 1", kind: "mid", sub: "Geography", gr: "B", pc: "68" } }, stu); assert.equal(sr.status, 200);
+  let row = (await call("family", null, stu, "GET")).j.kids[0].sx.school[0]; assert.equal(row.ok, null, "LHQ checks"); assert.equal(row.pc, 68);
+  assert.equal((await call("school", { action: "ok", st: "Kettie Gondwe", id: sr.j.id }, tok)).status, 403, "tutors don't check");
+  assert.equal((await call("school", { action: "ok", st: "Kettie Gondwe", id: sr.j.id }, DIR)).status, 200);
+  await call("family", { action: "school", row: { term: "Term 1", kind: "mid", sub: "Geography", gr: "A" } }, stu);
+  row = (await call("family", null, stu, "GET")).j.kids[0].sx.school[0]; assert.ok(row.ok && row.gr === "B", "a checked result can't be changed by the student");
   const st = (await call("state", null, DIR, "GET")).j; assert.ok(!st.kv.lhq_push, "devices never go to anyone's browser");
   hubMod._setPushSender(null);
 });
