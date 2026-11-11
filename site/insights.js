@@ -12,7 +12,7 @@
 window.INS = (function(){
   const ym = iso => String(iso || '').slice(0, 7);
   const B = () => window.BIZ;
-  const DIMS = [['prog','Programme'],['sub','Subject'],['level','Year & level'],['tutor','Tutor'],['school','School'],['area','Area'],['district','District'],['mode','Online / in person'],['newRet','New or returning'],['source','How they heard']];
+  const DIMS = [['prog','Programme'],['sub','Subject'],['level','Year and level'],['tutor','Tutor'],['school','School'],['area','Area'],['district','District'],['mode','Online / in person'],['newRet','New or returning'],['source','How they heard']];
   const DIM = Object.fromEntries(DIMS);
   const LOST_REASONS = ['Price','Timing / not now','Chose another tutor or centre','No response','Moved away','Other'];
   const COLORS = ['var(--inc)','#f4b223','#1a74b0','#2c7a4b','#a85a14','#7a3f8f','#9aa3b2'];
@@ -207,12 +207,12 @@ window.INS = (function(){
       ${kpi('Declining', String(dec.length), dec.length ? esc(dec.slice(0, 2).map(x => x.k).join(', ')) : `${grow} growing`)}</div>
     <div class="chips" style="margin-bottom:10px">${DIMS.map(([k, l]) => `<button class="chip ${dim === k ? 'on' : ''}" data-insdim="${k}">${l}</button>`).join('')}</div>
     <div class="card pad"><div class="cap bz-cap">Tuition by ${DIM[dim].toLowerCase()} · ${b.periodLabel(period)} <b>${mk(total)}</b></div>${shareRows(list, total)}
-      <p class="note">A payment is split across the subjects on its invoice in proportion to their amounts. "Not recorded" means the student's details don't have it yet.</p></div>
+      <p class="note">A payment is split across its invoice's subjects by amount.</p></div>
     <div class="card pad"><div class="cap">Last 12 months by ${DIM[dim].toLowerCase()}</div>${trendChart(dim, endOf(period))}</div>
     <div class="h2">Other money in <em>${mk(f.other + f.capital)}</em></div>
     ${D.length ? `<div class="card pad" style="border-color:var(--gold)"><div class="cap">Repeating money in to confirm</div>${D.map(d => `<div class="it"><span class="t"><b>${esc(d.last.cat)}${d.last.from ? ' · ' + esc(d.last.from) : ''}</b><small>${nice(d.date)} · last time ${mk(num(d.last.amount))}</small></span><button class="btn sm n" data-inok="${d.sid}|${d.date}">Received ${mkShort(num(d.last.amount))}</button></div>`).join('')}</div>` : ''}
     <div class="card">${other.map(e => `<${b.mayEdit(e) ? `button class="it" data-inedit="${e.id}"` : 'div class="it"'}><span class="t"><b>${esc(e.cat)}${e.from ? ' · ' + esc(e.from) : ''}</b><small>${[nice(e.date), e.what, e.method, e.by ? 'by ' + first(e.by) : ''].filter(Boolean).map(esc).join(' · ')}</small></span>${b.NOT_INCOME.includes(e.cat) ? '<span class="tag gr">not income</span>' : ''}${e.rep === 'm' ? '<span class="tag bl">Monthly</span>' : ''}<b class="bz-amt">${mk(num(e.amount))}</b></${b.mayEdit(e) ? 'button' : 'div'}>`).join('') || `<p class="empty">Nothing recorded for ${b.periodLabel(period)}. Use "+ Money in" for rent from a tenant, a loan, a grant …</p>`}</div>
-    ${loans.length ? `<div class="h2">Loans</div><div class="card pad">${loans.map(x => `<div class="bz-bud" style="border-top:0"><div class="h"><b>${esc(x.lender)}</b><span>${mkShort(x.repaid)} repaid of ${mkShort(x.borrowed)} · <b>${mkShort(x.left)} left</b></span></div><div class="track"><i style="width:${pc(x.repaid, x.borrowed)}%;background:var(--ok)"></i></div></div>`).join('')}<p class="note">Repayments are spending in the "Loan repayment" category, paid to the lender's name. Loans never count as revenue or profit.</p></div>` : ''}
+    ${loans.length ? `<div class="h2">Loans</div><div class="card pad">${loans.map(x => `<div class="bz-bud" style="border-top:0"><div class="h"><b>${esc(x.lender)}</b><span>${mkShort(x.repaid)} repaid of ${mkShort(x.borrowed)} · <b>${mkShort(x.left)} left</b></span></div><div class="track"><i style="width:${pc(x.repaid, x.borrowed)}%;background:var(--ok)"></i></div></div>`).join('')}<p class="note">Not revenue or profit. Repayments go under Loan repayment.</p></div>` : ''}
     ${docsLink('receipt', period, F.rcts.filter(r => ms.includes(ym(r.date))).length, 'receipt')}`;
   }
   /* the documents behind a page's numbers: the last layer, at the bottom */
@@ -414,7 +414,7 @@ window.INS = (function(){
     <div class="card pad"><div class="cap">Paid channels · ${b.periodLabel(period)}</div>${R.paid.sort((a, c) => c.ret - a.ret || c.n - a.n).map(line).join('') || '<p class="empty" style="margin:0">Record marketing spending with a channel, and students\' "how they heard", to see this.</p>'}</div>
     <div class="card pad"><div class="cap">Word of mouth</div>${R.free.map(line).join('') || '<p class="empty" style="margin:0">No new students from friends or siblings in this period.</p>'}</div>
     ${R.nochan ? `<div class="card pad"><div class="cap">Marketing spending with no channel</div><p class="note" style="margin:0">${mk(R.nochan.spend)} of marketing spending in this period doesn't say which channel it was for, so it can't be matched to students. Tap it in Spending to add the channel.</p></div>` : ''}
-    ${R.none ? `<div class="card pad"><div class="cap">Not recorded</div>${line(R.none)}<p class="note">New students without "how they heard". It's now required for new students, so this shrinks over time.</p></div>` : ''}
+    ${R.none ? `<div class="card pad"><div class="cap">Not recorded</div>${line(R.none)}<p class="note">Students without "how they heard" (now required).</p></div>` : ''}
     <p class="note">Return = what the new students from a channel have paid so far ÷ what the channel cost in this period. "Renew" = of all students from that channel whose period has ended, how many continued.</p>`;
   }
 
@@ -465,7 +465,7 @@ window.INS = (function(){
   function pots(period){
     if(!can('pl')) return '';
     const b = B(), P = potsCfg(), ms = b.months(period), f = b.figures(ms);
-    if(!P || !P.list || !P.list.length) return `<div class="h2">Allocations</div><div class="card pad"><p class="note" style="margin:0 0 10px">Allocations split every kwacha that comes in by percentage: for example 40% for tutor pay and salaries, 15% for rent, 7% set aside for tax, 5% profit. Each spending category draws from an allocation, so you see what's left in each, and how much to move into real accounts each month.</p>${isDir() ? '<button class="btn n" data-pots>Set up allocations</button>' : '<p class="empty" style="margin:0">The Director sets them up.</p>'}</div>`;
+    if(!P || !P.list || !P.list.length) return `<div class="h2">Allocations</div><div class="card pad"><p class="note" style="margin:0 0 10px">Split money in by percentage (e.g. tutor pay 40%, rent 15%, tax 7%). Each category draws from one, so you see what's left and what to move each month.</p>${isDir() ? '<button class="btn n" data-pots>Set up allocations</button>' : '<p class="empty" style="margin:0">The Director sets them up.</p>'}</div>`;
     const income = ms2 => b.figures(ms2).revenue;
     const since = P.from || ms[0], allMs = []; for(let m = since; m <= b.thisMonth(); m = b.addMonth(m, 1)) allMs.push(m);
     const inAll = income(allMs), spentIn = (pot, M) => sum(pot.cats || [], c => b.figures(M).byCat[c] || 0);

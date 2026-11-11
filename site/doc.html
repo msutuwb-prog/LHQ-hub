@@ -668,7 +668,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
     </div>
 
     <div class="panel lm" id="incPanel">
-      <h2>Every LHQ Enrollment Includes</h2>
+      <h2>Every LHQ enrolment includes</h2>
       <div class="inc-chips" id="incChips" role="group" aria-label="Items to include"></div>
       <p class="hint" id="incHint"></p>
     </div>
@@ -715,7 +715,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
         <label><span>Subjects, one per line</span><textarea id="s_subjects" rows="8"></textarea></label>
         <label><span>Year &amp; level, one per line</span><textarea id="s_levels" rows="6"></textarea></label>
         <label><span>Payment methods, one per line</span><textarea id="s_methods" rows="4"></textarea></label>
-        <label><span>Every LHQ Enrollment Includes, one per line</span><textarea id="s_includes" rows="6"></textarea></label>
+        <label><span>Every LHQ enrolment includes, one per line</span><textarea id="s_includes" rows="6"></textarea></label>
         <label><span>Tutors, one per line</span><textarea id="s_tutors" rows="6"></textarea></label>
         <label><span>Grades, one per line</span><textarea id="s_grades" rows="5"></textarea></label>
         <label><span>Grade based on, one per line</span><textarea id="s_gradeBasis" rows="6"></textarea></label>
@@ -723,7 +723,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
       </details>
       <details id="clSetup">
         <summary>Student topic checklist</summary>
-        <p class="hint" style="margin:0 0 10px">Send students this link. They choose their subjects and topics and send it to 0992 525 250 on WhatsApp or to learnhqes@gmail.com. Open the link in their message on this device and a new tuition card fills in with their choices.</p>
+        <p class="hint" style="margin:0 0 10px">Students pick their subjects and topics and send it back. Open their link here and a tuition card fills in.</p>
         <input id="clLink" readonly aria-label="Checklist link">
         <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
           <button class="small" id="btnClCopy">Copy link</button>
@@ -733,7 +733,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
       </details>
       <details id="numSetup">
         <summary>Numbering</summary>
-        <p class="hint" style="margin:0 0 10px">Numbers fill in automatically. Set where each series continues from, for example if LHQ has already issued invoices up to 57, set the next invoice to 58.</p>
+        <p class="hint" style="margin:0 0 10px">Set the next number in each series, e.g. 58 if the last invoice was 57.</p>
         <div class="num-grid">
           <label><span>Next quote</span><input id="n_quote" inputmode="numeric" autocomplete="off"><small id="np_quote"></small></label>
           <label><span>Next invoice</span><input id="n_invoice" inputmode="numeric" autocomplete="off"><small id="np_invoice"></small></label>
@@ -765,7 +765,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
       </details>
       <details id="backupSetup">
         <summary>Backup &amp; restore</summary>
-        <p class="hint" style="margin:0 0 8px">Everything is stored online in LHQ Hub and shared between your devices. A backup is an extra copy: one file with all your quotes, invoices, receipts, tuition cards, numbering, lists and messages. Keep it in Google Drive or send it to yourself on WhatsApp.</p>
+        <p class="hint" style="margin:0 0 8px">Everything is stored online. A backup is one extra file of it all: keep it in Google Drive.</p>
         <p class="svc" id="bkStatus"><span class="dot"></span><span></span></p>
         <p class="svc" id="bkPersist"><span class="dot"></span><span></span></p>
         <div style="display:flex;flex-wrap:wrap;gap:8px">
@@ -779,7 +779,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
         <p class="svc" id="svcEmail"><span class="dot"></span><span>Email: checking…</span></p>
         <p class="svc" id="svcWa"><span class="dot"></span><span>WhatsApp: checking…</span></p>
         <label><span>Access code</span><input id="s_code" type="password" autocomplete="off" placeholder="The code set in Netlify"></label>
-        <p class="hint">Enter the access code once on each phone, tablet or computer. It stays on this device and stops strangers from using the app to send messages from LHQ's accounts.</p>
+        <p class="hint">Enter the access code once on each phone, tablet or computer. It stays on this device and stops strangers from using LHQ Hub to send messages from LHQ's accounts.</p>
         <button class="small" id="btnCheckSvc" style="margin-top:8px">Check connection</button>
       </details>
     </div>
@@ -852,7 +852,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
     <div class="dlg-body">
       <div class="cs-tutors">
         <div class="cs-sec">Send to tutors</div>
-        <p class="hint" style="margin:2px 0 6px">Each tutor gets one link with all their students: the full card for each, plus where they log sessions for reports. Send it again when you add a student or change a card.</p>
+        <p class="hint" style="margin:2px 0 6px">One link per tutor with all their students. Send it again after a change.</p>
         <div id="csTutors"></div>
         <label class="cs-howto"><input type="checkbox" id="csHowTo"> Include the how-to text <small>Added automatically the first time a tutor gets a link</small></label>
       </div>
@@ -1405,7 +1405,7 @@ function pickCtx(){
   }
   if(pk.field){
     const list = pk.field==='level' ? levelList() : methodList(), cur = doc[pk.field] || '';
-    return { list, cur, other:false, title: pk.field==='level' ? 'Year & level' : 'Payment method',
+    return { list, cur, other:false, title: pk.field==='level' ? 'Year and level' : 'Payment method',
       noun: pk.field==='level' ? 'level' : 'method', allowOther:false };
   }
   const it = doc.items[pk.i], list = subjectList(), other = isCustom(it);
@@ -2315,7 +2315,7 @@ function drawAside(){
     if(!st.paidUp && H.can('receipts')) nx.push(`<a class="dp-b g full" href="doc.html#conv=receipt:${ch.inv.id}">${st.plan && st.firstPaid ? 'Receive 2nd instalment' : 'Record a payment'} · ${H.mk(st.balance)}</a>`);
     if(!ch.card && H.can('cards')) nx.push(`<a class="dp-b ${st.paidUp || st.firstPaid ? 'n' : ''} full" href="${cardHref(ch.inv)}">Make tuition card${lastCard ? ' (same tutors as last time)' : ''}</a>`);
     const end = ch.inv.periodEnd;
-    if(t === 'invoice' && ch.card && H.can('quotes') && (!end || H.dayDiff(H.today(), end) <= 14)) nx.push(`<a class="dp-b n full" href="doc.html#renew=${ch.inv.id}">Renew for the next period</a><p class="dp-note">Makes the next invoice with the same subjects. The card after it copies days, times and tutors.</p>`);
+    if(t === 'invoice' && ch.card && H.can('quotes') && (!end || H.dayDiff(H.today(), end) <= 14)) nx.push(`<a class="dp-b n full" href="doc.html#renew=${ch.inv.id}">Renew for the next period</a><p class="dp-note">Next invoice, same subjects; the card copies days, times and tutors.</p>`);
   }
   if(t === 'card' && H.can('cards')) nx.push(`<button class="dp-b n full" onclick="openCardShare()">${svg('<path d="M4 12l16-8-6 17-3-7-7-2z"/>',16)} Send to tutors</button>`);
   F('dpNext').innerHTML = nx.length ? `<div class="dp-box"><div class="dp-cap">Next step</div>${nx.join('')}</div>` : '';
@@ -2418,7 +2418,7 @@ function fillBackup(){
 async function askPersist(){
   let on = false;
   try{ if(navigator.storage && navigator.storage.persist){ on = await navigator.storage.persisted() || await navigator.storage.persist(); } }catch(e){}
-  setSvc('bkPersist', on ? 'ok' : 'warn', on ? 'Storage: protected from automatic clean-up by the browser' : 'Storage: not protected from automatic clean-up. Install the app to your home screen to help, and keep backing up.');
+  setSvc('bkPersist', on ? 'ok' : 'warn', on ? 'Storage: protected from automatic clean-up by the browser' : 'Storage: not protected from automatic clean-up. Install LHQ Hub to your home screen to help, and keep backing up.');
 }
 let pendingRestore = null;
 function readRestore(file){

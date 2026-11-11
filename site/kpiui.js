@@ -52,7 +52,7 @@ window.KPIUI = (function(){
     return `<div class="h2">${mL} review</div><div class="card pad"><textarea class="in" id="kNote" rows="3" placeholder="Note to ${esc(M.name.split(' ')[0])}">${esc(rv ? rv.note : '')}</textarea>
       <div class="kp-lab">Focus on</div>${K().CORE.map(([id, n]) => `<button class="kp-tk${st.focus.includes(id) ? ' on' : ''}" data-kfocus="${id}"><i>✓</i>${esc(n)}</button>`).join('')}
       <div class="kp-row" style="margin-top:10px"><label class="f" style="margin:0;flex:1"><span>By</span><input class="in" type="date" id="kUntil" value="${esc(rv ? rv.until : '')}"></label><button class="btn n" id="kRevSave" style="align-self:flex-end">Save</button></div>
-      ${rv && rv.note ? `<p class="note" style="margin:8px 0 0">${rv.seen ? '✓ Seen by ' + esc(M.name.split(' ')[0]) + ' · ' + K().dl(K().dayOf(rv.seen)) : conf().tutors ? '○ Not seen yet' : 'Tutors don’t see KPIs yet'}</p>` : ''}</div>`;
+      ${rv && rv.note ? `<p class="note" style="margin:8px 0 0">${rv.seen ? '✓ Seen by ' + esc(M.name.split(' ')[0]) + ' · ' + K().dl(K().dayOf(rv.seen)) : conf().tutors ? '○ Not seen yet' : 'Tutors don\'t see KPIs yet'}</p>` : ''}</div>`;
   }
 
   /* ---------- the Director's pages ---------- */

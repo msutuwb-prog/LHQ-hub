@@ -197,7 +197,7 @@ function renderCardEditor(){
   const subs = doc.subjects || [];
   if(cardOpen >= subs.length) cardOpen = subs.length - 1;
   const lv = cardLevelSet(doc.level);
-  F('cardLevelNote').textContent = lv ? `Topic lists: ${lv}` : (doc.level ? 'No syllabus lists for this Year & level. Choose a topic list for each subject, or add your own topics.' : 'Choose Year & level above, or choose a topic list for each subject.');
+  F('cardLevelNote').textContent = lv ? `Topic lists: ${lv}` : (doc.level ? 'No topic list for this Year. Pick one per subject or add your own.' : 'Choose Year and level above, or choose a topic list for each subject.');
   subs.forEach(s=>{ if(!s.list && !s.noList && s.mode!=='full' && !cardPicked(s)) s.list = cardGuessList(doc.level, s.name); });
   F('cardSubs').innerHTML = subs.map((s, i)=>{
     const [col] = CARD_COLORS[i % CARD_COLORS.length], open = i===cardOpen;
@@ -233,7 +233,7 @@ function renderCardEditor(){
           return `<div class="cs-pdrow"><b>${CARD_DAYNAME[d]}</b><input type="time" data-dk="${d}" data-de="s" value="${esc(o.s||'')}" aria-label="${CARD_DAYNAME[d]} start"><span>–</span><input type="time" data-dk="${d}" data-de="e" value="${esc(o.e||'')}" aria-label="${CARD_DAYNAME[d]} end"></div>`; }).join('')}
           <button type="button" class="small" data-act="samedays">Same time every day</button></div>`
           : `<button type="button" class="small" data-act="perday" style="margin:0 0 10px">Different times on some days</button>`) : ''}
-        <p class="hint" style="margin:-4px 0 12px">Leave the times blank if the timetable isn't ready. The card shows "time to be confirmed", and you can reshare it later.</p>
+        <p class="hint" style="margin:-4px 0 12px">No timetable yet? Leave times blank: the card shows "TBC".</p>
         ${set ? `<div class="fld"><span class="lbl">What to cover</span><div class="seg seg2" role="group" aria-label="What to cover">
           <button type="button" data-act="mode" data-m="selected" class="${s.mode!=='full'?'on':''}">Selected topics</button>
           <button type="button" data-act="mode" data-m="full" class="${s.mode==='full'?'on':''}">Full course</button></div></div>` : ''}

@@ -170,7 +170,7 @@ function openPreview(m){
 }
 function renderEditPanel(){
   const m = pvModel, ed = getEdits(m), monthly = state.freq==='m';
-  let h = `<div class="h2">Check before sending</div><p class="hint" style="margin:-4px 0 10px">Changes here are saved for this report only. Clear a box to leave it off the report.</p>`;
+  let h = `<div class="h2">Check before sending</div><p class="hint" style="margin:-4px 0 10px">For this report only. Clear a box to leave it out.</p>`;
   if(monthly){
     h += `<label><span>Overall comment (drafted from the results)</span><textarea id="edOverall" rows="7">${esc('overall' in ed ? ed.overall : draftComment(m))}</textarea></label>
       <button type="button" class="small" id="edRedraft">Redo the draft from the results</button>`;

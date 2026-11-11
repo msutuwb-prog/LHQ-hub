@@ -645,7 +645,7 @@ const mkV = h => String(h).replace(/^MKW\s+/, '<small class="u">MKW</small>');
 const L = (href, html, cls = 's') => { if(cls === 'v') html = mkV(html); return route.page === 'edithome' ? `<div class="${cls}">${html}</div>` : `<a class="mcl ${cls}" href="${href}">${html}<span class="mca">›</span></a>`; };
 const trend = (now, before, word) => { if(!before && !now) return ''; if(!before) return `<div class="tr fl">First month with figures</div>`; const p = Math.round((now - before) / before * 100); return `<div class="tr ${p >= 0 ? 'up' : 'dn'}">${p >= 0 ? '▲' : '▼'} ${Math.abs(p)}% ${word}</div>`; };
 const CARDS = {
-  money:{s:'Money in', t:'Money this month', ic:'cash', need:'money', d:'Received this month against what was invoiced, and what is still owed', href:() => can('pl') ? '#biz/money/' + ym(today()) : '#docs/receipt/m-' + ym(today()),
+  money:{s:'Money in', t:'Money this month', ic:'cash', need:'money', d:'Received vs invoiced this month', href:() => can('pl') ? '#biz/money/' + ym(today()) : '#docs/receipt/m-' + ym(today()),
     html:m => `${L(can('pl') ? '#biz/money/' + ym(today()) : '#docs/receipt/m-' + ym(today()), mkShort(m.recv), 'v')}<div class="bar"><i style="width:${m.invoiced ? Math.min(100, Math.round(m.recv / m.invoiced * 100)) : 0}%"></i></div>${L(can('pl') ? '#biz/money/' + ym(today()) : '#docs/invoice/m-' + ym(today()), `${mkShort(m.invoiced)} invoiced this month`)}${L('#docs/invoice/unpaid', `Outstanding ${mkShort(m.owed)}${m.overN ? ` · ${m.overN} overdue` : ''}`, 's' + (m.overN ? ' bad' : ''))}${trend(m.recv, m.recvLast, 'received vs last month')}`},
   owed:{s:'Owed', t:'Outstanding & overdue', ic:'alert', need:'money', d:'Unpaid balances, with overdue ones first', href:'#biz/owed',
     html:m => `${L('#biz/owed', mkShort(m.owed), 'v')}${L('#biz/owed', `${m.owingN} invoice${m.owingN === 1 ? '' : 's'} not fully paid`)}${m.overN ? L('#biz/owed', `${m.overN} overdue · ${mkShort(m.overAmt)}`, 's bad') : '<div class="s">Nothing overdue</div>'}`},
@@ -657,12 +657,12 @@ const CARDS = {
     html:m => `${L('#students/ending', `${m.ending}`, 'v')}${L('#students/ending', `period${m.ending === 1 ? '' : 's'} end in the next 7 days`)}<div class="s">${m.renewed} renewed already</div>${m.endingNext ? `<div class="tr fl">Next: ${esc(m.endingNext.name)}, ${nice(m.endingNext.cur.inv.periodEnd)}</div>` : ''}`},
   tutors:{s:'Tutors', t:'Tutors', ic:'user', d:'Tutors teaching now, and subjects with no tutor', href:'#tutors',
     html:m => `${L('#tutors', `${m.tutors} <small>teaching</small>`, 'v')}<div class="s">${m.perTutor ? `About ${m.perTutor} students each` : 'From the current tuition cards'}</div>${m.noTutor ? L('#tutors/none', `${m.noTutor} subject${m.noTutor === 1 ? ' has' : 's have'} no tutor yet`, 's warn') : '<div class="s">Every subject has a tutor</div>'}`},
-  sessions:{t:'Sessions this week', ic:'clock', step2:true, d:'Sessions done and still to come, from tutors’ logs'},
+  sessions:{t:'Sessions this week', ic:'clock', step2:true, d:'Sessions done and still to come, from tutors\' logs'},
   sras:{t:'SRAs due', ic:'restore', step2:true, d:'Spaced repetition reviews due this week'},
   reports:{t:'Reports to send', ic:'rep', step2:true, d:'Weekly reports ready for parents'},
   profit:{s:'Profit', t:'Profit this month', ic:'cash', need:'pl', d:'Money in less spending this month, and the margin', href:'#biz/pl', html:() => BIZ.cardProfit()},
   spend:{s:'Spending', t:'Spending this month', ic:'box', need:'spend', d:'What has been spent this month, against the budget', href:'#biz/spending', html:() => BIZ.cardSpend()},
-  tpay:{t:'Tutor pay this month', ic:'cash', need:'tpay', step2:true, d:'Pay so far from logged sessions, and what is left after paying tutors'},
+  tpay:{t:'Tutor pay this month', ic:'cash', need:'tpay', step2:true, d:'Tutor pay so far and what\'s left'},
 };
 const DEFAULT_HOME = () => LEAN() ? (can('money') ? ['money','owed','students'] : ['students','enrol','renew']) : can('money') ? ['money','students','enrol','tutors'] : ['students','enrol','renew','tutors'];
 function myCards(){ const h = me().home; return (Array.isArray(h) ? h : DEFAULT_HOME()).filter(k => CARDS[k] && !CARDS[k].step2 && (!CARDS[k].need || can(CARDS[k].need))); }
@@ -736,7 +736,7 @@ function studentRows(list, f){
   const rows = list.filter(S_F[f || 'all'][1]).filter(s => !q || sk([s.name, s.parent, s.level, ...s.docs.map(d => d.number)].join(' ')).includes(q));
   const per = s => s.cur ? range(s.cur.inv.periodStart, s.cur.inv.periodEnd) : '';
   return (rows.length ? `<div class="it srow sh"><span></span><span>Name</span><span class="c">Year</span><span class="c">Period</span><span class="c">Subjects</span><span>Status</span></div>` : '') + rows.map(s => `<a class="it srow" href="${stuLink(s.key)}"><span class="av">${inits(s.name)}</span><span class="t"><b>${esc(s.name)}</b><small>${esc([s.level, per(s), subjectsOf(s)].filter(Boolean).join(' · '))}</small></span><span class="c">${esc(s.level || '–')}</span><span class="c">${esc(per(s) || '–')}</span><span class="c">${esc(subjectsOf(s) || '–')}</span><span class="tag ${s.status.cls}">${s.status.text}</span></a>`).join('')
-    || `<p class="empty">${list.length ? 'No students match.' : 'No students yet. Add one, or they appear as soon as a quote is saved.'}</p>`;
+    || `<p class="empty">${list.length ? 'No students match.' : 'No students yet.'}</p>`;
 }
 function subjectsOf(s){
   const d = s.cur ? s.cur.card || s.cur.inv : s.openQuote || s.loneCard; if(!d) return '';
@@ -790,7 +790,7 @@ P.student = (key, tab = 'overview') => {
         ${PK.map(p => `<div class="it"><span class="cfm" style="${p.out ? 'background:var(--ok);border-color:var(--ok);color:#fff' : 'border:2px solid var(--' + (p.on < HD.today() ? 'rd' : 'line') + ')'}">${p.out ? '✓' : ''}</span><span class="t"><b>${esc(p.sub)} · ${p.sheets.length} sheet${p.sheets.length === 1 ? '' : 's'}</b><small${!p.out && p.on < HD.today() ? ' style="color:var(--rd)"' : ''}>${p.out ? `Handed over ${nice(p.out.d)}${p.out.by ? ' · ' + esc(p.out.by) : ''}` : `${p.on < HD.today() ? 'Not handed over' : 'Last session ' + nice(p.on)} · ${esc(p.tutor || '')}`}</small></span></div>`).join('')}</div>`; })() : '';
     body = tgt + pk + (B.length ? `<div class="mk-cards" style="${MARKS.cols(B.length)}">${B.map(x => `<div class="card pad"><div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><b>${esc(x.sub)}</b>${x.last != null ? `<span class="mk-big">${x.last}%${MARKS.change(x.diff)}</span>` : ''}</div><p class="note" style="margin:0 0 4px">Assessments</p>${MARKS.line(x, 340, 160)}${MARKS.avgs(x)}</div>`).join('')}</div>
       <div class="h2">SRAs <em>% at each review</em></div><div class="mk-cards" style="${MARKS.cols(B.length)}">${B.map(x => `<div class="card pad"><b style="display:block;margin-bottom:6px">${esc(x.sub)}</b>${MARKS.grid(x)}</div>`).join('')}</div>`
-      : '<p class="empty">No marks yet. They appear as tutors enter weekly assessment and SRA marks.</p>');
+      : '<p class="empty">No marks yet.</p>');
   }
   if(tab === 'reports'){
     const R = (store.get('lhq_sreports', {}) || {})[s.key] || {}, days = Object.keys(R).sort().reverse().slice(0, 30);
@@ -803,7 +803,7 @@ P.student = (key, tab = 'overview') => {
       ${can('quotes') ? `<a class="btn" href="${D('new=quote&student=' + encodeURIComponent(s.key))}">${ic('plus',16,2.2)} New quote for ${esc(first(s.name))}</a>` : ''}`;
   }
   if(tab === 'details'){
-    const F = [['Student name','name'],['Year & level','level'],['School','school'],['Parent / guardian','parent'],['WhatsApp','phone'],['Email','email'],['Area','area'],['District','district'],['Address','address'],['Heard about LHQ via','heard']];
+    const F = [['Student name','name'],['Year and level','level'],['School','school'],['Parent / guardian','parent'],['WhatsApp','phone'],['Email','email'],['Area','area'],['District','district'],['Address','address'],['Heard about LHQ via','heard']];
     body = editDetails
       ? `<div class="card pad">${F.map(([l, f]) => `<label class="f"><span>${l}</span>${f === 'level' ? levelSelect('sd_level', s.level) : f === 'school' ? schoolInput('sd_school', s.school) : f === 'district' ? districtSelect('sd_district', s.district) : f === 'heard' ? heardSelect('sd_heard', s.heard) : f === 'area' ? `<input class="in" id="sd_area" value="${esc(s.area)}" placeholder="e.g. Area 47">` : `<input class="in" id="sd_${f}" value="${esc(s[f])}">`}</label>`).join('')}
          <div class="acts"><button class="btn n" id="sdSave">Save details</button><button class="btn" id="sdCancel">Cancel</button></div></div>`
@@ -831,7 +831,7 @@ function stuOverview(s){
     if(!c.st.paidUp && can('receipts')) nexts.push(`<a class="btn g full" href="${D('conv=receipt:' + c.inv.id)}">${c.st.plan && c.st.firstPaid ? 'Receive 2nd instalment' : 'Record a payment'} · ${mk(c.st.balance)}</a>`);
     if(!c.card && can('cards')) nexts.push(`<a class="btn ${c.st.paidUp || c.st.firstPaid ? 'n' : ''} full" href="${cardLink(s)}">Make tuition card${s.lastCard ? ' (same subjects and tutors as last time)' : ''}</a>`);
     const soon = !c.inv.periodEnd || dayDiff(today(), c.inv.periodEnd) <= 14;
-    if(c.card && !s.openQuote && soon && can('quotes')) nexts.push(`<a class="btn n full" href="${D('renew=' + c.inv.id)}">Renew for the next period</a><p class="note">Makes the next invoice with the same subjects, starting after ${esc(nice(c.inv.periodEnd) || 'this period')}. The card after it copies days, times and tutors.</p>`);
+    if(c.card && !s.openQuote && soon && can('quotes')) nexts.push(`<a class="btn n full" href="${D('renew=' + c.inv.id)}">Renew for the next period</a><p class="note">Next invoice from ${esc(nice(c.inv.periodEnd) || 'this period')}, same subjects; the card copies days, times and tutors.</p>`);
   } else if(s.loneCard){ head = 'Tuition card'; chain = chip(s.loneCard, 'Card'); }
   if(s.openQuote){
     if(!c){ head = 'New enrolment'; chain = chip(s.openQuote, 'Quote') + ar + chip(null, 'Invoice') + ar + chip(null, 'Receipt') + ar + chip(null, 'Card'); }
@@ -864,7 +864,7 @@ function schoolInput(id, v){ const L = (window.SCHOOLS || []).map(x => x.n || x.
 function newStudentSheet(thenQuote){
   openSheet(`<div class="hx"><h3>New student</h3><button class="ib" data-close>✕</button></div><p class="sp">Saved once, then filled in on every document.</p>
     <label class="f"><span>Student name</span><input class="in" id="ns_name" placeholder="First and last name" autocomplete="off"></label>
-    <div class="r2"><label class="f"><span>Year & level</span>${levelSelect('ns_level', '')}</label><label class="f"><span>School</span>${schoolInput('ns_school', '')}</label></div>
+    <div class="r2"><label class="f"><span>Year and level</span>${levelSelect('ns_level', '')}</label><label class="f"><span>School</span>${schoolInput('ns_school', '')}</label></div>
     <div class="r2"><label class="f"><span>Parent / guardian</span><input class="in" id="ns_parent"></label><label class="f"><span>Parent's WhatsApp</span><input class="in" id="ns_phone" inputmode="tel" placeholder="0991 234 567"></label></div>
     <label class="f"><span>Parent's email</span><input class="in" id="ns_email" type="email" inputmode="email"></label>
     <div class="r2"><label class="f"><span>Area</span><input class="in" id="ns_area" placeholder="e.g. Area 47" autocomplete="off"></label><label class="f"><span>District</span>${districtSelect('ns_district', 'Lilongwe')}</label></div>
@@ -1521,27 +1521,27 @@ function peoplePw(){
   const all = HD.people(), D0 = isDir(), need = p => p.locked || ['setup','pin'].includes(p.status);
   const F = [['all','Everyone'],['need','Needs something'],['staff','Staff'],['student','Students'],['parent','Parents']];
   const list = all.filter(p => peopleShow === 'all' || (peopleShow === 'need' ? need(p) : peopleShow === 'staff' ? ['director','admin','tutor','bdo'].includes(p.role) : p.role === peopleShow));
-  return `<h2 class="sec-h">People & access</h2><p class="sec-p">${all.length} accounts · ${all.filter(need).length} need something. ${D0 ? 'Admin manages students, parents and tutors; only you add or reset Admin and BDO accounts.' : 'You manage students, parents and tutors. Admin and BDO accounts are managed by Wanangwa.'}</p>
+  return `<h2 class="sec-h">People & access</h2><p class="sec-p">${all.length} accounts · ${all.filter(need).length} need something. ${D0 ? 'Admin manages students, parents and tutors; only you add or reset Admin and BDO accounts.' : 'You manage students, parents and tutors. Admin accounts are managed by the Director.'}</p>
   <div class="seg" style="margin-bottom:12px;display:flex;flex-wrap:wrap;max-width:100%">${F.map(([k, l]) => `<button class="${peopleShow === k ? 'on' : ''}" data-pshow="${k}">${l}</button>`).join('')}</div>
   <div class="card">${list.map(p => { const self = p.id === me().id, mine = mayManage(p);
     return `<a class="it" ${mine ? `href="#person/${p.id}"` : self ? 'href="#set/account"' : 'style="cursor:default"'}><span class="av">${inits(p.name)}</span><span class="t"><b>${esc(p.name)}${self ? ' (you)' : ''}</b><small>${roleText(p)} · ${esc(p.username || '')}${p.children && p.children.length ? ' · ' + esc(p.children.join(', ')) : ''}${p.seen && p.status === 'active' ? ' · last in ' + ago(p.seen) : ''}</small></span>${pStatus(p)}${mine ? '<span class="chev">›</span>' : ''}</a>`; }).join('') || '<p class="empty">Nobody here.</p>'}</div>
   ${D0 || can('tutors') ? `<button class="btn n" id="addPerson">${ic('plus',16,2.2)} Add a person</button>` : ''}`;
 }
 function peoplePin(){ const list = HD.people(), D0 = isDir();
-  return `<h2 class="sec-h">People & access</h2><p class="sec-p">${D0 ? 'Everyone who can sign in. You decide what each person can see and do.' : 'You can add tutors, reset their PINs and switch them off. Only the Director changes admins.'}</p>
+  return `<h2 class="sec-h">People & access</h2><p class="sec-p">${D0 ? 'Everyone who can sign in. You decide what each person can see and do.' : 'You can add tutors, give them setup codes and switch them off. Only the Director changes admins.'}</p>
   <div class="card">${list.map(p => { const self = p.id === me().id, mine = !self && p.role !== 'director' && (D0 || p.role === 'tutor');
     return `<a class="it" ${mine ? `href="#person/${p.id}"` : self ? 'href="#set/account"' : 'style="cursor:default"'}><span class="av">${inits(p.name)}</span><span class="t"><b>${esc(p.name)}${self ? ' (you)' : ''}</b><small>${roleText(p)}${p.seen ? ' · last seen ' + ago(p.seen) : ''}</small></span>${p.role === 'director' ? '<span class="rolechip">Director</span>' : ''}${p.active ? '' : '<span class="tag rd">Off</span>'}${mine || self ? `<span class="chev">${ic('chev',16,2)}</span>` : p.role === 'director' ? '' : '<span class="tag gr">Director only</span>'}</a>`; }).join('') || '<p class="empty">Loading…</p>'}</div>
   <button class="btn" id="addPerson">${ic('plus',16,2.2)} ${D0 ? 'Add a person' : 'Add a tutor'}</button>`; };
 const PERMS = [
   ['Documents', [['quotes','Make and edit quotes and invoices'],['receipts','Record payments (receipts)'],['cards','Make tuition cards'],['delete','Delete documents'],['restore','Restore deleted documents']]],
   ['Students', [['students','Add and edit student details']]],
-  ['Money', [['money','See money totals and reports','Money cards on Home, money in Overview, totals and trends. Amounts on single documents stay visible to anyone who makes them.'],['tpay','See tutor pay','What each tutor earns (arrives with step 2)']]],
+  ['Money', [['money','See money totals and reports','Money cards, totals and trends. Amounts on a document stay visible to whoever makes it.'],['tpay','See tutor pay','What each tutor earns (arrives with step 2)']]],
   ['Business', [['spend','Record spending','Add spending and see the spending list. They can change only what they recorded.'],['pl','See profit and loss and budgets','Money in against spending, profit, budgets, and the Profit card on Home']]],
   ['People', [['tutors','Add tutors, students and parents, give them setup codes, switch them off']]],
   ['Settings', [['msgs','Messages and lists'],['numbering','Numbering'],['backup','Backup and restore']]],
-  ['Tutors · arrives with step 2', [['classes','See every tutor’s classes'],['moveclass','Move classes between tutors']]],
+  ['Tutors · arrives with step 2', [['classes','See every tutor\'s classes'],['moveclass','Move classes between tutors']]],
 ];
-const DIRECTOR_ONLY = ['Company and bank details (the account parents pay into)','Payments and due dates','Add or remove admins, and remove any account','Change anyone’s permissions'];
+const DIRECTOR_ONLY = ['Company and bank details (the account parents pay into)','Payments and due dates','Add or remove admins, and remove any account','Change anyone\'s permissions'];
 function personPage(id){
   const p = HD.people().find(x => x.id === id), D0 = isDir();
   if(!p) return '<p class="empty">Loading…</p>';
@@ -1554,10 +1554,10 @@ function personPage(id){
       <div class="acts" style="margin-top:12px"><button class="btn sm" id="permDefault">Use admin defaults</button></div>
       <div class="cap" style="margin-top:18px">Only you, as Director</div>${DIRECTOR_ONLY.map(x => `<div class="lock">${ic('key',16)}${x}</div>`).join('')}</div>` : ''}` : ''}
   ${PWD() ? `<div class="card pad"><div class="cap">Sign-in</div><dl class="kv"><dt>Username</dt><dd>${esc(p.username || '')}</dd><dt>Email</dt><dd>${esc(p.email || 'not added')}</dd><dt>Status</dt><dd>${pStatus(p)}</dd>${p.children && p.children.length ? `<dt>Children</dt><dd>${esc(p.children.join(', '))}</dd>` : ''}</dl>
-      <p class="note" style="margin:6px 0 10px">${p.status === 'setup' ? `${esc(first(p.name))} hasn't set up yet. Give them a setup code: they choose their own password with it.` : p.status === 'pin' ? `${esc(first(p.name))} still signs in with their PIN. They choose a password the next time they sign in.` : `Forgotten password? Make a new setup code: their old password works until they use it.`}</p>
+      <p class="note" style="margin:6px 0 10px">${p.status === 'setup' ? `${esc(first(p.name))} hasn't set up yet. Give them a setup code: they choose their own password with it.` : p.status === 'pin' ? `${esc(first(p.name))} still signs in with their PIN. They choose a password the next time they sign in.` : `Forgot their password? Make a new setup code.`}</p>
       <div class="acts">${p.locked ? '<button class="btn n sm" id="pUnlock">Unlock</button>' : ''}<button class="btn sm" id="pCode">${p.status === 'setup' ? 'Make a setup code' : 'Reset password · new setup code'}</button><button class="btn sm" id="pEmail">${p.email ? 'Change email' : 'Add email'}</button><button class="btn sm" id="pOutAll">Sign out of every device</button></div></div>` : `<div class="card pad"><div class="cap">PIN</div><div class="r2"><label class="f"><span>New PIN for ${esc(first(p.name))}</span><input class="in" id="ppin" inputmode="numeric" maxlength="6" placeholder="4 to 6 digits"></label></div><button class="btn" id="ppinGo">Reset PIN</button><p class="note">Tell ${esc(first(p.name))} the new PIN yourself. They are signed out until they use it.</p></div>`}
   <div class="card pad"><div class="cap">Recent activity</div>${acts.length ? acts.map(a => `<a class="it" href="${openLink(a.d)}"><span class="t"><b>${esc(actText(a))}</b><small>${esc(a.d.number)} · ${esc(a.d.student || a.d.name || '')} · ${ago(a.at)}</small></span></a>`).join('') : '<p class="empty" style="margin:0">Nothing recorded yet.</p>'}</div>
-  <div class="card pad"><div class="cap">Access</div><p class="note" style="margin:0 0 10px">${p.active ? 'Switching off signs them out on every device straight away. Their documents and logs stay.' : 'Switched off. They cannot sign in.'}</p>
+  <div class="card pad"><div class="cap">Access</div><p class="note" style="margin:0 0 10px">${p.active ? 'Signs them out everywhere. Their work stays.' : 'Switched off. They cannot sign in.'}</p>
     <div class="acts"><button class="btn ${p.active ? 'rd' : ''}" id="pOnOff">${p.active ? 'Switch off' : 'Switch on'}</button>${D0 ? `<button class="btn rd" id="pRemove">${ic('bin',16)} Remove account</button>` : ''}</div></div>`;
 }
 const actText = a => ({created:'Created', edited:'Edited', emailed:'Emailed', whatsapp:'Sent on WhatsApp', paid:'Payment recorded', restored:'Restored'}[a.a] || a.a);
@@ -1568,7 +1568,7 @@ async function addPersonPw(){
   addDraft = addDraft || {name:'', role:'student', email:'', kids:[], students:null};
   if(!addDraft.students) hub.api('people', {method:'POST', body:JSON.stringify({action:'students'})}).then(r => { addDraft.students = r.students; if(!$('sheet').hidden) draw(); }).catch(() => {});
   const draw = () => { const F = addDraft;
-    openSheet(`<div class="hx"><h3>Add a person</h3><button class="ib" data-close>✕</button></div><p class="sp">They get a username and a one-time setup code. With the code they choose their own password.</p>
+    openSheet(`<div class="hx"><h3>Add a person</h3><button class="ib" data-close>✕</button></div><p class="sp">They get a username and a setup code to choose a password.</p>
       <label class="f"><span>Full name</span><input class="in" id="ap_name" autocomplete="off" value="${esc(F.name)}" placeholder="e.g. Kondwani Kalua"></label>
       <label class="f"><span>Role</span></label><div class="seg" style="flex-wrap:wrap;margin-bottom:12px">${roles.map(([k, l]) => `<button class="${F.role === k ? 'on' : ''}" data-aprole="${k}">${l}</button>`).join('')}</div>
       ${F.role === 'parent' ? `<label class="f"><span>Their children</span></label>${F.students ? F.students.map(st => `<button type="button" class="kidtick${F.kids.includes(st.id) ? ' on' : ''}" data-apkid="${st.id}"><span class="bx">${F.kids.includes(st.id) ? '✓' : ''}</span><span><b>${esc(st.name)}</b>${st.level ? `<small style="display:block;color:var(--muted)">${esc(st.level)}</small>` : ''}</span></button>`).join('') || '<p class="note">No students in the records yet.</p>' : '<p class="note">Loading students…</p>'}` : ''}
@@ -1603,7 +1603,7 @@ async function peopleCall(body, msg){
 }
 
 S.company = () => { const s = settingsKV();
-  return `<h2 class="sec-h">Company & bank details</h2><p class="sec-p">Printed on every quote, invoice and receipt. Only you can change these.</p>
+  return `<h2 class="sec-h">Company & bank details</h2><p class="sec-p">On every document. Director only.</p>
   <div class="card pad"><div class="cap">Contact</div><div class="r2">${fieldRow('c_email','Email',s.email,'type="email"')}${fieldRow('c_phone','Phone (header)',s.phone)}</div>
   <div class="cap">Bank</div><div class="r2">${fieldRow('c_bank','Bank name',s.bank)}${fieldRow('c_accname','Account name',s.accname)}${fieldRow('c_branch','Branch',s.branch)}${fieldRow('c_accno','Account number',s.accno,'inputmode="numeric"')}</div>
   <div class="cap">Mobile money</div><div class="r2">${fieldRow('c_popphone','Proof of payment number',s.popphone)}${fieldRow('c_mobile','Mobile banking number',s.mobile)}</div>
@@ -1630,7 +1630,7 @@ const usedMax = t => saved.reduce((m, d) => { const p = parseNo(d.number); retur
 function parseNo(n){ const m = String(n || '').trim().match(/^(Q|INV|RCT|TC)-?(\d+)$/i); return m ? {type:{Q:'quote',INV:'invoice',RCT:'receipt',TC:'card'}[m[1].toUpperCase()], n:+m[2]} : null; }
 const PFX = {quote:'Q', invoice:'INV', receipt:'RCT', card:'TC'};
 const fmtNo = (t, n) => PFX[t] + '-' + String(n).padStart(4, '0');
-S.numbering = () => `<h2 class="sec-h">Numbering</h2><p class="sec-p">Numbers fill in by themselves. Set where a series continues from, for example if LHQ has issued invoices up to 57, set the next invoice to 58.</p>
+S.numbering = () => `<h2 class="sec-h">Numbering</h2><p class="sec-p">Set the next number in each series, e.g. 58 if the last invoice was 57.</p>
   <div class="card pad"><div class="r2">${['quote','invoice','receipt','card'].map(t => `<label class="f"><span>Next ${t === 'card' ? 'tuition card' : t}</span><input class="in" id="n_${t}" inputmode="numeric" value="${nextFor(t)}"><small style="display:block;margin-top:4px;color:var(--brand);font-weight:700">Next: ${fmtNo(t, nextFor(t))}${usedMax(t) ? ` · used up to ${fmtNo(t, usedMax(t))}` : ''}</small></label>`).join('')}</div>
   <button class="btn n" id="numSave">Save</button></div>`;
 
@@ -1639,14 +1639,14 @@ const MSG = [['emailBody','Quotes & invoices · email'],['waBody','Quotes & invo
 const VARS = ['{name}','{student}','{level}','{type}','{Type}','{number}','{ref}','{date}','{due}','{for}','{period}','{subjects}','{summary}','{subtotal}','{discount}','{total}','{paid}','{balance}','{received}','{prevpaid}','{method}','{bank}','{accname}','{branch}','{accno}','{mobile}','{includesline}','{popphone}','{email}','{phone}'];
 const templates = () => Object.assign({}, DEFAULT_TEMPLATES, store.get('lhq_templates', {}));
 S.messages = () => { const t = templates();
-  return `<h2 class="sec-h">Messages</h2><p class="sec-p">The wording sent with each document. Tap a field below to add it where the cursor is.</p>
+  return `<h2 class="sec-h">Messages</h2><p class="sec-p">Message sent with each document. Tap a field to insert it.</p>
   <div class="tabs">${MSG.map(([k, l]) => `<a href="#set/messages" class="${msgTab === k ? 'on' : ''}" data-msg="${k}">${l}</a>`).join('')}</div>
   <div class="card pad">${msgTab === 'emailBody' ? fieldRow('t_emailSubject','Email subject',t.emailSubject) : ''}
   <label class="f"><span>Message</span><textarea class="in" id="t_body" style="min-height:280px">${esc(t[msgTab])}</textarea></label>
   <div class="vars">${VARS.map(v => `<button data-var="${v}">${v}</button>`).join('')}</div>
   <div class="acts"><button class="btn n" id="tplSave">Save</button><button class="btn" id="tplReset">Restore the default wording</button></div></div>`; };
 
-const LISTS = [['subjects','Subjects'],['levels','Year & level'],['methods','Payment methods'],['includes','Every LHQ Enrollment Includes'],['tutors','Tutors on tuition cards'],['grades','Grades'],['gradeBasis','Grade based on'],['sessionLengths','Session lengths'],['spendCats','Spending categories'],['heardFrom','How families hear about LHQ (also marketing channels)'],['districts','Districts']];
+const LISTS = [['subjects','Subjects'],['levels','Year and level'],['methods','Payment methods'],['includes','Every LHQ enrolment includes'],['tutors','Tutors on tuition cards'],['grades','Grades'],['gradeBasis','Grade based on'],['sessionLengths','Session lengths'],['spendCats','Spending categories'],['heardFrom','How families hear about LHQ (also marketing channels)'],['districts','Districts']];
 S.lists = () => { const s = settingsKV();
   return `<h2 class="sec-h">Lists</h2><p class="sec-p">The choices in every dropdown. Changes save straight away.</p>
   ${LISTS.map(([k, l]) => `<div class="card pad"><div class="cap">${l}</div><div class="lchips">${lines(s[k]).map((x, i) => `<span>${esc(x)}<button data-lrm="${k}:${i}" aria-label="Remove ${esc(x)}">✕</button></span>`).join('')}</div>
@@ -1672,7 +1672,7 @@ function parseContacts(text, names){
   for(let i = 1; i < parts.length; i += 2){
     const before = parts[i - 1].replace(/\(mailto:[^)]*\)/gi, ' ').replace(/[\[\]]/g, ' '), email = parts[i].replace(/^mailto:/i, '').toLowerCase();
     const ph = (before.match(/\+?\d[\d\s-]{7,}\d/g) || []).pop() || '';
-    const nm = before.replace(/\+?\d[\d\s-]{7,}\d/g, ' ').replace(/[•·|,:;]/g, ' ').replace(/\s+/g, ' ').trim().split(' ').filter(w => /^[a-z'’-]+$/i.test(w)).slice(-3).join(' ');
+    const nm = before.replace(/\+?\d[\d\s-]{7,}\d/g, ' ').replace(/[•·|,:;]/g, ' ').replace(/\s+/g, ' ').trim().split(' ').filter(w => /^[a-z'\'-]+$/i.test(w)).slice(-3).join(' ');
     if(!nm) continue;
     const title = nm.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()), w = title.split(' '), sur = w[w.length - 1].toLowerCase(), fst = w[0].toLowerCase();
     // same surname and a first name starting the same way (Cathy → Catherine); anything less certain stays a new name to check
@@ -1693,7 +1693,7 @@ S.sending = () => `<h2 class="sec-h">Email & WhatsApp</h2><p class="sec-p">Sendi
   </div>`;
 
 S.backup = () => { const last = store.get('lhq_lastBackup', 0);
-  return `<h2 class="sec-h">Backup & restore</h2><p class="sec-p">Everything is stored online in LHQ Hub. A backup is an extra copy as one file: keep it in Google Drive or send it to yourself.</p>
+  return `<h2 class="sec-h">Backup & restore</h2><p class="sec-p">Everything is stored online. A backup is one extra file of it all: keep it in Google Drive.</p>
   <div class="card pad"><dl class="kv"><dt>Last backup</dt><dd>${last ? ago(last) : 'Never'}</dd><dt>Documents</dt><dd>${saved.length}</dd>${window.lhqStorageUse ? `<dt>This device</dt><dd>${(lhqStorageUse() / 1048576).toFixed(1)} MB used of about 5 MB</dd>` : ''}</dl>
   <div class="acts" style="margin-top:12px"><button class="btn n" id="bkGo">Back up now</button><button class="btn" id="rsGo">Add from a backup</button></div>
   <p class="note">Adds what's missing; the newer copy wins. Never deletes.</p></div>`; };
@@ -1701,7 +1701,7 @@ S.backup = () => { const last = store.get('lhq_lastBackup', 0);
 /* previews have their own storage; the Director can fill it with demo data */
 let PREVIEW = false; try{ PREVIEW = sessionStorage.getItem('lhq_preview') === '1'; }catch(e){}
 fetch('/api/hub/people?v=2', {cache:'no-store'}).then(r => r.json()).then(j => { const was = PREVIEW; PREVIEW = !!j.preview; try{ sessionStorage.setItem('lhq_preview', PREVIEW ? '1' : '0'); }catch(e){} if(was !== PREVIEW) render(); }).catch(() => {});
-S.demo = () => `<h2 class="sec-h">Demo data</h2><p class="sec-p">This preview has its own storage, separate from LHQ's real documents. Fill it with six months of made-up students to try every page.</p>
+S.demo = () => `<h2 class="sec-h">Demo data</h2><p class="sec-p">Test copy only. Load six months of demo data.</p>
   <div class="card pad"><div class="cap">What you get</div>
   <p class="note" style="margin:0 0 6px">About 50 invented students from May to today (around 40 at a time): quotes, invoices, receipts and tuition cards; 50/50 plans; payments in grace and overdue; periods ending this week and renewed; ended students; quotes waiting; a card with no tutor; a sibling discount; a deleted receipt; tutors' session logs, SRAs and comments for Reports; and Business: spending from May to today with budgets, and repeating costs waiting to be confirmed.</p>
   <p class="note" style="margin:0 0 12px">It also adds Catherine Mkwinda (Admin, who can record spending), eight tutors, and Mayamiko Goliati (switched off). Their PIN is <b>1111</b>. Your own account stays as it is.</p>
@@ -1900,7 +1900,7 @@ function bind(){
     if($('ppinGo')) $('ppinGo').onclick = () => peopleCall({action:'pin', id:pid, pin:$('ppin').value}, `New PIN set for ${first(P0.name)}`);
     if($('pOnOff')) $('pOnOff').onclick = () => { if(P0.active && !confirm(`Switch off ${P0.name}? They are signed out everywhere straight away.`)) return; peopleCall({action:P0.active ? 'off' : 'on', id:pid}, P0.active ? `${first(P0.name)} is switched off` : `${first(P0.name)} can sign in again`); };
     if($('pRemove')) $('pRemove').onclick = () => {
-      openSheet(`<h3>Remove ${esc(P0.name)}?</h3><p class="sp">Their account is deleted and they can't sign in. Documents and logs they made stay, with their name on them. To stop access for now, Switch off is enough.</p><div class="acts"><button class="btn rd" id="rmGo">${ic('bin',16)} Remove</button><button class="btn" data-close>Keep</button></div>`);
+      openSheet(`<h3>Remove ${esc(P0.name)}?</h3><p class="sp">Deletes the account. Their documents and logs stay. To pause access, use Switch off.</p><div class="acts"><button class="btn rd" id="rmGo">${ic('bin',16)} Remove</button><button class="btn" data-close>Keep</button></div>`);
       bind(); $('rmGo').onclick = async () => { if(await peopleCall({action:'remove', id:pid}, 'Account removed')){ closeSheet(); location.hash = '#set/people'; } };
     };
   }

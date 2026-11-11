@@ -592,7 +592,7 @@ window.TUT = (function(){
     return (ld.length ? `<div class="t-grp">Starting today</div><div class="t-opts">${ld.map(tp => tick('ldoff:' + tp, !(f.ldOff || []).includes(tp), `${esc(tp)} · Learning Day`, 'For everyone here · the first SRA of the topic you just finished')).join('')}</div>` : '') + (due.length ? `<div class="t-grp">Due today</div><div class="t-opts">${due.map(x => row(x, '', 'Do on ' + nice(x.doOn))).join('')}</div>` : '') +
       (miss.length ? `<div class="t-grp"><span class="tag am">Missed</span> Should have gone out earlier</div><div class="t-opts">${miss.map(x => row(x, 'miss', 'Was for ' + nice(x.giveOn) + ' · do as soon as possible')).join('')}</div>` : '') +
       (up.length ? `<div class="t-grp">Coming up this week · give early if you need to</div><div class="t-opts">${up.map(x => row(x, '', 'Give on ' + nice(x.giveOn) + ' · do on ' + nice(x.doOn) + (f.give.includes(ref(x)) ? ' · due back ' + backOn(x) : ''))).join('')}</div>` : '') ||
-      '<p class="empty" style="margin:0">No SRAs due for this week. Mark a topic finished to start its SRAs.</p>';
+      '<p class="empty" style="margin:0">No SRAs this week.</p>';
   }
   function logPage(key, eid){
     if(key.startsWith('edit:')){ if(!form || form.grp !== key.slice(5)) form = editForm(key.slice(5)); if(!form) return backHome() + '<p class="empty">That log isn\'t here any more.</p>'; }
@@ -778,7 +778,7 @@ window.TUT = (function(){
         keys.map(k => { const it = itemOf(k); if(!it) return ''; const X = L.filter(x => x.k === k), byT = new Map(); X.forEach(x => { if(!byT.has(x.topic)) byT.set(x.topic, []); byT.get(x.topic).push(x); });
           return `<div class="h2">${esc(it.st)} <em>${esc(it.sub)}</em></div><div class="card">${[...byT.entries()].map(([tp, R]) => `<div class="it" style="display:block"><b style="display:block">${esc(tp)}</b><small style="color:var(--muted);font-size:12.5px">Learning Day ${nice(R[0].learnt)}</small>
             <div class="t-chips6">${R.sort((a, b) => a.stage - b.stage).map(x => `<button type="button" class="tag ${TAG[x.status][0]}" data-tsdet="${esc(ref(x))}" aria-label="${x.label}"><span>${x.stage ? 'R' + x.stage : 'LD'}</span>${TAG[x.status][1](x)}</button>`).join('')}</div></div>`).join('') || '<p class="empty">No topics finished yet.</p>'}</div>`; }).join('') +
-        '<p class="note">LD Learning Day · R1–R5 reviews · green in · blue out · amber today or late · red missed · grey to come</p>';
+        '<p class="note">LD · R1–R5 · green in · blue out · amber due · red missed</p>';
     } else if(tab === 'pack'){
       body = packTab();
     } else if(tab === 'week'){
@@ -903,8 +903,8 @@ window.TUT = (function(){
   /* ---------- classes ---------- */
   function classesPage(){
     const C = data.classes || [];
-    return backHome() + head('Classes', 'Official classes that don’t change. Everything else is one-to-one.', `<div class="acts"><button class="btn n" data-tclsnew>${ic('plus',16,2.4)} New class</button></div>`) +
-      `<div class="card">${C.map(c => `<a class="it" href="#teach/class/${c.id}"><span class="t"><b>${esc(c.name)}</b><small>${esc(c.sub)} · ${c.stu.length} students · ${esc(c.mode)}</small></span><span class="chev">${ic('chev',16,2)}</span></a>`).join('') || '<p class="empty">No classes. Create one when the same students are taught a topic together, in person or online.</p>'}</div>
+    return backHome() + head('Classes', 'Official classes that don\'t change. Everything else is one-to-one.', `<div class="acts"><button class="btn n" data-tclsnew>${ic('plus',16,2.4)} New class</button></div>`) +
+      `<div class="card">${C.map(c => `<a class="it" href="#teach/class/${c.id}"><span class="t"><b>${esc(c.name)}</b><small>${esc(c.sub)} · ${c.stu.length} students · ${esc(c.mode)}</small></span><span class="chev">${ic('chev',16,2)}</span></a>`).join('') || '<p class="empty">No classes. Make one for students taught together.</p>'}</div>
       <p class="note">Finishing a topic starts SRAs for everyone present.</p>`;
   }
   function classPage(id){

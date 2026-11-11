@@ -12,9 +12,9 @@ window.LHQPush = (function(){
   async function load(){ info = await hub.api('push'); return info; }
   async function mySub(){ if(!supported()) return null; const reg = await navigator.serviceWorker.ready; return reg.pushManager.getSubscription(); }
   async function enable(){
-    if(!supported()) throw new Error(ios() && !standalone() ? 'Add LHQ Hub to your Home Screen first' : 'This browser can’t show notifications');
-    const i = info || await load(); if(!i.key) throw new Error('Notifications aren’t set up on LHQ Hub yet');
-    const p = await Notification.requestPermission(); if(p !== 'granted') throw new Error(p === 'denied' ? 'Notifications are blocked for LHQ Hub in this browser’s settings' : 'Not turned on');
+    if(!supported()) throw new Error(ios() && !standalone() ? 'Add LHQ Hub to your Home Screen first' : 'This browser can\'t show notifications');
+    const i = info || await load(); if(!i.key) throw new Error('Notifications aren\'t set up on LHQ Hub yet');
+    const p = await Notification.requestPermission(); if(p !== 'granted') throw new Error(p === 'denied' ? 'Notifications are blocked for LHQ Hub in this browser\'s settings' : 'Not turned on');
     const reg = await navigator.serviceWorker.ready;
     let s = await reg.pushManager.getSubscription();
     if(!s) s = await reg.pushManager.subscribe({userVisibleOnly: true, applicationServerKey: b64(i.key)});
@@ -45,7 +45,7 @@ window.LHQPush = (function(){
     const sw = (attr, v, l, sub) => `<div class="it"><span class="t"><b>${l}</b>${sub ? `<small>${sub}</small>` : ''}</span><button class="lp-sw${v ? ' on' : ''}" ${attr} role="switch" aria-checked="${!!v}" aria-label="${esc(l)}"></button></div>`;
     const when = {report: '16:00', sreport: 'after the last session', sra: '07:30'};
     const other = i.devices.filter(d => !s || d.endpoint !== s.endpoint);
-    const cant = !supported() ? (ios() && !standalone() ? 'On iPhone: Share ⬆︎ › Add to Home Screen, then open LHQ Hub from there.' : 'This browser can’t show notifications.') : !i.key ? 'Not set up on LHQ Hub yet.' : Notification.permission === 'denied' ? 'Blocked in this browser’s settings for LHQ Hub.' : '';
+    const cant = !supported() ? (ios() && !standalone() ? 'On iPhone: Share ⬆︎ › Add to Home Screen, then open LHQ Hub from there.' : 'This browser can\'t show notifications.') : !i.key ? 'Not set up on LHQ Hub yet.' : Notification.permission === 'denied' ? 'Blocked in this browser\'s settings for LHQ Hub.' : '';
     return `<div class="card">${cant ? `<p class="empty" style="margin:0">${cant}</p>` : sw('data-lpdev', on, 'This device', on ? 'On' : 'Off')}</div>
       <div class="h2">What</div><div class="card" style="${on ? '' : 'opacity:.5'}">${i.kinds.map(([k, l]) => sw(`data-lpk="${k}"`, !(pr.off || {})[k], l, when[k] || '')).join('')}
         ${sw('data-lpsum', pr.summary, 'Morning summary', 'One at 07:00')}</div>
