@@ -328,6 +328,7 @@ window.FAM = (function(){
       if(!isParent() && sub0 === 'reminders') return SX.reminders();
       if(!isParent() && sub0 === 'bar') return SX.barPage();
       if(!isParent() && sub0 === 'sharing') return SX.sharing(k);
+      if(sub0 === 'switch'){ kidI = Math.max(0, +a1 || 0); write('lhq_family_kid', kidI); setTimeout(() => { location.hash = '#me'; }, 0); return ''; }
       if(window.SOUNDS && sub0 === 'sounds') return SOUNDS.page();
       if(window.REV && sub0 === 'review') return kidChips() + REV.page(k, a1, route.args[2]);
       if(window.REV && sub0 === 'school') return kidChips() + REV.school(k);
@@ -421,5 +422,28 @@ window.FAM = (function(){
   /* after 2 weeks on Lean, Home asks once */
   function moreAsk(){ if(isParent()) return ''; let f = read('lhq_first', 0); if(!f){ f = Date.now(); write('lhq_first', f); } if(read('lhq_moreAsk', 0) || Date.now() - f < 14 * 864e5) return '';
     return `<div class="card pad" style="margin-top:12px"><b>Want to see more?</b><p class="note" style="margin:2px 0 10px">Your cards, focus timer, habits, reviews and planning.</p><div class="row" style="gap:8px"><button class="btn n" style="flex:1" data-fmore="1">Show me</button><button class="btn" style="flex:1" data-fmore="0">Not now</button></div></div>`; }
-  return {page, bind, bell, refresh: fetchData, mineCtx, steps, comingOf, sub, sesTell, full};
+  /* search: only what's in this account, for the child in view (parents switch child from here too) */
+  function searchGroups(){
+    const k = kid(); if(!k) return []; const G = [], R = n => n ? 'R' + n : 'LD', sk = sb => '#me/subject/' + encodeURIComponent((k.subjects.find(x => x.sub === sb) || {}).k || ''), me0 = isParent();
+    if(me0 && kids().length > 1) G.push({g: 'Children', items: kids().map((c, i) => ({t: c.name, s: c === k ? 'in view' : 'switch to', href: '#me/switch/' + i}))});
+    G.push({g: 'Subjects', items: k.subjects.map(x => ({t: sub(x.sub), s: (x.tutor || '') + (x.b ? ' · until ' + dshort(x.b) : ''), href: sk(x.sub)}))});
+    const tp = new Map(); ((k.marks || {}).r || []).forEach(x => { if(!tp.has(x.sub + '|' + x.tk)) tp.set(x.sub + '|' + x.tk, x); }); (k.sras || []).forEach(x => { if(!tp.has(x.sub + '|' + x.topic)) tp.set(x.sub + '|' + x.topic, {sub: x.sub, tk: x.topic}); });
+    G.push({g: 'Topics', items: [...tp.values()].map(x => ({t: x.tk, s: sub(x.sub), href: sk(x.sub)}))});
+    G.push({g: 'SRAs', items: (k.sras || []).map(x => ({t: `${x.topic} ${R(x.stage)}`, s: `${sub(x.sub)} · ${x.done ? 'done' : 'do on ' + day(x.doOn)}${x.pack ? ' · take-home' : ''} · ARS then SRA`, href: x.pack ? '#me/practice/pack' : '#me/practice'}))
+      .concat(((k.marks || {}).r || []).map(x => ({t: `${x.tk} ${R(x.rv)}`, s: `${sub(x.sub)} · ${day(x.d)} · SRA ${x.p}%${x.a != null && x.a >= 0 ? ' · ARS ' + x.a + '%' : ''}`, href: sk(x.sub)})))});
+    G.push({g: 'Sessions', items: (k.week || []).map(s0 => ({t: `${day(s0.date)} · ${sub(s0.sub)}`, s: `${s0.s}–${s0.e} · ${s0.tutor || ''}`, href: me0 ? '#me/calendar/' + s0.date.slice(0, 7) + '/' + s0.date : '#me/day/' + s0.date}))
+      .concat(((k.hist || {}).s || []).slice().reverse().slice(0, 200).map(x => ({t: `${day(x[0])} · ${sub(x[1])}`, s: x[2] === 'attended' ? 'came' : x[2], href: sk(x[1])})))});
+    G.push({g: 'Assessments', items: comingOf(k).map(a => ({t: `${(window.MARKS ? MARKS.TY[MARKS.akN(a.ak)] : '') || 'Assessment'} · ${sub(a.sub)}`, s: `${day(a.d)} · coming up${(a.tp || []).length ? ' · ' + a.tp.join(', ') : ''}`, href: '#me/calendar/' + a.d.slice(0, 7) + '/' + a.d}))
+      .concat(((k.marks || {}).w || []).slice().reverse().map(x => ({t: `${(window.MARKS ? MARKS.TY[MARKS.akN(x.ak)] : '') || 'Assessment'} · ${sub(x.sub)}`, s: `${day(x.d)} · ${x.p}%`, href: sk(x.sub)})))});
+    if(window.EXUI && k.exam) G.push({g: 'Exam papers', items: k.subjects.flatMap(x => { const i = exInfo(k, x); return ((i && i.papers) || []).map(p => ({t: `${p.code || ''} · ${sub(x.sub)}`, s: `${p.n || ''} ${p.a ? day(p.a) : ''}`, k: (p.code || '').replace('/', ' '), href: '#me/exams'})); })});
+    if(!me0) G.push({g: 'Your dates and blocks', items: ((k.sx || {}).plan || []).map(b => ({t: b.name || 'Block', s: b.all ? 'all day · ' + day(b.from) : `${b.s}–${b.e} · ${({once: day(b.from), daily: 'every day', weekdays: 'weekdays', days: 'chosen days'})[b.rep] || ''}`, href: '#me/blk/' + b.id + '/' + (b.all || b.rep === 'once' ? b.from : T())}))});
+    if(me0){ const seen = new Set(); G.push({g: 'Payments', items: kids().flatMap(c => c.pay || []).filter(p => !seen.has(p.id) && seen.add(p.id)).map(p => ({t: `${p.number || ''} · ${firstN(p.student || k.name)}`, s: `${mk(p.total || p.amount || 0)}${p.type === 'invoice' ? (p.balance > 0.5 ? ' · balance ' + mk(p.balance) : ' · paid') : ''}`, k: (p.number || '').replace(/-/g, ' ') + ' ' + (p.total || p.amount || ''), href: '#me/payments'}))}); }
+    const pages = [['#me','Home'],['#me/practice','Practice','sras ars take-home'],['#me/calendar','Calendar','month'],['#me/progress', me0 ? 'Sessions' : 'Progress','marks targets'],['#me/exams', me0 ? 'Exams' : 'My exams','timetable papers'],['#me/review','Review','week month term year went well lagged'],['#me/school','School results','mid-term end of term grades']]
+      .concat(me0 ? [['#me/payments','Payments','invoices receipts statement balance next payment']] : [['#me/report','Today\'s report','daily'],['#me/reminders','Reminders','sra hour'],['#me/sharing','Sharing','tutors see'],['#me/bar','Edit the bar']])
+      .concat(full() && !me0 ? [['#me/focus','Focus','timer pomodoro'],['#me/habits','Habits'],['#me/day','Day · Plan my day','schedule'],['#me/week','My week','schedule blocks activities'],['#me/year','Year']] : [])
+      .concat([['#set/appearance','Appearance','theme dark colour text size lean full'],['#set/notifications','Notifications','quiet hours']]);
+    G.push({g: 'Pages', items: pages.map(([h, t, kw]) => ({t, k: kw || '', href: h}))});
+    return G.filter(g => g.items.length);
+  }
+  return {page, bind, bell, refresh: fetchData, mineCtx, steps, comingOf, sub, sesTell, full, searchGroups};
 })();

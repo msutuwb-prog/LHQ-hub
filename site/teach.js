@@ -1109,5 +1109,16 @@ window.TUT = (function(){
     if($('twSave')) $('twSave').onclick = saveWa;
   }
   const isTutor = () => me().role === 'tutor' || !!me().tutor;
-  return {page, bind, bell, isTutor, refresh: fetchData, items, sras, sessions, gaps, pendingWa, dayLogs};
+  /* search: what's in this tutor's account (students, topics, SRAs, logged sessions, classes, make-ups, assessments) */
+  function searchGroups(){
+    const I = items(), seen = new Set(), stuK = it => '#teach/student/' + encodeURIComponent(it.k), R = n => n ? 'R' + n : 'LD', E = live();
+    const T = [], tk = new Set(); E.filter(e => e.ty === 's' && Array.isArray(e.tp)).forEach(e => e.tp.forEach(x => { const t = x.t || x, key = e.k + '|' + t; if(!tk.has(key) && typeof t === 'string'){ tk.add(key); T.push({t: t + ' · ' + short(e.st), s: e.sub + (x.f ? ' · finished ' + nice(e.d) : ''), href: '#teach/student/' + encodeURIComponent(e.k)}); } }));
+    return [{g: 'Topics', items: T},
+      {g: 'SRAs', items: sras().filter(x => x.status !== 'upcoming' || x.giveOn <= HD.addDays(today(), 7)).slice(0, 400).map(x => ({t: `${x.topic} ${R(x.stage)} · ${short(x.st)}`, s: `${x.sub} · ${x.status === 'in' && x.score ? 'handed in · ' + Math.round(x.score.sc / x.score.mx * 100) + '%' : x.status === 'give' ? 'give today' : 'do on ' + nice(x.doOn)}`, k: x.st, href: '#teach/sra/students'}))},
+      {g: 'Sessions', items: E.filter(e => e.ty === 's').sort((a, b) => (b.d || '').localeCompare(a.d || '')).slice(0, 300).map(e => ({t: `${nice(e.d)} · ${short(e.st)}`, s: `${e.sub} · ${ATTL[e.a] || e.a || ''}${e.t1 ? ' · ' + e.t1 + '–' + (e.t2 || '') : ''}`, k: e.st + ' ' + e.d, href: '#teach/log/' + encodeURIComponent(e.k)}))},
+      {g: 'Assessments', items: E.filter(e => e.ty === 'w' || e.ty === 'a').sort((a, b) => (b.d || '').localeCompare(a.d || '')).slice(0, 200).map(e => ({t: `${(window.MARKS ? MARKS.TY[MARKS.akN(e.ak)] : '') || 'Assessment'} · ${short(e.st)}`, s: `${e.sub} · ${nice(e.d)}${e.ty === 'w' && e.sc != null && e.sc !== '' && +e.mx ? ' · ' + Math.round(e.sc / e.mx * 100) + '%' : e.ty === 'a' ? ' · scheduled' : ''}`, href: '#teach/student/' + encodeURIComponent(e.k)}))},
+      {g: 'Classes', items: (data.classes || []).map(c => ({t: c.name, s: `${c.sub} · ${(c.stu || []).length} students`, href: '#teach/classes'}))},
+      {g: 'Make-ups', items: (data.makeups || []).map(m => ({t: `Make-up · ${short(m.st)}`, s: `${m.sub} · ${nice(m.d)} ${m.s || ''} · ${m.status === 'ok' ? 'confirmed' : m.status === 'no' ? 'declined' : 'waiting'}`, href: '#teach/makeups'}))}];
+  }
+  return {page, bind, bell, isTutor, refresh: fetchData, items, sras, sessions, gaps, pendingWa, dayLogs, searchGroups};
 })();
