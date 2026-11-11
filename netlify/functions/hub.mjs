@@ -63,7 +63,7 @@ async function usesDbStore() {
 /* compare two values whatever order their keys come in (the database keeps keys in its own order) */
 const canon = v => JSON.stringify(v, (k, x) => x && typeof x === "object" && !Array.isArray(x) ? Object.keys(x).sort().reduce((o, key) => (o[key] = x[key], o), {}) : x);
 
-const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes", "lhq_treps", "lhq_avail", "lhq_cardack", "lhq_makeups", "lhq_reqs", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams", "lhq_kpi"];
+const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes", "lhq_treps", "lhq_avail", "lhq_cardack", "lhq_makeups", "lhq_reqs", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams", "lhq_kpi", "lhq_pay"];
 
 /* ---------- roles and permissions ---------- */
 const PERMS = ["quotes", "receipts", "cards", "delete", "restore", "students", "money", "tpay", "tutors", "msgs", "numbering", "backup", "classes", "moveclass", "spend", "pl"];
@@ -74,7 +74,8 @@ const LIST_FIELDS = ["subjects", "levels", "methods", "includes", "tutors", "gra
 /* Business: who may read each part. Spending goes to whoever records it or sees profit and loss; budgets with profit and loss. */
 const KV_READ = { lhq_spend: p => can(p, "spend") || can(p, "pl"), lhq_income: p => can(p, "spend") || can(p, "pl"), lhq_budget: p => can(p, "pl"),
   lhq_sreports: p => isDirector(p) || can(p, "tutors"),
-  lhq_kpi: p => isDirector(p) || can(p, "tutors") };   // tutor KPIs: observations, reviews (admin sees them only when the Director switches it on)   // students' daily reports: never tutors (they get averages only)
+  lhq_kpi: p => isDirector(p) || can(p, "tutors"),
+  lhq_pay: p => isDirector(p) || can(p, "tpay") };   // tutor pay: rules, placements, items, payslips (tutors get their own payslips through /api/hub/pay)   // tutor KPIs: observations, reviews (admin sees them only when the Director switches it on)   // students' daily reports: never tutors (they get averages only)
 const MERGED = ["lhq_spend", "lhq_income"];   // recorded on several devices at once: merged entry by entry
 /* Spending is recorded on several devices at once, so entries are merged one by one (newest wins) instead of the whole list being replaced.
    Deleting marks an entry del:true, so a device that hasn't heard about it yet can't bring it back. */
@@ -320,7 +321,7 @@ async function checkSync(me, upserts, deletes, kv) {
       const ch = Object.keys(v || {}).filter(id => canon(v[id]) !== canon(old[id]) && (!old[id] || (v[id].at || 0) >= (old[id].at || 0)));
       if (ch.length && !can(me, "spend")) return "You don't have permission to record spending.";
       if (ch.some(id => old[id] && old[id].by !== me.name)) return "You can only change spending you recorded. Ask the Director to change the others.";
-    } else if (["lhq_makeups", "lhq_reqs", "lhq_treps", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams", "lhq_kpi"].includes(k)) {
+    } else if (["lhq_makeups", "lhq_reqs", "lhq_treps", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams", "lhq_kpi", "lhq_pay"].includes(k)) {
       if (changedKeys(old, v).length) return "Make-ups, requisitions, clashes, targets and tutors' reports change through their own buttons.";
     } else if (k === "lhq_avail" || k === "lhq_cardack") {
       if (changedKeys(old, v).length && !can(me, "tutors")) return "You don't have permission to change tutors' times.";
@@ -657,12 +658,22 @@ async function familyOf(me) {
   return rows.map(r => ({ id: r.id, key: nk(r.name), name: r.name, level: r.level || "" }));
 }
 const lite = e => ({ id: e.id, d: e.d, t1: e.t1 || "", t2: e.t2 || "", a: e.a || "", sub: e.sub, tutor: e.tutor || "", k: e.k, mk: !!e.mk, tp: e.tp || [], st: cfState(e), cf: e.cf ? { s: e.cf.s, step: e.cf.step || null, kind: e.cf.kind || null, t1: e.cf.t1 || "", t2: e.cf.t2 || "", note: e.cf.note || "", tutorNote: e.cf.tutorNote || "", by: e.cf.by || "", out: e.cf.out || null, lost: e.cf.lost || 0, agreed: !!e.cf.agreed } : null, left: Math.max(0, (e.c || e.at || 0) + CF_MS - Date.now()) });
+/* a study block on a day: once, every day, weekdays, chosen days (0–6), until an end date */
+function blockOn(b, d) {
+  if (!b || !b.from || d < b.from || (b.until && d > b.until)) return false;
+  const w = new Date(d + "T00:00:00Z").getUTCDay();
+  if (b.rep === "once") return d === b.from;
+  if (b.rep === "daily") return true;
+  if (b.rep === "weekdays") return w >= 1 && w <= 5;
+  if (b.rep === "days") return (b.days || []).includes(w);
+  return d === b.from;
+}
 async function familyData(me) {
   const kids = await familyOf(me);
   if (!kids.length) return { kids: [] };
   await import("../../site/schedule.js"); await import("../../site/sra.js"); const S = globalThis.SCHED, SR = globalThis.SRA;
   const t = mwToday(), docs = (await readAll("doc/")).filter(d => d && !d.del), cards = docs.filter(d => d.type === "card");
-  const [logs, conf, done, moves, mus, sreps, nts, set] = await Promise.all(["lhq_logs", "lhq_confirmer", "lhq_sradone", "lhq_moves", "lhq_makeups", "lhq_sreports", "lhq_notices", "lhq_settings"].map(k => store().get("kv/" + k, { type: "json" })));
+  const [logs, conf, done, moves, mus, sreps, nts, set, focus, plan] = await Promise.all(["lhq_logs", "lhq_confirmer", "lhq_sradone", "lhq_moves", "lhq_makeups", "lhq_sreports", "lhq_notices", "lhq_settings", "lhq_focus", "lhq_plan"].map(k => store().get("kv/" + k, { type: "json" })));
   await import("../../site/sreport.js"); const SP = globalThis.SREP;
   const E = Object.values((logs && logs.e) || {}).filter(e => e && !e.x);
   const items = S.items(cards, t);
@@ -680,8 +691,8 @@ async function familyData(me) {
     const answers = canConfirm ? sessions.filter(e => e.st === "disputed" && e.cf && e.cf.step === "student") : [];
     /* SRAs given and not yet handed in, and the take-home pack from its hand-over day (the pack's sheets stay listed, done or not, until a week after the last one) */
     const sraIts = S.items(cards, t, 45).filter(it => nk(it.st) === kid.key);
-    const sras = SR.build(sraIts.map(it => ({ k: it.k, days: it.days, a: it.pa, b: it.b, st: it.st, sub: it.sub, periods: it.periods })), ent, t)
-      .filter(x => x.pack ? x.pack.on <= t && SR.add(x.doOn, 7) >= t : x.given && x.status !== "in").map(x => { const id = [x.k, x.topic, x.stage].join("|"), dn = (done || {})[id];
+    const allS = SR.build(sraIts.map(it => ({ k: it.k, days: it.days, a: it.pa, b: it.b, st: it.st, sub: it.sub, periods: it.periods })), ent, t);
+    const sras = allS.filter(x => x.pack ? x.pack.on <= t && SR.add(x.doOn, 7) >= t : x.given && x.status !== "in").map(x => { const id = [x.k, x.topic, x.stage].join("|"), dn = (done || {})[id];
         return Object.assign({ id, sub: x.sub, topic: x.topic, label: x.label, stage: x.stage, doOn: x.doOn, due: x.due, status: x.status, done: !!dn || x.status === "in" },
           x.pack ? { pack: { on: x.pack.on, out: !!x.pack.out, from: x.from || null }, self: dn && dn.sc != null ? { sc: dn.sc, mx: dn.mx || 10 } : null, score: x.score } : {}); });
     /* absence and late notices: on each session they cover (only live ones: not undone) */
@@ -730,10 +741,19 @@ async function familyData(me) {
     makeups.forEach(m => { m.told = toldOf(m.d, m.sub); m.k = kid.key + "|" + nk(m.sub); });
     const exam = await examPack(new Set(its.map(it => it.k)), new Set([kid.key]), its, ent, set);
     /* parents: what the downloads need (all sessions, SRAs handed in, tutors' comments; terms and payment dates; how to pay) */
-    const extra = me.role !== "parent" ? {} : { hist: { s: ent.filter(e => e.ty === "s").map(e => [e.d, e.sub, e.a || "attended", e.tp || []]), r: ent.filter(e => e.ty === "r").map(e => [e.d, e.sub, e.h || "o"]),
+    /* student extras: this week's SRAs (done or not), take-home sheets, report days, focus minutes, and (the student only) their own study blocks */
+    const mon = S.addDays(t, -((new Date(t + "T00:00:00Z").getUTCDay() + 6) % 7));
+    const sx = { wk: allS.filter(x => x.doOn >= mon && x.doOn <= S.addDays(mon, 6) && !x.pack).map(x => { const id = [x.k, x.topic, x.stage].join("|"); return { sub: x.sub, topic: x.topic, stage: x.stage, doOn: x.doOn, status: x.status, done: !!(done || {})[id] || x.status === "in" }; }),
+      pk: allS.filter(x => x.pack && x.doOn >= S.addDays(t, -120) && x.doOn <= t).map(x => { const id = [x.k, x.topic, x.stage].join("|"); return { sub: x.sub, topic: x.topic, stage: x.stage, doOn: x.doOn, done: !!(done || {})[id] || x.status === "in" }; }),
+      rep: Object.keys(((sreps || {})[kid.key]) || {}), focus: (((focus || {})[kid.key]) || []).filter(x => x.d >= S.addDays(t, -120)),
+      plan: me.role === "student" ? Object.values(((plan || {})[kid.key]) || {}) : null,
+      study: (() => { const P = Object.values(((plan || {})[kid.key]) || {}).filter(b => b.type === "study" || b.type === "rev"); let m = 0;   // planned study minutes this week, for parents and tutors
+        for (let i = 0; i < 7; i++) { const d = S.addDays(mon, i); P.forEach(b => { if (blockOn(b, d)) m += Math.max(0, (S.mins(b.e) || 0) - (S.mins(b.s) || 0)); }); } return m; })() };
+    const extra = me.role !== "parent" ? { sx, hist: { s: ent.filter(e => e.ty === "s").map(e => [e.d, e.sub, e.a || "attended", e.tp || [], e.cb || ""]), r: ent.filter(e => e.ty === "r").map(e => [e.d, e.sub, e.h || "o"]) } } : { sx, hist: { s: ent.filter(e => e.ty === "s").map(e => [e.d, e.sub, e.a || "attended", e.tp || []]), r: ent.filter(e => e.ty === "r").map(e => [e.d, e.sub, e.h || "o"]),
         c: ent.filter(e => e.ty === "c").sort((a, b) => b.d.localeCompare(a.d)).slice(0, 12).map(e => ({ d: e.d, sub: e.sub, cs: e.cs || "", ci: e.ci || "", cn: e.cn || "" })),
         n: ent.filter(e => e.ty === "s" && e.n).sort((a, b) => b.d.localeCompare(a.d)).slice(0, 8).map(e => ({ d: e.d, sub: e.sub, n: e.n })) },
       terms: (set && set.terms) || null, payDates: (set && set.payDates) || {}, payInfo: ["bank", "accname", "branch", "accno", "mobile", "phone", "email"].reduce((o, k) => (o[k] = (set && set[k]) || SETTINGS_DEFAULT[k] || "", o), {}) };
+    if (extra.hist && me.role === "parent") extra.hist.s = ent.filter(e => e.ty === "s").map(e => [e.d, e.sub, e.a || "attended", e.tp || [], e.cb || ""]);
     return Object.assign({}, kid, extra, { exam, confirmer, canConfirm, subjects, sessions, toConfirm, answers, sras, week, changes, makeups, pay, report, marks, coming, lhqPhone: String((set && set.phone) || SETTINGS_DEFAULT.phone).replace(/\D/g, "") });
   })) };
 }
@@ -752,6 +772,24 @@ async function familyPost(req, me) {
     return json({ ok: true });
   }
   if (b.action === "notice" || b.action === "unnotice") return noticePost(b, me, kids, now);
+  if (b.action === "focus") {   // a finished focus round: minutes per subject (tutors and parents see the week's total)
+    if (me.role !== "student" || !kids[0]) return fail("Only the student records focus time.", 403);
+    const m = Math.round(+b.m || 0), d = /^\d{4}-\d{2}-\d{2}$/.test(String(b.d || "")) ? b.d : mwToday(); if (!(m > 0 && m <= 120)) return fail("Check the minutes.");
+    const row = { d, m, sub: txt(b.sub, 60), tk: txt(b.tk, 80), at: now };
+    await writeKv("lhq_focus", old => { const o = Object.assign({}, old), L = (o[kids[0].key] || []).concat([row]); o[kids[0].key] = L.slice(-600); return o; });
+    return json({ ok: true });
+  }
+  if (b.action === "block" || b.action === "unblock") {   // the student's own study blocks: private (others see the week's study total)
+    if (me.role !== "student" || !kids[0]) return fail("Only the student plans their own time.", 403);
+    if (b.action === "unblock") { await writeKv("lhq_plan", old => { const o = Object.assign({}, old), M = Object.assign({}, o[kids[0].key]); delete M[String(b.id)]; o[kids[0].key] = M; return o; }); return json({ ok: true }); }
+    const TY = ["study", "rev", "school", "act", "rest", "other"], REP = ["once", "daily", "weekdays", "days"];
+    const x = b.block || {}, blk = { id: /^b[a-z0-9]{4,20}$/.test(String(x.id || "")) ? x.id : "b" + now.toString(36), name: txt(x.name, 60), type: TY.includes(x.type) ? x.type : "study", sub: txt(x.sub, 60),
+      s: hm(x.s), e: hm(x.e), rep: REP.includes(x.rep) ? x.rep : "once", days: (Array.isArray(x.days) ? x.days : []).map(Number).filter(n => n >= 0 && n <= 6), from: /^\d{4}-\d{2}-\d{2}$/.test(String(x.from || "")) ? x.from : mwToday(),
+      until: /^\d{4}-\d{2}-\d{2}$/.test(String(x.until || "")) ? x.until : "", at: now };
+    if (!blk.s || !blk.e || blk.e <= blk.s) return fail("Check the times.");
+    await writeKv("lhq_plan", old => { const o = Object.assign({}, old), M = Object.assign({}, o[kids[0].key]); M[blk.id] = blk; o[kids[0].key] = M; return o; });
+    return json({ ok: true, id: blk.id });
+  }
   if (b.action === "selfmark") {   // a take-home sheet marked by the student with the pack's answer sheet: kept, labelled self-marked, never in averages
     if (me.role !== "student") return fail("Only the student marks their own sheets.", 403);
     const fd = await familyData(me), x = fd.kids.flatMap(k => k.sras).find(y => y.id === String(b.id || ""));
@@ -840,6 +878,75 @@ async function kpiGet(req, me) {
   F.obs.rows = F.obs.rows.map(x => Object.assign({}, x, { obs: undefined }));
   const m = ctx.t.slice(0, 7), rev = (ctx.kpi.rev || {})[nk(me.name) + "|" + m] || null;
   return json({ name: me.name, r, label: K.rangeL(r), F, L, st, c, rev, m });
+}
+/* ---------- tutor pay (site/tpay.js): the payslip is worked out here when it's confirmed, and frozen ---------- */
+async function payLib() { await import("../../site/schedule.js"); await import("../../site/tpay.js"); return globalThis.TPAY; }
+async function payCtx() {
+  const [logs, cls, pay] = await Promise.all(["lhq_logs", "lhq_classes", "lhq_pay"].map(k => store().get("kv/" + k, { type: "json" })));
+  const cards = (await readAll("doc/")).filter(d => d.type === "card" && !d.del);
+  return { cards, entries: Object.values((logs && logs.e) || {}), classes: Array.isArray(cls) ? cls : Object.values(cls || {}), pay: pay || {}, t: mwToday() };
+}
+async function payGet(req, me) {
+  if (!isTutor(me)) return fail("This part is for tutors.", 403);
+  const P = await payLib(), ctx = await payCtx(), tn = P.nk(me.name), m = ctx.t.slice(0, 7);
+  const slips = Object.entries(ctx.pay.slips || {}).filter(([k]) => k.startsWith(tn + "|")).map(([k, v]) => Object.assign({ m: k.split("|")[1] }, v)).sort((a, b) => b.m.localeCompare(a.m));
+  const cur = P.month(ctx, me.name, m);
+  return json({ name: me.name, m, now: { paid: cur.paid, notPaid: cur.notPaid, held: cur.held, label: cur.label }, slips, place: P.placeNow(ctx.pay, me.name, ctx.t) });
+}
+async function payPost(req, me) {
+  const b = await req.json().catch(() => ({})), now = Date.now(), P = await payLib(), tutor = String(b.tutor || "").trim().slice(0, 80), m = String(b.m || "");
+  const okM = /^\d{4}-\d{2}$/.test(m), key = P.nk(tutor) + "|" + m;
+  if (b.action === "sign" || b.action === "query") {
+    if (!isTutor(me)) return fail("Only the tutor can do this.", 403);
+    const k2 = P.nk(me.name) + "|" + m, cur = await store().get("kv/lhq_pay", { type: "json" }), sl = cur && cur.slips && cur.slips[k2];
+    if (!sl) return fail("That payslip isn't confirmed yet.", 409);
+    if (b.action === "sign") { if (sl.st === "signed") return json({ ok: true });
+      await writeKv("lhq_pay", old => { const o = Object.assign({}, old); o.slips = Object.assign({}, o.slips); o.slips[k2] = Object.assign({}, o.slips[k2], { st: "signed", sAt: now }); return o; });
+      await act(me, "pay", "payslip.sign", `${me.name} signed the ${m} payslip`, "pay", k2); return json({ ok: true }); }
+    const note = String(b.note || "").trim().slice(0, 500); if (!note) return fail("Say what's wrong.");
+    await writeKv("lhq_pay", old => { const o = Object.assign({}, old); o.slips = Object.assign({}, o.slips); o.slips[k2] = Object.assign({}, o.slips[k2], { q: { note, at: now } }); return o; });
+    await act(me, "pay", "payslip.query", `${me.name} queried the ${m} payslip: "${note}"`, "pay", k2); return json({ ok: true });
+  }
+  if (!(isDirector(me) || can(me, "tpay"))) return fail("You don't have permission for tutor pay.", 403);
+  if (b.action === "rules" || b.action === "place" || b.action === "unconfirm") { if (!isDirector(me)) return fail("Only the Director can change this.", 403); }
+  if (b.action === "rules") {
+    const R = {}; Object.keys(P.DEF).forEach(k => { if (k === "progs") return; if (k === "after") { if (/^\d{2}:\d{2}$/.test(String(b.rules?.after || ""))) R.after = b.rules.after; return; }
+      const v = +(b.rules || {})[k]; if (Number.isFinite(v) && v >= 0 && v <= 10000000) R[k] = v; });
+    R.progs = (Array.isArray(b.rules?.progs) ? b.rules.progs : []).map(x => ({ name: String(x.name || "").trim().slice(0, 60), rate: Math.max(0, Math.min(1000000, +x.rate || 0)) })).filter(x => x.name && x.rate);
+    await writeKv("lhq_pay", old => Object.assign({}, old, { rules: R }));
+    await act(me, "pay", "pay.rules", "Changed the tutor pay settings", "pay", null); return json({ ok: true });
+  }
+  if (b.action === "place") {
+    if (!tutor || !["full", "part"].includes(b.p) || !/^\d{4}-\d{2}-\d{2}$/.test(String(b.from || ""))) return fail("Choose full-time or part-time and a date.");
+    await writeKv("lhq_pay", old => { const o = Object.assign({}, old); o.place = Object.assign({}, o.place); const L = (o.place[P.nk(tutor)] || []).filter(x => x.from !== b.from); L.push({ p: b.p, from: b.from }); o.place[P.nk(tutor)] = L.sort((x, y) => x.from.localeCompare(y.from)); return o; });
+    await act(me, "pay", "pay.place", `${tutor}: ${b.p === "full" ? "full-time" : "part-time"} from ${b.from}`, "pay", tutor); return json({ ok: true });
+  }
+  if (!tutor || !okM) return fail("Which tutor and month?");
+  const ctx = await payCtx(), slip = (ctx.pay.slips || {})[key];
+  if (b.action === "item" || b.action === "unitem") {
+    if (slip) return fail("That payslip is already confirmed.", 409);
+    if (b.action === "unitem") { await writeKv("lhq_pay", old => { const o = Object.assign({}, old); o.items = Object.assign({}, o.items); delete o.items[String(b.id)]; return o; }); return json({ ok: true }); }
+    const kind = ["allowance", "bonus", "deduction", "advance"].includes(b.kind) ? b.kind : null, amt = Math.round(+b.amt || 0);
+    if (!kind || !(amt > 0)) return fail("Choose what it is and the amount.");
+    if (kind === "bonus" && !isDirector(me)) return fail("Only the Director gives bonuses.", 403);
+    const id = "pi" + now.toString(36), it = { id, tutor, m, kind, amt, label: String(b.label || "").trim().slice(0, 80), note: String(b.note || "").trim().slice(0, 200), d: /^\d{4}-\d{2}-\d{2}$/.test(String(b.d || "")) ? b.d : "", by: me.name, at: now };
+    await writeKv("lhq_pay", old => { const o = Object.assign({}, old); o.items = Object.assign({}, o.items, { [id]: it }); return o; });
+    await act(me, "pay", "pay.item", `${kind[0].toUpperCase() + kind.slice(1)} for ${tutor} (${m}): MKW ${amt.toLocaleString("en-US")}`, "pay", tutor); return json({ ok: true, id });
+  }
+  if (b.action === "confirm") {
+    if (slip) return fail("Already confirmed.", 409);
+    const x = P.month(ctx, tutor, m), snap = { tutor: x.tutor, m: x.m, label: x.label, place: x.place, lines: x.lines, total: x.total, paid: x.paid, notPaid: x.notPaid, held: x.held };
+    await writeKv("lhq_pay", old => { const o = Object.assign({}, old); o.slips = Object.assign({}, o.slips, { [key]: { st: "confirmed", snap, by: me.name, at: now } }); return o; });
+    await act(me, "pay", "payslip.confirm", `Confirmed ${tutor}'s ${m} payslip: MKW ${x.total.toLocaleString("en-US")}`, "pay", key);
+    await pushSafe(await idsOfTutor(tutor), "pay", { title: `Payslip · ${x.label}`, body: `MKW ${x.total.toLocaleString("en-US")} · check it and sign`, url: "/#teach/pay" });
+    return json({ ok: true, total: x.total });
+  }
+  if (b.action === "unconfirm") {
+    if (!slip) return json({ ok: true }); if (slip.st === "signed") return fail("Signed payslips stay as they are.", 409);
+    await writeKv("lhq_pay", old => { const o = Object.assign({}, old); o.slips = Object.assign({}, o.slips); delete o.slips[key]; return o; });
+    await act(me, "pay", "payslip.unconfirm", `Reopened ${tutor}'s ${m} payslip`, "pay", key); return json({ ok: true });
+  }
+  return fail("Unknown action.");
 }
 async function kpiPost(req, me) {
   const b = await req.json().catch(() => ({})), now = Date.now(), K = await kpiLib();
@@ -1035,7 +1142,7 @@ async function demo(req, me) {
   const s = store(), docs = {}, now = Date.now();
   for (let i = 0; i < b.docs.length; i += 20) await Promise.all(b.docs.slice(i, i + 20).map(d => { docs[d.id] = { type: d.type || "quote", number: d.number, savedAt: d.savedAt || now, by: d.updatedBy || "" }; return s.setJSON("doc/" + d.id, d); }));
   for (const d of b.trash || []) await s.setJSON("trash/" + d.id, d);
-  for (const [k, v] of Object.entries(b.kv || {})) if (KV_KEYS.includes(k)) await s.setJSON("kv/" + k, v);
+  for (const [k, v] of Object.entries(b.kv || {})) if (KV_KEYS.includes(k) || k === "lhq_focus" || k === "lhq_plan") await s.setJSON("kv/" + k, v);   // students' focus rounds and blocks: endpoint-only, but demo data seeds them
   Object.values(docs).forEach(m => { m.r = now; });
   await s.setJSON("index", { rev: now, docs, at: now, epoch: crypto.randomBytes(6).toString("hex") });
   return json({ ok: true, docs: b.docs.length, people: list.map(pub) });
@@ -1437,6 +1544,8 @@ export default async (req, context) => {
     if (req.method === "POST" && path === "exams") return await examsPost(req, me);
     if (req.method === "POST" && path === "kpi") return await kpiPost(req, me);
     if (req.method === "GET" && path === "kpi") return await kpiGet(req, me);
+    if (req.method === "POST" && path === "pay") return await payPost(req, me);
+    if (req.method === "GET" && path === "pay") return await payGet(req, me);
     if (req.method === "GET" && path === "activity") return await activityList(req, me);
     if (path === "push") return await pushRoute(req, me);
     return fail("Not found.", 404);
@@ -1522,8 +1631,13 @@ async function pushRoute(req, me) {
   if (b.action === "prefs") {
     const mine = new Set(kindsFor(me).map(k => k[0])), off = {}; Object.entries(b.off || {}).forEach(([k, v]) => { if (mine.has(k) && v) off[k] = true; });
     const hm = v => /^\d{2}:\d{2}$/.test(String(v || "")) ? v : null, qt = Array.isArray(b.quiet) && hm(b.quiet[0]) && hm(b.quiet[1]) ? [b.quiet[0], b.quiet[1]] : ["21:00", "07:00"];
-    await writeKv("lhq_push", old => { const o = Object.assign({}, old); o[me.id] = Object.assign({ subs: [] }, o[me.id], { prefs: { off, quiet: qt, summary: !!b.summary } }); return o; });
+    await writeKv("lhq_push", old => { const o = Object.assign({}, old); o[me.id] = Object.assign({ subs: [] }, o[me.id], { prefs: Object.assign({}, (o[me.id] || {}).prefs, { off, quiet: qt, summary: !!b.summary }) }); return o; });
     return json({ ok: true });
+  }
+  if (b.action === "rem") {   // a student's reminder hours: SRA days (always on; the hour can change), study blocks (can be off)
+    const sra = Math.round(+b.sra), rem = { sra: sra >= 5 && sra <= 21 ? sra : 7, block: b.block === "off" ? "off" : 1 };
+    await writeKv("lhq_push", old => { const o = Object.assign({}, old), P = Object.assign({ subs: [] }, o[me.id]); P.prefs = Object.assign({}, P.prefs, { rem }); o[me.id] = P; return o; });
+    return json({ ok: true, rem });
   }
   if (b.action === "test") { const n = await pushTo([me.id], "test", { title: "LHQ Hub", body: "Notifications are on for this device.", url: "/" }, { now: true }); return json({ ok: true, sent: n }); }
   return fail("Unknown action.");
@@ -1551,12 +1665,15 @@ export async function pushTick(context, at = Date.now()) {
   const docs = (await readAll("doc/")).filter(d => d && !d.del), cards = docs.filter(d => d.type === "card");
   await import("../../site/schedule.js"); const S = globalThis.SCHED;
   const students = dbMode() ? await q("SELECT name, person_id FROM students WHERE NOT del AND person_id IS NOT NULL", []) : [];
-  if (h === 7 && students.length) {
+  /* each student's reminder hours (Settings › Reminders): SRA days default 07:00; "off" only where LHQ allows it */
+  const remH = (pid, kind, dflt) => { const v = (((all[pid] || {}).prefs || {}).rem || {})[kind]; return v === undefined || v === "" ? dflt : v === "off" ? -1 : +v; };
+  const sraNow = students.filter(r => remH(r.person_id, "sra", 7) === h);
+  if (sraNow.length) {
     await import("../../site/sra.js"); const SR = globalThis.SRA;
     const logs = (await store().get("kv/lhq_logs", { type: "json" })) || {}, E = Object.values(logs.e || {}).filter(e => e && !e.x), done = (await store().get("kv/lhq_sradone", { type: "json" })) || {};
     const L = SR.build(S.items(cards, t, 45).map(it => ({ k: it.k, days: it.days, a: it.pa, b: it.b, st: it.st, sub: it.sub, periods: it.periods })), E, t)
       .filter(x => x.doOn === t && !done[[x.k, x.topic, x.stage].join("|")] && (x.pack ? x.pack.on < t : x.given && x.status !== "in"));
-    for (const r of students) { const mine = L.filter(x => nk(x.st) === nk(r.name)); if (!mine.length) continue;
+    for (const r of sraNow) { const mine = L.filter(x => nk(x.st) === nk(r.name)); if (!mine.length) continue;
       await once(`${t}|${r.person_id}|sra`, () => pushTo([r.person_id], "sra", { title: mine.length === 1 ? `${mine[0].topic} R${mine[0].stage} today` : `${mine.length} SRAs today`, body: [...new Set(mine.map(x => x.sub))].join(", "), url: mine.some(x => x.pack) ? "/#me/practice/pack" : "/#me/practice" })); }
   }
   if (h === 16) {
@@ -1564,6 +1681,13 @@ export async function pushTick(context, at = Date.now()) {
     const teaching = new Set(S.sessions(cards, t, t).map(e => nk(e.tutor)).filter(Boolean));
     for (const p of ppl.filter(p => p.active !== false && isTutor(p) && teaching.has(nk(p.name)) && !sentBy.has(nk(p.name))))
       await once(`${t}|${p.id}|report`, () => pushTo([p.id], "report", { title: "Daily report", body: "Before you leave", url: "/#teach/report" }));
+  }
+  if (students.length) {   // study blocks starting this hour (the student's own plan; reminder on unless they turned it off)
+    const plan = (await store().get("kv/lhq_plan", { type: "json" })) || {};
+    for (const r of students.filter(r => remH(r.person_id, "block", 1) !== -1)) {
+      const B = Object.values(plan[nk(r.name)] || {}).filter(x => blockOn(x, t) && S.mins(x.s) != null && Math.floor(S.mins(x.s) / 60) === h);
+      for (const x of B) await once(`${t}|${r.person_id}|blk|${x.id}`, () => pushTo([r.person_id], "block", { title: `${x.name || "Study"} · ${x.s}–${x.e}`, body: x.sub || "Your plan", url: "/#me/day/" + t }));
+    }
   }
   if (h >= 8 && h <= 19 && students.length) {
     const sr = (await store().get("kv/lhq_sreports", { type: "json" })) || {}, now = h * 60 + mw.getUTCMinutes();

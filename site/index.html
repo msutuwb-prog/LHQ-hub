@@ -44,9 +44,13 @@ if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash)
 <script src="examsui.js"></script>
 <script src="kpi.js"></script>
 <script src="kpiui.js"></script>
+<script src="tpay.js"></script>
+<script src="tpayui.js"></script>
+<script src="srafig.js"></script>
 <script src="push.js"></script>
 <script src="teach.js"></script>
 <script src="famdocs.js"></script>
+<script src="sxtras.js"></script>
 <script src="family.js"></script>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -486,7 +490,7 @@ function render(){
   if(render.lastH !== location.hash){ document.documentElement.classList.remove('lean-open'); render.lastH = location.hash; }
   if(me().role === 'tutor' && !['teach','settings','set','exams'].includes(route.page)){ location.replace('#teach'); route = {page:'teach', args:[]}; }
   if(['student','parent'].includes(me().role) && !['me','settings','set','exams'].includes(route.page)){ location.replace('#me'); route = {page:'me', args:[]}; }
-  const sec = route.page === 'me' ? ({practice:'mprac', calendar:'mcal', progress:'mprog', sessions:'mprog', subject:'mprog', payments:'mpay', more:'more'}[route.args[0]] || 'me') : route.page === 'teach' && me().role === 'tutor' ? ({sra:'tsra', report:'trep', cal:'tcal', avail:'tcal'}[route.args[0]] || 'teach') : {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', teach:'teach', tutors:'tutors', bookings:'tutors', reqs:'tutors', sessions:'tutors', confirm:'tutors', clashes:'tutors', calendar:'calendar', says:'tutors', more:'more'}[route.page] || route.page;
+  const sec = route.page === 'me' ? ({practice:'mprac', calendar:'mcal', progress:'mprog', sessions:'mprog', subject:'mprog', payments:'mpay', more:'more', habits: me().role === 'parent' ? 'more' : 'mprog', day:'mcal', focus:'mfocus', report:'mrep', reminders:'more', bar:'more'}[route.args[0]] || 'me') : route.page === 'teach' && me().role === 'tutor' ? ({sra:'tsra', report:'trep', cal:'tcal', avail:'tcal'}[route.args[0]] || 'teach') : {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', teach:'teach', tutors:'tutors', bookings:'tutors', reqs:'tutors', sessions:'tutors', confirm:'tutors', clashes:'tutors', calendar:'calendar', says:'tutors', more:'more'}[route.page] || route.page;
   LHQNav.section(sec);
   const m = $('main');
   m.className = 'main' + (['edithome','new','tutors','teach'].includes(route.page) ? ' narrow' : '');
@@ -577,6 +581,9 @@ function attention(list){
     TF.forEach(m => { const sp = HD.students().find(x => SCHED.nk(x.name) === SCHED.nk(m.st)), msg = tellMsg(m);
       out.push({w:-1, g:'tell', s:{name:`Tell the family: ${m.st}`}, href:'#clashes', ico:'msg', col:'--am', sub:`${m.sub} moves from ${SCHED.DAYN[m.from.day]} ${m.from.s} to ${SCHED.DAYN[m.to.day]} ${m.to.s} · moved by ${m.by}`, btn:['WhatsApp', `https://wa.me/${sp && sp.phone ? waNum(sp.phone) : ''}?text=${encodeURIComponent(msg)}`]}); });
     if(window.KPIUI) KPIUI.attention().forEach(x => out.push({w:-1, s:{name:x.t}, href:x.href, ico:'rep', col: x.col === 'var(--rd)' ? '--rd' : x.col === 'var(--am)' ? '--am' : '--muted', sub:x.s}));
+    { const L7 = Object.values((store.get('lhq_logs', {e:{}}) || {}).e || {}).filter(e => e && !e.x && e.ty === 's' && e.a === 'late' && e.d >= addDays(t, -6)), byS = {};
+      L7.forEach(e => { (byS[e.k.split('|')[0]] = byS[e.k.split('|')[0]] || []).push(e); });
+      Object.values(byS).filter(L => L.length >= 2).forEach(L => out.push({w:0, g:'late2', s:{name:`${L[0].st} late ${L.length} times this week`}, href:stuLink(L[0].k.split('|')[0], 'sessions'), ico:'clock', col:'--am', sub:L.map(e => `${e.sub} · ${nice(e.d)}`).join(' · ')})); }
     const behind = sessionRows().filter(r => r.T.behind >= 2);
     if(behind.length) out.push({w:-1, s:{name:`${behind.length} student${behind.length === 1 ? '' : 's'} behind on sessions`}, href:'#sessions/behind', ico:'clock', col:'--am', sub:behind.slice(0, 3).map(r => `${r.it.st} · ${r.it.sub} ${r.T.behind} behind`).join(' · '), btn:['See', '#sessions/behind']});
     const MU = Object.values(store.get('lhq_makeups', {}) || {}).filter(m => m && m.status === 'asked');
@@ -662,7 +669,8 @@ const CARDS = {
   reports:{t:'Reports to send', ic:'rep', step2:true, d:'Weekly reports ready for parents'},
   profit:{s:'Profit', t:'Profit this month', ic:'cash', need:'pl', d:'Money in less spending this month, and the margin', href:'#biz/pl', html:() => BIZ.cardProfit()},
   spend:{s:'Spending', t:'Spending this month', ic:'box', need:'spend', d:'What has been spent this month, against the budget', href:'#biz/spending', html:() => BIZ.cardSpend()},
-  tpay:{t:'Tutor pay this month', ic:'cash', need:'tpay', step2:true, d:'Tutor pay so far and what\'s left'},
+  tpay:{s:'Tutor pay', t:'Tutor pay this month', ic:'cash', need:'tpay', d:'Tutor pay so far this month', href:'#pay',
+    html:() => { const c = TPAYUI.card(); return `${L('#pay', mkShort(c.tot), 'v')}${L('#pay', `${c.sessions} session${c.sessions === 1 ? '' : 's'} · ${c.n} tutor${c.n === 1 ? '' : 's'}`)}<div class="s">${c.conf} of ${c.n} payslips confirmed</div>`; }},
 };
 const DEFAULT_HOME = () => LEAN() ? (can('money') ? ['money','owed','students'] : ['students','enrol','renew']) : can('money') ? ['money','students','enrol','tutors'] : ['students','enrol','renew','tutors'];
 function myCards(){ const h = me().home; return (Array.isArray(h) ? h : DEFAULT_HOME()).filter(k => CARDS[k] && !CARDS[k].step2 && (!CARDS[k].need || can(CARDS[k].need))); }
@@ -749,7 +757,7 @@ P.student = (key, tab = 'overview') => {
   const myRows = can('tutors') ? sessionRows().filter(r => SCHED.nk(r.it.st) === SCHED.nk(s.name)) : [];
   const tabs = [['overview','Overview']].concat(myRows.length ? [['sessions','Sessions']] : [], (isDir() || can('tutors')) && PREVIEW_OR_DB() ? [['accounts','Accounts']] : [], [['marks','Marks']], store.get('lhq_sreports', null) ? [['reports','Reports']] : [], [['documents',`Doc<span class="x-ph">ument</span>s<i>${s.docs.length}</i>`],['details','Details']]);
   let body = '';
-  if(tab === 'overview') body = (window.PC ? PC.block('student', {s}, 'This period') : '') + stuOverview(s);
+  if(tab === 'overview') body = (window.PC ? PC.block('student', {s}, 'This period') : '') + stuOverview(s) + (window.SRAFIG && can('tutors') ? SRAFIG.student(s.key) : '');
   if(tab === 'accounts'){
     const ppl = HD.people(), nkk = SCHED.nk, sp = ppl.find(p => p.role === 'student' && nkk(p.name) === nkk(s.name)), par = ppl.filter(p => p.role === 'parent' && (p.children || []).some(c => nkk(c) === nkk(s.name)));
     const conf = (store.get('lhq_confirmer', {}) || {})[nkk(s.name)] === 'parent' ? 'parent' : 'student';
@@ -1331,7 +1339,7 @@ P.tutors = (show = '') => {
   ${can('tutors') ? (() => { const dsp = HD.sessionsToConfirm().filter(e => HD.cfState(e) === 'disputed').length, beh = sessionRows().filter(r => r.T.behind >= 2).length, cl = openClashes().length,
       mu = Object.values(store.get('lhq_makeups', {}) || {}).filter(m => m && m.status === 'asked').length, rq = reqList().filter(r => !r.dec.s || r.dec.s === 'approved').length;
       const r = (h, t, s) => `<a class="it" href="${h}"><span class="t"><b>${t}</b><small>${s}</small></span><span class="chev">›</span></a>`;
-      return LEAN() ? `<div class="card">${window.KPIUI && KPIUI.may() ? r('#kpi', 'KPIs', 'Last 4 weeks') : ''}${store.get('lhq_sreports', null) ? r('#says', 'What students say', 'Last 4 weeks') : ''}${r('#sessions', 'Sessions', [beh ? beh + ' behind' : 'On track', dsp ? dsp + ' disputed' : ''].filter(Boolean).join(' · '))}${r('#clashes', 'Clashes', cl ? String(cl) : 'None')}${r('#bookings', 'Make-ups', mu ? mu + ' to confirm' : 'None waiting')}${r('#reqs', 'Requisitions', rq ? rq + ' open' : 'None open')}</div><div class="h2">Teaching</div>` : ''; })() : ''}
+      return LEAN() ? `<div class="card">${window.KPIUI && KPIUI.may() ? r('#kpi', 'KPIs', 'Last 4 weeks') : ''}${window.TPAYUI && TPAYUI.may() ? r('#pay', 'Pay', 'This month') : ''}${store.get('lhq_sreports', null) ? r('#says', 'What students say', 'Last 4 weeks') : ''}${r('#sessions', 'Sessions', [beh ? beh + ' behind' : 'On track', dsp ? dsp + ' disputed' : ''].filter(Boolean).join(' · '))}${r('#clashes', 'Clashes', cl ? String(cl) : 'None')}${r('#bookings', 'Make-ups', mu ? mu + ' to confirm' : 'None waiting')}${r('#reqs', 'Requisitions', rq ? rq + ' open' : 'None open')}</div><div class="h2">Teaching</div>` : ''; })() : ''}
   ${window.PC ? PC.block('tutors', {}, 'At a glance') : ''}
   ${none.length ? `<div class="h2" id="none">No tutor yet <em>${none.length}</em></div><div class="card" style="border-color:var(--gold)">${none.map(row).join('')}</div>` : ''}
   ${list.map(([n, items]) => { const st = new Set(items.map(i => i.s.key)).size, open = show === encodeURIComponent(n) || show === n;
@@ -1367,6 +1375,8 @@ LHQSearch.provider = () => {
   if(can('pl') && window.MIN){ const t = today(), q = MIN.periodOf('term', t);
     pages.push({t:'Money in · today', k:'received payments day', href:'#biz/money/d' + t, ic:I('cash')}, {t:'Money in · this week', k:'received payments week', href:'#biz/money/' + MIN.key(MIN.periodOf('week', t)), ic:I('cash')},
       {t:'Money in · this term', k:'received payments school term holiday', href:'#biz/money/' + MIN.key(q), ic:I('cash')}, {t:'Money in · this year', k:'received payments financial year half', href:'#biz/money/' + MIN.key(MIN.periodOf('year', t)), ic:I('cash')}); }
+  if(can('tutors')) pages.push({t:'SRA figures', k:'sra reviews average topics dropping fading handed in ars recall', href:'#srafig', ic:I('rep')});
+  if(window.TPAYUI && TPAYUI.may()) pages.push({t:'Tutor pay', k:'pay payslip salary allowance advance deduction bonus overtime cap', href:'#pay', ic:I('cash')});
   if(window.KPIUI && KPIUI.may()) pages.push({t:'Tutor KPIs', k:'performance falling short slipping meeting observation review renewals', href:'#kpi', ic:I('users')});
   if(window.EXUI) pages.push({t:'Exam timetable', k:'exams dates papers cambridge igcse a level as checkpoint june november march', href:'#exams', ic:I('list')});
   if(store.get('lhq_sreports', null)) pages.push({t:'What students say', k:'daily reports ratings', href:'#says', ic:I('msg')});
@@ -1399,6 +1409,9 @@ P.teach = (sub, a1, a2) => TUT.page(sub, a1, a2);
 P.me = (sub, a1, a2) => FAM.page(sub, a1, a2);
 /* tutor KPIs (kpi.js, kpiui.js): the Director, and Admin when switched on */
 P.kpi = a1 => KPIUI.route(a1);
+/* tutor pay (tpay.js, tpayui.js): the Director, and Admin with Tutor pay */
+P.pay = a1 => TPAYUI.route(a1);
+P.srafig = () => SRAFIG.page();
 /* the exam timetable (exams.js, examsui.js): everyone; students add subjects to My exams from here */
 P.exams = () => { EXUI.setMine(['student','parent'].includes(me().role) && window.FAM && FAM.mineCtx ? FAM.mineCtx() : null);
   const back = me().role === 'tutor' ? '<a class="crumb" href="#teach">‹ Home</a>' : ['student','parent'].includes(me().role) ? '<a class="crumb" href="#me/exams">‹ My exams</a>' : crumb(null, null, 'exams');
@@ -1408,13 +1421,13 @@ P.rep = (kind, arg) => PERF.page(kind, arg);
 /* ================= settings ================= */
 const SETS = [
   ['Account', [['account','user','My account'],['appearance','layout','Appearance'],['notifications','bell','Notifications']]],
-  ['LHQ', [['people','users','People & access', () => isDir() || can('tutors')],['company','bank','Company & bank details', isDir],['payments','cash','Payments & due dates', isDir],['hours','clock','Opening hours', isDir],['terms','clock','School terms', isDir],['bands','rep','Grade boundaries', isDir],['kpi','users','Tutor KPIs', isDir],['exams','list','Exams', isDir],['tutorinfo','users','Tutors\' contacts', () => isDir() || can('tutors') || can('msgs')]]],
+  ['LHQ', [['people','users','People & access', () => isDir() || can('tutors')],['company','bank','Company & bank details', isDir],['payments','cash','Payments & due dates', isDir],['hours','clock','Opening hours', isDir],['terms','clock','School terms', isDir],['bands','rep','Grade boundaries', isDir],['kpi','users','Tutor KPIs', isDir],['tpay','cash','Tutor pay', isDir],['exams','list','Exams', isDir],['tutorinfo','users','Tutors\' contacts', () => isDir() || can('tutors') || can('msgs')]]],
   ['Documents', [['numbering','hash','Numbering', () => can('numbering')],['messages','msg','Messages', () => can('msgs')],['lists','list','Lists', () => can('msgs')]]],
   ['Enrolment & sending', [['enrol','link','Student checklist', () => staffRole()],['sending','wa','Email & WhatsApp', () => staffRole()]]],
   ['Data', [['records.html','layout','Shared records', () => isDir()],['backup','box','Backup & restore', () => can('backup')],['deleted','bin','Recently deleted', () => can('restore')],['demo','restore','Demo data (preview)', () => isDir() && PREVIEW]]],
 ];
 const setVis = ids => SETS.flatMap(([, items]) => items).filter(x => ids.includes(x[0]) && (!x[3] || x[3]()));
-const DETAILS = ['company','payments','hours','terms','bands','exams','kpi','numbering','messages','sending','tutorinfo','enrol'], DATA = ['records.html','backup','deleted','demo'];
+const DETAILS = ['company','payments','hours','terms','bands','exams','kpi','tpay','numbering','messages','sending','tutorinfo','enrol'], DATA = ['records.html','backup','deleted','demo'];
 /* Lean: 5 places. Things set once sit inside LHQ details; shared records, backups and the bin inside Data */
 const LEAN_SETS = () => [['Account', [['account','user','My account'],['appearance','layout','Appearance'],['notifications','bell','Notifications']]],
   ['LHQ', setVis(['people']).concat(setVis(DETAILS).length ? [['details','bank','LHQ details']] : [], setVis(['lists']))],
@@ -1447,6 +1460,7 @@ S.terms = () => { const L = termDraft || (window.MIN ? MIN.terms() : []).map(t =
   return `<h2 class="sec-h">School terms</h2><div class="card pad">${L.map((t, i) => `<div class="tm-row"><input class="in" data-tm="${i}:0" value="${esc(t[0])}" aria-label="Name"><input class="in" type="date" data-tm="${i}:1" value="${esc(t[1])}" aria-label="Starts"><input class="in" type="date" data-tm="${i}:2" value="${esc(t[2])}" aria-label="Ends"><button class="ib" data-tmrm="${i}" aria-label="Remove">✕</button></div>`).join('')}
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"><button class="btn" id="tmAdd">+ Term</button><button class="btn n" id="termSave">Save</button></div></div><p class="note">Holidays are the gaps between terms. Used by Money in.</p>`; };
 let bandSc = 'al', exTab = 'series', topDraft = null;
+S.tpay = () => TPAYUI.settings();
 S.kpi = () => { const c = KPI.conf(settingsKV()), sw = (id, on, t, sub) => `<div class="it"><span class="t"><b>${t}</b><small>${sub}</small></span><button class="lp-sw${on ? ' on' : ''}" id="${id}" role="switch" aria-checked="${on}" aria-label="${t}"></button></div>`;
   return `<h2 class="sec-h">Tutor KPIs</h2><div class="h2">Who sees it</div><div class="card">${sw('kAdm', c.admin, 'Admin', 'All tutors · with Tutors access')}${sw('kTut', c.tutors, 'Tutors', 'Their own · Week and Month')}</div>
     <div class="h2">Targets</div><div class="card pad">${KPI.CORE.map(([id, n]) => `<div class="it" style="padding:6px 0"><span class="t">${esc(n)}</span><input class="in" style="width:80px;text-align:right" inputmode="numeric" data-ktg="${id}" value="${c.tg[id]}"> %</div>`).join('')}</div>
@@ -1535,7 +1549,7 @@ function peoplePin(){ const list = HD.people(), D0 = isDir();
 const PERMS = [
   ['Documents', [['quotes','Make and edit quotes and invoices'],['receipts','Record payments (receipts)'],['cards','Make tuition cards'],['delete','Delete documents'],['restore','Restore deleted documents']]],
   ['Students', [['students','Add and edit student details']]],
-  ['Money', [['money','See money totals and reports','Money cards, totals and trends. Amounts on a document stay visible to whoever makes it.'],['tpay','See tutor pay','What each tutor earns (arrives with step 2)']]],
+  ['Money', [['money','See money totals and reports','Money cards, totals and trends. Amounts on a document stay visible to whoever makes it.'],['tpay','Tutor pay','Work out, add items and confirm payslips']]],
   ['Business', [['spend','Record spending','Add spending and see the spending list. They can change only what they recorded.'],['pl','See profit and loss and budgets','Money in against spending, profit, budgets, and the Profit card on Home']]],
   ['People', [['tutors','Add tutors, students and parents, give them setup codes, switch them off']]],
   ['Settings', [['msgs','Messages and lists'],['numbering','Numbering'],['backup','Backup and restore']]],
@@ -1801,6 +1815,8 @@ function bind(){
     EXUI.targetSheet({k, name: s0.name || it.st, sub: it.sub, i: EXUI.info(k, EXUI.staffPack([it], E), M.w), onSaved: async () => { await hub.pull(); render(); }}); });
   if(route.page === 'exams' && window.EXUI) EXUI.bindTimetable(render);
   if(route.page === 'kpi' && window.KPIUI) KPIUI.bindDir();
+  if(window.SRAFIG && (route.page === 'srafig' || route.page === 'student')) SRAFIG.bind();
+  if(window.TPAYUI && (route.page === 'pay' || (route.page === 'set' && /tpay/.test(location.hash)))) TPAYUI.bind();
   document.querySelectorAll('[data-pdt]').forEach(el => el.onchange = () => { pdDraft.term[el.dataset.pdt] = el.value; });
   document.querySelectorAll('[data-pdn]').forEach(el => el.oninput = () => { pdDraft.fast[+el.dataset.pdn].name = el.value; });
   document.querySelectorAll('[data-pdd]').forEach(el => el.onchange = () => { const [i, j] = el.dataset.pdd.split(':').map(Number), x = pdDraft.fast[i]; x.dates = x.dates || []; x.dates[j] = el.value; });

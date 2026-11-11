@@ -50,6 +50,7 @@
     /* sessions taught as planned (a student's absence isn't counted) */
     { let ok = 0, bad = 0; const R = [];
       P.forEach(p => { const l = logOf(p); if(!l && p.date >= t) return; if(l && l.a === 'absent'){ R.push(row('no', who(p), 'Student absent · not counted', '', p.date)); return; }
+        if(l && l.a === 'cancelled' && (l.cb === 'lhq' || l.cb === 'student')){ R.push(row('no', who(p), `Cancelled by ${l.cb === 'lhq' ? 'LHQ' : 'the student'} · not counted`, '', p.date)); return; }
         if(l && l.a !== 'cancelled'){ ok++; R.push(row('ok', who(p), `Taught${l.t1 ? ' · ' + l.t1 + '–' + (l.t2 || '') : ''}`, '', p.date)); }
         else { bad++; R.push(row('rd', who(p), l ? 'Cancelled' : 'Not logged', '', p.date)); } });
       put('ses', ok, bad, R.sort((x, y) => (x.mk === 'ok') - (y.mk === 'ok') || y.sort.localeCompare(x.sort))); }

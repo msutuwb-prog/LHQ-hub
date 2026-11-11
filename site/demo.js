@@ -219,8 +219,13 @@
         for(let t = start; t < end; t += DAY){
           const d = new Date(t); if(!sub.days.some(x => DN[x] === d.getDay())) continue;
           n++;
-          const a = rnd() < .08 ? 'absent' : rnd() < .06 ? 'late' : 'attended', eid = 'dl' + (++uid).toString(36);
-          const e = {id:eid, k:key, st:card.student, sub:sub.name, d:iso(d), ty:'s', a, tp: a === 'absent' ? [] : [topics[ti % topics.length]], at:t + 18 * 3600e3, tutor:sub.tutor};
+          let a = rnd() < .08 ? 'absent' : rnd() < .06 ? 'late' : 'attended'; const eid = 'dl' + (++uid).toString(36);
+          if(uid % 37 === 11) a = 'cancelled';   // now and then a cancelled session: by the tutor, LHQ or the student (no extra random draws)
+          const e = {id:eid, k:key, st:card.student, sub:sub.name, d:iso(d), ty:'s', a, tp: a === 'absent' || a === 'cancelled' ? [] : [topics[ti % topics.length]], at:t + 18 * 3600e3, tutor:sub.tutor};
+          if(a === 'cancelled') e.cb = ['tutor', 'lhq', 'student'][uid % 3];
+          { const tt = (sub.times && sub.times[Object.keys(DN).find(x => DN[x] === d.getDay())]) || {s: sub.start, e: sub.end};   // logged times: mostly on time, sometimes a late start or early finish
+            if(tt.s && tt.e && a !== 'absent' && a !== 'cancelled'){ const sh = (hm, n) => { const m = +hm.slice(0, 2) * 60 + +hm.slice(3, 5) + n; return String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0'); };
+              e.t1 = sh(tt.s, uid % 13 === 0 ? 12 : uid % 7 === 0 ? 3 : 0); e.t2 = sh(tt.e, uid % 17 === 0 ? -8 : 0); } }
           if(a !== 'absent' && n % 4 === 0){ e.mx = 20; e.sc = 9 + Math.floor(rnd() * 12); }
           logs[eid] = e;
           // a weekly assessment about every third session, drifting up (most students) or down
@@ -272,7 +277,15 @@
     const treps = {}; const days = {}; Object.values(logs).forEach(e => { if(e && e.ty === 's' && e.tutor && e.d < iso(new Date(T))) days[e.tutor + '|' + e.d] = 1; });
     Object.keys(days).forEach(k => { const [tutor, d] = k.split('|'), r = rnd(); if(r < .08) return; const id = 'tr' + (uid++).toString(36);
       treps[id] = {id, tutor, d, sent: Date.parse(d + 'T14:30:00Z') + (r < .14 ? 864e5 : 0), at: Date.parse(d + 'T14:30:00Z'), rate: 4, comment: '', req: []}; });
-    return {docs, trash, people:PEOPLE, kv:{lhq_treps:{e:treps}, lhq_makeups:makeups, lhq_students:recs, lhq_logs:{e:logs, imports}, lhq_counters:{quote:C.quote, invoice:C.invoice, receipt:C.receipt + 1, card:C.card}, lhq_spend:money.spend, lhq_budget:money.budget, lhq_targets:targets}};
+    /* students' focus rounds and a study block or two */
+    const lhq_focus = {}, lhq_plan = {}, SB = ['Mathematics','Physics','Chemistry','Biology','English'];
+    Object.keys(recs).forEach((k, i) => { const L = []; for(let n = 1; n <= 24; n++){ if(rnd() < .45) continue; const d = iso(new Date(T - n * DAY)); L.push({d, m: (i + n) % 3 ? 25 : 50, sub: SB[(i + n) % 5], tk: '', at: T - n * DAY}); } lhq_focus[k] = L;
+      if(i % 2 === 0) lhq_plan[k] = {bdemo1: {id: 'bdemo1', name: 'Revision', type: 'rev', sub: SB[i % 5], s: '19:00', e: '20:00', rep: 'weekdays', days: [], from: iso(new Date(T - 20 * DAY)), until: '', at: T - 20 * DAY},
+        bdemo2: {id: 'bdemo2', name: 'Football', type: 'act', sub: '', s: '16:00', e: '17:30', rep: 'days', days: [3, 6], from: iso(new Date(T - 20 * DAY)), until: '', at: T - 20 * DAY}}; });
+    return {docs, trash, people:PEOPLE, kv:{lhq_focus, lhq_plan, lhq_treps:{e:treps}, lhq_makeups:makeups, lhq_students:recs, lhq_logs:{e:logs, imports}, lhq_counters:{quote:C.quote, invoice:C.invoice, receipt:C.receipt + 1, card:C.card}, lhq_spend:money.spend, lhq_budget:money.budget, lhq_targets:targets, lhq_pay:{
+      place: Object.fromEntries([...new Set(Object.values(POOL).flat())].map(n => [n.toLowerCase(), [{p: ['Catherine Mkwinda','Emmanuel Mkwamba'].includes(n) ? 'full' : 'part', from: '2026-01-01'}]])),
+      items: {pi1: {id: 'pi1', tutor: 'Peter Mvula', m: iso(new Date(T)).slice(0, 7), kind: 'advance', amt: 30000, label: 'Advance', d: iso(new Date(T - 4 * DAY)), by: 'Wanangwa Msutu', at: T - 4 * DAY},
+        pi2: {id: 'pi2', tutor: 'Emmanuel Mkwamba', m: iso(new Date(T)).slice(0, 7), kind: 'allowance', amt: 10000, label: 'Transport · exam invigilation', d: iso(new Date(T - 2 * DAY)), by: 'Wanangwa Msutu', at: T - 2 * DAY}}}}};
   }
   /* Business: spending from the first month with payments to today, recorded by Wanangwa and Catherine.
      Rent, internet and staff salaries repeat monthly; this month's internet and salaries are left for "to confirm". */

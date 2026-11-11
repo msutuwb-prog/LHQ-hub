@@ -15,7 +15,7 @@ window.TUT = (function(){
 
   /* ---------- the look: ticks and circles instead of pills ---------- */
   if(!document.getElementById('tutCss')){ const st = document.createElement('style'); st.id = 'tutCss'; st.textContent = `
-.t-opts{display:grid;gap:8px}.t-opts.g2{grid-template-columns:1fr 1fr}.t-opts.g5{grid-template-columns:repeat(5,minmax(0,1fr))}
+.t-opts{display:grid;gap:8px}.t-opts.g2{grid-template-columns:1fr 1fr}.t-opts.g3{grid-template-columns:repeat(3,minmax(0,1fr))}.t-opts.g5{grid-template-columns:repeat(5,minmax(0,1fr))}
 .t-opt{display:flex;align-items:center;gap:10px;width:100%;text-align:left;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:11px 12px;min-height:46px;font:inherit;font-weight:600;font-size:14px;color:var(--ink);cursor:pointer}
 .t-opt small{display:block;color:var(--muted);font-size:12px;font-weight:600}.t-opt .tx{flex:1;min-width:0}
 .t-opt.on{border-color:var(--accent);background:var(--t-sel);font-weight:800}.t-opt.miss{border-color:var(--am)}
@@ -436,6 +436,7 @@ window.TUT = (function(){
     if(sub === 'marks') return marksPage(!a1 ? '' : a1.startsWith('edit:') ? a1 : a2 ? [a1, a2, a3].map(encodeURIComponent).join('/') : 'stu:' + a1);
     if(sub === 'wa') return waPage(decodeURIComponent(a1 || ''));
     if(sub === 'assess') return assessPage(decodeURIComponent(a1 || ''));
+    if(sub === 'pay') return window.TPAYUI ? TPAYUI.myPay() : '';
     if(sub === 'perf') return `<a class="crumb" href="#teach">‹ Home</a><div class="ph"><div class="tt"><h1>My performance</h1></div></div>${data && data.kpiOn && window.KPIUI ? KPIUI.tutorView(render) : '<p class="empty">Not available.</p>'}`;
     if(sub === 'sra') return sraPage(a1 || 'today');
     if(sub === 'report') return reportPage();
@@ -510,7 +511,7 @@ window.TUT = (function(){
       (ed ? '' : answersBlock() + toldBlock() + slipBlock() + noticesBlock() + clashesBlock() + comingBlock()) + cardsBlock() + (ed ? '' : saysBlock() + reqsBlock() + `
       <div class="h2">Logged today <em>${L.length}</em></div>${timeline(L)}
       ${G.length ? `<div class="h2">Still to log <em>${G.length}</em></div>${gapCard(G)}` : ''}
-      <div class="card">${[['#teach/cal','clock','Calendar','Your week from your tuition cards · clashes · times you can\'t teach'],['#teach/students','users','My students','Sessions had and remaining, make-ups'],['#teach/sra','restore','SRA tracker','Give, collect and print · next 7 days · by student'],['#exams','list','Exam timetable','Every Cambridge paper and its date'],...(data && data.kpiOn ? [['#teach/perf','rep','My performance','Your KPIs · Week and Month']] : []),['#teach/classes','users','Classes',`${(data.classes || []).length} official class${(data.classes || []).length === 1 ? '' : 'es'}`]].concat(tutorRole() ? [] : [['#teach/report','list','Daily report', rep ? 'Sent today' : 'Due before you leave']]).map(([h, i, b, s]) => `<a class="it" href="${h}"><span class="ico">${ic(i,18)}</span><span class="t"><b>${b}</b><small>${s}</small></span><span class="chev">${ic('chev',16,2)}</span></a>`).join('')}</div>`);
+      <div class="card">${[['#teach/cal','clock','Calendar','Your week from your tuition cards · clashes · times you can\'t teach'],['#teach/students','users','My students','Sessions had and remaining, make-ups'],['#teach/sra','restore','SRA tracker','Give, collect and print · next 7 days · by student'],['#exams','list','Exam timetable','Every Cambridge paper and its date'],...(data && data.kpiOn ? [['#teach/perf','rep','My performance','Your KPIs · Week and Month']] : []),['#teach/pay','cash','My pay','Payslips to check and sign'],['#teach/classes','users','Classes',`${(data.classes || []).length} official class${(data.classes || []).length === 1 ? '' : 'es'}`]].concat(tutorRole() ? [] : [['#teach/report','list','Daily report', rep ? 'Sent today' : 'Due before you leave']]).map(([h, i, b, s]) => `<a class="it" href="${h}"><span class="ico">${ic(i,18)}</span><span class="t"><b>${b}</b><small>${s}</small></span><span class="chev">${ic('chev',16,2)}</span></a>`).join('')}</div>`);
   }
 
   /* students and a student's page */
@@ -566,7 +567,7 @@ window.TUT = (function(){
   function editForm(grp){
     const E = live().filter(e => e.ty === 's' && (e.grp || e.id) === grp); if(!E.length) return null; const e = E[0];
     const G = live().filter(x => x.ty === 'g' && x.grp === grp), W = live().filter(x => x.ty === 'w' && x.grp === grp);
-    return {key: e.cls ? 'class:' + e.cls : E.length > 1 ? 'group' : e.k, grp, edit: true, ids: Object.fromEntries(E.map(x => [x.k, x.id])), d: e.d, keys: E.map(x => x.k), cls: e.cls || '', fmt: e.fmt || '1i', t1: e.t1 || '', t2: e.t2 || '',
+    return {key: e.cls ? 'class:' + e.cls : E.length > 1 ? 'group' : e.k, grp, edit: true, ids: Object.fromEntries(E.map(x => [x.k, x.id])), d: e.d, keys: E.map(x => x.k), cls: e.cls || '', fmt: e.fmt || '1i', t1: e.t1 || '', t2: e.t2 || '', cb: (E.find(x => x.cb) || {}).cb || '',
       att: Object.fromEntries(E.map(x => [x.k, x.a])), mk: e.mk || 0, tp: e.tp || [], fin: e.fin || [], q: '', open: false, give: G.map(g => [g.k, g.tk, g.rv].map(encodeURIComponent).join('/')), had: G.map(g => g.id), gIds: Object.fromEntries(G.map(g => [[g.k, g.tk, g.rv].map(encodeURIComponent).join('/'), g.id])),
       gb: e.gb || 0, ga: e.ga || 0, wa: W.length ? 1 : 0, waTp: (W[0] || {}).tp || [], waMx: (W[0] || {}).mx || '', waAk: (W[0] || {}).ak || 'w', waSch: (W[0] || {}).sch || '', wIds: Object.fromEntries(W.map(x => [x.k, x.id])), waOpen: false, wq: '', nt: e.nt || '', n: e.n || ''};
   }
@@ -611,6 +612,7 @@ window.TUT = (function(){
       ${M.map(m => { const n = noticeOf(m.k, f.d); return n ? `<div class="t-told">${esc(short(m.st))} · told ${hm(n.at)} · ${esc(toldL(n))}${n.note ? ` · “${esc(n.note)}”` : ''}</div>` : ''; }).join('')}
       <div class="card pad"><div class="cap">Attendance</div><div class="t-att"><span></span>${ATT.map(a => `<span class="hd">${a[1]}</span>`).join('')}
         ${M.map(m => `<span class="nm">${esc(short(m.st))}</span>${ATT.map(([v, l]) => `<button type="button" role="radio" aria-label="${esc(short(m.st))} ${l}" aria-checked="${f.att[m.k] === v}" class="${f.att[m.k] === v ? 'on' : ''}" data-tset="att.${esc(m.k)}" data-v="${v}"><span class="t-ind c"></span></button>`).join('')}`).join('')}</div>
+        ${M.some(m => f.att[m.k] === 'cancelled') ? `<div class="cap" style="margin-top:12px">Cancelled by</div>${one('cb', [['tutor','Me'],['lhq','LHQ'],['student','Student']], f.cb || '', 'g3')}` : ''}
         ${M.some(m => !taught(f.att[m.k])) ? '<p class="note">Absent or cancelled: a make-up is owed.</p>' : ''}</div>
       ${M.some(m => taught(f.att[m.k])) ? `
       <div class="card pad"><div class="cap">Topics covered</div>${topicPicker(f, 'tp', 'open', 'q', 'Choose topics')}
@@ -632,10 +634,11 @@ window.TUT = (function(){
     if(!M.length){ toast('Choose who the session was with'); return; }
     if(f.t1 && f.t2 && mins(f.t2) <= mins(f.t1)){ toast('The session finishes before it starts'); return; }
     if(f.waMx && !(parseFloat(f.waMx) > 0)){ toast('Check what the assessment is marked out of'); return; }
+    if(f.keys.some(k => f.att[k] === 'cancelled') && !f.cb){ toast('Who cancelled?'); return; }
     const md = /o$/.test(f.fmt) ? 'o' : 'c', list = [];
     M.forEach(m => { const a = f.att[m.k] || 'attended', ok = taught(a);
       const e = {id: f.ids[m.k] || uid(), ty:'s', k:m.k, st:m.st, sub:m.sub, d:f.d, a, md, fmt:f.fmt, grp:f.grp};
-      if(f.t1) e.t1 = f.t1; if(f.t2) e.t2 = f.t2; if(f.cls) e.cls = f.cls; if(f.mk) e.mk = 1;
+      if(f.t1) e.t1 = f.t1; if(f.t2) e.t2 = f.t2; if(f.cls) e.cls = f.cls; if(f.mk) e.mk = 1; if(a === 'cancelled') e.cb = f.cb;
       const tn = noticeOf(m.k, f.d); if(tn && ((tn.kind === 'abs' && a === 'absent') || (tn.kind === 'late' && a === 'late'))) e.told = tn.id; else delete e.told;
       if(ok){ e.tp = f.tp.slice(); if(f.fin.length) e.fin = f.fin.filter(t => f.tp.includes(t)); if(f.gb) e.gb = 1; if(f.ga) e.ga = 1; }
       if(f.nt) e.nt = f.nt; if(f.n) e.n = f.n; list.push(e); });
@@ -961,6 +964,7 @@ window.TUT = (function(){
   }
   function bind(){
     if(window.KPIUI && location.hash.startsWith('#teach/perf')) KPIUI.bindTutor(render);
+    if(window.TPAYUI && location.hash.startsWith('#teach/pay')) TPAYUI.bind();
     document.querySelectorAll('[data-textg]').forEach(b => b.onclick = () => { const k = b.dataset.textg, it = itemOf(k), i = exInfo(k); if(!it || !i) return;
       EXUI.targetSheet({k, name: it.st, sub: it.sub, i, onSaved: async () => { await fetchData(); render(); }}); });
     const on = (sel, fn) => document.querySelectorAll('#main ' + sel).forEach(el => el.onclick = ev => fn(el, ev));
