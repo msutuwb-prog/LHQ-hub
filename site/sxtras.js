@@ -125,6 +125,7 @@ window.SX = (function(){
     const s = st(); let pill = document.getElementById('sxPill');
     if(s && s.run && leftOf(s) <= 0){
       const next = Object.assign({}, s);
+      if(window.SOUNDS) SOUNDS.play(s.ph === 'work' ? 'focus' : 'brk');
       if(s.ph === 'work'){ roundDone(s); next.ph = s.round >= 4 ? 'long' : 'brk'; toast(s.round >= 4 ? 'Four rounds · long break' : 'Round done · break'); }
       else { next.ph = 'work'; next.round = s.ph === 'long' ? 1 : s.round + 1; toast('Back to work'); }
       const L = LEN[s.len][next.ph === 'work' ? 0 : next.ph === 'long' ? 2 : 1]; next.end = Date.now() + L * 60000; next.left = L * 60; write(FK, next);
@@ -218,6 +219,7 @@ window.SX = (function(){
         <div class="it"><span class="t"><b>Study blocks</b><small>At the start of each block</small></span><button class="btn sm ${rem.block === 'off' ? '' : 'n'}" id="sxRemB">${rem.block === 'off' ? 'Off' : 'On'}</button></div>
         <div class="it"><span class="t"><b>Daily report 🔒</b><small>The hour after your last session</small></span></div>
         <div class="it"><span class="t"><b>Hand-in days 🔒</b><small>With the morning SRAs</small></span></div></div>
+      <div class="card"><a class="it" href="#me/sounds"><span class="t"><b>Sounds</b><small>A different one for each kind, while LHQ Hub is open</small></span><span class="chev">›</span></a></div>
       <p class="note">Quiet hours and the rest: <a href="#set/notifications">Notifications</a>. iPhone: install the Hub first.</p>`;
   }
   async function saveRem(ch){ const rem = Object.assign({sra: 7, block: 1}, ((remS.prefs || {}).rem) || {}, ch); try{ const r = await hub.api('push', {method: 'POST', body: JSON.stringify(Object.assign({action: 'rem'}, rem))}); remS.prefs = Object.assign({}, remS.prefs, {rem: r.rem}); toast('Saved'); render(); }catch(e){ toast(e.message); } }
@@ -234,12 +236,13 @@ window.SX = (function(){
   }
   /* ---------- the bar: Home, Practice, two of their choice, More ---------- */
   const CHOICE = [['mcal','Calendar','index.html#me/calendar'],['mprog','Progress','index.html#me/progress'],['mfocus','Focus','index.html#me/focus'],['mrep','Report','index.html#me/report']];
-  const barPicks = () => { const p = read('lhq_sxbar', ['mcal', 'mprog']).filter(x => CHOICE.some(c => c[0] === x)); return p.length === 2 ? p : ['mcal', 'mprog']; };
+  const isFull = () => ((((window.hub && hub.session && hub.session()) || {}).me || {}).view === 'full');
+  const barPicks = () => { const p = read('lhq_sxbar', ['mcal', 'mprog']).filter(x => CHOICE.some(c => c[0] === x) && (x !== 'mfocus' || isFull())); return p.length === 2 ? p : ['mcal', 'mprog']; };
   function barPage(){
     css(); const P = barPicks();
     return `<a class="crumb" href="#me/more">‹ More</a><div class="ph"><div class="tt"><h1>Edit the bar</h1><p>Choose two</p></div></div>
       <div class="sx-bar"><div class="lk">Home 🔒</div><div class="lk">Practice 🔒</div>${P.map(p => `<div class="on">${CHOICE.find(c => c[0] === p)[1]}</div>`).join('')}<div class="lk">More 🔒</div></div>
-      <div class="card">${CHOICE.map(([id, l]) => `<button class="it" style="width:100%" data-sxbar="${id}"><span class="f-mk ${P.includes(id) ? 'ok' : ''}">${P.includes(id) ? '✓' : ''}</span><span class="t"><b>${l}</b></span></button>`).join('')}</div>
+      <div class="card">${CHOICE.filter(c => c[0] !== 'mfocus' || isFull()).map(([id, l]) => `<button class="it" style="width:100%" data-sxbar="${id}"><span class="f-mk ${P.includes(id) ? 'ok' : ''}">${P.includes(id) ? '✓' : ''}</span><span class="t"><b>${l}</b></span></button>`).join('')}</div>
       <div class="h2">Set by LHQ</div><div class="card">${['Today on Home','Home, Practice and More on the bar','SRA, hand-in and report reminders on','Sessions, SRAs and marks shared with LHQ'].map(a => `<div class="it"><span>🔒</span><span class="t">${a}</span></div>`).join('')}</div>`;
   }
 

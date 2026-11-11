@@ -69,4 +69,7 @@ select::-ms-expand{display:none}
 .hn-bn[hidden]{display:none}
 
 /* Settings › Appearance › Text size: Large */
-html.tx-l{zoom:1.12}
+html.tx-l{zoom:1.12}html.tx-xl{zoom:1.25}
+/* colour themes: the accent only; status colours and the LHQ logo never change */
+[data-col=teal]{--accent:#0f766e;--onaccent:#fff}[data-col=purple]{--accent:#6d28d9;--onaccent:#fff}[data-col=forest]{--accent:#166534;--onaccent:#fff}[data-col=rose]{--accent:#be123c;--onaccent:#fff}[data-col=sunset]{--accent:#c2410c;--onaccent:#fff}
+[data-theme=dark][data-col=teal]{--accent:#2dd4bf;--onaccent:#0d1420}[data-theme=dark][data-col=purple]{--accent:#c4b5fd;--onaccent:#0d1420}[data-theme=dark][data-col=forest]{--accent:#4ade80;--onaccent:#0d1420}[data-theme=dark][data-col=rose]{--accent:#fda4af;--onaccent:#0d1420}[data-theme=dark][data-col=sunset]{--accent:#fdba74;--onaccent:#0d1420}

@@ -18,6 +18,8 @@ window.FAM = (function(){
   const DLI = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>';
   let perSel = 'tp';
   const sub = n => String(n || '').replace(/^Mathematics$/i, 'Maths');
+  /* students choose Lean (the essentials; new students start here) or Full (cards, focus, habits, reviews, planning, school results) */
+  const full = () => isParent() || ((((window.hub && hub.session && hub.session()) || {}).me || {}).view === 'full');
   let data = read(CK, null), loading = null, err = '', kidI = +(read('lhq_family_kid', 0)) || 0;
 
   if(!document.getElementById('famCss')){ const st = document.createElement('style'); st.id = 'famCss'; st.textContent = `
@@ -154,7 +156,7 @@ window.FAM = (function(){
     const pay = isParent() ? owedLine() : '';
     return `<div class="ph"><div class="tt"><h1>Hi ${esc(firstN(me().name))}</h1><p>${isParent() && kids().length === 1 ? esc(firstN(k.name)) + ' · ' : ''}${day(t)}</p></div></div>${kidChips()}
       ${need.length ? `<div class="h2">Needs you <em>${need.length}</em></div><div class="card" style="border-left:3px solid var(--gold)">${need.join('')}</div>` : ''}
-      <div class="h2">Today</div><div class="card">${today.map(sesTell).join('') || '<p class="empty">No sessions today.</p>'}</div>${window.SX ? SX.homeCards(k) : ''}
+      <div class="h2">Today</div><div class="card">${today.map(sesTell).join('') || '<p class="empty">No sessions today.</p>'}</div>${window.SX && full() ? SX.homeCards(k) : ''}${!full() ? moreAsk() : ''}
       ${k.changes.length ? `<div class="h2">Changes</div><div class="card">${k.changes.slice(0, 3).map(c => `<div class="it"><span class="f-mk bl">i</span><span class="t"><b>${esc(sub(c.sub))} → ${DAYN[c.to.day]} ${esc(c.to.s)}</b><small>was ${DAYN[c.from.day]} ${esc(c.from.s)}</small></span></div>`).join('')}</div>` : ''}
       ${packCard(k, true)}<div class="h2">Sessions</div><div class="card">${k.subjects.map(sesRow).join('') || '<p class="empty">No tuition this period.</p>'}</div>${pay}`;
   }
@@ -169,7 +171,7 @@ window.FAM = (function(){
     const t = T(), L = k.sras;
     const doT = L.filter(x => x.doOn === t), inT = L.filter(x => x.due === t || x.status === 'late'), out = L.filter(x => x.status === 'given' && x.doOn !== t);
     const row = x => `<div class="it">${isParent() ? `<span class="f-mk ${x.done ? 'ok' : ''}">${x.done ? '✓' : ''}</span>` : ''}<span class="t"><b>${esc(x.topic)} ${x.stage ? 'R' + x.stage : 'LD'}</b><small>${esc(sub(x.sub))}${x.pack ? ' · take-home pack' : x.due ? ' · hand in ' + (x.due === t ? 'today' : day(x.due)) : ''}</small></span>${isParent() ? '' : steps(x)}</div>`;
-    return `<div class="ph"><div class="tt"><h1>Practice</h1></div>${isParent() || !window.SX ? '' : '<div class="acts"><a class="btn" href="#me/focus">Focus</a></div>'}</div>${kidChips()}${packCard(k)}
+    return `<div class="ph"><div class="tt"><h1>Practice</h1></div>${isParent() || !window.SX || !full() ? '' : '<div class="acts"><a class="btn" href="#me/focus">Focus</a></div>'}</div>${kidChips()}${packCard(k)}
       <div class="h2">Do today</div><div class="card">${doT.map(row).join('') || '<p class="empty">Nothing today. ✓</p>'}</div>
       ${inT.length ? `<div class="h2">Hand in</div><div class="card">${inT.map(x => `<div class="it"><span class="f-mk am">!</span><span class="t"><b>${esc(x.topic)} ${x.stage ? 'R' + x.stage : 'LD'}</b><small>${esc(sub(x.sub))} · ${x.status === 'late' ? 'late' : 'today'}</small></span></div>`).join('')}</div>` : ''}
       ${out.length ? `<div class="h2">You have</div><div class="card">${out.map(row).join('')}</div>` : ''}
@@ -213,11 +215,11 @@ window.FAM = (function(){
     const prev = new Date(y, m - 2, 1), next = new Date(y, m, 1), ymOf = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
     const L = by[sel] || [];
     return `<div class="ph"><div class="tt"><h1>Calendar</h1></div></div>${kidChips()}
-      ${window.SPLAN ? `<div class="seg" style="display:flex;margin-bottom:12px">${[['Day','#me/day/' + sel],['Week','#me/week/' + sel],['Month',''],['Year','#me/year/' + sel]].map(([l, h]) => h ? `<a style="flex:1;text-align:center;text-decoration:none" href="${h}">${l}</a>` : `<a style="flex:1;text-align:center;text-decoration:none" class="on">${l}</a>`).join('')}</div>` : ''}
+      ${window.SPLAN && full() ? `<div class="seg" style="display:flex;margin-bottom:12px">${[['Day','#me/day/' + sel],['Week','#me/week/' + sel],['Month',''],['Year','#me/year/' + sel]].map(([l, h]) => h ? `<a style="flex:1;text-align:center;text-decoration:none" href="${h}">${l}</a>` : `<a style="flex:1;text-align:center;text-decoration:none" class="on">${l}</a>`).join('')}</div>` : ''}
       <div class="cal-nav"><a class="btn sm" href="#me/calendar/${ymOf(prev)}">‹</a><b>${['January','February','March','April','May','June','July','August','September','October','November','December'][m - 1]} ${y}</b><a class="btn sm" href="#me/calendar/${ymOf(next)}">›</a></div>
       <div class="card pad"><div class="f-cal">${['M','T','W','T','F','S','S'].map(x => `<span>${x}</span>`).join('')}${Array(start).fill('<span></span>').join('')}
         ${Array.from({length: nDays}, (_, i) => { const d = iso(i + 1), E = by[d] || []; return `<a class="${d === sel ? 'on' : ''}" href="#me/calendar/${y}-${String(m).padStart(2, '0')}/${d}">${i + 1}<span>${E.filter(e => e.k === 's').slice(0, 3).map(() => '<i></i>').join('')}${E.some(e => e.k !== 's') ? '<i class="g"></i>' : ''}${window.SPLAN && SPLAN.hasOwn(k, d) ? '<i class="o"></i>' : ''}</span></a>`; }).join('')}</div></div>
-      <div class="h2">${day(sel)}${window.SPLAN ? ` <a class="f-dayl" href="#me/day/${sel}">${isParent() ? 'Day ›' : 'Plan my day ›'}</a>` : ''}</div><div class="card">${window.SPLAN ? SPLAN.monthRows(k, sel, 1) : ''}${L.map(e => e.k === 's' ? sesTell(e.s)
+      <div class="h2">${day(sel)}${window.SPLAN && full() ? ` <a class="f-dayl" href="#me/day/${sel}">${isParent() ? 'Day ›' : 'Plan my day ›'}</a>` : ''}</div><div class="card">${window.SPLAN ? SPLAN.monthRows(k, sel, 1) : ''}${L.map(e => e.k === 's' ? sesTell(e.s)
         : e.k === 'a' ? `<div class="it"><span class="cal-t">${esc(e.a.s || '')}</span><span class="t"><b>${esc((window.MARKS ? MARKS.TY[MARKS.akN(e.a.ak)] : '') || 'Assessment')} · ${esc(sub(e.a.sub))}</b><small>${esc((e.a.tp || []).join(', '))}</small></span></div>`
         : `<div class="it"><span class="f-mk am">!</span><span class="t"><b>${esc(e.x.topic)} ${e.x.stage ? 'R' + e.x.stage : 'LD'}</b><small>${esc(sub(e.x.sub))} · ${e.x.doOn === sel ? 'do' : 'hand in'}</small></span></div>`).join('') || (window.SPLAN && SPLAN.hasOwn(k, sel) ? '' : '<p class="empty">Nothing.</p>')}${window.SPLAN ? SPLAN.monthRows(k, sel) : ''}</div>
 `;
@@ -231,7 +233,7 @@ window.FAM = (function(){
     const R0 = window.FDOC ? FDOC.range(k, 'tp', T()) : null;
     const dlb = isParent() && window.FDOC ? `<div class="h2">Report</div><div class="seg f-per">${FDOC.PER.map(([p, l]) => `<button type="button" class="${perSel === p ? 'on' : ''}" data-fper="${p}">${l.replace('This tuition period', 'Tuition period')}</button>`).join('')}</div>
       <button class="btn n full f-dl" type="button" data-fdl="rep">${DLI} Download report</button><p class="note" style="margin:6px 2px 14px">${(R => esc(R.label) + ' · ' + FDOC.rangeL(R))(FDOC.range(k, perSel, T()))}</p>` : '';
-    return `<div class="ph"><div class="tt"><h1>${isParent() ? 'Sessions' : 'Progress'}</h1>${R0 ? `<p>${esc(R0.label)} · ${FDOC.rangeL(R0)}</p>` : ''}</div><div class="acts"><a class="btn" href="#me/exams">${isParent() ? 'Exams' : 'My exams'}</a></div></div>${kidChips()}${tg}${marks}${window.SX ? (W => `<div class="h2">This week</div><div class="card"><a class="it" href="#me/review"><span class="t"><b>Review</b><small>Week, month, term, year</small></span><span class="chev">›</span></a><a class="it" href="#me/habits"><span class="t"><b>Habits</b><small>Attendance, SRAs on their day, reports</small></span><span class="chev">›</span></a><a class="it" href="#me/school"><span class="t"><b>School results</b></span><span class="chev">›</span></a><button class="it" style="width:100%" data-sxd="ftime"><span class="t"><b>Focus time</b><small>Finished rounds</small></span><b>${SX.hmin(W.focus)}</b><span class="chev">›</span></button><div class="it"><span class="t"><b>Study planned</b><small>${isParent() ? 'Their own blocks: total only' : '<a href="#me/day">Plan in Day view</a>'}</small></span><b>${SX.hmin(W.study)}</b></div></div>`)(SX.weekTotals(k)) : ''}<div class="h2">Sessions <button class="btn sm" data-fhelp style="padding:2px 8px;border-radius:50%">?</button></div><div class="card">${k.subjects.map(sesRow).join('') || '<p class="empty">No tuition this period.</p>'}</div>${dlb}`;
+    return `<div class="ph"><div class="tt"><h1>${isParent() ? 'Sessions' : 'Progress'}</h1>${R0 ? `<p>${esc(R0.label)} · ${FDOC.rangeL(R0)}</p>` : ''}</div><div class="acts"><a class="btn" href="#me/exams">${isParent() ? 'Exams' : 'My exams'}</a></div></div>${kidChips()}${tg}${marks}${window.SX && full() ? (W => `<div class="h2">This week</div><div class="card"><a class="it" href="#me/review"><span class="t"><b>Review</b><small>Week, month, term, year</small></span><span class="chev">›</span></a><a class="it" href="#me/habits"><span class="t"><b>Habits</b><small>Attendance, SRAs on their day, reports</small></span><span class="chev">›</span></a><a class="it" href="#me/school"><span class="t"><b>School results</b></span><span class="chev">›</span></a><button class="it" style="width:100%" data-sxd="ftime"><span class="t"><b>Focus time</b><small>Finished rounds</small></span><b>${SX.hmin(W.focus)}</b><span class="chev">›</span></button><div class="it"><span class="t"><b>Study planned</b><small>${isParent() ? 'Their own blocks: total only' : '<a href="#me/day">Plan in Day view</a>'}</small></span><b>${SX.hmin(W.study)}</b></div></div>`)(SX.weekTotals(k)) : ''}<div class="h2">Sessions <button class="btn sm" data-fhelp style="padding:2px 8px;border-radius:50%">?</button></div><div class="card">${k.subjects.map(sesRow).join('') || '<p class="empty">No tuition this period.</p>'}</div>${dlb}`;
   }
   function subject(kk){
     const k = kids().find(x => x.subjects.some(s => s.k === kk)) || kid(); if(!k) return emptyNoKids();
@@ -266,13 +268,14 @@ window.FAM = (function(){
     return `<div class="ph"><div class="tt"><h1>More</h1></div></div><div class="card">
       <a class="it" href="#settings"><span class="t"><b>My account</b></span><span class="chev">›</span></a>
       <a class="it" href="#me/exams"><span class="t"><b>${isParent() ? 'Exams' : 'My exams'}</b></span><span class="chev">›</span></a>
-      <a class="it" href="#me/habits"><span class="t"><b>Habits</b></span><span class="chev">›</span></a>
-      ${isParent() ? '' : `<a class="it" href="#me/focus"><span class="t"><b>Focus</b></span><span class="chev">›</span></a>
+      ${full() ? `<a class="it" href="#me/habits"><span class="t"><b>Habits</b></span><span class="chev">›</span></a>` : ''}
+      ${isParent() ? '' : `${full() ? `<a class="it" href="#me/focus"><span class="t"><b>Focus</b></span><span class="chev">›</span></a>` : ''}
       <a class="it" href="#me/reminders"><span class="t"><b>Reminders</b></span><span class="chev">›</span></a>
       <a class="it" href="#me/sharing"><span class="t"><b>Sharing</b></span><span class="chev">›</span></a>
       <a class="it" href="#me/bar"><span class="t"><b>Edit the bar</b></span><span class="chev">›</span></a>`}
       <a class="it" href="#exams"><span class="t"><b>Exam timetable</b></span><span class="chev">›</span></a>
       <a class="it" href="#set/notifications"><span class="t"><b>Notifications</b></span><span class="chev">›</span></a>
+      <a class="it" href="#set/appearance"><span class="t"><b>Appearance</b><small>Theme, colour, text size${isParent() ? '' : ', Lean or Full'}</small></span><span class="chev">›</span></a>
       <a class="it" href="tel:+265992525250"><span class="t"><b>Contact LHQ</b><small>0992 525 250</small></span><span class="chev">›</span></a></div>`;
   }
   const emptyNoKids = () => `<div class="ph"><div class="tt"><h1>Hi ${esc(firstN(me().name))}</h1></div></div>${!data ? `<p class="empty">${err === 'offline' ? 'Offline.' : err ? esc(err) : 'Loading…'}</p>` : '<p class="empty">Your account isn\'t linked to a student yet. Ask LHQ.</p>'}`;
@@ -325,6 +328,7 @@ window.FAM = (function(){
       if(!isParent() && sub0 === 'reminders') return SX.reminders();
       if(!isParent() && sub0 === 'bar') return SX.barPage();
       if(!isParent() && sub0 === 'sharing') return SX.sharing(k);
+      if(window.SOUNDS && sub0 === 'sounds') return SOUNDS.page();
       if(window.REV && sub0 === 'review') return kidChips() + REV.page(k, a1, route.args[2]);
       if(window.REV && sub0 === 'school') return kidChips() + REV.school(k);
       if(window.REV && !isParent() && sub0 === 'reflect') return REV.reflect(k, a1); } }
@@ -352,6 +356,8 @@ window.FAM = (function(){
     if(window.SX) SX.bind(kid());
     if(window.SPLAN) SPLAN.bind(kid());
     if(window.REV) REV.bind(kid());
+    if(window.SOUNDS && /^#me\/sounds/.test(location.hash)) SOUNDS.bind();
+    document.querySelectorAll('[data-fmore]').forEach(b => b.onclick = async () => { write('lhq_moreAsk', 1); if(b.dataset.fmore === '1'){ const s0 = hub.session(); if(s0 && s0.me){ s0.me.view = 'full'; localStorage.setItem('lhq_session', JSON.stringify(s0)); } try{ await hub.api('people', {method: 'POST', body: JSON.stringify({action: 'view', view: 'full'})}); }catch(e){} toast('Full · change it in Appearance'); } render(); if(window.LHQNav && LHQNav.refresh) LHQNav.refresh(); });
     document.querySelectorAll('[data-fgo]').forEach(b => b.onclick = () => { location.hash = b.dataset.fgo; });
     document.querySelectorAll('[data-fextg]').forEach(b => b.onclick = () => { const k = kid(), x = k && k.subjects.find(y => y.k === b.dataset.fextg); if(!x) return;
       EXUI.targetSheet({k: x.k, name: k.name, sub: sub(x.sub), i: exInfo(k, x), onSaved: async () => { await fetchData(); render(); }}); });
@@ -412,5 +418,8 @@ window.FAM = (function(){
     if(isParent()){ const seen = new Set(); kids().flatMap(k => k.pay || []).filter(p => p.type === 'invoice' && p.balance > 0.5 && !seen.has(p.id) && seen.add(p.id)).forEach(p => need.push({t:mk(p.balance), s:(p.over ? 'Overdue · ' : 'Due ') + day(p.due) + ' · ' + p.number, href:'#me/payments'})); }
     return {need, info};
   }
-  return {page, bind, bell, refresh: fetchData, mineCtx, steps, comingOf, sub, sesTell};
+  /* after 2 weeks on Lean, Home asks once */
+  function moreAsk(){ if(isParent()) return ''; let f = read('lhq_first', 0); if(!f){ f = Date.now(); write('lhq_first', f); } if(read('lhq_moreAsk', 0) || Date.now() - f < 14 * 864e5) return '';
+    return `<div class="card pad" style="margin-top:12px"><b>Want to see more?</b><p class="note" style="margin:2px 0 10px">Your cards, focus timer, habits, reviews and planning.</p><div class="row" style="gap:8px"><button class="btn n" style="flex:1" data-fmore="1">Show me</button><button class="btn" style="flex:1" data-fmore="0">Not now</button></div></div>`; }
+  return {page, bind, bell, refresh: fetchData, mineCtx, steps, comingOf, sub, sesTell, full};
 })();

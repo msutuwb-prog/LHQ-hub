@@ -463,6 +463,7 @@ window.TUT = (function(){
     if(sub === 'makeups') return makeupsPage();
     if(sub === 'students') return students();
     if(sub === 'student') return studentPage(decodeURIComponent(a1 || ''));
+    if(sub === 'sounds' && window.SOUNDS) return SOUNDS.page('#set/notifications');
     if(sub === 'log') return logPage(decodeURIComponent(a1 || ''), a2);
     if(sub === 'marks') return marksPage(!a1 ? '' : a1.startsWith('edit:') ? a1 : a2 ? [a1, a2, a3].map(encodeURIComponent).join('/') : 'stu:' + a1);
     if(sub === 'wa') return waPage(decodeURIComponent(a1 || ''));
@@ -1027,6 +1028,7 @@ window.TUT = (function(){
       openSheet(`<div class="hx"><h3>Send the clash to LHQ</h3><button class="ib" data-close>✕</button></div><label class="f"><span>Anything LHQ should know (optional)</span><input class="in" id="tclN" placeholder="e.g. Tadala can only do Tuesdays"></label><button class="btn n full" id="tclGo">Send to LHQ</button>`);
       $('tclGo').onclick = () => clashDo('admin', key, $('tclN').value); });
     on('[data-tclmove]', el => { const c = (data.clashes || []).find(x => x.key === el.dataset.tclmove); if(c) window.clashMove(c, {me: myName(), after: fetchData}); });
+    if(window.SOUNDS && /^#teach\/sounds/.test(location.hash)) SOUNDS.bind();
     on('[data-taskmv]', el => { const {k, d, s: s0, st, sub: sb, why} = JSON.parse(el.dataset.taskmv);
       openSheet(`<div class="hx"><h3>Ask LHQ to move it</h3><button class="ib" data-close>✕</button></div><p class="sp">${esc(st)} · ${esc(sb)} · ${nice(d)} ${esc(s0)}</p><label class="f"><span>Why</span><input class="in" id="tAskW" value="${esc(why)}"></label><button class="btn n full" id="tAskGo">Send to LHQ</button><p class="note" style="margin-top:8px">LHQ moves it or keeps it, and you're told.</p>`);
       $('tAskGo').onclick = async () => { try{ await hub.api('tutor', {method: 'POST', body: JSON.stringify({action: 'askmove', k, d, s: s0, st, sub: sb, why: $('tAskW').value})}); (data.asks = data.asks || []).push({k, d}); closeSheet(); toast('Sent to LHQ'); render(); }catch(e){ toast(e.message); } }; });

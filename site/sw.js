@@ -2,9 +2,9 @@
    Keeps the Hub's own files on the device, so pages open straight away and still open with no internet.
    Each file is shown from the device first, then quietly checked online; if LHQ Hub has been updated,
    the page shows "A newer version is ready" and one tap loads it. Saving and syncing (/api/…) always go online. */
-const CACHE = 'lhq-hub-v43', FONTS = 'lhq-fonts-v1';
+const CACHE = 'lhq-hub-v44', FONTS = 'lhq-fonts-v1';
 const CORE = ['index.html', 'doc.html', 'reports.html', 'checklist.html', 'tutor.html', 'account.html', 'hub.css', 'theme.js', 'picker.js', 'testbar.js', 'schedule.js', 'sreport.js', 'search.js', 'marks.js', 'pako.min.js', 'store.js', 'sync.js',
-  'defaults.js', 'payplan.js', 'hubdata.js', 'nav.js', 'schools.js', 'business.js', 'insights.js', 'moneyin.js', 'perf.js', 'cards.js', 'sra.js', 'attn.js', 'examdata.js', 'exams.js', 'examsui.js', 'kpi.js', 'kpiui.js', 'tpay.js', 'tpayui.js', 'srafig.js', 'sxtras.js', 'splan.js', 'review.js', 'push.js', 'teach.js', 'famdocs.js', 'family.js', 'card.js', 'topics.js', 'codec.js', 'report-render.js',
+  'defaults.js', 'payplan.js', 'hubdata.js', 'nav.js', 'schools.js', 'business.js', 'insights.js', 'moneyin.js', 'perf.js', 'cards.js', 'sra.js', 'attn.js', 'examdata.js', 'exams.js', 'examsui.js', 'kpi.js', 'kpiui.js', 'tpay.js', 'tpayui.js', 'srafig.js', 'sxtras.js', 'splan.js', 'review.js', 'sounds.js', 'push.js', 'teach.js', 'famdocs.js', 'family.js', 'card.js', 'topics.js', 'codec.js', 'report-render.js',
   'logo.png', 'logo-white.png', 'arrow.png', 'icon-32.png', 'icon-180.png', 'icon-192.png', 'icon-app-192.png', 'icon-app-512.png', 'badge-96.png',
   'manifest.webmanifest', 'lib/html2pdf.bundle.min.js'];
 const CHECK_EVERY = 60000;   // look online for a newer copy of a file at most once a minute (an unchanged file costs a tiny 'not modified' reply)
@@ -76,6 +76,7 @@ self.addEventListener('fetch', e => {
 self.addEventListener('push', e => {
   let m = {}; try{ m = e.data ? e.data.json() : {}; }catch(err){ m = {title: 'LHQ Hub', body: e.data ? e.data.text() : ''}; }
   const actions = (m.actions || []).slice(0, 2).map(a => ({action: a.url, title: a.title}));
+  self.clients.matchAll({type: 'window'}).then(L => L.forEach(c => c.postMessage({type: 'lhq-push', kind: m.tag || ''})));   // a sound while LHQ Hub is open
   e.waitUntil(self.registration.showNotification(m.title || 'LHQ Hub', {body: m.body || '', icon: 'icon-app-192.png', badge: 'badge-96.png', tag: m.tag || undefined, renotify: !!m.tag, data: {url: m.url || '/'}, actions}));
 });
 self.addEventListener('notificationclick', e => {

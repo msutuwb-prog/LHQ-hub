@@ -53,6 +53,7 @@ if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash)
 <script src="sxtras.js"></script>
 <script src="splan.js"></script>
 <script src="review.js"></script>
+<script src="sounds.js"></script>
 <script src="family.js"></script>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -122,6 +123,7 @@ a.it:hover .t b,button.it:hover .t b{text-decoration:underline;text-underline-of
 .ac-sel{width:auto;flex:1;min-width:120px;max-width:240px}
 .ac-tks .tk .cbx{border-color:var(--c,var(--line))}.ac-tks .tk.on .cbx{background:var(--c,var(--accent));border-color:var(--c,var(--accent));color:#fff}
 .ac-r{align-items:flex-start}
+.ap-sw{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-bottom:14px}.ap-sw button{border:1.5px solid var(--line);background:var(--surface);border-radius:12px;padding:8px;display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--ink);font:inherit;min-width:0}.ap-sw button.on{border-color:var(--ink)}.ap-sw i{width:22px;height:22px;border-radius:50%;flex:none}.ap-sw small{font-weight:700;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .ac-i,.ac-tks{--payc:#9a6a00}[data-theme=dark] .ac-i,[data-theme=dark] .ac-tks{--payc:#f4c35a}
 .ac-mcs{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px}.ac-mcs .mc{cursor:pointer;font:inherit;color:inherit;padding:12px 14px}.ac-mcs .mc:hover{border-color:var(--muted)}.ac-mcs .mc .v{font-size:22px;font-weight:800;color:var(--brand);display:flex;align-items:center;gap:3px}.ac-mcs .mc .v .mca{opacity:.55;font-size:16px}.ac-mcs .mc .s{font-size:12px;color:var(--muted)}.ac-mcs .mc.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
 .ac-r{font:inherit}.ac-r .chev{margin-left:6px;align-self:center}
@@ -495,7 +497,7 @@ function render(){
   if(render.lastH !== location.hash){ document.documentElement.classList.remove('lean-open'); render.lastH = location.hash; }
   if(me().role === 'tutor' && !['teach','settings','set','exams'].includes(route.page)){ location.replace('#teach'); route = {page:'teach', args:[]}; }
   if(['student','parent'].includes(me().role) && !['me','settings','set','exams'].includes(route.page)){ location.replace('#me'); route = {page:'me', args:[]}; }
-  const sec = route.page === 'me' ? ({practice:'mprac', calendar:'mcal', progress:'mprog', sessions:'mprog', subject:'mprog', payments:'mpay', more:'more', habits: me().role === 'parent' ? 'more' : 'mprog', day:'mcal', week:'mcal', year:'mcal', blk:'mcal', review:'mprog', school:'mprog', reflect:'mprog', focus:'mfocus', report:'mrep', reminders:'more', bar:'more'}[route.args[0]] || 'me') : route.page === 'teach' && me().role === 'tutor' ? ({sra:'tsra', report:'trep', cal:'tcal', avail:'tcal'}[route.args[0]] || 'teach') : {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', teach:'teach', tutors:'tutors', bookings:'tutors', reqs:'tutors', sessions:'tutors', confirm:'tutors', clashes:'tutors', calendar:'calendar', says:'tutors', more:'more'}[route.page] || route.page;
+  const sec = route.page === 'me' ? ({practice:'mprac', calendar:'mcal', progress:'mprog', sessions:'mprog', subject:'mprog', payments:'mpay', more:'more', habits: me().role === 'parent' ? 'more' : 'mprog', day:'mcal', week:'mcal', year:'mcal', blk:'mcal', review:'mprog', school:'mprog', reflect:'mprog', sounds:'more', sharing:'more', focus:'mfocus', report:'mrep', reminders:'more', bar:'more'}[route.args[0]] || 'me') : route.page === 'teach' && me().role === 'tutor' ? ({sra:'tsra', report:'trep', cal:'tcal', avail:'tcal'}[route.args[0]] || 'teach') : {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', teach:'teach', tutors:'tutors', bookings:'tutors', reqs:'tutors', sessions:'tutors', confirm:'tutors', clashes:'tutors', calendar:'calendar', says:'tutors', more:'more'}[route.page] || route.page;
   LHQNav.section(sec);
   const m = $('main');
   m.className = 'main' + (['edithome','new','tutors','teach'].includes(route.page) ? ' narrow' : '');
@@ -1444,6 +1446,7 @@ P.kpi = a1 => KPIUI.route(a1);
 /* tutor pay (tpay.js, tpayui.js): the Director, and Admin with Tutor pay */
 P.pay = a1 => TPAYUI.route(a1);
 P.srafig = () => SRAFIG.page();
+P.sounds = () => SOUNDS.page('#set/notifications');
 /* tutors' requests to move a session that falls on a student's busy date: LHQ moves it (from Calendar › Clashes or the card) or keeps it */
 P.asks = () => { const L = Object.values(store.get('lhq_asks', {}) || {}).filter(a => a && !a.done).sort((a, b) => a.d.localeCompare(b.d)), D = Object.values(store.get('lhq_asks', {}) || {}).filter(a => a && a.done).sort((a, b) => b.done - a.done).slice(0, 10);
   return `<a class="crumb" href="#home">‹ Home</a><div class="ph"><div class="tt"><h1>Move a session?</h1><p>Asked by tutors</p></div></div>
@@ -1539,7 +1542,7 @@ S.account = () => { const m = me(), L = LHQNav.layout();
 
 /* Appearance: how the Hub looks. Theme, text size and bar or sidebar are per device; Lean or Full, the menu and Home cards follow the person */
 /* phone notifications (push.js): filled in once the server answers */
-S.notifications = () => { setTimeout(fillPush, 0); return `<h2 class="sec-h">Notifications</h2><div id="lpPage"><p class="note">Loading…</p></div>`; };
+S.notifications = () => { setTimeout(fillPush, 0); return `<h2 class="sec-h">Notifications</h2><div id="lpPage"><p class="note">Loading…</p></div>${window.SOUNDS ? '<div class="card" style="margin-top:12px"><a class="it" href="' + (me().role === 'tutor' ? '#teach/sounds' : me().role === 'student' || me().role === 'parent' ? '#me/sounds' : '#sounds') + '"><span class="t"><b>Sounds</b><small>While LHQ Hub is open</small></span><span class="chev">›</span></a></div>' : ''}`; };
 async function fillPush(){ const el = $('lpPage'); if(!el || !window.LHQPush) return; el.innerHTML = await LHQPush.page(); LHQPush.bindPage(fillPush); }
 S.appearance = () => { const L = LHQNav.layout(), th = lhqTheme.choice(), tx = lhqTheme.text(), staffNav = !['tutor','student','parent'].includes(me().role);
   const seg = (attr, cur, opts) => `<div class="seg" style="margin-bottom:${attr === 'data-layout' || attr === 'data-view' ? 6 : 14}px">${opts.map(([v, l]) => `<button class="${cur === v ? 'on' : ''}" ${attr}="${v}">${l}</button>`).join('')}</div>`;
@@ -1556,11 +1559,13 @@ S.appearance = () => { const L = LHQNav.layout(), th = lhqTheme.choice(), tx = l
   return `<h2 class="sec-h" style="margin-bottom:14px">Appearance</h2>
   <div class="h2">This device</div>
   <div class="card pad"><div class="cap">Theme</div>${seg('data-thm', th, [['light','Light'],['dark','Dark'],['auto','Auto']])}
-    <div class="cap">Text size</div>${seg('data-txt', tx, [['s','Standard'],['l','Large']])}
+    <div class="cap">Colour</div><div class="ap-sw">${[['navy','Navy','#073763','#f4b223'],['teal','Teal','#0f766e','#2dd4bf'],['purple','Purple','#6d28d9','#c4b5fd'],['forest','Forest','#166534','#4ade80'],['rose','Rose','#be123c','#fda4af'],['sunset','Sunset','#c2410c','#fdba74']].map(([v, l, a, b]) => `<button type="button" class="${lhqTheme.col() === v ? 'on' : ''}" data-apcol="${v}"><i style="background:${lhqTheme.get() === 'dark' ? b : a}"></i><small>${l}</small></button>`).join('')}</div>
+    <div class="cap">Text size</div>${seg('data-txt', tx, [['s','Standard'],['l','Large'],['xl','Larger']])}
     <div class="x-ph"><div class="cap">Menu</div>${seg('data-layout', L, [['bottom','Bottom bar'],['side','Sidebar']])}</div></div>
   <div class="h2">Everywhere you sign in</div>
-  <div class="card pad"><div class="cap">What you see</div>${seg('data-view', LEAN() ? 'lean' : 'full', [['lean','Lean'],['full','Full']])}
-    <p class="note" style="margin:0">${LEAN() ? 'Main places and fields. The rest under More.' : 'Everything in view.'}</p></div>
+  ${me().role === 'parent' ? '' : `<div class="card pad"><div class="cap">What you see</div>${seg('data-view', LEAN() ? 'lean' : 'full', [['lean','Lean'],['full','Full']])}
+    <p class="note" style="margin:0">${me().role === 'student' ? (LEAN() ? 'The essentials. Full adds your cards, focus, habits, reviews, planning and school results.' : 'Everything: planning, focus, reviews, school results, countdowns.') : LEAN() ? 'Main places and fields. The rest under More.' : 'Everything in view.'}</p>
+    ${me().role === 'student' ? '<p class="note" style="margin:6px 0 0">🔒 Always shown: Today, reminders, On track, sessions, the month calendar, Practice today.</p>' : ''}</div>`}
   ${menu}
   ${staffNav ? `<div class="card"><a class="it" href="#edithome"><span class="ico">${ic('edit', 18)}</span><span class="t"><b>Home cards</b><small>${myCards().length} on Home</small></span><span class="chev">›</span></a></div>` : ''}`;
 };
@@ -1861,6 +1866,7 @@ function bind(){
   if(route.page === 'kpi' && window.KPIUI) KPIUI.bindDir();
   if(window.SRAFIG && (route.page === 'srafig' || route.page === 'student')) SRAFIG.bind();
   if(window.REV && route.page === 'student') REV.bindLHQ();
+  if(window.SOUNDS && route.page === 'sounds') SOUNDS.bind();
   if(window.TPAYUI && (route.page === 'pay' || (route.page === 'set' && /tpay/.test(location.hash)))) TPAYUI.bind();
   document.querySelectorAll('[data-pdt]').forEach(el => el.onchange = () => { pdDraft.term[el.dataset.pdt] = el.value; });
   document.querySelectorAll('[data-pdn]').forEach(el => el.oninput = () => { pdDraft.fast[+el.dataset.pdn].name = el.value; });
@@ -1895,6 +1901,7 @@ function bind(){
   // account
   on('[data-thm]', el => { lhqTheme.set(el.dataset.thm); render(); });
   on('[data-txt]', el => { lhqTheme.setText(el.dataset.txt); render(); });
+  on('[data-apcol]', el => { lhqTheme.setCol(el.dataset.apcol); render(); });
   const saveNav = async nav => { const s0 = hub.session(); if(s0 && s0.me){ s0.me.nav = nav; localStorage.setItem('lhq_session', JSON.stringify(s0)); } render();
     try{ await hub.api('people', {method:'POST', body: JSON.stringify({action:'nav', nav})}); }catch(e){ toast('Saved on this device'); } };
   on('[data-navk]', el => { const k = el.dataset.navk, C = LHQNav.chosenKeys().slice(), i = C.indexOf(k);
