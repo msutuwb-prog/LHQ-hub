@@ -747,6 +747,7 @@ async function familyData(me) {
     const mon = S.addDays(t, -((new Date(t + "T00:00:00Z").getUTCDay() + 6) % 7));
     const sx = { wk: allS.filter(x => x.doOn >= mon && x.doOn <= S.addDays(mon, 6) && !x.pack).map(x => { const id = [x.k, x.topic, x.stage].join("|"); return { sub: x.sub, topic: x.topic, stage: x.stage, doOn: x.doOn, status: x.status, done: !!(done || {})[id] || x.status === "in" }; }),
       pk: allS.filter(x => x.pack && x.doOn >= S.addDays(t, -120) && x.doOn <= t).map(x => { const id = [x.k, x.topic, x.stage].join("|"); return { sub: x.sub, topic: x.topic, stage: x.stage, doOn: x.doOn, done: !!(done || {})[id] || x.status === "in" }; }),
+      fu: Object.values((await store().get("kv/lhq_fu", { type: "json" })) || {}).filter(f => f && !f.x && String(f.k || "").split("|")[0] === kid.key).map(f => ({ id: f.id, sub: f.sub, tk: f.tk, act: f.act, set: f.set, by: f.by, before: f.before, foc: f.foc, tutor: f.tutor, res: f.res ? { pc: f.res.pc, d: f.res.d } : null, th: f.th || null })),
       rep: Object.keys(((sreps || {})[kid.key]) || {}), focus: (((focus || {})[kid.key]) || []).filter(x => x.d >= S.addDays(t, -120)),
       plan: me.role === "student" ? Object.values(((plan || {})[kid.key]) || {}) : null, tsee: !!(set || {}).tsee, hide: !!((((await store().get("kv/lhq_sxp", { type: "json" })) || {})[kid.key]) || {}).hide, refl: me.role === "student" ? (((((await store().get("kv/lhq_sxp", { type: "json" })) || {})[kid.key]) || {}).refl || {}) : null, school: Object.values((((await store().get("kv/lhq_school", { type: "json" })) || {})[kid.key]) || {}),
       study: (() => { const P = Object.values(((plan || {})[kid.key]) || {}).filter(b => !b.all && (b.type === "study" || b.type === "rev")); let m = 0;   // planned study minutes this week, for parents and tutors
@@ -1383,6 +1384,10 @@ async function calFeed(path) {
     const L = SR.build(items.map(it => ({ k: it.k, days: it.days, a: it.pa, b: it.b, st: it.st, sub: it.sub, periods: it.periods })), Object.values(logs.e || {}).filter(e => e && !e.x), mwToday()), by = {};
     L.filter(x => x.giveOn && x.giveOn >= mwToday() && x.giveOn <= Z && !x.pack).forEach(x => { (by[x.giveOn] = by[x.giveOn] || []).push(x); });
     Object.entries(by).forEach(([d, X]) => allday("sra-" + nk(p.name) + "-" + d, d, `SRAs to give · ${X.length}`, X.map(x => `${x.st} · ${x.topic} ${x.stage ? "R" + x.stage : "LD"}`).join("\n")));
+    /* follow-ups still open, on their date */
+    if (inc.sra) { const AE = Object.values(logs.e || {}).filter(e => e && !e.x && e.ty === "r" && e.h !== "m" && e.sc !== "" && e.sc != null), FUN = { retest: "Retest", reteach: "Reteach", take: "Take-home check" };
+      Object.values((await store().get("kv/lhq_fu", { type: "json" })) || {}).filter(f => f && !f.x && nk(f.tutor) === nk(p.name) && f.by >= A && f.by <= Z && !(f.act === "retest" ? f.res : AE.some(e => e.k === f.k && nk(e.tk) === nk(f.tk) && e.d > f.set)))
+        .forEach(f => allday("fu-" + f.id, f.by, `${FUN[f.act]} · ${f.st} · ${f.tk}`, `${f.sub} · was ${f.before}%${f.foc ? " · focus: " + f.foc : ""}`)); }
   } else if (p.role === "student" || p.role === "parent") {
     const fd = await familyData(p), K = fd.kids || [], plan = p.role === "student" ? ((await store().get("kv/lhq_plan", { type: "json" })) || {}) : {};
     for (const k of K) {
@@ -1391,6 +1396,8 @@ async function calFeed(path) {
       (k.makeups || []).filter(x => x.d >= A && x.d <= Z && S.mins(x.s) != null).forEach(x => timed("mu-" + (x.id || x.d + x.s), x.d, S.mins(x.s), S.mins(x.e), `${who}Make-up · ${x.sub}`, "LHQ"));
       if (inc.sra && p.role === "student") { const by = {}; (k.sras || []).filter(x => x.doOn >= mwToday() && x.doOn <= Z).forEach(x => { (by[x.doOn] = by[x.doOn] || []).push(x); });
         Object.entries(by).forEach(([d, X]) => allday("sra-" + nk(k.name) + "-" + d, d, `SRAs · ${X.length}`, X.map(x => `${x.sub} · ${x.topic} ${x.stage ? "R" + x.stage : "LD"} · ARS then SRA`).join("\n"))); }
+      if (p.role === "student" ? inc.sra : inc.as) (((k.sx || {}).fu) || []).filter(f => f.by >= A && f.by <= Z && !(f.act === "retest" ? f.res : ((k.marks || {}).r || []).some(x => !x.self && nk(x.sub) === nk(f.sub) && nk(x.tk) === nk(f.tk) && x.d > f.set)))
+        .forEach(f => allday("fu-" + f.id, f.by, `${who}${{ retest: "Retest", reteach: "Reteach", take: "Take-home sheets" }[f.act]} · ${f.tk}`, `${f.sub}${f.foc ? " · focus: " + f.foc : ""}`));
       if (inc.as) (k.coming || []).filter(a => a.d >= A && a.d <= Z).forEach(a => allday(`as-${nk(k.name)}-${a.d}-${nk(a.sub)}`, a.d, `${who}Assessment · ${a.sub}`, (a.tp || []).join(", ")));
       if (p.role === "student") { const P = Object.values(plan[nk(k.name)] || {});
         if (inc.dt) P.filter(b => b.all && (b.to || b.from) >= A).forEach(b => allday("dt-" + b.id, b.from, b.name, "", b.to || ""));
@@ -1856,6 +1863,11 @@ export async function pushTick(context, at = Date.now()) {
       .filter(x => x.doOn === t && !done[[x.k, x.topic, x.stage].join("|")] && (x.pack ? x.pack.on < t : x.given && x.status !== "in"));
     for (const r of sraNow) { const mine = L.filter(x => nk(x.st) === nk(r.name)); if (!mine.length) continue;
       await once(`${t}|${r.person_id}|sra`, () => pushTo([r.person_id], "sra", { title: mine.length === 1 ? `${mine[0].topic} R${mine[0].stage} today` : `${mine.length} SRAs today`, body: [...new Set(mine.map(x => x.sub))].join(", "), url: mine.some(x => x.pack) ? "/#me/practice/pack" : "/#me/practice" })); }
+    /* follow-ups: the day before and the day itself, until a result closes them (retest mark, or the next SRA on the topic) */
+    const FU = Object.values((await store().get("kv/lhq_fu", { type: "json" })) || {}).filter(f => f && !f.x && (f.by === t || f.by === S.addDays(t, 1)) && !(f.act === "retest" ? f.res : E.some(e => e.ty === "r" && e.k === f.k && nk(e.tk) === nk(f.tk) && e.d > f.set && e.h !== "m" && e.sc !== "" && e.sc != null)));
+    const FUN = { retest: "Retest", reteach: "Reteach", take: "Take-home sheets" };
+    for (const r of sraNow) for (const f of FU.filter(f => f.k.split("|")[0] === nk(r.name)))
+      await once(`${t}|${r.person_id}|fu|${f.id}`, () => pushTo([r.person_id], "sra", { title: `${FUN[f.act] || "Follow-up"} ${f.by === t ? "today" : "tomorrow"}: ${f.tk}`, body: `${f.sub}${f.foc ? " · focus: " + f.foc : ""}`, url: "/#me/practice" }));
   }
   if (top && h === 16) {
     const reps = (await store().get("kv/lhq_treps", { type: "json" })) || {}, sentBy = new Set(Object.values(reps.e || {}).filter(r => r && r.d === t).map(r => nk(r.tutor)));

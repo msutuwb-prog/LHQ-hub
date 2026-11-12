@@ -1415,7 +1415,7 @@ LHQSearch.provider = () => {
     pages.push({t:'Money in · today', k:'received payments day', href:'#biz/money/d' + t, ic:I('cash')}, {t:'Money in · this week', k:'received payments week', href:'#biz/money/' + MIN.key(MIN.periodOf('week', t)), ic:I('cash')},
       {t:'Money in · this term', k:'received payments school term holiday', href:'#biz/money/' + MIN.key(q), ic:I('cash')}, {t:'Money in · this year', k:'received payments financial year half', href:'#biz/money/' + MIN.key(MIN.periodOf('year', t)), ic:I('cash')}); }
   if(can('tutors')) pages.push({t:'Topics · hardest first', k:'topic difficulty hardest sra ars assessments', href:'#srafig/topics', ic:I('rep')}, {t:'Follow-ups', k:'follow up reteach retest take-home worked weak topics', href:'#fu', ic:I('rep')});
-  if(can('tutors')) pages.push({t:'SRA figures', k:'sra reviews average topics dropping fading handed in ars recall', href:'#srafig', ic:I('rep')});
+  if(can('tutors')) pages.push({t:'SRA figures', k:'sra reviews average topics dropping handed in ars recall', href:'#srafig', ic:I('rep')});
   if(window.TPAYUI && TPAYUI.may()) pages.push({t:'Tutor pay', k:'pay payslip salary allowance advance deduction bonus overtime cap', href:'#pay', ic:I('cash')});
   if(window.KPIUI && KPIUI.may()) pages.push({t:'Tutor KPIs', k:'performance falling short slipping meeting observation review renewals', href:'#kpi', ic:I('users')});
   if(window.EXUI) pages.push({t:'Exam timetable', k:'exams dates papers cambridge igcse a level as checkpoint june november march', href:'#exams', ic:I('list')});
@@ -1494,6 +1494,24 @@ function setWrap(id, person){
 }
 const S = {};
 const settingsKV = () => withDefaults(store.get('lhq_settings', {}));
+/* Settings › Teaching › Topic objectives: the Director can correct any topic's list (tutors set them from the ARS) */
+function objSheet(ed){
+  const O = store.get('lhq_obj', {}) || {}, subs = [...new Set(saved.filter(d => d.type === 'card').flatMap(d => (d.subjects || []).map(x => x.name)).filter(Boolean))].sort();
+  if(ed === undefined){
+    const L = Object.entries(O).sort((a, b) => (a[1].sub + a[1].tk).localeCompare(b[1].sub + b[1].tk));
+    openSheet(`<div class="hx"><h3>Topic objectives</h3><button class="ib" data-close>✕</button></div><p class="sp">Set by tutors or you · other topics use the syllabus</p><div class="card">${L.map(([k, v]) => `<button type="button" class="it" data-obje="${esc(k)}"><span class="t"><b>${esc(v.tk)}</b><small>${esc(v.sub)} · ${v.l.length} · ${esc(v.by || '')}</small></span><span class="chev">›</span></button>`).join('') || '<p class="empty">None yet.</p>'}</div><button class="btn n full" type="button" data-obje="">${ic('plus', 16, 2.4)} Add a topic</button>`);
+  } else {
+    const v = O[ed] || {sub: subs[0] || '', tk: '', l: []};
+    openSheet(`<div class="hx"><h3>${ed ? esc(v.tk) : 'Add a topic'}</h3><button class="ib" data-close>✕</button></div>${ed ? `<p class="sp">${esc(v.sub)}</p>` : `<label class="f"><span>Subject</span><select class="in" id="objSub">${subs.map(x => `<option${x === v.sub ? ' selected' : ''}>${esc(x)}</option>`).join('')}</select></label><label class="f"><span>Topic</span><input class="in" id="objTk" autocomplete="off"></label>`}
+      <label class="f"><span>Objectives · one per line</span><textarea class="in" id="objL" rows="8">${esc(v.l.join('\n'))}</textarea></label>
+      <button class="btn n full" type="button" id="objSave">Save</button>${ed ? '<button class="btn full" type="button" id="objDel" style="margin-top:8px">Use the syllabus instead</button>' : ''}<p class="note">Kept for every student of the subject. Earlier ARS marks stay as they were.</p>`);
+  }
+  document.querySelectorAll('[data-obje]').forEach(b => b.onclick = () => objSheet(b.dataset.obje));
+  const put = (k, val) => { const o = Object.assign({}, store.get('lhq_obj', {}) || {}); if(val) o[k] = val; else delete o[k]; store.set('lhq_obj', o); };
+  if($('objSave')) $('objSave').onclick = () => { const l = $('objL').value.split('\n').map(x => x.trim()).filter(Boolean).slice(0, 30), sub = ed ? O[ed].sub : $('objSub').value, tk = ed ? O[ed].tk : $('objTk').value.trim();
+    if(!sub || !tk){ toast('Which topic?'); return; } const k = SCHED.nk(sub) + '|' + SCHED.nk(tk); if(ed && ed !== k) put(ed, null); put(k, l.length ? {sub, tk, l, by: me().name || 'Director', at: Date.now()} : null); toast('Saved'); objSheet(); render(); };
+  if($('objDel')) $('objDel').onclick = () => { put(ed, null); toast('Removed'); objSheet(); render(); };
+}
 function saveSettings(fields){ const s = Object.assign({}, store.get('lhq_settings', {}), fields); store.set('lhq_settings', s); toast('Saved'); }
 const fieldRow = (id, l, v, attrs = '') => `<label class="f"><span>${l}</span><input class="in" id="${id}" value="${esc(v)}" ${attrs}></label>`;
 
@@ -1512,7 +1530,7 @@ S.tpay = () => TPAYUI.settings();
 S.teachset = () => { const c = settingsKV(), sw = (id, on, t, sub) => `<div class="it"><span class="t"><b>${t}</b><small>${sub}</small></span><button class="lp-sw${on ? ' on' : ''}" id="${id}" role="switch" aria-checked="${on}" aria-label="${t}"></button></div>`;
   return `<h2 class="sec-h">Teaching</h2><div class="card">${sw('tsSee', !!c.tsee, 'Tutors see focus and study', 'Each student\'s weekly totals · students can hide theirs')}</div><p class="sec-p">Never block names, times or topics. Dates and busy times students choose to share reach their tutors either way.</p>
     <div class="card">${sw('tsObj', !!(c.obj || {}).on, 'ARS by objective', 'Tutors tap what wasn\'t recalled')}</div>${(c.obj || {}).on ? (() => { const on = (c.obj.subs || []), all = [...new Set(saved.filter(d => d.type === 'card').flatMap(d => (d.subjects || []).map(x => x.name)).filter(Boolean))].sort();
-      return `<div class="h2">Subjects <em>${on.length ? on.length : 'all'}</em></div><div class="chips">${all.map(x => `<button class="chip${on.some(y => SCHED.nk(y) === SCHED.nk(x)) ? ' on' : ''}" data-tsobs="${esc(x)}">${esc(x)}</button>`).join('')}</div><p class="sec-p">None ticked: every subject.</p>`; })() : '<p class="sec-p">Off: the ARS is one number. Turn on once tutors are briefed.</p>'}`; };
+      return `<div class="h2">Subjects <em>${on.length ? on.length : 'all'}</em></div><div class="chips">${all.map(x => `<button class="chip${on.some(y => SCHED.nk(y) === SCHED.nk(x)) ? ' on' : ''}" data-tsobs="${esc(x)}">${esc(x)}</button>`).join('')}</div><p class="sec-p">None ticked: every subject.</p><div class="card"><button type="button" class="it" data-tsobl><span class="t"><b>Topic objectives</b><small>${Object.keys(store.get('lhq_obj', {}) || {}).length} topics set by tutors or you · the rest from the syllabus</small></span><span class="chev">›</span></button></div>`; })() : '<p class="sec-p">Off: the ARS is one number. Turn on once tutors are briefed.</p>'}`; };
 S.kpi = () => { const c = KPI.conf(settingsKV()), sw = (id, on, t, sub) => `<div class="it"><span class="t"><b>${t}</b><small>${sub}</small></span><button class="lp-sw${on ? ' on' : ''}" id="${id}" role="switch" aria-checked="${on}" aria-label="${t}"></button></div>`;
   return `<h2 class="sec-h">Tutor KPIs</h2><div class="h2">Who sees it</div><div class="card">${sw('kAdm', c.admin, 'Admin', 'All tutors · with Tutors access')}${sw('kTut', c.tutors, 'Tutors', 'Their own · Week and Month')}</div>
     <div class="h2">Targets</div><div class="card pad">${KPI.CORE.map(([id, n]) => `<div class="it" style="padding:6px 0"><span class="t">${esc(n)}</span><input class="in" style="width:80px;text-align:right" inputmode="numeric" data-ktg="${id}" value="${c.tg[id]}"> %</div>`).join('')}</div>
@@ -1848,6 +1866,7 @@ function bind(){
   document.querySelectorAll('[data-bsc]').forEach(b => b.onclick = () => { bandSc = b.dataset.bsc; render(); });
   const kSaveConf = patch => saveSettings({kpi: Object.assign({}, settingsKV().kpi || {}, patch)});
   if($('tsSee')) $('tsSee').onclick = () => { saveSettings({tsee: !settingsKV().tsee}); render(); };
+  if(document.querySelector('[data-tsobl]')) document.querySelector('[data-tsobl]').onclick = () => objSheet();
   if($('tsObj')) $('tsObj').onclick = () => { const o = Object.assign({subs: []}, settingsKV().obj); o.on = !o.on; saveSettings({obj: o}); render(); };
   document.querySelectorAll('[data-tsobs]').forEach(b => b.onclick = () => { const o = Object.assign({subs: []}, settingsKV().obj), x = b.dataset.tsobs, has = (o.subs || []).some(y => SCHED.nk(y) === SCHED.nk(x)); o.subs = has ? o.subs.filter(y => SCHED.nk(y) !== SCHED.nk(x)) : (o.subs || []).concat(x); saveSettings({obj: o}); render(); });
   document.querySelectorAll('[data-askd]').forEach(b => b.onclick = async () => { const [id, how] = b.dataset.askd.split('|'); try{ await hub.api('asks', {method: 'POST', body: JSON.stringify({id, how})}); await hub.pull(); toast(how === 'moved' ? 'Marked moved · tutor told' : 'Kept · tutor told'); render(); }catch(e){ toast(e.message); } });

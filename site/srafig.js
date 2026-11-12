@@ -106,7 +106,7 @@ window.SRAFIG = (function(){
       sheet(esc(o.tk), `${esc(o.lv)} ${esc(o.sub)} · ${o.n} student${o.n === 1 ? '' : 's'} · last 3 months`, rows.map(x => `<div class="sf-dl ${x.s < 65 ? 'y' : ''}"><span>${esc(x.st)}</span><b>SRA ${pcs(x.s)}</b><small>${[...x.tu].map(esc).join(', ') || '–'} · ${x.L.length} SRA${x.L.length === 1 ? '' : 's'} · ARS ${pcs(x.a)}${x.W.length ? ' · assessments ' + pcs(x.w) : ''}</small></div>`).join('')); });
   }
 
-  /* ---------- a student's Overview: SRAs, fading topics, what they say ---------- */
+  /* ---------- a student's Overview: SRAs, topics dropping, what they say ---------- */
   function student(key){
     ensure(); const t = HD.today(), r = {a: addD(t, -27), b: t}, L = logs().filter(e => e.ty === 'r' && e.v === 2 && !e.self && e.k && e.k.split('|')[0] === key);
     const inR = L.filter(e => e.d >= r.a), inn = inR.filter(e => e.h !== 'm'), A = inn.filter(e => ars(e) != null);
@@ -115,17 +115,17 @@ window.SRAFIG = (function(){
     if(!inR.length && !fad.length && !says) return '';
     return `<div class="h2">SRAs and what they say <em>last 4 weeks</em></div><div class="sf-kv">
       <button data-sfc="sra" data-k="${esc(key)}"><span>SRAs handed in</span><b>${inR.length ? `${inn.length}/${inR.length}` : '–'}</b></button>
-      <button data-sfc="fade" data-k="${esc(key)}"><span>Fading topics</span><b>${fad.length}</b></button>
+      <button data-sfc="fade" data-k="${esc(key)}"><span>Topics dropping</span><b>${fad.length}</b></button>
       <button data-sfc="says" data-k="${esc(key)}"><span>Prepared</span><b>${says ? says.prep + '%' : '–'}</b></button></div>`;
   }
   function fading(L){
     const byT = {}; L.filter(e => e.h !== 'm' && pc(e) != null).forEach(e => { (byT[e.k + '|' + e.tk] = byT[e.k + '|' + e.tk] || []).push(e); });
-    return Object.values(byT).map(X => { X.sort((a, b) => (+a.rv || 0) - (+b.rv || 0) || a.d.localeCompare(b.d)); const f = X[0], l = X[X.length - 1]; return X.length > 1 && pc(f) - pc(l) >= 15 ? {f, l, drop: pc(l) - pc(f)} : null; }).filter(Boolean).sort((a, b) => a.drop - b.drop);
+    return Object.values(byT).map(X => { X.sort((a, b) => (+a.rv || 0) - (+b.rv || 0) || a.d.localeCompare(b.d)); const f = X[0], l = X[X.length - 1]; return X.length > 1 && pc(f) - pc(l) >= 10 ? {f, l, drop: pc(l) - pc(f)} : null; }).filter(Boolean).sort((a, b) => a.drop - b.drop);
   }
   function cardSheet(kind, key){
     const t = HD.today(), a = addD(t, -27), L = logs().filter(e => e.ty === 'r' && e.v === 2 && !e.self && e.k && e.k.split('|')[0] === key);
     if(kind === 'sra'){ const R = L.filter(e => e.d >= a), inn = R.filter(e => e.h !== 'm'); sheet('SRAs · last 4 weeks', `${inn.length} of ${R.length} handed in · ${R.filter(e => e.h === 'o').length} on their day · ${inn.filter(e => ars(e) != null).length} with an ARS`, R.sort((x, y) => y.d.localeCompare(x.d)).map(rowE).join('')); }
-    if(kind === 'fade'){ const F = fading(L); sheet('Fading topics', 'Latest marked review 15 points or more below the first', F.map(x => `<div class="sf-dl r"><span>${esc(x.f.tk)} · ${esc(x.f.sub)}</span><b>${x.drop}</b><small>${HDR[+x.f.rv || 0]} ${pc(x.f)}% (${dl(x.f.d)}) → ${HDR[+x.l.rv || 0]} ${pc(x.l)}% (${dl(x.l.d)})</small></div>`).join('')); }
+    if(kind === 'fade'){ const F = fading(L); sheet('Topics dropping', 'Latest marked review 10 points or more below the first', F.map(x => `<div class="sf-dl r"><span>${esc(x.f.tk)} · ${esc(x.f.sub)}</span><b>${x.drop}</b><small>${HDR[+x.f.rv || 0]} ${pc(x.f)}% (${dl(x.f.d)}) → ${HDR[+x.l.rv || 0]} ${pc(x.l)}% (${dl(x.l.d)})</small></div>`).join('')); }
     if(kind === 'says'){ const SR = (store.get('lhq_sreports', null) || {})[key]; const R = SR && window.SREP ? SREP.rows({[key]: SR}).filter(x => x.d >= a).sort((x, y) => y.d.localeCompare(x.d)) : [], s = R.length ? SREP.stats(R) : null;
       sheet('What they say · last 4 weeks', s ? `${s.n} session${s.n === 1 ? '' : 's'} · rating ${s.rate} · prepared ${s.prep}% · guide before ${s.gb}%` : 'No daily reports yet', R.map(x => `<div class="sf-dl ${x.prep === 'No' ? 'r' : x.prep === 'Partly' ? 'y' : ''}"><span>${esc(x.sub)} · ${dl(x.d)}</span><b>${x.rate ? x.rate + '/5' : '–'}</b><small>Prepared: ${esc(x.prep || '–')}${x.gb ? ' · guide before' : ''}${x.na ? ' · no guide' : ''}</small></div>`).join('')); }
   }

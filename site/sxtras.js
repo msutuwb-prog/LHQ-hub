@@ -39,14 +39,14 @@ window.SX = (function(){
   function memory(k){
     const by = {}; ((k.marks || {}).r || []).filter(x => !x.self && x.p != null).forEach(x => { (by[x.sub + '|' + x.tk] = by[x.sub + '|' + x.tk] || []).push(x); });
     const T0 = Object.values(by).filter(L => L.length > 1).map(L => { L.sort((a, b) => a.rv - b.rv || a.d.localeCompare(b.d)); const f = L[0], l = L[L.length - 1];
-      return {sub: f.sub, tk: f.tk, f, l, kept: f.p > 0 ? Math.min(100, Math.round(l.p / f.p * 100)) : 100}; });
-    return {L: T0.sort((a, b) => a.kept - b.kept), v: avg(T0.map(x => x.kept)), fading: T0.filter(x => x.kept < 85).length};
+      return {sub: f.sub, tk: f.tk, f, l, chg: l.p - f.p, drop: l.p - f.p <= -10}; });
+    return {L: T0.sort((a, b) => a.chg - b.chg), v: avg(T0.map(x => x.l.p)), fading: T0.filter(x => x.drop).length};
   }
   function focusTopics(k){
     const M = memory(k).L.slice(0, 3);
     if(M.length >= 3) return M;
     const last = {}; ((k.marks || {}).r || []).filter(x => !x.self).forEach(x => { const key = x.sub + '|' + x.tk; if(!last[key] || last[key].d < x.d) last[key] = x; });
-    Object.values(last).sort((a, b) => a.p - b.p).forEach(x => { if(M.length < 3 && !M.some(y => y.tk === x.tk && y.sub === x.sub)) M.push({sub: x.sub, tk: x.tk, l: x, kept: null}); });
+    Object.values(last).sort((a, b) => a.p - b.p).forEach(x => { if(M.length < 3 && !M.some(y => y.tk === x.tk && y.sub === x.sub)) M.push({sub: x.sub, tk: x.tk, l: x, chg: null}); });
     return M;
   }
   const exI = k => window.EXUI && k.exam ? (k.subjects || []).map(x => ({x, i: EXUI.info(x.k, k.exam, ((k.marks || {}).w || []).filter(m => m.sub === x.sub))})).filter(o => o.i) : [];
@@ -61,7 +61,7 @@ window.SX = (function(){
   const weekFocus = (k, mon) => focusLog(k).filter(x => x.d >= mon && x.d <= add(mon, 6));
 
   /* ---------- Home: cards with a picture ---------- */
-  const CARDS = [['sras','SRAs this week'],['mem','Memory'],['focus','Focus this week'],['pace','On pace'],['cons','SRAs on their day'],['count','Countdowns'],['ftime','Focus time']];
+  const CARDS = [['sras','SRAs this week'],['mem','Topics dropping'],['focus','Focus this week'],['pace','On pace'],['cons','SRAs on their day'],['count','Countdowns'],['ftime','Focus time']];
   function homeCards(k){
     if(isParent() || !k) return '';
     css(); const on = read('lhq_sxcards', CARDS.map(c => c[0])), t = T(), mon = mondayOf(t);
@@ -69,7 +69,7 @@ window.SX = (function(){
     const first = exI(k).filter(o => o.i.first && o.i.days >= 0).sort((a, b) => a.i.days - b.i.days)[0], fm = weekFocus(k, mon).reduce((a, x) => a + x.m, 0), fl = weekFocus(k, add(mon, -7)).reduce((a, x) => a + x.m, 0);
     const html = {
       sras: `<span class="h">SRAs this week</span>${ring(dn, W.length)}<small>${W.length - dn ? W.length - dn + ' to go' : W.length ? 'All done' : 'None this week'}</small>`,
-      mem: `<span class="h">Memory</span><span class="v">${M.v == null ? '–' : M.v + '%'}</span><small>${M.L.length ? `${M.fading} topic${M.fading === 1 ? '' : 's'} fading` : 'After two reviews of a topic'}</small>`,
+      mem: `<span class="h">Topics dropping</span><span class="v">${M.L.length ? M.fading : '–'}</span><small>${M.L.length ? `of ${M.L.length} · latest SRA 10+ below the first` : 'After two reviews of a topic'}</small>`,
       focus: `<span class="h">Focus this week</span><small style="color:var(--ink);font-weight:700">${F.map(x => esc(x.tk)).join(' · ') || '–'}</small><small>weakest first</small>`,
       pace: `<span class="h">On pace</span>${P.slice(0, 3).map(o => `<small class="${o.i.pace.diff >= 0 ? 'sx-up' : 'sx-dn'}">${esc(o.x.sub)} · ${EXAMS.paceL(o.i.pace)}</small>`).join('') || '<small>Set an exam to see it</small>'}`,
       cons: `<span class="h">SRAs on their day</span><div style="display:flex;align-items:baseline;gap:8px"><span class="v">${C.n ? Math.round(C.on / C.n * 100) + '%' : '–'}</span><small>${C.on} of ${C.n} · 4 weeks</small></div>${consGrid(C)}`,
@@ -81,8 +81,8 @@ window.SX = (function(){
   function drill(id, k){
     const t = T(), mon = mondayOf(t);
     if(id === 'sras'){ const W = (k.sx || {}).wk || []; sheet('SRAs this week', `${dl(mon)} – ${dl(add(mon, 6))} · ${W.filter(x => x.done).length} of ${W.length} done`, '', W.sort((a, b) => a.doOn.localeCompare(b.doOn)).map(x => row(`${esc(x.topic)} ${R(x.stage)}`, `${esc(x.sub)} · do on ${dl(x.doOn)}`, x.done ? '✓ done' : x.doOn < t ? 'late' : 'to do', x.done ? 'g' : x.doOn < t ? 'y' : '')).join('')); }
-    if(id === 'mem'){ const M = memory(k); sheet(`Memory · ${M.v == null ? '–' : M.v + '%'}`, 'Each topic: latest review mark as a share of its first', 'Under 85% is fading.', M.L.map(x => row(esc(x.tk), `${esc(x.sub)} · ${R(x.f.rv)} ${x.f.p}% → ${R(x.l.rv)} ${x.l.p}%`, x.kept + '%' + (x.kept < 85 ? ' · fading' : ''), x.kept < 85 ? 'y' : 'g')).join(''), M.L.length ? `Average<span>${M.v}%</span>` : ''); }
-    if(id === 'focus'){ const F = focusTopics(k); sheet('Focus this week', 'The 3 topics needing most work', '', F.map((x, i) => row(esc(x.tk), `${esc(x.sub)} · ${x.kept != null ? `memory ${x.kept}% · ` : ''}latest SRA ${R(x.l.rv)} ${x.l.p}%`, String(i + 1), 'y')).join('')); }
+    if(id === 'mem'){ const M = memory(k); sheet(`Topics dropping · ${M.fading}`, 'Each topic: latest SRA mark against the first', 'Dropping: 10 points or more below the first.', M.L.map(x => row(esc(x.tk), `${esc(x.sub)} · ${R(x.f.rv)} ${x.f.p}% → ${R(x.l.rv)} ${x.l.p}%`, (x.chg > 0 ? '+' : '') + x.chg + (x.drop ? ' · dropping' : ''), x.drop ? 'y' : 'g')).join(''), M.L.length ? `Latest SRA average<span>${M.v}%</span>` : ''); }
+    if(id === 'focus'){ const F = focusTopics(k); sheet('Focus this week', 'The 3 topics needing most work', '', F.map((x, i) => row(esc(x.tk), `${esc(x.sub)} · ${x.chg != null ? `${x.chg > 0 ? '+' : ''}${x.chg} since the first · ` : ''}latest SRA ${R(x.l.rv)} ${x.l.p}%`, String(i + 1), 'y')).join('')); }
     if(id === 'pace'){ const P = exI(k).filter(o => o.i.pace); sheet('On pace', 'Topics finished against topics needed by today', 'To finish 4 weeks before the first paper.', P.map(o => row(esc(o.x.sub), `${o.i.pace.done} finished · ${o.i.pace.need} needed by today${o.i.first ? ' · first paper ' + dl(o.i.first.a) : ''}`, EXAMS.paceL(o.i.pace), o.i.pace.diff >= 0 ? 'g' : 'y')).join('')); }
     if(id === 'cons'){ const C = cons(k, add(t, -27), t); sheet(`SRAs on their day · ${C.n ? Math.round(C.on / C.n * 100) + '%' : '–'}`, `${C.on} of ${C.n} · ${dl(add(t, -27))} – ${dl(t)}`, '', `<div style="padding:12px 14px">${consGrid(C)}</div>` + C.H.filter(r => r[2] !== 'o').sort((a, b) => b[0].localeCompare(a[0])).map(r => row(esc(r[1]), dl(r[0]), r[2] === 'm' ? 'missed' : 'late', r[2] === 'm' ? 'r' : 'y')).join(''), `Late or missed<span>${C.n - C.on}</span>`); }
     if(id === 'count'){ const L = window.SPLAN ? SPLAN.countdowns(k) : []; sheet('Countdowns', 'From today', 'First papers from your subjects; your own dates with "Countdown on Home" on.', L.map(c => row(esc(c.n), `${esc(c.s)} · ${dl(c.d)}`, c.days + ' days')).join('')); }

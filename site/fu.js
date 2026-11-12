@@ -70,5 +70,35 @@ window.FUP = (function(){
   const bindRows = () => document.querySelectorAll('[data-fuo]').forEach(b => b.onclick = () => one(b.dataset.fuo));
   /* Needs attention: follow-ups past their date with no result */
   function overdue(){ const D = data(); return D.open.filter(f => f.by < D.t); }
-  return {ACT, before, after, worked, state, mastery, line, detail, page, bind, overdue, marked, pc};
+  /* ---------- students and parents: their follow-ups (k.sx.fu) against their own SRA marks (k.marks.r: sub, tk, rv, d, p) ---------- */
+  const R5 = rv => +rv ? 'R' + rv : 'LD';
+  function afterR(f, R){
+    if(f.act === 'retest') return f.res ? {pc: f.res.pc, d: f.res.d, src: 'Retest'} : null;
+    const L = (R || []).filter(x => !x.self && x.p != null && nk(x.sub) === nk(f.sub) && nk(x.tk) === nk(f.tk) && x.d > f.set).sort((a, b) => a.d.localeCompare(b.d));
+    return L.length ? {pc: L[0].p, d: L[0].d, src: 'Next SRA on the topic'} : null;
+  }
+  const fromRv = (f, R) => { const L = (R || []).filter(x => !x.self && x.p != null && nk(x.sub) === nk(f.sub) && nk(x.tk) === nk(f.tk) && x.d <= f.set).sort((a, b) => a.d.localeCompare(b.d)); return L.length ? R5(L[L.length - 1].rv) : ''; };
+  const famL = k => { const t = HD.today(), R = ((k.marks || {}).r) || [], from = addD(t, -60);
+    return (((k.sx || {}).fu) || []).map(f => Object.assign({a: afterR(f, R), rv: fromRv(f, R)}, f)).filter(f => !f.a || f.a.d >= from).sort((x, y) => (!!x.a - !!y.a) || x.by.localeCompare(y.by)); };
+  const famVerb = {retest: 'Retest', reteach: 'Reteach next session', take: 'Take-home sheets'};
+  function famCard(k, sb){
+    const t = HD.today(), L = famL(k).filter(f => !sb || nk(f.sub) === nk(sb)); if(!L.length) return '';
+    return `<div class="h2">Follow-ups <em>${L.filter(f => !f.a).length} open</em></div><div class="card">${L.map(f => `<button type="button" class="it" data-ffu="${esc(f.id)}"><span class="f-mk ${f.a ? (f.a.pc - f.before >= 10 ? 'ok' : 'am') : (f.by < t ? 'rd' : 'am')}">${f.a ? (f.a.pc - f.before >= 10 ? '✓' : '–') : '!'}</span><span class="t"><b>${famVerb[f.act]} · ${esc(f.tk)}</b><small>${esc(f.sub === 'Mathematics' ? 'Maths' : f.sub)} · ${f.a ? `${f.before}% → ${f.a.pc}%` : `${f.by < t ? 'was due' : 'by'} ${dl(f.by)}${f.foc ? ' · focus: ' + esc(f.foc) : ''}`}${f.th ? ' · take-home ' + f.th.pc + '%' : ''}</small></span><span class="chev">›</span></button>`).join('')}</div>`;
+  }
+  function famSheet(k, id){
+    const f = famL(k).find(x => x.id === id) || (((k.sx || {}).fu) || []).find(x => x.id === id); if(!f) return; const a = f.a || afterR(f, (k.marks || {}).r), t = HD.today();
+    const r = (l, m, v, c) => `<div class="it"><span class="t"><b>${l}</b><small>${m}</small></span><b style="color:${c || 'var(--ink)'}">${v}</b></div>`;
+    openSheet(`<div class="hx"><h3>${famVerb[f.act]} · ${esc(f.tk)}</h3><button class="ib" data-close>✕</button></div><p class="sp">${esc(f.sub)} · set by ${esc(first(f.tutor))}</p><div class="card">
+      ${r('Before', `${f.rv ? f.rv + ' · ' : ''}${dl(f.set)} · latest SRA on the topic`, f.before + '%')}
+      ${r(f.act === 'retest' ? 'Retest by' : 'By', dl(f.by) + (f.foc ? ' · focus: ' + esc(f.foc) : ''), a ? 'done' : f.by < t ? 'was due' : 'open', !a && f.by < t ? 'var(--rd)' : '')}
+      ${f.th ? r('Take-home sheets', `${dl(f.th.d)} · their own mark · doesn't change any SRA`, f.th.pc + '%') : ''}
+      ${a ? r(a.src, dl(a.d), a.pc + '%', a.pc - f.before >= 10 ? 'var(--ok)' : 'var(--am)') : ''}</div>
+      <p class="note">${f.act === 'retest' ? 'The retest happens at LHQ. ' : f.act === 'take' ? 'Do the sheets at home and hand them in. ' : 'Your tutor goes over it at the next session. '}${a ? '' : f.act === 'retest' ? 'The retest mark shows if it worked. ' : 'The next SRA on the topic shows if it worked. '}Earlier SRA marks stay as they were.</p>`);
+  }
+  const famBind = k => document.querySelectorAll('[data-ffu]').forEach(b => b.onclick = () => famSheet(k, b.dataset.ffu));
+  /* retests beside the SRA grid: which review it followed, before → after */
+  const retestRows = L => L.length ? `<div class="mk-sc" style="display:block;margin-top:8px">${L.map(f => `<div><b>Retest</b> after ${esc(f.rv || '')} · ${esc(f.tk)}: ${f.before}% → <b>${f.res.pc}%</b> · ${dl(f.res.d)}</div>`).join('')}</div>` : '';
+  const famRetests = (k, sb) => retestRows(famL(k).filter(f => f.act === 'retest' && f.res && nk(f.sub) === nk(sb)));
+  const tutRetests = (F, E, k) => retestRows(F.filter(f => f.k === k && !f.x && f.act === 'retest' && f.res).map(f => { const M = marked(E, f.k, f.tk).filter(e => e.d <= f.set); return Object.assign({rv: M.length ? R5(M[M.length - 1].rv) : ''}, f); }));
+  return {ACT, before, after, worked, state, mastery, line, detail, page, bind, overdue, marked, pc, afterR, famL, famCard, famSheet, famBind, famRetests, tutRetests};
 })();

@@ -31,7 +31,7 @@ window.SPLAN = (function(){
   const sraDue = (k, d) => (k.sras || []).filter(x => x.doOn === d && !x.done);
   const sraLate = (k, d) => (k.sras || []).filter(x => x.doOn < d && !x.done && !x.pack && x.status !== 'in' && d === T());
   const assessSoon = (k, d) => (window.FAM ? FAM.comingOf(k) : (k.coming || [])).filter(a => a.d > d && a.d <= add(d, 2));
-  const fading = k => window.SX && SX.memory ? SX.memory(k).L.filter(x => x.kept < 85) : [];
+  const fading = k => window.SX && SX.memory ? SX.memory(k).L.filter(x => x.drop) : [];
 
   /* ---------- Plan my day: the tracker's order, fitted into study blocks first, then free time ---------- */
   function tasks(k, d){
@@ -40,6 +40,7 @@ window.SPLAN = (function(){
     sraLate(k, d).forEach(x => L.push({kind: 'sra', m: 15, label: 'ARS + SRA: ' + tl(x) + ' (late)', sub: x.sub, ref: x.id, why: 'late'}));
     assessSoon(k, d).forEach(a => L.push({kind: 'as', m: 30, label: 'Revise: ' + ((window.MARKS ? MARKS.TY[MARKS.akN(a.ak)] : '') || 'Assessment') + ' ' + (a.d === add(d, 1) ? 'tomorrow' : dl(a.d)), sub: a.sub, ref: a, why: 'as'}));
     fading(k).slice(0, wdOf(d) % 6 === 0 ? 2 : 1).forEach(x => L.push({kind: 'fade', m: 25, label: 'Focus: ' + x.tk, sub: x.sub, ref: x, why: 'fade'}));
+    if(window.FUP) ((k.sx || {}).fu || []).filter(f => (f.by === d || f.by === add(d, 1)) && !FUP.afterR(f, (k.marks || {}).r) && !(f.act === 'take' && f.th)).forEach(f => L.push({kind: 'fu', m: f.act === 'take' ? 30 : 20, label: (f.act === 'retest' ? 'Retest ' + (f.by === d ? 'today' : 'tomorrow') + ': ' : f.act === 'take' ? 'Take-home sheets: ' : 'Go over: ') + f.tk, sub: f.sub, ref: f, why: 'fu'}));
     if(L.length) L.push({kind: 'wrap', m: 10, label: 'Wrap up', sub: '', why: 'wrap'});
     return L;
   }
@@ -64,7 +65,8 @@ window.SPLAN = (function(){
   const why = (k, it) => { const x = it.ref;
     if(it.why === 'due' || it.why === 'late'){ const s = (k.sras || []).find(y => y.id === x) || {}; return [it.why === 'due' ? 'SRA due today' : 'SRA not done on its day', `${s.sub || ''} · do on ${s.doOn ? dl(s.doOn) : ''}`, 'ARS first (sheet closed, write what you remember), then the SRA. 15 min.']; }
     if(it.why === 'as') return ['Assessment soon', `${x.sub} · ${dl(x.d)}${x.s ? ' ' + x.s : ''}${(x.tp || []).length ? ' · ' + x.tp.join(', ') : ''}`, 'An assessment in the next 2 days gets 30 min on its topics.'];
-    if(it.why === 'fade') return ['Fading topic', `${x.sub} · ${R(x.f.rv)} ${x.f.p}% → ${R(x.l.rv)} ${x.l.p}%`, 'Latest SRA mark well below the first. One focus round.'];
+    if(it.why === 'fade') return ['Topic dropping', `${x.sub} · ${R(x.f.rv)} ${x.f.p}% → ${R(x.l.rv)} ${x.l.p}%`, 'Latest SRA mark 10 points or more below the first. One focus round.'];
+    if(it.why === 'fu') return [{retest: 'Retest', reteach: 'Reteach', take: 'Take-home sheets'}[x.act] + ' by ' + dl(x.by), `${x.sub} · ${x.tk} · set by ${String(x.tutor || '').split(' ')[0]}${x.foc ? ' · focus: ' + x.foc : ''}`, 'Your tutor\'s follow-up on a topic that needs work. The day before and the day itself.'];
     if(it.why === 'mine') return ['Your choice', '', 'Not from the tracker.'];
     return ['Wrap up', '', 'Tick what you finished. 10 min.']; };
 
@@ -118,7 +120,7 @@ window.SPLAN = (function(){
     const rmg = document.querySelector('[data-sprmg]'); if(rmg) rmg.onclick = () => { prev.e = it.e; PM.items.splice(PM.items.indexOf(it), 1); closeSheet(); render(); };
   }
   const rulesSheet = () => openSheet(`<div class="hx"><h3>How Plan my day chooses</h3><button class="ib" data-close>✕</button></div><p class="sp">From your SRA tracker, in this order</p>
-    <div class="card">${[['SRAs due today','ARS then SRA · 15 min each'],['SRAs not done on their day','15 min each'],['An assessment in the next 2 days','30 min on its topics'],['A fading topic','latest SRA mark well below the first · one focus round'],['Wrap up','10 min']].map((x, i) => `<div class="it"><span class="f-mk">${i + 1}</span><span class="t"><b>${x[0]}</b><small>${x[1]}</small></span></div>`).join('')}</div>
+    <div class="card">${[['SRAs due today','ARS then SRA · 15 min each'],['SRAs not done on their day','15 min each'],['An assessment in the next 2 days','30 min on its topics'],['A topic dropping','latest SRA mark 10 points or more below the first · one focus round'],['A follow-up from your tutor','retest or take-home sheets · the day before and the day itself'],['Wrap up','10 min']].map((x, i) => `<div class="it"><span class="f-mk">${i + 1}</span><span class="t"><b>${x[0]}</b><small>${x[1]}</small></span></div>`).join('')}</div>
     <p class="note">Your Study and Revision blocks fill first, then free time from 14:00 (after school) to 21:00. Never over school, activities, LHQ sessions or the 30 min after an activity.</p>`);
 
   /* ---------- a block: its steps (study and revision), or its details ---------- */
@@ -298,7 +300,7 @@ i.yx,.sp-mg i.yx{background:var(--rd)}i.ya,.sp-mg i.ya{background:var(--accent)}
     on('[data-sped]', el => edSheet(k, +el.dataset.sped));
     on('[data-sprules]', rulesSheet);
     on('[data-spadd]', async () => { const L = PM.items.filter(x => !x.blk);
-      try{ for(const x of L) await hub.api('family', {method: 'POST', body: JSON.stringify({action: 'block', block: {name: x.label, type: x.kind === 'fade' || x.kind === 'as' ? 'rev' : 'study', sub: x.sub || '', s: x.s, e: x.e, rep: 'once', from: PM.d, rem: [0], foc: x.kind === 'wrap' ? 0 : 1}})});
+      try{ for(const x of L) await hub.api('family', {method: 'POST', body: JSON.stringify({action: 'block', block: {name: x.label, type: x.kind === 'fade' || x.kind === 'as' || x.kind === 'fu' ? 'rev' : 'study', sub: x.sub || '', s: x.s, e: x.e, rep: 'once', from: PM.d, rem: [0], foc: x.kind === 'wrap' ? 0 : 1}})});
         PM = null; if(window.FAM && FAM.refresh) await FAM.refresh(); toast(`Added ${L.length} block${L.length === 1 ? '' : 's'}`); render(); }catch(e){ toast(e.message); } });
     on('[data-spnew]', el => editSheet(k, '', el.dataset.spnew));
     on('[data-spedit]', el => editSheet(k, el.dataset.spedit, (location.hash.split('/')[3] || T())));

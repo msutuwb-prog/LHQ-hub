@@ -40,7 +40,7 @@ window.REV = (function(){
     const came = x => x[2] === 'attended' || x[2] === 'late';
     return {sr, srOn: sr.filter(r => r[2] === 'o').length, as, asAvg: avg(as.map(x => x.p)), fo, foM: fo.reduce((s, x) => s + (x.m || 0), 0), blocks, plM: blocks.reduce((s, x) => s + x.m, 0), doM: blocks.filter(x => x.done).reduce((s, x) => s + x.m, 0), ses, came: ses.filter(came).length};
   }
-  const fading = k => window.SX && SX.memory ? SX.memory(k).L.filter(x => x.kept < 85) : [];
+  const fading = k => window.SX && SX.memory ? SX.memory(k).L.filter(x => x.drop) : [];
   function rules(k, A, B){
     const well = [], lag = [], pc = (n, d) => d ? Math.round(n / d * 100) : null;
     const s1 = pc(A.srOn, A.sr.length), s0 = pc(B.srOn, B.sr.length);
@@ -50,7 +50,7 @@ window.REV = (function(){
     if(A.foM > B.foM && A.foM) well.push({t: 'More focus time', s: `${dur(A.foM)} (was ${dur(B.foM)})`, d: 'fo'}); else if(B.foM - A.foM >= 30) lag.push({t: 'Less focus time', s: `${dur(A.foM)} (was ${dur(B.foM)})`, d: 'fo'});
     if(A.ses.length && A.came === A.ses.length) well.push({t: 'Every session attended', s: `${A.came} of ${A.ses.length}`, d: 'ses'}); else if(A.ses.length - A.came) lag.push({t: `${A.ses.length - A.came} session${A.ses.length - A.came === 1 ? '' : 's'} missed`, s: `${A.came} of ${A.ses.length} attended`, d: 'ses'});
     A.blocks.filter(x => !x.done && x.d < T()).slice(0, 2).forEach(x => lag.push({t: `${WD[wdOf(x.d)]}'s ${(x.x.name || 'study').toLowerCase()} not done`, s: `${x.x.s}–${x.x.e} · no focus round in it`, d: 'st', blk: x.x.id, day: x.d}));
-    fading(k).slice(0, 2).forEach(x => lag.push({t: `${x.tk} fading`, s: `${x.sub === 'Mathematics' ? 'Maths' : x.sub} · ${R(x.f.rv)} ${x.f.p}% → ${R(x.l.rv)} ${x.l.p}%`, d: 'fade', tk: x.tk, sub: x.sub}));
+    fading(k).slice(0, 2).forEach(x => lag.push({t: `${x.tk} dropping`, s: `${x.sub === 'Mathematics' ? 'Maths' : x.sub} · ${R(x.f.rv)} ${x.f.p}% → ${R(x.l.rv)} ${x.l.p}%`, d: 'fade', tk: x.tk, sub: x.sub}));
     return {well, lag};
   }
 
@@ -98,7 +98,7 @@ window.REV = (function(){
   }
   function why(w){
     const {rr} = last, x = w[0] === 'w' ? rr.well[+w.slice(1)] : rr.lag[+w.slice(1)]; if(!x) return;
-    if(x.d === 'fade') return openSheet(`<div class="hx"><h3>${esc(x.t)}</h3><button class="ib" data-close>✕</button></div><p class="sp">${esc(x.s)}</p><p class="note">Rule: the latest SRA mark is well below the first (under 85% of it).</p>`);
+    if(x.d === 'fade') return openSheet(`<div class="hx"><h3>${esc(x.t)}</h3><button class="ib" data-close>✕</button></div><p class="sp">${esc(x.s)}</p><p class="note">Rule: the latest SRA mark is 10 points or more below the first.</p>`);
     drill(x.d);
   }
 
