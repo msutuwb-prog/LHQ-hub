@@ -300,6 +300,7 @@
   }
   async function signedIn(j){
     put(SESSION, {token:j.token, me:j.me, keep:!!j.keep, expires:j.expires || null});
+    try{ localStorage.setItem('lhq_lastRole', j.me.role || ''); }catch(e){}
     if(j.me.role === 'bdo'){ location.href = 'account.html'; return; }
     if(['student','parent'].includes(j.me.role)){ document.getElementById('hubOv')?.remove(); mountAccount(); location.hash = '#me'; if(window.hubReady) window.hubReady(); return; }   // their own part: never LHQ's documents
     const box = overlay(); box.innerHTML = `<img class="lhq-logo" src="${LOGO()}" alt="LHQ"><h2>Welcome, ${esc(j.me.name.split(' ')[0])}</h2><p class="s">Getting LHQ's documents…</p>`;
@@ -321,10 +322,13 @@
   const pwIn = (id, label, ac) => `<label class="hub-l">${label}<span class="hub-pw"><input class="hub-in" id="${id}" type="password" autocomplete="${ac}"><button type="button" class="hub-eye" data-eye="${id}" aria-label="Show password">${EYE}</button></span></label>`;
   const tick = (id, on, b, sm) => `<button type="button" class="hub-tick${on ? ' on' : ''}" id="${id}" role="checkbox" aria-checked="${!!on}"><span class="bx">${on ? '✓' : ''}</span><span><b>${b}</b><small>${sm}</small></span></button>`;
   const errBox = (e, locked) => e ? `<div class="hub-errb" role="alert">${esc(e)}${locked ? `<a class="hub-wa" target="_blank" rel="noopener" href="https://wa.me/${LHQ_WA}?text=${encodeURIComponent("Hello LHQ, my LHQ Hub account is locked. Please send me a setup code.")}">Message LHQ on WhatsApp</a>` : ''}</div>` : '';
-  let keepMe = false;
+  /* students and parents use their own phones: "Keep me signed in" starts ticked for them (the last account on this device,
+     or the person a setup code is for). Staff start unticked: 12 hours, for shared computers. Untick on a shared phone. */
+  const FAM = r => ['student', 'parent'].includes(r);
+  let keepMe = (() => { try{ return FAM(localStorage.getItem('lhq_lastRole')); }catch(e){ return false; } })(), keepTouched = false;
   function wire(box, handlers){
     box.querySelectorAll('[data-eye]').forEach(b => b.onclick = () => { const i = box.querySelector('#' + b.dataset.eye); i.type = i.type === 'password' ? 'text' : 'password'; b.setAttribute('aria-label', i.type === 'password' ? 'Show password' : 'Hide password'); });
-    const k = box.querySelector('#hubKeep'); if(k) k.onclick = () => { keepMe = !keepMe; k.classList.toggle('on', keepMe); k.setAttribute('aria-checked', keepMe); k.querySelector('.bx').textContent = keepMe ? '✓' : ''; };
+    const k = box.querySelector('#hubKeep'); if(k) k.onclick = () => { keepTouched = true; keepMe = !keepMe; k.classList.toggle('on', keepMe); k.setAttribute('aria-checked', keepMe); k.querySelector('.bx').textContent = keepMe ? '✓' : ''; };
     box.querySelectorAll('[data-k]').forEach(b => b.onclick = () => handlers[b.dataset.k] && handlers[b.dataset.k]());
     box.querySelectorAll('input').forEach(i => i.addEventListener('keydown', e => { if(e.key === 'Enter'){ const g = box.querySelector('.hub-go'); if(g) g.click(); } }));
     const f = box.querySelector('input'); if(f && !f.value) setTimeout(() => f.focus(), 50);
@@ -340,7 +344,7 @@
     box.innerHTML = head('Sign in to LHQ Hub', esc(msg || 'Students, parents and staff all sign in here.')) + errBox(err, locked) +
       `<label class="hub-l">Name, username or email<input class="hub-in" id="hubId" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="e.g. Linga Phiri" value="${esc(id || '')}"></label>
       ${pwIn('hubPw', 'Password', 'current-password')}
-      ${tick('hubKeep', keepMe, 'Keep me signed in on this device', '30 days. Leave off on a shared phone.')}
+      ${tick('hubKeep', keepMe, 'Keep me signed in on this device', '30 days. Untick on a shared phone.')}
       <button class="hub-go" data-k="go">Sign in</button>
       <button type="button" class="hub-link" data-k="forgot">Forgot password?</button><button type="button" class="hub-link" data-k="code">First time here? I have a setup code</button>
       <p class="hub-foot">Staff: the first time, sign in with your username and your old PIN.</p>`;
@@ -369,13 +373,14 @@
   const RULES = (pw, pw2, p) => { const first = String(p.name || '').split(' ')[0].toLowerCase(), u = String(p.username || '').split('.')[0];
     return [[pw.length >= 8, 'At least 8 characters'], [/[0-9\W_]/.test(pw), 'A number or a symbol'], [!!pw && ![first, u].some(n => n.length > 2 && pw.toLowerCase().includes(n)), 'Not your name'], [!!pw && pw === pw2, 'Both match']]; };
   function pwChoose(ticket, person, why, err){
+    if(!keepTouched && person && person.role) keepMe = FAM(person.role);
     const box = overlay(), ini = String(person.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2);
     const title = why === 'pin' ? 'Choose a password' : why === 'first' ? 'Choose your password' : 'Choose a new password';
     const sub = why === 'pin' ? 'PINs are being replaced. After this your PIN stops working.' : why === 'first' ? 'This is the last step.' : 'Your old password stops working, and other devices are signed out.';
     box.innerHTML = backL() + head(title, sub) + `<div class="hub-person"><span class="av">${esc(ini)}</span><span><b>${esc(person.name)}</b><small>username <b>${esc(person.username || '')}</b></small></span></div>` + errBox(err) +
       `${pwIn('hubP1', 'Password', 'new-password')}${pwIn('hubP2', 'Type it again', 'new-password')}<ul class="hub-rules" id="hubRules"></ul>
       ${why !== 'reset' ? `<label class="hub-l">Email <small>(optional · you can sign in with it too)</small><input class="hub-in" id="hubEm" type="email" autocomplete="email" value="${esc(person.email || '')}"></label>` : ''}
-      ${tick('hubKeep', keepMe, 'Keep me signed in on this device', 'For 30 days')}
+      ${tick('hubKeep', keepMe, 'Keep me signed in on this device', '30 days. Untick on a shared phone.')}
       <button class="hub-go" data-k="go">Save and sign in</button>`;
     const upd = () => { const a = box.querySelector('#hubP1').value, b = box.querySelector('#hubP2').value; box.querySelector('#hubRules').innerHTML = RULES(a, b, person).map(([ok, t]) => `<li class="${ok ? 'ok' : ''}"><span class="c">${ok ? '✓' : ''}</span>${t}</li>`).join(''); };
     box.querySelectorAll('#hubP1,#hubP2').forEach(i => i.oninput = upd); upd();

@@ -53,3 +53,17 @@ test("pack: handed over, then marked by the tutor when the student comes back", 
   assert.equal(pk.length, 2, "both subjects show from 7 days before");
   assert.equal(R.packs(R.build(S.items([tadala], "2026-12-01", 45), E, "2026-12-01"), "2026-12-01").length, 0, "not yet 10 days before");
 });
+
+test("an SRA never handed out goes off Give today after 7 days, or once the topic's next review is due", () => {
+  const c = card("9", "Wezi Banda", [{ name: "Physics", tutor: "Peter Mvula", days: ["Mo", "We", "Fr"] }], "2026-10-05", "2027-01-29");
+  const e = [{ id: "w1", ty: "s", k: "wezi banda|physics", d: "2026-10-05", a: "present", fin: ["Waves"], st: "Wezi Banda", sub: "Physics" }];
+  const at = t => R.build(S.items([c], t, 45), e, t).filter(x => x.topic === "Waves");
+  const st = (d, n) => at(d).find(x => x.stage === n).status;
+  assert.equal(st("2026-10-05", 1), "give", "R1 goes out at the learning-day session");
+  assert.equal(st("2026-10-06", 0), "overdue", "R0 isn't missed just because R1 shares its session");
+  assert.equal(st("2026-10-06", 1), "overdue", "not given: still on the list");
+  assert.equal(st("2026-10-07", 1), "missed", "R2's day has come round");
+  assert.equal(st("2026-10-13", 0), "missed", "7 days on");
+  const T = R.today(at("2026-11-30").filter(x => !x.paused), "2026-11-30");
+  assert.ok(T.give.every(x => x.giveOn >= "2026-11-23"), "nothing older than a week on Give today: " + T.give.map(x => x.giveOn));
+});

@@ -93,6 +93,11 @@
           score: m.r && m.r.h !== 'm' && m.r.sc != null && m.r.sc !== '' ? {sc: m.r.sc, mx: m.r.mx} : null, moved, given: m.g || null, handed: m.r || null, paused: !!(it.b && it.b < today && !it.next)});
       });
     });
+    /* never handed out: after 7 days, or once the topic's next review is due, it's missed. It leaves the tutor's list
+       (still counted against "SRAs given on their day") so Give today never piles up. */
+    const wk = add(today, -7), nextOn = new Map(out.map(y => [y.k + '\u0001' + y.topic + '\u0001' + y.stage, y.giveOn]));
+    out.forEach(x => { const n = nextOn.get(x.k + '\u0001' + x.topic + '\u0001' + (x.stage + 1));   // the next review's own day (not one given at the same session)
+      if(x.status === 'overdue' && (x.giveOn < wk || (n && n > x.giveOn && n <= today))) x.status = 'missed'; });
     return spread(out).sort((a, b) => a.giveOn.localeCompare(b.giveOn) || a.topic.localeCompare(b.topic) || a.stage - b.stage);
   }
   /* the packs: one per student + subject + last session, with its sheets in date order.
