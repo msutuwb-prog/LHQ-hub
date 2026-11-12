@@ -1792,7 +1792,10 @@ S.backup = () => { const last = store.get('lhq_lastBackup', 0);
 /* previews have their own storage; the Director can fill it with demo data */
 let PREVIEW = false; try{ PREVIEW = sessionStorage.getItem('lhq_preview') === '1'; }catch(e){}
 fetch('/api/hub/people?v=2', {cache:'no-store'}).then(r => r.json()).then(j => { const was = PREVIEW; PREVIEW = !!j.preview; try{ sessionStorage.setItem('lhq_preview', PREVIEW ? '1' : '0'); }catch(e){} if(was !== PREVIEW) render(); }).catch(() => {});
-S.demo = () => `<h2 class="sec-h">Demo data</h2><p class="sec-p">Test copy only. Load six months of demo data.</p>
+S.demo = () => settingsKV().pilot ? `<h2 class="sec-h">Demo data</h2><p class="sec-p">Test copy only.</p>
+  <div class="card pad"><div class="cap">Pilot on</div><p class="note" style="margin:0 0 12px">Real tutors and students use this test site. Loading demo data and emptying it are locked, so nothing they enter can be wiped.</p>
+  <button class="btn" id="pilotOff">Turn the pilot off</button></div>` : `<h2 class="sec-h">Demo data</h2><p class="sec-p">Test copy only. Load six months of demo data.</p>
+  <div class="card pad"><div class="cap">Pilot</div><p class="note" style="margin:0 0 12px">Turn on before real tutors and students use this test site: loading demo data and emptying it are then locked.</p><button class="btn n" id="pilotOn">Turn the pilot on</button></div>
   <div class="card pad"><div class="cap">What you get</div>
   <p class="note" style="margin:0 0 6px">About 50 invented students from May to today (around 40 at a time): quotes, invoices, receipts and tuition cards; 50/50 plans; payments in grace and overdue; periods ending this week and renewed; ended students; quotes waiting; a card with no tutor; a sibling discount; a deleted receipt; tutors' session logs, SRAs and comments for Reports; and Business: spending from May to today with budgets, and repeating costs waiting to be confirmed.</p>
   <p class="note" style="margin:0 0 12px">It also adds Catherine Mkwinda (Admin, who can record spending), eight tutors, and Mayamiko Goliati (switched off). Their PIN is <b>1111</b>. Your own account stays as it is.</p>
@@ -2037,6 +2040,8 @@ function bind(){
   if($('svcEmail')) checkServices();
   if($('codeSave')) $('codeSave').onclick = () => { localStorage.setItem('lhq_code', JSON.stringify($('accessCode').value.trim())); checkServices(); toast('Access code saved on this device'); };
   if($('bkGo')) $('bkGo').onclick = doBackup;
+  if($('pilotOn')) $('pilotOn').onclick = () => { saveSettings({pilot: true}); render(); };
+  if($('pilotOff')) $('pilotOff').onclick = () => { if(prompt('Type PILOT OFF to unlock loading and emptying') !== 'PILOT OFF') return; saveSettings({pilot: false}); render(); };
   if($('demoGo')) $('demoGo').onclick = async () => {
     if(!confirm('Replace everything in this preview with demo data?')) return;
     $('demoGo').disabled = true; $('demoGo').textContent = 'Loading…';

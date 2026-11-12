@@ -85,6 +85,8 @@ export default async (req, context) => {
     if (req.method === "POST" && path === "demo") {
       if (!isDir(me)) return fail("Only Wanangwa can do that.", 403);
       if (!preview) return fail("Made-up data only goes into a preview, never into LHQ's real records.", 403);
+      const ps = await one("SELECT value FROM settings WHERE key = 'hub:lhq_settings' AND NOT del").catch(() => null);
+      if (ps && ps.value && ps.value.pilot) return fail("The pilot is on: real people use this test site. Turn the pilot off in Settings › Demo data first.", 423);
       const b = await req.json().catch(() => ({}));
       return json(await seedDemo(me, Math.max(0, Math.min(4, Number(b.step) || 0))));
     }

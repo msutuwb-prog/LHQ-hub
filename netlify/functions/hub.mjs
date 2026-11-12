@@ -1190,6 +1190,7 @@ async function wipe(keepPeople) {
 async function demo(req, me) {
   if (!isPreview()) return fail("Demo data only works on a preview, never on the live site.", 403);
   if (!isDirector(me)) return fail("Only the Director can load demo data.", 403);
+  if ((((await store().get("kv/lhq_settings", { type: "json" })) || {}).pilot)) return fail("The pilot is on: real people use this test site. Turn the pilot off in Settings › Demo data first.", 423);
   const b = await req.json().catch(() => null);
   if (!b || !Array.isArray(b.docs)) return fail("No demo data was sent.");
   const list = await wipe(p => p.id === me.id);
@@ -1210,6 +1211,7 @@ async function demo(req, me) {
 async function reset(req, me) {
   if (!isPreview()) return fail("This only works on a preview, never on the live site.", 403);
   if (!isDirector(me)) return fail("Only the Director can empty the preview.", 403);
+  if ((((await store().get("kv/lhq_settings", { type: "json" })) || {}).pilot)) return fail("The pilot is on: real people use this test site. Turn the pilot off in Settings › Demo data first.", 423);
   const list = await wipe(p => p.id === me.id);
   await store().setJSON("index", { rev: Date.now(), docs: {}, at: Date.now(), epoch: crypto.randomBytes(6).toString("hex") });
   return json({ ok: true, people: list.map(pub) });
