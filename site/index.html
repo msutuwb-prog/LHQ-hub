@@ -510,6 +510,8 @@ function render(){
   if(!['new','makeups'].includes(route.page)) LHQNav.visit(pageLabel());
   bind();
   fillAsk();
+  /* every back link the same: the arrow icon, not a typed ‹ */
+  document.querySelectorAll('#main a.crumb').forEach(el => { const t = el.textContent; if(/^\s*‹/.test(t) && !el.querySelector('svg')) el.innerHTML = ic('back', 16, 2.2) + ' ' + esc(t.replace(/^\s*‹\s*/, '')); });
   if(window.FX) FX.after();
   if(window.MOTION) MOTION.after();
   if(route.page === 'new') newSheet(route.args[0]);

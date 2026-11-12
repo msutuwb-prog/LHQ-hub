@@ -169,7 +169,7 @@ window.SX = (function(){
     return `<a class="crumb" href="#me/progress">‹ ${isParent() ? 'Sessions' : 'Progress'}</a><div class="ph"><div class="tt"><h1>Habits</h1><p>${esc(name)} · ${esc(r.l)} · against ${esc(r.pl)}</p></div></div>
       <div class="seg" style="display:flex;margin-bottom:12px">${[['w','Week'],['w4','4 weeks'],['term','Term']].map(([v, l]) => `<button style="flex:1" class="${hPer === v ? 'on' : ''}" data-sxhp="${v}">${l}</button>`).join('')}</div>
       <div class="card">${HAB.map(([id, l]) => { const a = A[id], b = B[id], p = id === 'ass' ? null : pc(a), q = id === 'ass' ? null : pc(b), dlt = p != null && q != null ? p - q : null;
-        return `<button class="sx-hb" data-sxh="${id}"><span>${l}<small>${id === 'ass' ? `${a.n} sat` : a.n ? `${a.k} of ${a.n}` : 'none yet'}</small></span><b>${id === 'ass' ? a.n : p == null ? '–' : p + '%'}</b><span class="${dlt == null || dlt === 0 ? '' : dlt > 0 ? 'u' : 'd'}">${dlt == null || dlt === 0 ? '·' : (dlt > 0 ? '▲ ' : '▼ ') + Math.abs(dlt)}</span></button>`; }).join('')}</div>
+        return `<button class="sx-hb" data-sxh="${id}"><span>${l}<small>${id === 'ass' ? `${a.n} sat` : a.n ? `${a.k} of ${a.n}` : 'none yet'}</small></span><b>${id === 'ass' ? a.n : p == null ? '–' : p + '%'}</b><span class="${dlt == null || dlt === 0 ? '' : dlt > 0 ? 'u' : 'd'}">${dlt == null || dlt === 0 ? '=' : (dlt > 0 ? '▲ ' : '▼ ') + Math.abs(dlt)}</span></button>`; }).join('')}</div>
       <p class="note">Against ${isParent() ? 'their' : 'your'} own ${esc(r.pl)}. Effort, not marks.</p>`;
   }
 

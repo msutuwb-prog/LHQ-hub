@@ -1139,7 +1139,7 @@ window.TUT = (function(){
       render(); });
     on('[data-ttog]', el => { if(ro) return; const k = el.dataset.ttog, i = k.indexOf(':'), kind = i > 0 ? k.slice(0, i) : null, val = i > 0 ? k.slice(i + 1) : null;
       const flip = (arr, x) => arr.includes(x) ? arr.filter(y => y !== x) : arr.concat(x);
-      if(kind === 'tp' || kind === 'waTp'){ f[kind] = flip(f[kind], val); if(kind === 'tp') f.fin = f.fin.filter(x => f.tp.includes(x)); }
+      if(kind === 'tp' || kind === 'waTp'){ f[kind] = flip(f[kind], val); if(kind === 'tp' && f.fin) f.fin = f.fin.filter(x => f.tp.includes(x)); }
       else if(kind === 'fin') f.fin = flip(f.fin, val);
       else if(kind === 'give') f.give = flip(f.give, val);
       else if(kind === 'ldoff') f.ldOff = flip(f.ldOff || [], val);
@@ -1155,7 +1155,7 @@ window.TUT = (function(){
       if(el.dataset.tin === 'rv' || el.dataset.tin === 'tk') return; }; });
     document.querySelectorAll('#main [data-tq]').forEach(el => el.oninput = () => { const qk = el.dataset.tq, key = qk === 'q' ? 'tp' : 'waTp'; f[qk] = el.value;
       const box = document.querySelector(`#main [data-tql="${qk}"]`), tmp = document.createElement('div'); tmp.innerHTML = topicPicker(f, key, qk === 'q' ? 'open' : 'waOpen', qk, ''); const nb = tmp.querySelector(`[data-tql="${qk}"]`);
-      if(box && nb){ box.innerHTML = nb.innerHTML; box.querySelectorAll('[data-ttog]').forEach(b => b.onclick = () => { const v = b.dataset.ttog.slice(key.length + 1); f[key] = f[key].includes(v) ? f[key].filter(x => x !== v) : f[key].concat(v); if(key === 'tp') f.fin = f.fin.filter(x => f.tp.includes(x)); render(); });
+      if(box && nb){ box.innerHTML = nb.innerHTML; box.querySelectorAll('[data-ttog]').forEach(b => b.onclick = () => { const v = b.dataset.ttog.slice(key.length + 1); f[key] = f[key].includes(v) ? f[key].filter(x => x !== v) : f[key].concat(v); if(key === 'tp' && f.fin) f.fin = f.fin.filter(x => f.tp.includes(x)); render(); });
         box.querySelectorAll('[data-taddtp]').forEach(b => b.onclick = () => addTp(b)); } });
     const addTp = b => { const key = b.dataset.taddtp, qk = key === 'tp' ? 'q' : 'wq', v = (f[qk] || '').trim(); if(v && !f[key].includes(v)) f[key] = f[key].concat(v); f[qk] = ''; render(); };
     document.querySelectorAll('#main [data-taddtp]').forEach(b => b.onclick = () => addTp(b));

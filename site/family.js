@@ -105,7 +105,7 @@ window.FAM = (function(){
     return `<a class="it" href="#me/subject/${encodeURIComponent(x.k)}"><span class="f-mk ${behind ? 'am' : 'ok'}">${behind ? '!' : '✓'}</span><span class="t"><b>${esc(sub(x.sub))} <span class="f-n">${x.had}/${x.planned || '?'}</span></b>
       <span class="f-bar"><i style="width:${pct}%"></i><b style="left:${mark}%"></b></span>${x.owed ? `<small>${x.owed} owed</small>` : ''}</span><span class="chev">›</span></a>`;
   }
-  const confirmRow = e => `<div class="it"><span class="f-mk am">!</span><span class="t"><b>${esc(sub(e.sub))} · ${day(e.d).split(' ')[0]} ${esc(e.t1 || '')}</b><small>${esc(e.tutor)} · ${Math.max(1, Math.round(e.left / 36e5))} h</small></span>
+  const confirmRow = e => `<div class="it"><span class="f-mk am">!</span><span class="t"><b>${esc(sub(e.sub))} · ${day(e.d).split(' ')[0]} ${esc(e.t1 || '')}</b><small>${esc(e.tutor)} · ${Math.max(1, Math.round(e.left / 36e5))} h left to check</small></span>
     <button class="f-ok" data-fcf="yes:${esc(e.id)}" aria-label="Yes, it happened">✓</button><button class="f-no" data-fcf="no:${esc(e.id)}" aria-label="Not right">✕</button></div>`;
   const answerRow = e => `<div class="it" style="flex-wrap:wrap"><span class="f-mk am">!</span><span class="t"><b>${esc(firstN(e.tutor))}: “${esc(e.cf.tutorNote)}”</b><small>${esc(sub(e.sub))} · ${day(e.d)} · kept ${esc(e.t1)}–${esc(e.t2)}</small></span>
     <span class="acts" style="width:100%;margin:8px 0 0 34px"><button class="btn sm n" data-frep="ok:${esc(e.id)}">OK</button><button class="btn sm" data-frep="no:${esc(e.id)}">Still not right</button></span></div>`;
