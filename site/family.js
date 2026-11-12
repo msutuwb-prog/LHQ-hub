@@ -20,6 +20,10 @@ window.FAM = (function(){
   const sub = n => String(n || '').replace(/^Mathematics$/i, 'Maths');
   /* students choose Lean (the essentials; new students start here) or Full (cards, focus, habits, reviews, planning, school results) */
   const full = () => isParent() || ((((window.hub && hub.session && hub.session()) || {}).me || {}).view === 'full');
+  /* Lean with features added one at a time (✎ on Home); Full is every feature on; parents always see everything */
+  const FEAT = [['cards','Home cards','SRAs this week, topics dropping, countdowns'],['focus','Focus timer','Rounds of 25 or 50 min, minutes recorded'],['plan','Plan my day','Day, My week and Year views, study blocks'],['habits','Habits','Effort against the period before'],['review','Review and reflection','Week, month, term; two lines a week']];
+  const has = f => full() || !!((((((window.hub && hub.session && hub.session()) || {}).me) || {}).feat) || {})[f];
+  const nAdded = () => FEAT.filter(([f]) => has(f)).length;
   let data = read(CK, null), loading = null, err = '', kidI = +(read('lhq_family_kid', 0)) || 0;
 
   if(!document.getElementById('famCss')){ const st = document.createElement('style'); st.id = 'famCss'; st.textContent = `
@@ -153,10 +157,11 @@ window.FAM = (function(){
     const t = T(), today = k.week.filter(s => s.date === t), sraIn = k.sras.filter(x => x.due === t || x.status === 'late');
     const need = (repDue(k) ? [`<a class="it" href="#me/report"><span class="f-mk am">!</span><span class="t"><b>Today's report</b><small>${esc(k.report.ses.map(x => sub(x.sub)).join(', '))} · 2 min</small></span><span class="chev">›</span></a>`] : []).concat(k.toConfirm.map(confirmRow)).concat(k.answers.map(answerRow), isParent() ? [] : sraIn.map(x => `<a class="it" href="#me/practice"><span class="f-mk am">!</span><span class="t"><b>${esc(x.topic)} ${x.stage ? 'R' + x.stage : 'LD'}</b><small>${esc(sub(x.sub))} · hand in ${x.due === t ? 'today' : 'late'}</small></span><span class="chev">›</span></a>`),
       isParent() ? [] : packOf(k).filter(x => x.doOn === t && !x.done).map(x => `<a class="it" href="#me/practice/pack"><span class="f-mk am">!</span><span class="t"><b>${esc(x.topic)} R${x.stage} today</b><small>${esc(sub(x.sub))} · take-home pack</small></span><span class="chev">›</span></a>`));
+    if(window.FUP) FUP.famL(k).filter(f => !f.a && !(f.act === 'take' && f.th) && (f.by === t || f.by === HD.addDays(t, 1) || f.by < t)).forEach(f => need.push(`<button type="button" class="it" data-ffu="${esc(f.id)}"><span class="f-mk ${f.by < t ? 'rd' : 'am'}">!</span><span class="t"><b>${({retest: 'Retest', reteach: 'Reteach', take: 'Take-home sheets'})[f.act]} ${f.by === t ? 'today' : f.by < t ? 'was due ' + day(f.by) : 'tomorrow'}: ${esc(f.tk)}</b><small>${esc(sub(f.sub))}${f.foc ? ' · focus: ' + esc(f.foc) : ''}</small></span><span class="chev">›</span></button>`));
     const pay = isParent() ? owedLine() : '';
-    return `<div class="ph"><div class="tt"><h1>Hi ${esc(firstN(me().name))}</h1><p>${isParent() && kids().length === 1 ? esc(firstN(k.name)) + ' · ' : ''}${day(t)}</p></div></div>${kidChips()}
+    return `<div class="ph"><div class="tt"><h1>Hi ${esc(firstN(me().name))}</h1><p>${isParent() && kids().length === 1 ? esc(firstN(k.name)) + ' · ' : ''}${day(t)}</p></div>${isParent() ? '' : '<div class="acts"><button class="ib" type="button" data-ffeat aria-label="Your Hub">✎</button></div>'}</div>${kidChips()}
       ${need.length ? `<div class="h2">Needs you <em>${need.length}</em></div><div class="card" style="border-left:3px solid var(--gold)">${need.join('')}</div>` : ''}
-      <div class="h2">Today</div><div class="card">${today.map(sesTell).join('') || '<p class="empty">No sessions today.</p>'}</div>${window.SX && full() ? SX.homeCards(k) : ''}${!full() ? moreAsk() : ''}
+      <div class="h2">Today</div><div class="card">${today.map(sesTell).join('') || '<p class="empty">No sessions today.</p>'}</div>${window.SX && has('cards') ? SX.homeCards(k) : ''}${!full() && !nAdded() ? moreAsk() : ''}
       ${k.changes.length ? `<div class="h2">Changes</div><div class="card">${k.changes.slice(0, 3).map(c => `<div class="it"><span class="f-mk bl">i</span><span class="t"><b>${esc(sub(c.sub))} → ${DAYN[c.to.day]} ${esc(c.to.s)}</b><small>was ${DAYN[c.from.day]} ${esc(c.from.s)}</small></span></div>`).join('')}</div>` : ''}
       ${packCard(k, true)}<div class="h2">Sessions</div><div class="card">${k.subjects.map(sesRow).join('') || '<p class="empty">No tuition this period.</p>'}</div>${pay}`;
   }
@@ -171,7 +176,7 @@ window.FAM = (function(){
     const t = T(), L = k.sras;
     const doT = L.filter(x => x.doOn === t), inT = L.filter(x => x.due === t || x.status === 'late'), out = L.filter(x => x.status === 'given' && x.doOn !== t);
     const row = x => `<div class="it">${isParent() ? `<span class="f-mk ${x.done ? 'ok' : ''}">${x.done ? '✓' : ''}</span>` : ''}<span class="t"><b>${esc(x.topic)} ${x.stage ? 'R' + x.stage : 'LD'}</b><small>${esc(sub(x.sub))}${x.pack ? ' · take-home pack' : x.due ? ' · hand in ' + (x.due === t ? 'today' : day(x.due)) : ''}</small></span>${isParent() ? '' : steps(x)}</div>`;
-    return `<div class="ph"><div class="tt"><h1>Practice</h1></div>${isParent() || !window.SX || !full() ? '' : '<div class="acts"><a class="btn" href="#me/focus">Focus</a></div>'}</div>${kidChips()}${packCard(k)}
+    return `<div class="ph"><div class="tt"><h1>Practice</h1></div>${isParent() || !window.SX || !has('focus') ? '' : '<div class="acts"><a class="btn" href="#me/focus">Focus</a></div>'}</div>${kidChips()}${packCard(k)}
       <div class="h2">Do today</div><div class="card">${doT.map(row).join('') || '<p class="empty">Nothing today. ✓</p>'}</div>${window.FUP ? FUP.famCard(k) : ''}
       ${inT.length ? `<div class="h2">Hand in</div><div class="card">${inT.map(x => `<div class="it"><span class="f-mk am">!</span><span class="t"><b>${esc(x.topic)} ${x.stage ? 'R' + x.stage : 'LD'}</b><small>${esc(sub(x.sub))} · ${x.status === 'late' ? 'late' : 'today'}</small></span></div>`).join('')}</div>` : ''}
       ${out.length ? `<div class="h2">You have</div><div class="card">${out.map(row).join('')}</div>` : ''}
@@ -215,11 +220,11 @@ window.FAM = (function(){
     const prev = new Date(y, m - 2, 1), next = new Date(y, m, 1), ymOf = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
     const L = by[sel] || [];
     return `<div class="ph"><div class="tt"><h1>Calendar</h1></div></div>${kidChips()}
-      ${window.SPLAN && full() ? `<div class="seg" style="display:flex;margin-bottom:12px">${[['Day','#me/day/' + sel],['Week','#me/week/' + sel],['Month',''],['Year','#me/year/' + sel]].map(([l, h]) => h ? `<a style="flex:1;text-align:center;text-decoration:none" href="${h}">${l}</a>` : `<a style="flex:1;text-align:center;text-decoration:none" class="on">${l}</a>`).join('')}</div>` : ''}
+      ${window.SPLAN && has('plan') ? `<div class="seg" style="display:flex;margin-bottom:12px">${[['Day','#me/day/' + sel],['Week','#me/week/' + sel],['Month',''],['Year','#me/year/' + sel]].map(([l, h]) => h ? `<a style="flex:1;text-align:center;text-decoration:none" href="${h}">${l}</a>` : `<a style="flex:1;text-align:center;text-decoration:none" class="on">${l}</a>`).join('')}</div>` : ''}
       <div class="cal-nav"><a class="btn sm" href="#me/calendar/${ymOf(prev)}">‹</a><b>${['January','February','March','April','May','June','July','August','September','October','November','December'][m - 1]} ${y}</b><a class="btn sm" href="#me/calendar/${ymOf(next)}">›</a></div>
       <div class="card pad"><div class="f-cal">${['M','T','W','T','F','S','S'].map(x => `<span>${x}</span>`).join('')}${Array(start).fill('<span></span>').join('')}
         ${Array.from({length: nDays}, (_, i) => { const d = iso(i + 1), E = by[d] || []; return `<a class="${d === sel ? 'on' : ''}" href="#me/calendar/${y}-${String(m).padStart(2, '0')}/${d}">${i + 1}<span>${E.filter(e => e.k === 's').slice(0, 3).map(() => '<i></i>').join('')}${E.some(e => e.k !== 's') ? '<i class="g"></i>' : ''}${window.SPLAN && SPLAN.hasOwn(k, d) ? '<i class="o"></i>' : ''}</span></a>`; }).join('')}</div></div>
-      <div class="h2">${day(sel)}${window.SPLAN && full() ? ` <a class="f-dayl" href="#me/day/${sel}">${isParent() ? 'Day ›' : 'Plan my day ›'}</a>` : ''}</div><div class="card">${window.SPLAN ? SPLAN.monthRows(k, sel, 1) : ''}${L.map(e => e.k === 's' ? sesTell(e.s)
+      <div class="h2">${day(sel)}${window.SPLAN && has('plan') ? ` <a class="f-dayl" href="#me/day/${sel}">${isParent() ? 'Day ›' : 'Plan my day ›'}</a>` : ''}</div><div class="card">${window.SPLAN ? SPLAN.monthRows(k, sel, 1) : ''}${L.map(e => e.k === 's' ? sesTell(e.s)
         : e.k === 'a' ? `<div class="it"><span class="cal-t">${esc(e.a.s || '')}</span><span class="t"><b>${esc((window.MARKS ? MARKS.TY[MARKS.akN(e.a.ak)] : '') || 'Assessment')} · ${esc(sub(e.a.sub))}</b><small>${esc((e.a.tp || []).join(', '))}</small></span></div>`
         : `<div class="it"><span class="f-mk am">!</span><span class="t"><b>${esc(e.x.topic)} ${e.x.stage ? 'R' + e.x.stage : 'LD'}</b><small>${esc(sub(e.x.sub))} · ${e.x.doOn === sel ? 'do' : 'hand in'}</small></span></div>`).join('') || (window.SPLAN && SPLAN.hasOwn(k, sel) ? '' : '<p class="empty">Nothing.</p>')}${window.SPLAN ? SPLAN.monthRows(k, sel) : ''}</div>
 `;
@@ -233,7 +238,7 @@ window.FAM = (function(){
     const R0 = window.FDOC ? FDOC.range(k, 'tp', T()) : null;
     const dlb = isParent() && window.FDOC ? `<div class="h2">Report</div><div class="seg f-per">${FDOC.PER.map(([p, l]) => `<button type="button" class="${perSel === p ? 'on' : ''}" data-fper="${p}">${l.replace('This tuition period', 'Tuition period')}</button>`).join('')}</div>
       <button class="btn n full f-dl" type="button" data-fdl="rep">${DLI} Download report</button><p class="note" style="margin:6px 2px 14px">${(R => esc(R.label) + ' · ' + FDOC.rangeL(R))(FDOC.range(k, perSel, T()))}</p>` : '';
-    return `<div class="ph"><div class="tt"><h1>${isParent() ? 'Sessions' : 'Progress'}</h1>${R0 ? `<p>${esc(R0.label)} · ${FDOC.rangeL(R0)}</p>` : ''}</div><div class="acts"><a class="btn" href="#me/exams">${isParent() ? 'Exams' : 'My exams'}</a></div></div>${kidChips()}${tg}${isParent() && window.FUP ? FUP.famCard(k) : ''}${marks}${window.SX && full() ? (W => `<div class="h2">This week</div><div class="card"><a class="it" href="#me/review"><span class="t"><b>Review</b><small>Week, month, term, year</small></span><span class="chev">›</span></a><a class="it" href="#me/habits"><span class="t"><b>Habits</b><small>Attendance, SRAs on their day, reports</small></span><span class="chev">›</span></a><a class="it" href="#me/school"><span class="t"><b>School results</b></span><span class="chev">›</span></a><button class="it" style="width:100%" data-sxd="ftime"><span class="t"><b>Focus time</b><small>Finished rounds</small></span><b>${SX.hmin(W.focus)}</b><span class="chev">›</span></button><div class="it"><span class="t"><b>Study planned</b><small>${isParent() ? 'Their own blocks: total only' : '<a href="#me/day">Plan in Day view</a>'}</small></span><b>${SX.hmin(W.study)}</b></div></div>`)(SX.weekTotals(k)) : ''}<div class="h2">Sessions <button class="btn sm" data-fhelp style="padding:2px 8px;border-radius:50%">?</button></div><div class="card">${k.subjects.map(sesRow).join('') || '<p class="empty">No tuition this period.</p>'}</div>${dlb}`;
+    return `<div class="ph"><div class="tt"><h1>${isParent() ? 'Sessions' : 'Progress'}</h1>${R0 ? `<p>${esc(R0.label)} · ${FDOC.rangeL(R0)}</p>` : ''}</div><div class="acts"><a class="btn" href="#me/exams">${isParent() ? 'Exams' : 'My exams'}</a></div></div>${kidChips()}${tg}${isParent() && window.FUP ? FUP.famCard(k) : ''}${marks}${window.SX ? (W => `<div class="h2">${has('review') || has('habits') || has('focus') || has('plan') ? 'This week' : 'School'}</div><div class="card">${has('review') ? `<a class="it" href="#me/review"><span class="t"><b>Review</b><small>Week, month, term, year</small></span><span class="chev">›</span></a>` : ''}${has('habits') ? `<a class="it" href="#me/habits"><span class="t"><b>Habits</b><small>Attendance, SRAs on their day, reports</small></span><span class="chev">›</span></a>` : ''}<a class="it" href="#me/school"><span class="t"><b>School results</b></span><span class="chev">›</span></a>${has('focus') ? `<button class="it" style="width:100%" data-sxd="ftime"><span class="t"><b>Focus time</b><small>Finished rounds</small></span><b>${SX.hmin(W.focus)}</b><span class="chev">›</span></button>` : ''}${has('plan') ? `<div class="it"><span class="t"><b>Study planned</b><small>${isParent() ? 'Their own blocks: total only' : '<a href="#me/day">Plan in Day view</a>'}</small></span><b>${SX.hmin(W.study)}</b></div>` : ''}</div>`)(SX.weekTotals(k)) : ''}<div class="h2">Sessions <button class="btn sm" data-fhelp style="padding:2px 8px;border-radius:50%">?</button></div><div class="card">${k.subjects.map(sesRow).join('') || '<p class="empty">No tuition this period.</p>'}</div>${dlb}`;
   }
   function subject(kk){
     const k = kids().find(x => x.subjects.some(s => s.k === kk)) || kid(); if(!k) return emptyNoKids();
@@ -268,8 +273,8 @@ window.FAM = (function(){
     return `<div class="ph"><div class="tt"><h1>More</h1></div></div><div class="card">
       <a class="it" href="#settings"><span class="t"><b>My account</b></span><span class="chev">›</span></a>
       <a class="it" href="#me/exams"><span class="t"><b>${isParent() ? 'Exams' : 'My exams'}</b></span><span class="chev">›</span></a>
-      ${full() ? `<a class="it" href="#me/habits"><span class="t"><b>Habits</b></span><span class="chev">›</span></a>` : ''}
-      ${isParent() ? '' : `${full() ? `<a class="it" href="#me/focus"><span class="t"><b>Focus</b></span><span class="chev">›</span></a>` : ''}
+      ${has('habits') ? `<a class="it" href="#me/habits"><span class="t"><b>Habits</b></span><span class="chev">›</span></a>` : ''}
+      ${isParent() ? '' : `${has('focus') ? `<a class="it" href="#me/focus"><span class="t"><b>Focus</b></span><span class="chev">›</span></a>` : ''}
       <a class="it" href="#me/reminders"><span class="t"><b>Reminders</b></span><span class="chev">›</span></a>
       <a class="it" href="#me/sharing"><span class="t"><b>Sharing</b></span><span class="chev">›</span></a>
       <a class="it" href="#me/bar"><span class="t"><b>Edit the bar</b></span><span class="chev">›</span></a>`}
@@ -377,6 +382,7 @@ window.FAM = (function(){
       post({action:'reply', id: r.join(':'), ok: a === 'ok'}, a === 'ok' ? 'Done' : 'Sent to LHQ'); });
     document.querySelectorAll('[data-fper]').forEach(b => b.onclick = () => { perSel = b.dataset.fper; render(); });
     if(window.FUP && kid()) FUP.famBind(kid());
+    document.querySelectorAll('[data-ffeat]').forEach(b => b.onclick = featSheet);
     document.querySelectorAll('[data-fdl]').forEach(b => b.onclick = async () => { if(!window.FDOC || b.disabled) return; const v = b.dataset.fdl, t = T(), who = me().name || '';
       b.disabled = true; toast('Preparing the PDF…');
       try{
@@ -427,6 +433,15 @@ window.FAM = (function(){
     return {need, info};
   }
   /* after 2 weeks on Lean, Home asks once */
+  function featSheet(){
+    openSheet(`<div class="hx"><h3>Your Hub</h3><button class="ib" data-close>✕</button></div><p class="sp">Add what you'll use. Take it off any time.</p><div class="card">${FEAT.map(([f, t0, s0]) => `<button type="button" class="it" style="width:100%" data-ffeatk="${f}"><span class="t"><b>${t0}</b><small>${s0}</small></span><span class="f-mk ${has(f) ? 'ok' : ''}">${has(f) ? '✓' : ''}</span></button>`).join('')}
+      <div class="it"><span class="t"><b>School results</b><small>Always on</small></span><span class="f-mk ok">✓</span></div></div><p class="note">All on is Full. More › Appearance sets them all at once.</p>`);
+    document.querySelectorAll('[data-ffeatk]').forEach(b => b.onclick = async () => { const f = b.dataset.ffeatk, on = !has(f), s0 = hub.session();
+      if(s0 && s0.me){ const cur = s0.me.view === 'full' ? Object.fromEntries(FEAT.map(([x]) => [x, 1])) : Object.assign({}, s0.me.feat || {}); if(on) cur[f] = 1; else delete cur[f];
+        if(FEAT.every(([x]) => cur[x])){ s0.me.view = 'full'; s0.me.feat = {}; } else { s0.me.view = 'lean'; s0.me.feat = cur; } localStorage.setItem('lhq_session', JSON.stringify(s0)); }
+      featSheet(); render();
+      try{ const j = await hub.api('people', {method: 'POST', body: JSON.stringify({action: 'feat', k: f, on})}); if(j && j.me && s0){ s0.me.view = j.me.view; s0.me.feat = j.me.feat; localStorage.setItem('lhq_session', JSON.stringify(s0)); } }catch(e){ toast('Saved on this device'); } });
+  }
   function moreAsk(){ if(isParent()) return ''; let f = read('lhq_first', 0); if(!f){ f = Date.now(); write('lhq_first', f); } if(read('lhq_moreAsk', 0) || Date.now() - f < 14 * 864e5) return '';
     return `<div class="card pad" style="margin-top:12px"><b>Want to see more?</b><p class="note" style="margin:2px 0 10px">Your cards, focus timer, habits, reviews and planning.</p><div style="display:flex;gap:8px"><button class="btn n" style="flex:1" data-fmore="1">Show me</button><button class="btn" style="flex:1" data-fmore="0">Not now</button></div></div>`; }
   /* search: only what's in this account, for the child in view (parents switch child from here too) */
@@ -447,7 +462,7 @@ window.FAM = (function(){
     if(me0){ const seen = new Set(); G.push({g: 'Payments', items: kids().flatMap(c => c.pay || []).filter(p => !seen.has(p.id) && seen.add(p.id)).map(p => ({t: `${p.number || ''} · ${firstN(p.student || k.name)}`, s: `${mk(p.total || p.amount || 0)}${p.type === 'invoice' ? (p.balance > 0.5 ? ' · balance ' + mk(p.balance) : ' · paid') : ''}`, k: (p.number || '').replace(/-/g, ' ') + ' ' + (p.total || p.amount || ''), href: '#me/payments'}))}); }
     const pages = [['#me','Home'],['#me/practice','Practice','sras ars take-home'],['#me/calendar','Calendar','month'],['#me/progress', me0 ? 'Sessions' : 'Progress','marks targets'],['#me/exams', me0 ? 'Exams' : 'My exams','timetable papers'],['#me/review','Review','week month term year went well lagged'],['#me/school','School results','mid-term end of term grades']]
       .concat(me0 ? [['#me/payments','Payments','invoices receipts statement balance next payment']] : [['#me/report','Today\'s report','daily'],['#me/reminders','Reminders','sra hour'],['#me/sharing','Sharing','tutors see'],['#me/bar','Edit the bar']])
-      .concat(full() && !me0 ? [['#me/focus','Focus','timer pomodoro'],['#me/habits','Habits'],['#me/day','Day · Plan my day','schedule'],['#me/week','My week','schedule blocks activities'],['#me/year','Year']] : [])
+      .concat(me0 ? [] : [has('focus') && ['#me/focus','Focus','timer pomodoro'], has('habits') && ['#me/habits','Habits'], has('plan') && ['#me/day','Day · Plan my day','schedule'], has('plan') && ['#me/week','My week','schedule blocks activities'], has('plan') && ['#me/year','Year'], ['#me/school','School results','marks report']].filter(Boolean))
       .concat([['#set/appearance','Appearance','theme dark colour text size lean full'],['#set/notifications','Notifications','quiet hours']]);
     G.push({g: 'Pages', items: pages.map(([h, t, kw]) => ({t, k: kw || '', href: h}))});
     return G.filter(g => g.items.length);
@@ -464,5 +479,5 @@ window.FAM = (function(){
       <div style="display:flex;gap:8px;margin-top:8px"><button class="btn" style="flex:1" data-fcallink>Copy the link</button><button class="btn" style="flex:1" data-fcalnew>New link</button></div>
       <p class="note" style="margin-top:10px">One way: LHQ Hub → your calendar. Google updates it every few hours. Google: Other calendars › From URL. iPhone: Settings › Calendar › Accounts › Add Subscribed Calendar. Keep it private; New link stops the old one.</p>`;
   }
-  return {page, bind, bell, refresh: fetchData, mineCtx, steps, comingOf, sub, sesTell, full, searchGroups};
+  return {page, bind, bell, refresh: fetchData, mineCtx, steps, comingOf, sub, sesTell, full, has, FEAT, searchGroups};
 })();

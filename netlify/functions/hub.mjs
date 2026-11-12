@@ -142,7 +142,7 @@ function unsign(token) {
 }
 const hashPin = (pin, salt) => crypto.scryptSync(String(pin), salt, 32).toString("hex");
 const pinOk = pin => /^\d{4,6}$/.test(String(pin || ""));
-const pub = p => Object.assign({ id: p.id, name: p.name, role: p.role, admin: staff(p), tutor: !!p.tutor, perms: isDirector(p) ? PERMS.slice() : (p.perms || []), active: p.active !== false, home: p.home || null, cards: p.cards || {}, view: p.view === "full" ? "full" : "lean", nav: Array.isArray(p.nav) ? p.nav : null, seen: p.seen || 0 },
+const pub = p => Object.assign({ id: p.id, name: p.name, role: p.role, admin: staff(p), tutor: !!p.tutor, perms: isDirector(p) ? PERMS.slice() : (p.perms || []), active: p.active !== false, home: p.home || null, cards: p.cards || {}, view: p.view === "full" ? "full" : "lean", feat: p.feat && typeof p.feat === "object" ? p.feat : {}, nav: Array.isArray(p.nav) ? p.nav : null, seen: p.seen || 0 },
   p.auth === "password" ? { auth: "password", username: p.username, email: p.email, status: p.status, hasPw: p.hasPw, locked: !!p.locked, codeUntil: p.codeUntil || null, children: p.children || undefined } : { auth: "pin" });
 
 async function getPeople() {
@@ -670,8 +670,30 @@ function blockOn(b, d) {
   if (b.rep === "days") return (b.days || []).includes(w);
   return d === b.from;
 }
-async function familyData(me) {
-  const kids = await familyOf(me);
+/* a student's figures for staff, the same in Lean or Full: the Director and admins with Students or Tutors see every subject;
+   a tutor sees only their own subjects, and focus and study totals only with the Director's switch on and the student not hiding them. The reflection never. */
+async function stuView(key, me) {
+  key = nk(key); if (!key || !dbMode()) return fail("Which student?", 400);
+  const row = (await q("SELECT id, name, level, person_id FROM students WHERE NOT del", [])).find(r => nk(r.name) === key); if (!row) return fail("Not found.", 404);
+  let subs = null;
+  if (!(isDirector(me) || can(me, "students") || can(me, "tutors"))) {
+    if (!isTutor(me)) return fail("Not for this account.", 403);
+    const cards = (await readAll("doc/")).filter(d => d && !d.del && d.type === "card" && nk(d.student) === key);
+    subs = new Set(cards.flatMap(c => (c.subjects || []).filter(x => nk(x.tutor) === nk(me.name)).map(x => nk(x.name))));
+    if (!subs.size) return fail("Not your student.", 403);
+  }
+  const fd = await familyData({ id: me.id, role: "staff", name: me.name }, { kids: [{ id: row.id, key, name: row.name, level: row.level || "" }], subs });
+  const k = (fd.kids || [])[0]; if (!k) return fail("Not found.", 404);
+  const sp = (((await store().get("kv/lhq_sxp", { type: "json" })) || {})[key]) || {}, set = (await store().get("kv/lhq_settings", { type: "json" })) || {};
+  const per = row.person_id ? (await getPeople()).find(p => p.id === row.person_id) : null;
+  k.view = per ? (per.view === "full" ? "full" : "lean") : "lean"; k.feat = per && per.feat ? per.feat : {}; k.account = !!per;
+  k.tutorOnly = !!subs; k.own = subs && (!set.tsee || sp.hide) ? (!set.tsee ? "off" : "hidden") : "";
+  if (k.sx) { delete k.sx.refl; delete k.sx.plan; if (k.own) { k.sx.focus = []; k.sx.study = 0; } else k.sx.focus = (k.sx.focus || []).map(x => ({ d: x.d, m: x.m })); }
+  delete k.pay; delete k.toConfirm; delete k.answers;
+  return json({ ok: true, k });
+}
+async function familyData(me, opt = {}) {
+  const kids = opt.kids || await familyOf(me);
   if (!kids.length) return { kids: [] };
   await import("../../site/schedule.js"); await import("../../site/sra.js"); const S = globalThis.SCHED, SR = globalThis.SRA;
   const t = mwToday(), docs = (await readAll("doc/")).filter(d => d && !d.del), cards = docs.filter(d => d.type === "card");
@@ -680,8 +702,9 @@ async function familyData(me) {
   const E = Object.values((logs && logs.e) || {}).filter(e => e && !e.x);
   const items = S.items(cards, t);
   return { kids: await Promise.all(kids.map(async kid => {
-    const mineK = k => String(k || "").split("|")[0] === kid.key;
-    const its = items.filter(it => nk(it.st) === kid.key);
+    const subOk = sb => !opt.subs || opt.subs.has(nk(sb));
+    const mineK = k => String(k || "").split("|")[0] === kid.key && (!opt.subs || opt.subs.has(String(k || "").split("|")[1] || ""));
+    const its = items.filter(it => nk(it.st) === kid.key && subOk(it.sub));
     const confirmer = (conf || {})[kid.key] === "parent" ? "parent" : "student";
     const ent = E.filter(e => mineK(e.k));
     const subjects = its.map(it => { const T = S.tally(it, ent, t, e => cfState(e)); return { k: it.k, sub: it.sub, tutor: it.tutor, days: it.days, times: it.days.map(d => Object.assign({ d }, S.timesOf(it.x, d))), pa: it.pa, b: it.b, cap: it.cap,
@@ -692,7 +715,7 @@ async function familyData(me) {
     const toConfirm = canConfirm ? sessions.filter(e => e.st === "waiting") : [];
     const answers = canConfirm ? sessions.filter(e => e.st === "disputed" && e.cf && e.cf.step === "student") : [];
     /* SRAs given and not yet handed in, and the take-home pack from its hand-over day (the pack's sheets stay listed, done or not, until a week after the last one) */
-    const sraIts = S.items(cards, t, 45).filter(it => nk(it.st) === kid.key);
+    const sraIts = S.items(cards, t, 45).filter(it => nk(it.st) === kid.key && subOk(it.sub));
     const allS = SR.build(sraIts.map(it => ({ k: it.k, days: it.days, a: it.pa, b: it.b, st: it.st, sub: it.sub, periods: it.periods })), ent, t);
     const sras = allS.filter(x => x.pack ? x.pack.on <= t && SR.add(x.doOn, 7) >= t : x.given && x.status !== "in").map(x => { const id = [x.k, x.topic, x.stage].join("|"), dn = (done || {})[id];
         return Object.assign({ id, sub: x.sub, topic: x.topic, label: x.label, stage: x.stage, doOn: x.doOn, due: x.due, status: x.status, done: !!dn || x.status === "in" },
@@ -747,7 +770,7 @@ async function familyData(me) {
     const mon = S.addDays(t, -((new Date(t + "T00:00:00Z").getUTCDay() + 6) % 7));
     const sx = { wk: allS.filter(x => x.doOn >= mon && x.doOn <= S.addDays(mon, 6) && !x.pack).map(x => { const id = [x.k, x.topic, x.stage].join("|"); return { sub: x.sub, topic: x.topic, stage: x.stage, doOn: x.doOn, status: x.status, done: !!(done || {})[id] || x.status === "in" }; }),
       pk: allS.filter(x => x.pack && x.doOn >= S.addDays(t, -120) && x.doOn <= t).map(x => { const id = [x.k, x.topic, x.stage].join("|"); return { sub: x.sub, topic: x.topic, stage: x.stage, doOn: x.doOn, done: !!(done || {})[id] || x.status === "in" }; }),
-      fu: Object.values((await store().get("kv/lhq_fu", { type: "json" })) || {}).filter(f => f && !f.x && String(f.k || "").split("|")[0] === kid.key).map(f => ({ id: f.id, sub: f.sub, tk: f.tk, act: f.act, set: f.set, by: f.by, before: f.before, foc: f.foc, tutor: f.tutor, res: f.res ? { pc: f.res.pc, d: f.res.d } : null, th: f.th || null })),
+      fu: Object.values((await store().get("kv/lhq_fu", { type: "json" })) || {}).filter(f => f && !f.x && mineK(f.k)).map(f => ({ id: f.id, sub: f.sub, tk: f.tk, act: f.act, set: f.set, by: f.by, before: f.before, foc: f.foc, tutor: f.tutor, res: f.res ? { pc: f.res.pc, d: f.res.d } : null, th: f.th || null })),
       rep: Object.keys(((sreps || {})[kid.key]) || {}), focus: (((focus || {})[kid.key]) || []).filter(x => x.d >= S.addDays(t, -120)),
       plan: me.role === "student" ? Object.values(((plan || {})[kid.key]) || {}) : null, tsee: !!(set || {}).tsee, hide: !!((((await store().get("kv/lhq_sxp", { type: "json" })) || {})[kid.key]) || {}).hide, refl: me.role === "student" ? (((((await store().get("kv/lhq_sxp", { type: "json" })) || {})[kid.key]) || {}).refl || {}) : null, school: Object.values((((await store().get("kv/lhq_school", { type: "json" })) || {})[kid.key]) || {}),
       study: (() => { const P = Object.values(((plan || {})[kid.key]) || {}).filter(b => !b.all && (b.type === "study" || b.type === "rev")); let m = 0;   // planned study minutes this week, for parents and tutors
@@ -1250,7 +1273,14 @@ async function managePeople(req, me) {
     await putPeople(list); return json({ ok: true, token: newToken(p), people: list.map(pub) });
   }
   if (b.action === "view") {   // what each person sees: lean (the default) or full
-    const p = find(me.id); p.view = b.view === "full" ? "full" : "lean";
+    const p = find(me.id); p.view = b.view === "full" ? "full" : "lean"; p.feat = {};   // Lean or Full sets every feature at once
+    await putPeople(list); return json({ ok: true, me: pub(p) });
+  }
+  if (b.action === "feat") {   // Lean with features added one at a time (✎ on Home); all on is Full
+    const F = ["cards", "focus", "plan", "habits", "review"], p = find(me.id); if (!F.includes(b.k)) return fail("Which feature?");
+    const cur = p.view === "full" ? Object.fromEntries(F.map(x => [x, 1])) : Object.assign({}, p.feat || {});
+    if (b.on) cur[b.k] = 1; else delete cur[b.k];
+    if (F.every(x => cur[x])) { p.view = "full"; p.feat = {}; } else { p.view = "lean"; p.feat = cur; }
     await putPeople(list); return json({ ok: true, me: pub(p) });
   }
   if (b.action === "nav") {   // what each person keeps in the bar and sidebar (after Home): up to 3 places, or null for the default
@@ -1416,6 +1446,9 @@ async function calFeed(path) {
 async function studentTime(stKeys, mySubs, tsee) {
   const [focus, plan, sxp] = await Promise.all(["lhq_focus", "lhq_plan", "lhq_sxp"].map(k => store().get("kv/" + k, { type: "json" })));
   await import("../../site/schedule.js"); const S = globalThis.SCHED, t = mwToday(), mon = S.addDays(t, -((new Date(t + "T00:00:00Z").getUTCDay() + 6) % 7)), out = {};
+  /* which features each student uses (Lean with some added, or Full), so "0" never stands for "not using" */
+  const ppl = await getPeople(), byPid = new Map(ppl.map(p => [p.id, p])), rows = dbMode() ? await q("SELECT name, person_id FROM students WHERE NOT del AND person_id IS NOT NULL", []) : [];
+  const use = {}; rows.forEach(r => { const p = byPid.get(r.person_id); if (p) use[nk(r.name)] = p.view === "full" ? { full: 1 } : (p.feat || {}); });
   for (const st of stKeys) {
     const P = Object.values((plan || {})[st] || {}).filter(b => b && b.from), F = ((focus || {})[st] || []), hide = !!(((sxp || {})[st] || {}).hide), o = {};
     o.dates = P.filter(b => b.all && (b.sh === "all" || (b.sh === "sub" && mySubs.has(st + "|" + nk(b.sub)))) && (b.to || b.from) >= S.addDays(t, -7)).map(b => ({ name: b.name, type: b.type, from: b.from, to: b.to || "", busy: b.busy ? 1 : 0, sub: b.sub || "" }));
@@ -1425,6 +1458,7 @@ async function studentTime(stKeys, mySubs, tsee) {
         for (let j = 0; j < 7; j++) { const d = S.addDays(a, j); P.filter(b => !b.all && (b.type === "study" || b.type === "rev") && blockOn(b, d)).forEach(b => { pl += Math.max(0, (S.mins(b.e) || 0) - (S.mins(b.s) || 0)); }); }
         const L = F.filter(x => x.d >= a && x.d <= z); o.w.push({ mon: a, f: L.reduce((s2, x) => s2 + (x.m || 0), 0), p: pl, bySub: L.reduce((m, x) => { m[x.sub || ""] = (m[x.sub || ""] || 0) + (x.m || 0); return m; }, {}), rounds: i === 0 ? L.map(x => [x.d, x.sub || "", x.m]) : undefined }); }
     } else o.hidden = tsee ? "student" : "lhq";
+    const u = use[st]; o.uses = u ? { focus: !!(u.full || u.focus), plan: !!(u.full || u.plan) } : null;
     out[st] = o;
   }
   return out;
@@ -1727,6 +1761,7 @@ export default async (req, context) => {
     if (req.method === "POST" && path === "asks") return await asksPost(req, me);
     if (req.method === "POST" && path === "school") return await schoolPost(req, me);
     if (req.method === "GET" && path === "family") return await familyGet(me);
+    if (req.method === "GET" && path === "stuview") return await stuView(new URL(req.url).searchParams.get("k") || "", me);
     if (req.method === "POST" && path === "family") return await familyPost(req, me);
     if (req.method === "POST" && path === "confirmer") return await setConfirmer(req, me);
     if (req.method === "POST" && path === "exams") return await examsPost(req, me);

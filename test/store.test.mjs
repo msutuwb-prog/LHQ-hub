@@ -431,6 +431,19 @@ test("students and parents: their own children only; the student confirms or say
   assert.equal((await call("family", null, other, "GET")).j.kids.length, 1, "another student sees only themselves");
   assert.equal((await call("family", { action: "confirm", id: "fsx1" }, other)).status, 403, "and can't confirm someone else's session");
   assert.equal((await call("family", null, tok, "GET")).status, 403, "tutors don't use this");
+  // Lean with features added one at a time; all on is Full; Lean or Full resets them
+  let pv = await call("people", { action: "feat", k: "focus", on: 1 }, stu); assert.equal(pv.j.me.view, "lean"); assert.deepEqual(pv.j.me.feat, { focus: 1 });
+  for (const f of ["cards", "plan", "habits", "review"]) pv = await call("people", { action: "feat", k: f, on: 1 }, stu);
+  assert.equal(pv.j.me.view, "full", "all on is Full"); assert.deepEqual(pv.j.me.feat, {});
+  pv = await call("people", { action: "feat", k: "plan", on: 0 }, stu); assert.equal(pv.j.me.view, "lean"); assert.equal(Object.keys(pv.j.me.feat).length, 4);
+  assert.equal((await call("people", { action: "feat", k: "nope", on: 1 }, stu)).status, 400);
+  pv = await call("people", { action: "view", view: "lean" }, stu); assert.deepEqual(pv.j.me.feat, {});
+  // staff see the student's figures, the same in Lean or Full; the tutor only for their own students
+  const sv = await call("stuview?k=" + encodeURIComponent("Wezi Banda"), null, tok, "GET"); assert.equal(sv.status, 200, JSON.stringify(sv.j));
+  assert.ok(sv.j.k.hist && sv.j.k.marks, "effort and marks"); assert.equal(sv.j.k.view, "lean"); assert.ok(!sv.j.k.sx.refl, "never the reflection"); assert.ok(!sv.j.k.toConfirm);
+  assert.equal((await call("stuview?k=" + encodeURIComponent("Mphatso Kalua"), null, tok, "GET")).status, 403, "not their student");
+  assert.equal((await call("stuview?k=" + encodeURIComponent("Wezi Banda"), null, stu, "GET")).status, 403, "students don't use this");
+  assert.equal((await call("stuview?k=" + encodeURIComponent("Wezi Banda"), null, DIR, "GET")).status, 200, "the Director sees every student");
   // the student confirms one, and says another wasn't right
   assert.equal((await call("family", { action: "confirm", id: "fsx1" }, stu)).status, 200);
   const d1 = await call("family", { action: "dispute", id: "fsx2", kind: "late", t1: "09:20", t2: "10:00", note: "Sir came at 9:20" }, stu);

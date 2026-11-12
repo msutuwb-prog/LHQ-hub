@@ -577,18 +577,20 @@ window.TUT = (function(){
       (I.length ? `<div class="card">${I.map(it => { const S = sessions(it); return `<a class="it" href="#teach/student/${encodeURIComponent(it.k)}" style="align-items:flex-start"><span class="t"><b>${esc(it.st)}</b><small>${esc(it.sub)} · ${S.had} of ${S.planned || '?'} had · ${S.remaining} left${S.owed ? ` · ${S.owed} make-up${S.owed > 1 ? 's' : ''} owed` : ''}</small>${bar(S)}</span>${S.behind ? `<span class="tag am">${S.behind} behind</span>` : '<span class="tag ok">On track</span>'}</a>`; }).join('')}</div><p class="note">Dark mark: where they should be today.</p>`
         : '<p class="empty">No students yet. They appear when LHQ puts you on a tuition card.</p>');
   }
-  const SECS = {study:'Study and dates', target:'Target and exams', ses:'Sessions and make-ups', sra:'SRA scores by review', wa:'Assessments', logs:'Recent logs', topics:'Topics finished', time:'Timetable'};
+  const SECS = {eff:'Effort', study:'Study and dates', target:'Target and exams', ses:'Sessions and make-ups', sra:'SRA scores by review', wa:'Assessments', logs:'Recent logs', topics:'Topics finished', time:'Timetable'};
   function studentPage(k){
     const it = itemOf(k); if(!it) return backHome() + '<p class="empty">That student isn\'t on your tuition cards.</p>';
-    const S = sessions(it), ed = editing === 'tstudent', on = (myCards('tstudent') || ['target','study','ses','sra','wa','time']).filter(x => SECS[x]);
+    const S = sessions(it), ed = editing === 'tstudent', on = (myCards('tstudent') || ['target','eff','study','ses','sra','wa','time']).filter(x => SECS[x]);
     const L = sras().filter(x => x.k === k), byT = new Map(); L.forEach(x => { if(!byT.has(x.topic)) byT.set(x.topic, []); byT.get(x.topic).push(x); });
     const cell = x => { const p = x && x.score ? Math.round(x.score.sc / x.score.mx * 100) : null; return p == null ? '<span class="c" style="color:var(--muted)">·</span>' : `<span class="c ${p >= 75 ? 'ok' : p >= 60 ? 'am' : 'rd'}">${p}</span>`; };
     const W = live().filter(e => e.ty === 'w' && e.k === k && e.sc != null && e.sc !== '' && +e.mx > 0).sort((a, b) => a.d.localeCompare(b.d)).slice(-6);
     const xi = exInfo(k);
     const sxx = sxOf(it.st), SW = sxx.w || [], cur = SW[SW.length - 1], prv = SW[SW.length - 2], hmn = m => m >= 60 ? `${Math.floor(m / 60)} h${m % 60 ? ' ' + String(m % 60).padStart(2, '0') : ''}` : `${m} min`;
+    const nuF = !!(cur && sxx.uses && !sxx.uses.focus && !SW.some(w => w.f)), nuP = !!(cur && sxx.uses && !sxx.uses.plan && !SW.some(w => w.p));
     const dlt = (a, b) => b == null ? '' : `${a >= b ? '▲' : '▼'} ${hmn(Math.abs(a - b))} on last week`, mx = Math.max(1, ...SW.map(w => Math.max(w.f, w.p)));
     const SEC = {
-      study: () => `<div class="card pad" style="margin:0"><div class="cap">Study this week</div>${cur ? `<div class="mcs" style="grid-template-columns:repeat(2,minmax(0,1fr));gap:8px"><button type="button" class="mc" data-tsx="f"><span class="l">Focus time</span><span class="v">${hmn(cur.f)}<span class="mca">›</span></span><span class="s">${dlt(cur.f, prv && prv.f)}</span></button><button type="button" class="mc" data-tsx="p"><span class="l">Study planned</span><span class="v">${hmn(cur.p)}<span class="mca">›</span></span><span class="s">${dlt(cur.p, prv && prv.p)}</span></button></div>
+      eff: () => `<div style="margin:0">${window.STV ? STV.page(SCHED.nk(it.st), 'tutor') : ''}</div>`,
+      study: () => `<div class="card pad" style="margin:0"><div class="cap">Study this week</div>${cur ? `<div class="mcs" style="grid-template-columns:repeat(2,minmax(0,1fr));gap:8px"><button type="button" class="mc" data-tsx="f"><span class="l">Focus time</span><span class="v">${nuF ? '–' : hmn(cur.f)}<span class="mca">›</span></span><span class="s">${nuF ? 'Lean · not using Focus' : dlt(cur.f, prv && prv.f)}</span></button><button type="button" class="mc" data-tsx="p"><span class="l">Study planned</span><span class="v">${nuP ? '–' : hmn(cur.p)}<span class="mca">›</span></span><span class="s">${nuP ? 'Lean · not using Plan my day' : dlt(cur.p, prv && prv.p)}</span></button></div>
           <div class="it" style="padding:8px 0"><span class="t"><b>${esc(it.sub)}</b><small>Your subject · focus this week</small></span><b>${hmn((cur.bySub || {})[it.sub] || 0)}</b></div>
           <div class="t-w5">${SW.map((w, i) => `<button type="button" data-tsx="w${i}"><span><i style="height:${Math.round(w.f / mx * 70)}px" class="f"></i><i style="height:${Math.round(w.p / mx * 70)}px" class="p"></i></span><small>${+w.mon.slice(8)} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+w.mon.slice(5, 7) - 1]}</small></button>`).join('')}</div>
           <div class="t-lg"><span><i class="f"></i>Focus</span><span><i class="p"></i>Planned</span></div>` : `<p class="note" style="margin:0">${sxx.hidden === 'student' ? esc(it.st.split(' ')[0]) + ' keeps these private.' : 'Off at LHQ.'}</p>`}
@@ -1071,6 +1073,7 @@ window.TUT = (function(){
       EXUI.targetSheet({k, name: it.st, sub: it.sub, i, onSaved: async () => { await fetchData(); render(); }}); });
     const on = (sel, fn) => document.querySelectorAll('#main ' + sel).forEach(el => el.onclick = ev => fn(el, ev));
     on('[data-ttop]', el => { try{ const o = JSON.parse(el.dataset.ttop); topicSheet(o.k, o.tk); }catch(e){} });
+    if(window.STV) STV.bind();
     // the report dot on the bar
     document.querySelectorAll('.t-dot').forEach(x => x.remove());
     if(data && tutorRole()){ const due = !todayRep(); document.querySelectorAll('a[href$="#teach/report"]').forEach(a => { if(a.closest('#main')) return; const d = document.createElement('span'); d.className = 't-dot' + (due ? '' : ' ok'); d.title = due ? 'Today\'s report is due' : 'Today\'s report is sent'; a.appendChild(d); }); }

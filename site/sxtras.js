@@ -229,14 +229,14 @@ window.SX = (function(){
     css(); const X = k.sx || {}, swb = (on, id, dis) => `<button class="sp-sw ${on ? 'on' : ''}" ${dis ? 'disabled' : ''} data-sxsh="${id}" aria-label="On or off" style="width:46px;height:28px;border-radius:99px;border:0;background:${on ? 'var(--ok)' : 'var(--line)'};position:relative;flex:none"><i style="position:absolute;top:3px;left:${on ? 21 : 3}px;width:22px;height:22px;border-radius:50%;background:#fff"></i></button>`;
     return `<a class="crumb" href="#me/more">‹ More</a><div class="ph"><div class="tt"><h1>Sharing</h1><p>What your tutors see</p></div></div>
       <div class="h2">With your tutors</div><div class="card">
-        ${X.tsee ? `<div class="it"><span class="t"><b>Focus and study totals</b><small>This week's focus time and study planned</small></span>${swb(!X.hide, 'tot')}</div>` : `<div class="it"><span class="t"><b>Focus and study totals</b><small>Off at LHQ</small></span><span class="note">Off</span></div>`}
-        <a class="it" href="#me/week"><span class="t"><b>Your dates and busy times</b><small>You choose for each one when you add it</small></span><span class="chev">›</span></a>
+        ${!(window.FAM && (FAM.has('focus') || FAM.has('plan'))) ? '' : X.tsee ? `<div class="it"><span class="t"><b>Focus and study totals</b><small>This week's focus time and study planned</small></span>${swb(!X.hide, 'tot')}</div>` : `<div class="it"><span class="t"><b>Focus and study totals</b><small>Off at LHQ</small></span><span class="note">Off</span></div>`}
+        <a class="it" href="${window.FAM && FAM.has('plan') ? '#me/week' : '#me/calendar'}"><span class="t"><b>Your dates and busy times</b><small>You choose for each one when you add it</small></span><span class="chev">›</span></a>
         <div class="it"><span class="t"><b>Study blocks</b><small>Names and times</small></span><span class="note">🔒 private</span></div></div>
-      <div class="h2">Always shared 🔒</div><div class="card">${['Sessions and attendance','SRAs, ARS and marks','Assessments'].map(a => `<div class="it"><span class="t">${a}</span><span>🔒</span></div>`).join('')}</div>`;
+      <div class="h2">Always shared 🔒</div><div class="card">${['Sessions and attendance','SRAs, ARS and marks','Assessments','Effort: attendance, SRAs on their day, reports'].map(a => `<div class="it"><span class="t">${a}</span><span>🔒</span></div>`).join('')}</div>`;
   }
   /* ---------- the bar: Home, Practice, two of their choice, More ---------- */
   const CHOICE = [['mcal','Calendar','index.html#me/calendar'],['mprog','Progress','index.html#me/progress'],['mfocus','Focus','index.html#me/focus'],['mrep','Report','index.html#me/report']];
-  const isFull = () => ((((window.hub && hub.session && hub.session()) || {}).me || {}).view === 'full');
+  const isFull = () => window.FAM && FAM.has ? FAM.has('focus') : ((((window.hub && hub.session && hub.session()) || {}).me || {}).view === 'full');
   const barPicks = () => { const p = read('lhq_sxbar', ['mcal', 'mprog']).filter(x => CHOICE.some(c => c[0] === x) && (x !== 'mfocus' || isFull())); return p.length === 2 ? p : ['mcal', 'mprog']; };
   function barPage(){
     css(); const P = barPicks();
@@ -270,5 +270,5 @@ window.SX = (function(){
   }
   /* parents and tutors: the week's totals only */
   function weekTotals(k){ const mon = mondayOf(T()), f = weekFocus(k, mon).reduce((a, x) => a + x.m, 0), st0 = (k.sx || {}).study || 0; return {focus: f, study: st0}; }
-  return {sharing, memory, homeCards, focusPage, habits, dayView, reminders, barPage, barPicks, CHOICE, bind, weekTotals, hmin, tick};
+  return {drill, cons, consGrid, exI, habitRows, range, HAB, row, sheet, css, sharing, memory, homeCards, focusPage, habits, dayView, reminders, barPage, barPicks, CHOICE, bind, weekTotals, hmin, tick};
 })();

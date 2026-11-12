@@ -48,6 +48,7 @@ if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash)
 <script src="tpayui.js"></script>
 <script src="srafig.js"></script>
 <script src="fu.js"></script>
+<script src="stuview.js"></script>
 <script src="push.js"></script>
 <script src="teach.js"></script>
 <script src="famdocs.js"></script>
@@ -765,8 +766,9 @@ P.student = (key, tab = 'overview') => {
   const s = HD.students().find(x => x.key === key);
   if(!s) return `${crumb('#students', 'Students')}<p class="empty">That student isn't here. They may have been renamed.</p>`;
   const myRows = can('tutors') ? sessionRows().filter(r => SCHED.nk(r.it.st) === SCHED.nk(s.name)) : [];
-  const tabs = [['overview','Overview']].concat(myRows.length ? [['sessions','Sessions']] : [], (isDir() || can('tutors')) && PREVIEW_OR_DB() ? [['accounts','Accounts']] : [], [['marks','Marks']], store.get('lhq_sreports', null) ? [['reports','Reports']] : [], [['documents',`Doc<span class="x-ph">ument</span>s<i>${s.docs.length}</i>`],['details','Details']]);
+  const tabs = [['overview','Overview']].concat((isDir() || can('students') || can('tutors')) && window.STV ? [['effort','Effort']] : [], myRows.length ? [['sessions','Sessions']] : [], (isDir() || can('tutors')) && PREVIEW_OR_DB() ? [['accounts','Accounts']] : [], [['marks','Marks']], store.get('lhq_sreports', null) ? [['reports','Reports']] : [], [['documents',`Doc<span class="x-ph">ument</span>s<i>${s.docs.length}</i>`],['details','Details']]);
   let body = '';
+  if(tab === 'effort' && window.STV) body = STV.page(SCHED.nk(s.name), 'dir');
   if(tab === 'overview') body = (window.PC ? PC.block('student', {s}, 'This period') : '') + stuOverview(s) + (window.SRAFIG && can('tutors') ? SRAFIG.student(s.key) : '');
   if(tab === 'accounts'){
     const ppl = HD.people(), nkk = SCHED.nk, sp = ppl.find(p => p.role === 'student' && nkk(p.name) === nkk(s.name)), par = ppl.filter(p => p.role === 'parent' && (p.children || []).some(c => nkk(c) === nkk(s.name)));
@@ -830,7 +832,7 @@ P.student = (key, tab = 'overview') => {
          <p class="note">New documents use these.</p></div>`;
   }
   return `${crumb('#students', 'Students', 'student/' + encodeURIComponent(key))}
-  <div class="ph"><div class="tt"><h1>${esc(s.name)}</h1><p>${esc([s.level, s.school].filter(Boolean).join(' · ') || ' ')}</p></div><div class="acts" style="align-items:center"><span class="tag ${s.status.cls}">${s.status.text}</span><a class="btn sm" href="#rep/student/${encodeURIComponent(s.key)}">${ic('rep',15)} Report</a></div></div>
+  <div class="ph"><div class="tt"><h1>${esc(s.name)}</h1><p>${esc([s.level, s.school].filter(Boolean).join(' · ') || ' ')}${tab === 'effort' && window.STV ? STV.tag(SCHED.nk(s.name)) : ''}</p></div><div class="acts" style="align-items:center"><span class="tag ${s.status.cls}">${s.status.text}</span><a class="btn sm" href="#rep/student/${encodeURIComponent(s.key)}">${ic('rep',15)} Report</a></div></div>
   <div class="tabs">${tabs.map(([k, l]) => `<a class="${tab === k ? 'on' : ''}" href="${stuLink(s.key, k)}">${l}</a>`).join('')}</div>${body}`;
 };
 function stuOverview(s){
@@ -1590,9 +1592,9 @@ S.appearance = () => { const L = LHQNav.layout(), th = lhqTheme.choice(), tx = l
     <div class="cap">Text size</div>${seg('data-txt', tx, [['s','Standard'],['l','Large'],['xl','Larger']])}
     <div class="x-ph"><div class="cap">Menu</div>${seg('data-layout', L, [['bottom','Bottom bar'],['side','Sidebar']])}</div></div>
   <div class="h2">Everywhere you sign in</div>
-  ${me().role === 'parent' ? '' : `<div class="card pad"><div class="cap">What you see</div>${seg('data-view', LEAN() ? 'lean' : 'full', [['lean','Lean'],['full','Full']])}
-    <p class="note" style="margin:0">${me().role === 'student' ? (LEAN() ? 'The essentials. Full adds your cards, focus, habits, reviews, planning and school results.' : 'Everything: planning, focus, reviews, school results, countdowns.') : LEAN() ? 'Main places and fields. The rest under More.' : 'Everything in view.'}</p>
-    ${me().role === 'student' ? '<p class="note" style="margin:6px 0 0">🔒 Always shown: Today, reminders, On track, sessions, the month calendar, Practice today.</p>' : ''}</div>`}
+  ${me().role === 'parent' ? '' : `<div class="card pad"><div class="cap">What you see</div>${seg('data-view', LEAN() ? 'lean' : 'full', [['lean', me().role === 'student' && LEAN() && Object.keys(me().feat || {}).length ? `Lean · ${Object.keys(me().feat).length} added` : 'Lean'],['full','Full']])}
+    <p class="note" style="margin:0">${me().role === 'student' ? (LEAN() ? 'Sessions, SRAs, marks, school results. Add more with ✎ on Home.' : 'Everything: cards, Focus, Plan my day, Habits, Review.') : LEAN() ? 'Main places and fields. The rest under More.' : 'Everything in view.'}</p>
+    ${me().role === 'student' && window.FAM && FAM.FEAT ? `<div class="card" style="margin:10px 0 0">${FAM.FEAT.map(([f, t0]) => `<div class="it"><span class="t"><b>${t0}</b></span><span class="f-mk ${FAM.has(f) ? 'ok' : ''}" style="width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:900;border:2px solid ${FAM.has(f) ? 'var(--ok)' : 'var(--line)'};background:${FAM.has(f) ? 'var(--ok)' : 'none'};color:#fff">${FAM.has(f) ? '✓' : ''}</span></div>`).join('')}</div><p class="note" style="margin:6px 0 0">LHQ and your tutors see your SRAs, marks and effort either way. Focus and study count once you use them.</p>` : ''}</div>`}
   ${menu}
   ${staffNav ? `<div class="card"><a class="it" href="#edithome"><span class="ico">${ic('edit', 18)}</span><span class="t"><b>Home cards</b><small>${myCards().length} on Home</small></span><span class="chev">›</span></a></div>` : ''}`;
 };
@@ -1896,6 +1898,7 @@ function bind(){
   if(route.page === 'kpi' && window.KPIUI) KPIUI.bindDir();
   if(window.SRAFIG && (route.page === 'srafig' || route.page === 'student')){ SRAFIG.bind(); SRAFIG.tdBind(); }
   if(window.FUP && route.page === 'fu') FUP.bind();
+  if(window.STV && route.page === 'student') STV.bind();
   if(window.REV && route.page === 'student') REV.bindLHQ();
   if(window.SOUNDS && route.page === 'sounds') SOUNDS.bind();
   if(window.TPAYUI && (route.page === 'pay' || (route.page === 'set' && /tpay/.test(location.hash)))) TPAYUI.bind();
@@ -1910,7 +1913,7 @@ function bind(){
   if($('termSave')) $('termSave').onclick = () => { const L = termDraft.filter(t => t[0].trim() && t[1] && t[2]); if(L.some(t => t[1] > t[2])){ toast('A term ends before it starts'); return; } saveSettings({terms: L.map(t => [t[0].trim(), t[1], t[2]])}); termDraft = null; render(); };
   if($('ohSave')) $('ohSave').onclick = () => { const o = {}; ['Mo','Tu','We','Th','Fr','Sa','Su'].forEach(d => { const a = $('oh' + d + 'a').value, b = $('oh' + d + 'b').value; o[d] = a && b && a < b ? [a, b] : null; }); saveSettings({openHours: o}); };
   document.querySelectorAll('[data-view]').forEach(el => el.onclick = async () => { const v = el.dataset.view, s0 = hub.session();
-    if(s0 && s0.me){ s0.me.view = v; localStorage.setItem('lhq_session', JSON.stringify(s0)); } LHQNav.section(route.page); render();
+    if(s0 && s0.me){ s0.me.view = v; s0.me.feat = {}; localStorage.setItem('lhq_session', JSON.stringify(s0)); } LHQNav.section(route.page); render();
     try{ await hub.api('people', {method:'POST', body: JSON.stringify({action:'view', view:v})}); toast(v === 'lean' ? 'Lean' : 'Full'); }catch(e){ toast('Saved on this device'); } });
   document.querySelectorAll('[data-attg]').forEach(el => el.onclick = () => { attG[el.dataset.attg] = !attG[el.dataset.attg]; render(); });
   if($('attTog')) $('attTog').onclick = () => { attOpen = !attOpen; try{ localStorage.setItem('lhq_attOpen', attOpen ? '1' : '0'); }catch(e){} render(); };
