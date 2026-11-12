@@ -1,6 +1,6 @@
 /* LHQ Hub: colours and the navigation shared by every page (Home, Students, Documents, a document, Reports, Settings).
    Navigation: a bottom bar (default) or a sidebar, chosen per device in Settings › My account. Phones always use the bottom bar. */
-:root{--navy:#073763;--gold:#f4b223;--wa:#1f9d55;
+:root{--navy:#073763;--gold:#f4b223;--wa:#15803d;
   --bg:#f5f6f8;--surface:#fff;--surface2:#fafbfc;--ink:#14213d;--muted:#6b7585;--line:#e4e7ec;--line2:#eef0f3;--field:#fff;--accent:#073763;--onaccent:#fff;--brand:#073763;--hover:#eef1f5;
   --ok-bg:#e6f4ec;--ok:#1f7a4d;--rd-bg:#fdecea;--rd:#b42318;--am-bg:#fdf3d9;--am:#7a5400;--bl-bg:#eaf0f7;--bl:#073763;--gr-bg:#f1f3f6;--gr:#6b7482;--shadow:0 10px 30px rgba(20,33,61,.14)}
 [data-theme=dark]{--bg:#0d1420;--surface:#151e2c;--surface2:#1a2433;--ink:#e8edf4;--muted:#93a0b3;--line:#253246;--line2:#1f2a3a;--field:#111a27;--accent:#f4b223;--onaccent:#0d1420;--brand:#e8edf4;--hover:#1c2738;

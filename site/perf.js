@@ -376,7 +376,7 @@ window.PERF = (function(){
     tutor: {t: 'Tutor report', d: 'Sessions, logging, assessments and make-ups, per tutor.', need: 'pl|tutors',
       SECTIONS: [['summary','Summary'],['quality','Session quality'],['students','Each tutor\'s students'],['logging','Logging'],['makeups','Make-ups owed']],
       AUD: {director: {n: 'Director', s: ['summary','quality','students','logging','makeups'], anon: false, money: false}, tutor: {n: 'The tutor\'s own copy', s: ['summary','quality','students','makeups'], anon: false, money: false}}, build: buildTutor, pick: 'tutor'},
-    student: {t: 'Student report', d: 'One student: attendance, sessions, topics covered, test scores, tutors\' comments, next steps and (for LHQ) payments.', need: 'pl|students|cards', dflt: 'period',
+    student: {t: 'Student report', d: 'One student: attendance, sessions, topics covered, assessment scores, tutors\' comments, next steps and (for LHQ) payments.', need: 'pl|students|cards', dflt: 'period',
       SECTIONS: [['summary','Summary'],['attendance','Attendance'],['topics','Topics covered'],['tests','Assessments'],['recall','SRAs and recall'],['comments','Tutors\' comments'],['next','Next steps'],['payments','Payments']],
       AUD: {parent: {n: 'Parent', s: ['summary','attendance','topics','tests','recall','comments','next'], anon: false, money: false}, internal: {n: 'Inside LHQ', s: ['summary','attendance','topics','tests','recall','comments','next','payments'], anon: false, money: true}}, build: buildStudent, pick: 'student'},
   };

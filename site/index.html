@@ -185,7 +185,7 @@ table.says td.lo{color:var(--am);font-weight:800}table.says tr.all td{color:var(
 /* Students: a table on wide screens */
 .srow .c,.srow.sh{display:none}
 @container (min-width:860px){
-  #slist .srow{display:grid;grid-template-columns:32px minmax(0,1.3fr) minmax(0,.8fr) minmax(0,.9fr) minmax(0,1.8fr) 100px;gap:14px;align-items:center}
+  #slist .srow{display:grid;grid-template-columns:32px minmax(0,1.3fr) minmax(0,.8fr) minmax(0,.9fr) minmax(0,1.8fr) 100px 10px;gap:14px;align-items:center}
   #slist .srow .c{display:block;color:var(--muted);font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   #slist .srow .t small{display:none}
   #slist .srow.sh{display:grid;padding:12px 0 6px;font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}
@@ -218,7 +218,7 @@ textarea.in{min-height:200px;line-height:1.45;resize:vertical}
 .lock{display:flex;align-items:center;gap:10px;padding:9px 0;border-top:1px solid var(--line2);color:var(--muted);font-size:13.5px}
 .lchips{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px}
 .lchips span{display:inline-flex;align-items:center;gap:2px;background:var(--bl-bg);color:var(--bl);border-radius:99px;padding:4px 4px 4px 11px;font-size:13px;font-weight:700}
-.lchips span button{border:0;background:none;color:inherit;width:24px;height:24px;border-radius:50%;padding:0;opacity:.7}
+.lchips span button{border:0;background:none;color:inherit;width:30px;height:30px;border-radius:50%;padding:0;opacity:.7}
 .addrow{display:flex;gap:8px}.addrow .in{min-height:38px;padding:7px 11px;font-size:14px}
 .vars{display:flex;flex-wrap:wrap;gap:5px;margin:-4px 0 12px}
 .vars button{font-size:11.5px;font-family:ui-monospace,Menlo,monospace;border:1px solid var(--line);background:var(--surface2);border-radius:6px;padding:2px 6px}
@@ -512,6 +512,8 @@ function render(){
   fillAsk();
   /* every back link the same: the arrow icon, not a typed ‹ */
   document.querySelectorAll('#main a.crumb').forEach(el => { const t = el.textContent; if(/^\s*‹/.test(t) && !el.querySelector('svg')) el.innerHTML = ic('back', 16, 2.2) + ' ' + esc(t.replace(/^\s*‹\s*/, '')); });
+  /* every row that opens a page ends with › */
+  document.querySelectorAll('#main a.it').forEach(el => { if(!el.querySelector('.chev') && !/›\s*$/.test(el.textContent)) el.insertAdjacentHTML('beforeend', '<span class="chev">›</span>'); });
   if(window.FX) FX.after();
   if(window.MOTION) MOTION.after();
   if(route.page === 'new') newSheet(route.args[0]);
@@ -748,7 +750,7 @@ P.edithome = () => {
 
 /* ================= students ================= */
 let sQ = '';
-const S_F = {all:['All', () => true], active:['Active', s => ['active','progress'].includes(s.status.k)], over:['Overdue', s => s.status.k === 'over'], ending:['Ends soon', s => s.status.k === 'ending'], quote:['Quote sent', s => s.status.k === 'quote'], ended:['Ended', s => s.status.k === 'ended'], new:['New this month', s => (s.first || '').slice(0, 7) === today().slice(0, 7)],
+const S_F = {all:['All', () => true], active:['Active', s => s.cur && (!s.cur.inv.periodEnd || s.cur.inv.periodEnd >= today())], over:['Overdue', s => s.status.k === 'over'], ending:['Ends soon', s => s.cur && s.cur.inv.periodEnd && s.cur.inv.periodEnd >= today() && dayDiff(today(), s.cur.inv.periodEnd) <= 7], quote:['Quote sent', s => s.status.k === 'quote'], ended:['Ended', s => s.status.k === 'ended'], new:['New this month', s => (s.first || '').slice(0, 7) === today().slice(0, 7)],
   current:['In a tuition period now', s => s.cur && (!s.cur.inv.periodEnd || s.cur.inv.periodEnd >= today())], missing:['Details missing', s => !s.heard || !s.district || !s.phone]};
 const S_HIDE = ['current','missing'];   // opened from Home only, so the chips stay short
 P.students = (f = 'all') => {

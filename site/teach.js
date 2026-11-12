@@ -40,7 +40,7 @@ window.TUT = (function(){
 .cal-m{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}.cal-m .h{text-align:center;font-size:12px;font-weight:800;color:var(--muted)}.cal-d{border:1px solid var(--line2);background:var(--surface);border-radius:10px;min-height:52px;padding:5px;display:flex;flex-direction:column;align-items:center;text-decoration:none;color:var(--ink)}.cal-d.out{opacity:.4}.cal-d.now{border-color:var(--gold);box-shadow:0 0 0 1px var(--gold)}.cal-d small{margin-top:auto;background:var(--accent);color:var(--onaccent);border-radius:99px;font-size:11px;font-weight:800;padding:0 7px}.cal-d small.cl{background:var(--rd);color:#fff}.cal-d small.cg{background:var(--am);color:#fff}
 .t-pk{border:1px solid var(--line);border-radius:12px;padding:10px 12px;margin-top:10px}
 .t-pk .row{display:flex;align-items:center;gap:8px;font-weight:800}.t-pk .row span{flex:1}
-.t-x{border:0;background:none;color:var(--muted);font-size:20px;line-height:1;padding:2px 6px;cursor:pointer}
+.t-x{border:0;background:none;color:var(--muted);font-size:20px;line-height:1;padding:2px 6px;min-width:34px;min-height:34px;cursor:pointer}
 .t-tl .tm{width:44px;flex:none;font-weight:800;font-size:13px;color:var(--muted)}
 .t-ico{width:36px;height:36px;border-radius:10px;display:grid;place-items:center;flex:none;font-weight:800}
 .t-obl{border:1px solid var(--line);border-radius:14px;overflow:hidden;margin-bottom:10px}.t-ob{display:flex;align-items:center;gap:12px;width:100%;padding:10px 12px;border:0;border-top:1px solid var(--line2);background:none;font:inherit;color:var(--ink);text-align:left;cursor:pointer}.t-ob:first-child{border-top:0}.t-ob:hover{background:var(--hover)}
@@ -562,7 +562,7 @@ window.TUT = (function(){
     return head(homeName(), `${WEEKDAY[HD.parseISO(t).getDay()]} ${nice(t)}${q ? ` · ${q} save${q === 1 ? '' : 's'} waiting to send` : ''}`, acts) +
       (ed ? '<p class="note" style="margin:-6px 0 12px">Move, remove or add cards.</p>'
         : rep ? `<a class="t-banner ok" href="#teach/report"><span><b>Today's report is in</b>Sent at ${hm(rep.sent)}. You can still log; changes show as edited.</span></a>`
-        : `<a class="t-banner" href="#teach/report"><span><b>Daily report due before you leave</b>Reminder between 4 and 5 pm${G.length ? ` · ${G.length} thing${G.length > 1 ? 's' : ''} still to log` : ''}</span></a>`) +
+        : `<a class="t-banner" href="#teach/report"><span><b>Daily report due before you leave</b>Reminder between 16:00 and 17:00${G.length ? ` · ${G.length} thing${G.length > 1 ? 's' : ''} still to log` : ''}</span></a>`) +
       (ed ? '' : answersBlock() + toldBlock() + slipBlock() + noticesBlock() + clashesBlock() + comingBlock()) + cardsBlock() + (ed ? '' : saysBlock() + reqsBlock() + `
       <div class="h2">Logged today <em>${L.length}</em></div>${timeline(L)}
       ${G.length ? `<div class="h2">Still to log <em>${G.length}</em></div>${gapCard(G)}` : ''}
@@ -730,10 +730,12 @@ window.TUT = (function(){
   /* ---------- logging: SRA marks ---------- */
   function marksPage(v){
     const I = items(), L = sras();
+    if(mform && mform.v0 !== undefined && mform.v0 !== v) mform = null; /* a different link: start fresh */
     if(!mform){
       if(v.startsWith('edit:')){ const e = live().find(x => x.id === decodeURIComponent(v.slice(5))); if(!e) return backHome() + '<p class="empty">That log isn\'t here any more.</p>';
         mform = {edit: e.id, k: e.k, sra: e.man ? 'man' : [e.k, e.tk, e.rv].map(encodeURIComponent).join('/'), tk: e.tk, rv: String(e.rv), h: e.h || 'o', sc: e.sc ?? '', mx: e.mx ?? '10', d: e.d, ars: e.ars ?? null, ao: e.ao ? String(e.ao) : aoOf(e.tk), na: !!e.na, om: e.om || null}; }
       else { const x = v && !v.startsWith('stu:') ? unref(v) : null, k0 = v.startsWith('stu:') ? v.slice(4) : ''; mform = {k: x ? x.k : k0, sra: x ? ref(x) : '', tk: '', rv: '', h: 'o', sc: '', mx: '10', d: today(), ars: null, ao: x ? aoOf(x.topic) : '', na: false}; }
+      if(mform) mform.v0 = v;
     }
     const f = mform, out = L.filter(x => x.k === f.k && ['given','collect','late','home'].includes(x.status) || (f.edit && ref(x) === f.sra && x.k === f.k)), it = itemOf(f.k);
     return backHome() + head(f.edit ? 'Edit SRA marks' : 'SRA marks', 'For an SRA that has been handed in') + `
@@ -760,10 +762,12 @@ window.TUT = (function(){
   /* ---------- logging: weekly assessment marks ---------- */
   function waPage(v){
     const P = pendingWa(), I = items(), C = data.classes || [];
+    if(wform && wform.v0 !== undefined && wform.v0 !== v) wform = null; /* a different link: start fresh */
     if(!wform){
       if(v.startsWith('edit:')){ const id = v.slice(5), G = live().filter(e => e.ty === 'w' && (e.wid || e.id) === id); if(!G.length) return backHome() + '<p class="empty">That log isn\'t here any more.</p>';
         wform = {pend: id, edit: true, key: G[0].cls ? 'class:' + G[0].cls : G[0].k, keys: G.map(x => x.k), ids: Object.fromEntries(G.map(x => [x.k, x.id])), tp: G[0].tp || [], d: G[0].d, mx: G[0].mx || '', ak: G[0].ak || 'w', marks: Object.fromEntries(G.map(x => [x.k, x.sc ?? ''])), abs: Object.fromEntries(G.map(x => [x.k, !!x.abs])), open: false, q: ''}; }
       else { const w = P.find(x => x.id === v); wform = w ? fromPending(w) : {pend: P.length ? '' : 'new', key: '', keys: [], ids: {}, tp: [], d: today(), mx: '', ak: 'w', marks: {}, abs: {}, open: false, q: ''}; }
+      if(wform) wform.v0 = v;
     }
     const f = wform, cls = f.key.startsWith('class:') ? C.find(c => c.id === f.key.slice(6)) : null;
     const pick = !f.edit && P.length ? `<div class="card pad"><div class="cap">Which assessment</div><div class="t-opts">${P.map(w => `<button type="button" role="radio" aria-checked="${f.pend === w.id}" class="t-opt${f.pend === w.id ? ' on' : ''}" data-twpick="${esc(w.id)}"><span class="t-ind c"></span><span class="tx">${esc(w.name)} · ${atyL(w.ak)} · ${esc(w.sub)}<small>Given ${nice(w.d)} · ${w.tp.map(esc).join(', ') || 'topics not set'} · marks not entered</small></span></button>`).join('')}
