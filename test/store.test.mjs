@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import pg from "pg";
 import crypto from "node:crypto";
 process.env.LHQ_SECRET = "SETUP123-and-the-rest-of-a-long-secret";
-const { _setPool, one } = await import("../netlify/lib/db.mjs");
+const { _setPool, one, q } = await import("../netlify/lib/db.mjs");
 const hubMod = await import("../netlify/functions/hub.mjs"), hub = hubMod.default;
 
 const URL = process.env.DATABASE_URL;
@@ -446,6 +446,44 @@ test("students and parents: their own children only; the student confirms or say
   assert.equal((await call("family", { action: "confirm", id: "fsx4" }, par)).status, 200);
   const acts = (await call("activity", null, DIR, "GET")).j.rows.map(x => x.summary);
   assert.ok(acts.some(x => /^Sent Wezi Banda's Biology .* to LHQ to settle$/.test(x)), acts.slice(0, 8).join("\n"));
+});
+
+test("moving pilot data: the live Hub copies the pilot group; the test site moves it back; nothing doubles, passwords still work", async () => {
+  const callAt = async (ctx, body, token) => { const r = await hub(new Request("http://x/api/hub/move", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + token }, body: JSON.stringify(body) }), ctx);
+    return { status: r.status, j: await r.json() }; };
+  const LIVE = {}, TEST = { deploy: { context: "deploy-preview" } };
+  const tutorTok = (await call("signin", { id: "emmanuel.mkwamba", password: "Maths!2026x" })).j.token;
+  assert.equal((await callAt(LIVE, { op: "export", dir: "live-to-test", students: ["Wezi Banda"] }, tutorTok)).status, 403, "Director only");
+  assert.equal((await callAt(TEST, { op: "export", dir: "live-to-test", students: ["Wezi Banda"] }, DIR)).status, 409, "made on the live Hub");
+  const ex = await callAt(LIVE, { op: "export", dir: "live-to-test", students: ["Wezi Banda"] }, DIR); assert.equal(ex.status, 200, JSON.stringify(ex.j));
+  const names = ex.j.people.map(p => p.name).sort();
+  assert.ok(names.includes("Wezi Banda") && names.includes("Ruth Banda") && names.includes("Emmanuel Mkwamba"), names.join(", "));
+  assert.ok(!names.includes("Mphatso Kalua"), "only the pilot group"); assert.ok(ex.j.people.every(p => p.role !== "director"));
+  assert.ok(ex.j.docs.some(d => d.id === "fc1") && !ex.j.docs.some(d => d.id === "fi2"), "their documents only");
+  assert.ok(Object.values((ex.j.kv.lhq_logs || {}).e || {}).every(e => String(e.k).startsWith("wezi banda|")), "their log lines only");
+  assert.equal((await callAt(LIVE, { op: "import", dir: "live-to-test", part: "people", people: ex.j.people }, DIR)).status, 409, "added on the test site");
+  const before = (await q("SELECT count(*)::int AS n FROM people WHERE NOT del"))[0].n, logsBefore = Object.keys(((await call("state", null, DIR, "GET")).j.kv.lhq_logs || {}).e || {}).length;
+  const ip = await callAt(TEST, { op: "import", dir: "live-to-test", part: "people", people: ex.j.people, students: ex.j.students, guardians: ex.j.guardians }, DIR); assert.equal(ip.status, 200, JSON.stringify(ip.j));
+  for (const [k, v] of Object.entries(ex.j.kv)) assert.equal((await callAt(TEST, { op: "import", dir: "live-to-test", part: "kv", key: k, value: v }, DIR)).status, 200, k);
+  assert.equal((await callAt(TEST, { op: "import", dir: "live-to-test", part: "docs", docs: ex.j.docs }, DIR)).status, 200);
+  assert.equal((await q("SELECT count(*)::int AS n FROM people WHERE NOT del"))[0].n, before, "the same people: nobody doubled");
+  // back again at launch: teaching lists and accounts, never documents or settings
+  const back = await callAt(TEST, { op: "export", dir: "test-to-live" }, DIR); assert.equal(back.status, 200); assert.equal(back.j.docs.length, 0); assert.ok(!back.j.kv.lhq_settings && !back.j.kv.lhq_spend);
+  assert.equal((await callAt(LIVE, { op: "import", dir: "test-to-live", part: "kv", key: "lhq_settings", value: {} }, DIR)).status, 400, "settings stay with the live Hub");
+  assert.equal((await callAt(LIVE, { op: "import", dir: "test-to-live", part: "docs", docs: [] }, DIR)).status, 400);
+  assert.equal((await callAt(LIVE, { op: "import", dir: "test-to-live", part: "people", people: back.j.people, students: back.j.students, guardians: back.j.guardians }, DIR)).status, 200);
+  for (const [k, v] of Object.entries(back.j.kv)) assert.equal((await callAt(LIVE, { op: "import", dir: "test-to-live", part: "kv", key: k, value: v }, DIR)).status, 200, k);
+  assert.equal(Object.keys(((await call("state", null, DIR, "GET")).j.kv.lhq_logs || {}).e || {}).length, logsBefore, "log lines join by their ids");
+  assert.equal((await q("SELECT count(*)::int AS n FROM people WHERE NOT del"))[0].n, before);
+  assert.equal((await call("signin", { id: "wezi.banda", password: "Lilongwe#2026q" })).status, 200, "the student's password still works");
+  assert.equal((await call("family", null, (await call("signin", { id: "wezi.banda", password: "Lilongwe#2026q" })).j.token, "GET")).j.kids[0].name, "Wezi Banda", "and is still linked");
+  // a new account made on the test site arrives on the live Hub with its password
+  await q("INSERT INTO people (id, name, role, username, status, pw_salt, pw_hash, prefs) SELECT 'pmoved1', 'Tamara Phiri', 'tutor', NULL, status, pw_salt, pw_hash, '{}' FROM people WHERE username = 'wezi.banda'");
+  const nb = await callAt(TEST, { op: "export", dir: "test-to-live" }, DIR), tp = nb.j.people.find(p => p.id === "pmoved1"); assert.ok(tp);
+  await q("DELETE FROM people WHERE id = 'pmoved1'");
+  await callAt(LIVE, { op: "import", dir: "test-to-live", part: "people", people: [tp] }, DIR);
+  const row = await one("SELECT username, del, pw_hash IS NOT NULL AS pw FROM people WHERE id = 'pmoved1'"); assert.equal(row.del, false); assert.ok(row.pw);
+  assert.equal((await call("signin", { id: row.username, password: "Lilongwe#2026q" })).status, 200, "signs in with the same password");
 });
 
 test.after(async () => { await pool.end(); });
