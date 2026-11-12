@@ -280,11 +280,11 @@ test("activity: every save leaves a line, in words, by whom; Admin doesn't see w
   assert.equal(r.status, 200, JSON.stringify(r.j));
   const S = r.j.rows.map(x => x.summary);
   const has = (re, msg) => assert.ok(S.some(x => re.test(x)), msg + "\n" + S.slice(0, 40).join("\n"));
-  has(/^New receipt RCT-0001 · Thoko Banda · MKW 240,000$/, "a new receipt");
-  has(/^Edited invoice INV-0001 · Thoko Banda · MKW 260,000$/, "an edit");
+  has(/^New receipt RCT-0001 · Thoko Banda · MWK 240,000$/, "a new receipt");
+  has(/^Edited invoice INV-0001 · Thoko Banda · MWK 260,000$/, "an edit");
   has(/^Deleted quote Q-0001 · Thoko Banda$/, "a delete, by name");
   has(/^Restored quote Q-0001/, "a restore");
-  has(/^Recorded spending · Utilities · MKW 45,000/, "spending recorded");
+  has(/^Recorded spending · Utilities · MWK 45,000/, "spending recorded");
   has(/^Deleted spending · Utilities/, "spending deleted");
   has(/^Added student Natasha Chirwa$/, "a student added");
   has(/^Changed levels$|^Changed Year and level$/, "a list changed");

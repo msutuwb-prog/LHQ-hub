@@ -420,7 +420,7 @@ async function writeDocs(me, upserts, deletes = [], kvIn = []) {
 
 /* ---------- Activity: one line for everything done in the Hub, by whom (database on). Never stops a save if it fails. ---------- */
 const WORDT = { quote: "quote", invoice: "invoice", receipt: "receipt", card: "tuition card" };
-const money = n => "MKW " + Math.round(Number(n) || 0).toLocaleString("en-US");
+const money = n => "MWK " + Math.round(Number(n) || 0).toLocaleString("en-US");
 const dayL = d => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(d || "")); if (!m) return d || ""; const t = new Date(Date.UTC(+m[1], +m[2] - 1, +m[3]));
   return `${["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][t.getUTCDay()]} ${+m[3]} ${["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"][+m[2] - 1]}`; };
 const docName = d => `${WORDT[d.type || "quote"] || "document"} ${d.number || ""}`.trim() + (d.student || d.name ? " · " + (d.student || d.name) : "");
@@ -991,14 +991,14 @@ async function payPost(req, me) {
     if (kind === "bonus" && !isDirector(me)) return fail("Only the Director gives bonuses.", 403);
     const id = "pi" + now.toString(36), it = { id, tutor, m, kind, amt, label: String(b.label || "").trim().slice(0, 80), note: String(b.note || "").trim().slice(0, 200), d: /^\d{4}-\d{2}-\d{2}$/.test(String(b.d || "")) ? b.d : "", by: me.name, at: now };
     await writeKv("lhq_pay", old => { const o = Object.assign({}, old); o.items = Object.assign({}, o.items, { [id]: it }); return o; });
-    await act(me, "pay", "pay.item", `${kind[0].toUpperCase() + kind.slice(1)} · MKW ${amt.toLocaleString("en-US")} · ${tutor} · ${monthL(m)} payslip${it.label && it.label.toLowerCase() !== kind ? " · " + it.label : ""}`, "pay", tutor); return json({ ok: true, id });
+    await act(me, "pay", "pay.item", `${kind[0].toUpperCase() + kind.slice(1)} · MWK ${amt.toLocaleString("en-US")} · ${tutor} · ${monthL(m)} payslip${it.label && it.label.toLowerCase() !== kind ? " · " + it.label : ""}`, "pay", tutor); return json({ ok: true, id });
   }
   if (b.action === "confirm") {
     if (slip) return fail("Already confirmed.", 409);
     const x = P.month(ctx, tutor, m), snap = { tutor: x.tutor, m: x.m, label: x.label, place: x.place, lines: x.lines, total: x.total, paid: x.paid, notPaid: x.notPaid, held: x.held };
     await writeKv("lhq_pay", old => { const o = Object.assign({}, old); o.slips = Object.assign({}, o.slips, { [key]: { st: "confirmed", snap, by: me.name, at: now } }); return o; });
-    await act(me, "pay", "payslip.confirm", `${tutor} · ${monthL(m)} payslip confirmed · MKW ${x.total.toLocaleString("en-US")}`, "pay", key);
-    await pushSafe(await idsOfTutor(tutor), "pay", { title: `Payslip · ${x.label}`, body: `MKW ${x.total.toLocaleString("en-US")} · check it and sign`, url: "/#teach/pay" });
+    await act(me, "pay", "payslip.confirm", `${tutor} · ${monthL(m)} payslip confirmed · MWK ${x.total.toLocaleString("en-US")}`, "pay", key);
+    await pushSafe(await idsOfTutor(tutor), "pay", { title: `Payslip · ${x.label}`, body: `MWK ${x.total.toLocaleString("en-US")} · check it and sign`, url: "/#teach/pay" });
     return json({ ok: true, total: x.total });
   }
   if (b.action === "unconfirm") {
@@ -1574,7 +1574,7 @@ async function calFeed(path) {
       if (p.role === "student") { const P = Object.values(plan[nk(k.name)] || {});
         if (inc.dt) P.filter(b => b.all && (b.to || b.from) >= A).forEach(b => allday("dt-" + b.id, b.from, b.name, "", b.to || ""));
         if (inc.blk) for (let d = mwToday(); d <= S.addDays(mwToday(), 28); d = S.addDays(d, 1)) P.filter(b => !b.all && blockOn(b, d)).forEach(b => timed(`blk-${b.id}-${d}`, d, S.mins(b.s), S.mins(b.e), b.name || "Study", "", b.sub || "")); }
-      if (inc.pay && p.role === "parent") (k.pay || []).filter(x => x.type === "invoice" && x.balance > 0.5 && (x.due || x.dueDate)).forEach(x => allday("pay-" + x.id, x.due || x.dueDate, `Payment due · ${x.number} · MKW ${Math.round(x.balance).toLocaleString("en-US")}`, "LHQ Learning Solutions"));
+      if (inc.pay && p.role === "parent") (k.pay || []).filter(x => x.type === "invoice" && x.balance > 0.5 && (x.due || x.dueDate)).forEach(x => allday("pay-" + x.id, x.due || x.dueDate, `Payment due · ${x.number} · MWK ${Math.round(x.balance).toLocaleString("en-US")}`, "LHQ Learning Solutions"));
     }
   }
   const body = ["BEGIN:VCALENDAR", "VERSION:2.0", "PRODID:-//LHQ Learning Solutions//LHQ Hub//EN", "CALSCALE:GREGORIAN", "METHOD:PUBLISH", `X-WR-CALNAME:${esc("LHQ · " + p.name)}`, "X-WR-TIMEZONE:Africa/Blantyre", "REFRESH-INTERVAL;VALUE=DURATION:PT6H", ...ev, "END:VCALENDAR"].join("\r\n") + "\r\n";

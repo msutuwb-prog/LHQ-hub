@@ -13,7 +13,7 @@ window.FAM = (function(){
   const P = s => { const [y, m, d] = String(s).split('-').map(Number); return new Date(y, m - 1, d); };
   const day = s => s ? `${WD[P(s).getDay()]} ${P(s).getDate()} ${MON[P(s).getMonth()]}` : '';
   const dshort = s => s ? `${P(s).getDate()} ${MON[P(s).getMonth()]}` : '';
-  const mk = n => 'MKW ' + Math.round(+n || 0).toLocaleString('en-US');
+  const mk = n => 'MWK ' + Math.round(+n || 0).toLocaleString('en-US');
   const firstN = n => String(n || '').trim().split(/\s+/)[0];
   const DLI = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>';
   let perSel = 'tp';
@@ -266,7 +266,7 @@ window.FAM = (function(){
     return `<div class="ph"><div class="tt"><h1>Payments</h1>${N.tt && TT[N.tt] ? `<p>${esc(TT[N.tt])}</p>` : ''}</div></div>${nx}
       <div class="h2">History</div><div class="card">${N.all.map(p => `<div class="it"><span class="f-mk ${p.type === 'invoice' ? (p.balance > 0.5 ? (p.over ? 'rd' : 'am') : 'ok') : p.type === 'receipt' ? 'ok' : 'bl'}">${p.type === 'invoice' && p.balance > 0.5 ? '!' : p.type === 'quote' ? '' : '✓'}</span><span class="t"><b>${esc(p.number)} · ${mk(p.type === 'receipt' ? p.received : p.total)}</b><small>${W[p.type]} · ${day(p.date)}${kids().length > 1 ? ' · ' + esc(firstN(p.kid)) : ''}${p.type === 'invoice' ? (p.balance > 0.5 ? ` · ${mk(p.balance)} owed` : ' · paid') : ''}</small></span>${p.type === 'quote' ? '' : `<button class="ib f-dli" type="button" data-fdl="doc:${esc(p.id)}" aria-label="Download ${esc(p.number)}" title="Download">${DLI}</button>`}</div>`).join('') || '<p class="empty">Nothing yet.</p>'}</div>
       ${N.all.some(p => p.type !== 'quote') ? `<button class="btn n full f-dl" type="button" data-fdl="st" style="margin-top:4px">${DLI} Download statement</button>` : ''}
-      <p class="note">To pay: ${esc((window.settingsKV && settingsKV().payHow) || 'see your invoice for LHQ\'s bank and mobile money details')}.</p>`;
+      <p class="note">To pay: ${esc((typeof settingsKV === 'function' && settingsKV().payHow) || 'see your invoice for LHQ\'s bank and mobile money details')}.</p>`;
   }
 
   function more(){

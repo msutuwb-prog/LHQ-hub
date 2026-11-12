@@ -83,12 +83,12 @@ LHQ Learning Solutions`,
   receiptEmailBody:
 `Dear {name},
 
-Thank you for your payment of MKW {received} for {for}. Please find attached your receipt ({number}){refline}.
+Thank you for your payment of MWK {received} for {for}. Please find attached your receipt ({number}){refline}.
 
-Invoice total: MKW {total}
-Paid before this: MKW {prevpaid}
-This payment: MKW {received}
-Balance remaining: MKW {balance}
+Invoice total: MWK {total}
+Paid before this: MWK {prevpaid}
+This payment: MWK {received}
+Balance remaining: MWK {balance}
 
 Please keep this receipt for your records. For any questions, call {popphone} or email {email}.
 
@@ -98,9 +98,9 @@ LHQ Learning Solutions
   receiptWaBody:
 `Hello {name},
 
-Thank you for your payment of *MKW {received}* for {for}. Here is your receipt ({number}).
+Thank you for your payment of *MWK {received}* for {for}. Here is your receipt ({number}).
 
-Balance remaining: *MKW {balance}*
+Balance remaining: *MWK {balance}*
 
 Please keep this receipt for your records.
 LHQ Learning Solutions`

@@ -53,7 +53,7 @@ const $ = id => document.getElementById(id);
 const token = () => { try{ return (JSON.parse(localStorage.getItem('lhq_session') || 'null') || {}).token || ''; }catch(e){ return ''; } };
 const api = async (path, opt = {}) => { const r = await fetch('/api/v2/' + path, Object.assign({headers:{'content-type':'application/json', authorization:'Bearer ' + token()}, cache:'no-store'}, opt)); const j = await r.json().catch(() => ({})); return {ok:r.ok, status:r.status, j}; };
 const hubApi = async (body) => { const r = await fetch('/api/hub/store', {method:'POST', headers:{'content-type':'application/json', authorization:'Bearer ' + token()}, body:JSON.stringify(body)}); const j = await r.json().catch(() => ({})); return {ok:r.ok, status:r.status, j}; };
-const money = n => 'MKW ' + Math.round(n || 0).toLocaleString('en-US');
+const money = n => 'MWK ' + Math.round(n || 0).toLocaleString('en-US');
 function oneShow(j){
   const T = j.totals || {blobs:{}, db:{}}, types = [...new Set(Object.keys(T.blobs).concat(Object.keys(T.db)))].sort();
   $('oneStatus').innerHTML = `<div class="row"><span>The Hub uses</span><b>${j.using === 'db' ? st('ok', 'This database') : 'The old storage (Netlify Blobs)'}</b></div>

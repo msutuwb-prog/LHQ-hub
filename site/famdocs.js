@@ -6,7 +6,7 @@ window.FDOC = (function(){
   const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const nice = d => d ? `${+d.slice(8)} ${MON[+d.slice(5, 7) - 1]} ${d.slice(0, 4)}` : '';
   const short = d => d ? `${+d.slice(8)} ${MON[+d.slice(5, 7) - 1]}` : '';
-  const mk = n => 'MKW ' + Math.round(+n || 0).toLocaleString('en-US');
+  const mk = n => 'MWK ' + Math.round(+n || 0).toLocaleString('en-US');
   const avg = L => L.length ? Math.round(L.reduce((a, b) => a + b, 0) / L.length) : null;
   const lab = (l, x) => !x ? '' : /^[A-Za-z ]{2,14}:/.test(String(x).trim()) ? String(x).trim() : l + String(x).trim();
   const pcs = v => v == null ? '–' : v + '%';

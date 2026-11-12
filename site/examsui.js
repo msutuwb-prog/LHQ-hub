@@ -13,7 +13,7 @@ window.EXUI = (function(){
   const grp = P => { const out = []; P.forEach(p => { const g = out.find(x => x.p.code === p.code && x.p.a === p.a && x.p.b === p.b && x.p.ex === p.ex); if(g) g.L.push(p); else out.push({p, L: [p]}); }); return out; };
   const glabel = g => `${g.p.code}/${g.L.map(p => p.comp + (p.ct ? ' ' + p.ct : '')).join(' · ')}`;
   const T = () => window.today ? today() : new Date(Date.now() + 2 * 3600e3).toISOString().slice(0, 10);
-  const setOf = () => (window.settingsKV ? settingsKV() : {}) || {};
+  const setOf = () => (typeof settingsKV === 'function' ? settingsKV() : {}) || {};
 
   /* ---------- a subject: target, on track, exams, pace ---------- */
   /* pack: {targets, subs, set}; k: student|subject; w: that subject's marked assessments [{d, p}] */

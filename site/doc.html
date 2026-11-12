@@ -640,7 +640,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
         <span class="lbl">Discount</span>
         <div class="disc-row">
           <div class="seg mini" id="discSeg" role="group" aria-label="Discount type">
-            <button type="button" data-d="pct" class="on">%</button><button type="button" data-d="amt">MKW</button>
+            <button type="button" data-d="pct" class="on">%</button><button type="button" data-d="amt">MWK</button>
           </div>
           <input id="f_discValue" inputmode="decimal" placeholder="0" aria-label="Discount amount">
           <input id="f_discReason" placeholder="Reason, e.g. Sibling" aria-label="Discount reason (prints on the document)">
@@ -663,7 +663,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
         <p class="hint" id="planHint" hidden style="margin:-4px 0 0"></p>
       </div>
       <label class="chk lm" id="instLineRow" hidden><input type="checkbox" id="f_instLine" checked> Offer two instalments (50 / 50) on this quote</label>
-      <label class="lm" id="paidRow" style="margin-top:12px"><span>Amount already paid (MKW)</span><input id="f_paid" inputmode="decimal" placeholder="0"></label>
+      <label class="lm" id="paidRow" style="margin-top:12px"><span>Amount already paid (MWK)</span><input id="f_paid" inputmode="decimal" placeholder="0"></label>
       <div class="sums" id="sums"></div>
     </div>
 
@@ -677,8 +677,8 @@ body[data-mode=view] .dp-aside{grid-area:aside}
       <h2>Payment received</h2>
       <div class="pay-pick" id="payPick" role="group" aria-label="How much was paid"></div>
       <div class="grid2">
-        <label><span>Amount received (MKW)</span><input id="f_received" inputmode="decimal" placeholder="0"></label>
-        <label class="lm"><span>Paid before this (MKW)</span><input id="f_prevPaid" inputmode="decimal" placeholder="0"></label>
+        <label><span>Amount received (MWK)</span><input id="f_received" inputmode="decimal" placeholder="0"></label>
+        <label class="lm"><span>Paid before this (MWK)</span><input id="f_prevPaid" inputmode="decimal" placeholder="0"></label>
       </div>
       <div class="grid2">
         <div class="fld"><span class="lbl">Payment method</span><button type="button" class="picker-btn" data-pickfield="method" id="btnMethod" aria-haspopup="listbox" aria-expanded="false"><span class="pb-dot"></span><span class="pb-text"></span><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>
@@ -755,7 +755,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
           <label><span>PoP phone number</span><input id="s_popphone"></label>
           <label><span>Mobile banking number</span><input id="s_mobile"></label>
         </div>
-        <label><span>Default cost per session (MKW)</span><input id="s_rate" inputmode="decimal"></label>
+        <label><span>Default cost per session (MWK)</span><input id="s_rate" inputmode="decimal"></label>
         <div class="grid2">
           <label><span>Quotes valid for (days)</span><input id="s_validDays" inputmode="numeric"></label>
           <label><span>Invoices due after (days, 0 = same day)</span><input id="s_dueDays" inputmode="numeric"></label>
@@ -933,7 +933,7 @@ const F = id => document.getElementById(id);
 let settings = withDefaults(store.get('lhq_settings', {}));
 // one-off: invoices are now due on the day they're issued unless changed in settings
 if(!store.get('lhq_mig_due0', false)){ if(String(settings.dueDays)==='7'){ settings.dueDays = '0'; store.set('lhq_settings', settings); } store.set('lhq_mig_due0', true); }
-let templates = Object.assign({}, DEFAULT_TEMPLATES, store.get('lhq_templates', {}));
+let templates = Object.assign({}, DEFAULT_TEMPLATES, Object.fromEntries(Object.entries(store.get('lhq_templates', {}) || {}).map(([k, v]) => [k, typeof v === 'string' ? v.replace(/\bMKW\b/g, 'MWK') : v])));
 let saved = store.get('lhq_saved', []);
 const lines = v => String(v||'').split('\n').map(s=>s.trim()).filter(Boolean);
 const subjectList = () => lines(settings.subjects);
@@ -1087,17 +1087,17 @@ function drawPayPick(t){
   const before = Math.max(0, Math.round((t.total - t.prevPaid) * 100) / 100);
   const Pb = planInfo(Object.assign({}, doc, {received:'0'})), next = Pb && Pb.next;
   const opts = [];
-  if(next && next.left > 0.005 && Math.abs(next.left - before) > 0.005) opts.push([next.left, `${next.short} · MKW ${money(next.left)}`]);
-  if(before > 0.005) opts.push([before, next && Math.abs(next.left - before) < 0.005 ? `${next.short} (the rest) · MKW ${money(before)}` : `Full balance · MKW ${money(before)}`]);
+  if(next && next.left > 0.005 && Math.abs(next.left - before) > 0.005) opts.push([next.left, `${next.short} · MWK ${money(next.left)}`]);
+  if(before > 0.005) opts.push([before, next && Math.abs(next.left - before) < 0.005 ? `${next.short} (the rest) · MWK ${money(before)}` : `Full balance · MWK ${money(before)}`]);
   const r = num(doc.received), on = opts.find(o => Math.abs(o[0] - r) < 0.005);
   F('payPick').innerHTML = opts.map(([v, l]) => `<button type="button" data-amt="${v}" class="${on && on[0] === v ? 'on' : ''}">${esc(l)}</button>`).join('') + `<button type="button" data-amt="" class="${on ? '' : 'on'}">Other amount</button>`;
   let note = '', cls = '';
   if(r > 0.005){
-    if(r > before + 0.005){ note = `MKW ${money(r - before)} more than is owed. It is kept as credit and counted on ${doc.student || 'the student'}'s next invoice.`; cls = 'warn'; }
+    if(r > before + 0.005){ note = `MWK ${money(r - before)} more than is owed. It is kept as credit and counted on ${doc.student || 'the student'}'s next invoice.`; cls = 'warn'; }
     else if(Math.abs(r - before) < 0.005){ note = 'Pays the invoice in full.'; cls = 'ok'; }
-    else if(next && r < next.left - 0.005) { note = `MKW ${money(next.left - r)} is still owed on the ${next.short.toLowerCase()} (due ${niceDate(next.due)}).`; cls = 'warn'; }
-    else if(next && next.n === 1 && r > next.left + 0.005) { note = `Covers the 1st instalment and MKW ${money(r - next.left)} of the 2nd. MKW ${money(before - r)} is still owed.`; }
-    else { note = `MKW ${money(before - r)} is still owed after this payment.`; cls = before - r > 0.005 ? 'warn' : ''; }
+    else if(next && r < next.left - 0.005) { note = `MWK ${money(next.left - r)} is still owed on the ${next.short.toLowerCase()} (due ${niceDate(next.due)}).`; cls = 'warn'; }
+    else if(next && next.n === 1 && r > next.left + 0.005) { note = `Covers the 1st instalment and MWK ${money(r - next.left)} of the 2nd. MWK ${money(before - r)} is still owed.`; }
+    else { note = `MWK ${money(before - r)} is still owed after this payment.`; cls = before - r > 0.005 ? 'warn' : ''; }
   }
   F('payNote').textContent = note; F('payNote').className = 'hint pay-note ' + cls;
 }
@@ -1119,7 +1119,7 @@ function applyCredit(d){
   if(d.type !== 'invoice' || d.id) return '';
   const c = creditFor(studentKey(d.student || d.name)); if(c.amt <= 0.005) return '';
   d.creditUsed = String(c.amt); d.paid = String(num(d.paid) + c.amt);
-  return ` MKW ${money(c.amt)} credit from ${c.from.join(', ')} is counted as already paid.`;
+  return ` MWK ${money(c.amt)} credit from ${c.from.join(', ')} is counted as already paid.`;
 }
 /* "Every LHQ Enrollment Includes": all items by default; doc.incOff holds the ones removed from this document */
 const graceDays = () => Math.max(0, Math.round(num(settings.graceDays)));
@@ -1127,7 +1127,7 @@ const graceDays = () => Math.max(0, Math.round(num(settings.graceDays)));
 function nextLine(P, html){
   if(!P || !P.next) return '';
   const g = graceDays(), r = P.next, b = x => html ? `<b>${x}</b>` : x;
-  let line = b(`Next payment: MKW ${money0(r.left)} (${r.short}) is due by ${niceDate(r.due)}.`);
+  let line = b(`Next payment: MWK ${money0(r.left)} (${r.short}) is due by ${niceDate(r.due)}.`);
   if(r.n===2) line += g ? ` If it is not received by ${niceDate(addDays(r.due, g))} (${g}-day grace period), sessions are paused until payment is confirmed. Paused sessions are made up once payment is received.`
     : ' If it is not received by then, sessions are paused until payment is confirmed. Paused sessions are made up once payment is received.';
   else if(graceLine(P)) line += (html ? '</span></div><div class="li"><span>•</span><span>' : '\n') + graceLine(P);
@@ -1183,13 +1183,13 @@ function renderDoc(){
   let box = '';
   if(T==='quote'){
     const inst = !doc.noInstLine && t.total > 0;
-    box = `<div class="lg-due"><span class="cap">Total for the period</span><b>MKW ${m0(t.total)}</b><span>${inst ? `or 2 instalments of ${m0(Math.round(t.total*50)/100)}` : doc.items.length ? `${doc.items.reduce((a, x) => a + num(x.sessions), 0)} sessions · ${doc.items.length} subject${doc.items.length === 1 ? '' : 's'}` : ''}</span></div>`;
+    box = `<div class="lg-due"><span class="cap">Total for the period</span><b>MWK ${m0(t.total)}</b><span>${inst ? `or 2 instalments of ${m0(Math.round(t.total*50)/100)}` : doc.items.length ? `${doc.items.reduce((a, x) => a + num(x.sessions), 0)} sessions · ${doc.items.length} subject${doc.items.length === 1 ? '' : 's'}` : ''}</span></div>`;
   } else if(T==='invoice'){
-    if(t.total > 0 && t.balance <= 0.005) box = `<div class="lg-due ok"><span class="cap">Paid in full</span><b>MKW ${m0(t.total)}</b><span>Thank you</span></div>`;
-    else box = `<div class="lg-due"><span class="cap">Balance due</span><b>MKW ${m0(Math.max(0, t.balance))}</b><span>${P && P.next ? `by ${esc(wkDate(P.next.due))} · ${P.next.short}` : doc.dueDate ? `by ${esc(wkDate(doc.dueDate))}` : ''}</span></div>`;
+    if(t.total > 0 && t.balance <= 0.005) box = `<div class="lg-due ok"><span class="cap">Paid in full</span><b>MWK ${m0(t.total)}</b><span>Thank you</span></div>`;
+    else box = `<div class="lg-due"><span class="cap">Balance due</span><b>MWK ${m0(Math.max(0, t.balance))}</b><span>${P && P.next ? `by ${esc(wkDate(P.next.due))} · ${P.next.short}` : doc.dueDate ? `by ${esc(wkDate(doc.dueDate))}` : ''}</span></div>`;
   } else {
     const full = t.total > 0 && t.balance <= 0.005;
-    box = `<div class="lg-due ok"><span class="cap">Received</span><b>MKW ${m0(t.received)}</b><span>${full ? 'Paid in full · nothing owed' : t.total > 0 ? `MKW ${m0(Math.max(0, t.balance))} still owed` : ''}</span></div>`;
+    box = `<div class="lg-due ok"><span class="cap">Received</span><b>MWK ${m0(t.received)}</b><span>${full ? 'Paid in full · nothing owed' : t.total > 0 ? `MWK ${m0(Math.max(0, t.balance))} still owed` : ''}</span></div>`;
   }
   h += `<div class="lg-two"><div><span class="cap">${{quote:'Prepared for', invoice:'Billed to', receipt:'Received from'}[T]}</span><p><b>${esc(doc.name || '')}</b>${who ? '<br>' + who : ''}</p>
     ${T==='receipt' ? `<p class="lg-pd">${[doc.method ? `<b>${esc(doc.method)}</b>` : '', doc.payRef ? `Ref ${esc(doc.payRef)}` : '', `Received ${esc(niceDate(doc.date))}`].filter(Boolean).join(' · ')}</p>` : ''}</div>${box}</div>`;
@@ -1205,8 +1205,8 @@ function renderDoc(){
       ${doc.items.map(it => `<tr><td>${esc(it.desc)}</td>${days ? `<td class="r">${esc(it.days)}</td>` : ''}<td class="r">${esc(it.sessions)}</td><td class="r">${m0(num(it.cost))}</td><td class="r">${m0(num(it.sessions)*num(it.cost))}</td></tr>`).join('')}</table>`;
     const rows = [];
     if(hasDisc){ rows.push(['Subtotal', m0(t.subtotal)]); rows.push([esc(discountLabel()), '−' + m0(t.discount)]); }
-    if(T==='quote') rows.push(['Total (MKW)', m0(t.total), 1]);
-    else { rows.push(['Total', m0(t.total)]); rows.push(['Paid', m0(t.paid)]); rows.push(['Balance due (MKW)', m0(Math.max(0, t.balance)), 1]); }
+    if(T==='quote') rows.push(['Total (MWK)', m0(t.total), 1]);
+    else { rows.push(['Total', m0(t.total)]); rows.push(['Paid', m0(t.paid)]); rows.push(['Balance due (MWK)', m0(Math.max(0, t.balance)), 1]); }
     h += `<table class="lg-tot">${rows.map(([l, v, b]) => `<tr${b ? ' class="b"' : ''}><td>${l}</td><td class="r">${v}</td></tr>`).join('')}</table>`;
   }
 
@@ -1215,8 +1215,8 @@ function renderDoc(){
     const start = doc.periodStart || doc.dueDate;
     const Q = !doc.noInstLine && t.total > 0 ? planInfo(Object.assign({}, doc, {type:'invoice', plan:'half', paid:'0', plan1:'', plan2:''})) : null;
     h += `<div class="lg-sec"><span class="cap">${Q ? 'Choose how to pay' : 'How to accept'}</span><div class="lg-ch${Q ? '' : ' one'}">
-      <div class="rec"><span class="tag">ONE PAYMENT</span><b>Pay in full</b>MKW ${m0(t.total)}${start ? ` before ${esc(niceDate(start))}` : ''}</div>
-      ${Q ? `<div><span class="tag bl">50 / 50</span><b>Two instalments</b>MKW ${m0(Q.rows[0].amt)} before ${esc(niceDate(Q.rows[0].due))}<br>MKW ${m0(Q.rows[1].amt)} by ${esc(niceDate(Q.rows[1].due))}</div>` : ''}</div>
+      <div class="rec"><span class="tag">ONE PAYMENT</span><b>Pay in full</b>MWK ${m0(t.total)}${start ? ` before ${esc(niceDate(start))}` : ''}</div>
+      ${Q ? `<div><span class="tag bl">50 / 50</span><b>Two instalments</b>MWK ${m0(Q.rows[0].amt)} before ${esc(niceDate(Q.rows[0].due))}<br>MWK ${m0(Q.rows[1].amt)} by ${esc(niceDate(Q.rows[1].due))}</div>` : ''}</div>
       <p class="lg-note">${doc.dueDate ? `This quote is valid until ${esc(niceDate(doc.dueDate))}. ` : ''}To accept, make the payment and send proof of payment to ${esc(S.popphone)} or ${esc(S.email)}. A receipt and the tuition card follow.</p></div>`;
   } else if(T==='invoice'){
     if(P) h += `<div class="lg-sec"><span class="cap">Payment plan · 50% at the start, 50% half-way through the tuition period</span><table class="lg-plan">${P.rows.map(r => `<tr><td>${r.short} · ${esc(wkDate(r.due))}</td><td class="r">${m0(r.amt)}</td><td class="r ${r.paid ? 'ok' : P.next === r ? 'due' : ''}">${r.paid ? 'Paid' : P.next === r ? 'Next due' : 'Due'}</td></tr>`).join('')}</table></div>`;
@@ -1257,10 +1257,10 @@ function fillPlan(){
   F('instLineRow').hidden = doc.type!=='quote'; F('f_instLine').checked = !doc.noInstLine;
   fillTT();
   if(!P) return;
-  if(doc.plan==='set'){ F('planDates').hidden = true; F('planHint').textContent = P.rows.map(r=>`MKW ${money(r.amt)} by ${niceDate(r.due)}`).join(' · ') + '. From the intake\'s dates.'; return; }
+  if(doc.plan==='set'){ F('planDates').hidden = true; F('planHint').textContent = P.rows.map(r=>`MWK ${money(r.amt)} by ${niceDate(r.due)}`).join(' · ') + '. From the intake\'s dates.'; return; }
   setBtnText(F('btnPlan1'), wkDate(P.rows[0].due), 'Choose');
   setBtnText(F('btnPlan2'), wkDate(P.rows[1].due), 'Choose');
-  F('planHint').textContent = `MKW ${money(P.rows[0].amt)} + MKW ${money(P.rows[1].amt)}. ${doc.plan2 ? '' : 'The 2nd date is half-way through the tuition period. '}Tap a date to change it.`;
+  F('planHint').textContent = `MWK ${money(P.rows[0].amt)} + MWK ${money(P.rows[1].amt)}. ${doc.plan2 ? '' : 'The 2nd date is half-way through the tuition period. '}Tap a date to change it.`;
 }
 function fillDates(){
   setBtnText(F('btnDate'), wkDate(doc.date), 'Choose a date');
@@ -1333,22 +1333,22 @@ function renderItems(){
 
 function update(){
   const t = totals(), T = doc.type;
-  doc.items.forEach((it,i)=>{ const c=F('amt'+i); if(c) c.textContent = 'MKW ' + money(num(it.sessions)*num(it.cost)); });
+  doc.items.forEach((it,i)=>{ const c=F('amt'+i); if(c) c.textContent = 'MWK ' + money(num(it.sessions)*num(it.cost)); });
   const rows = [];
   if(T==='receipt'){
-    rows.push(['Invoice total', 'MKW ' + money(t.total)]);
+    rows.push(['Invoice total', 'MWK ' + money(t.total)]);
     if(t.discount) rows.push([discountLabel() + ' included', '', 'dr']);
-    rows.push(['Paid before this', 'MKW ' + money(t.prevPaid)]);
-    rows.push(['Paid', 'MKW ' + money(t.received)]);
-    rows.push(['Balance remaining', 'MKW ' + money(Math.max(0, t.balance)), 'big']);
+    rows.push(['Paid before this', 'MWK ' + money(t.prevPaid)]);
+    rows.push(['Paid', 'MWK ' + money(t.received)]);
+    rows.push(['Balance remaining', 'MWK ' + money(Math.max(0, t.balance)), 'big']);
   } else {
-    if(t.discount){ rows.push(['Subtotal', 'MKW ' + money(t.subtotal)]); rows.push([discountLabel(), '-MKW ' + money(t.discount), 'dr']); }
-    if(T==='quote') rows.push(['Total', 'MKW ' + money(t.total), 'big']);
-    else { rows.push(['Total', 'MKW ' + money(t.total)]); rows.push(['Paid', 'MKW ' + money(t.paid)]); rows.push(['Balance due', 'MKW ' + money(t.balance), 'big']); }
+    if(t.discount){ rows.push(['Subtotal', 'MWK ' + money(t.subtotal)]); rows.push([discountLabel(), '-MWK ' + money(t.discount), 'dr']); }
+    if(T==='quote') rows.push(['Total', 'MWK ' + money(t.total), 'big']);
+    else { rows.push(['Total', 'MWK ' + money(t.total)]); rows.push(['Paid', 'MWK ' + money(t.paid)]); rows.push(['Balance due', 'MWK ' + money(t.balance), 'big']); }
   }
   if(T==='receipt') drawPayPick(t);
   const PP = planInfo();
-  if(PP) PP.rows.forEach(r=>rows.push([`${r.short} · due ${niceDate(r.due)}${r.paid?' · paid':''}`, 'MKW ' + money(r.amt), 'dr']));
+  if(PP) PP.rows.forEach(r=>rows.push([`${r.short} · due ${niceDate(r.due)}${r.paid?' · paid':''}`, 'MWK ' + money(r.amt), 'dr']));
   if(mode === 'edit') drawHead();
   F('sums').innerHTML = rows.map(([a,b,c])=>`<div class="row ${c||''}"><span>${esc(a)}</span><span>${esc(b)}</span></div>`).join('');
   renderDoc();
@@ -1754,20 +1754,20 @@ F('btnResetTemplates').onclick = ()=>{ templates = Object.assign({},DEFAULT_TEMP
 
 function summaryText(){
   const t = totals(), T = doc.type, out = [];
-  if(t.discount){ out.push(`Subtotal: MKW ${money(t.subtotal)}`); out.push(`${discountLabel()}: -MKW ${money(t.discount)}`); }
-  if(T==='quote'){ out.push(`Total: MKW ${money(t.total)}`); if(doc.dueDate) out.push(`This quote is valid until ${niceDate(doc.dueDate)}.`); }
-  else if(T==='invoice'){ out.push(`Total: MKW ${money(t.total)}`); if(t.paid) out.push(`Paid: MKW ${money(t.paid)}`); out.push(`Balance due: MKW ${money(t.balance)}${doc.dueDate && !planInfo()?` (due by ${niceDate(doc.dueDate)})`:''}`); }
-  else { out.push(`Invoice total: MKW ${money(t.total)}`); out.push(`This payment: MKW ${money(t.received)}`); out.push(`Balance remaining: MKW ${money(Math.max(0,t.balance))}`); }
+  if(t.discount){ out.push(`Subtotal: MWK ${money(t.subtotal)}`); out.push(`${discountLabel()}: -MWK ${money(t.discount)}`); }
+  if(T==='quote'){ out.push(`Total: MWK ${money(t.total)}`); if(doc.dueDate) out.push(`This quote is valid until ${niceDate(doc.dueDate)}.`); }
+  else if(T==='invoice'){ out.push(`Total: MWK ${money(t.total)}`); if(t.paid) out.push(`Paid: MWK ${money(t.paid)}`); out.push(`Balance due: MWK ${money(t.balance)}${doc.dueDate && !planInfo()?` (due by ${niceDate(doc.dueDate)})`:''}`); }
+  else { out.push(`Invoice total: MWK ${money(t.total)}`); out.push(`This payment: MWK ${money(t.received)}`); out.push(`Balance remaining: MWK ${money(Math.max(0,t.balance))}`); }
   const P = planInfo();
   if(P){
-    if(T==='invoice'){ P.rows.forEach(r=>out.push(`${r.label}: MKW ${money(r.amt)}, due by ${niceDate(r.due)}${r.paid?' (paid)':''}`)); if(graceLine(P)) out.push(graceLine(P)); }
+    if(T==='invoice'){ P.rows.forEach(r=>out.push(`${r.label}: MWK ${money(r.amt)}, due by ${niceDate(r.due)}${r.paid?' (paid)':''}`)); if(graceLine(P)) out.push(graceLine(P)); }
     if(T==='receipt' && P.next && t.balance > 0.005) out.push(nextLine(P, false));
   }
   return out.join('\n');
 }
 function fillTemplate(tpl){
   const t = totals(), S = settings, T = doc.type;
-  const subjects = doc.items.filter(it=>it.desc).map(it=>`• ${it.desc}: ${it.sessions} sessions × MKW ${money(num(it.cost))} = MKW ${money(num(it.sessions)*num(it.cost))}`).join('\n');
+  const subjects = doc.items.filter(it=>it.desc).map(it=>`• ${it.desc}: ${it.sessions} sessions × MWK ${money(num(it.cost))} = MWK ${money(num(it.sessions)*num(it.cost))}`).join('\n');
   const vals = { name: doc.name || 'Parent/Guardian', student: doc.student, level: doc.level,
     type: WORD[T].toLowerCase(), Type: WORD[T], number: doc.number, ref: doc.ref,
     refline: doc.ref ? ` for invoice ${doc.ref}` : '',
@@ -1804,7 +1804,7 @@ function syncInvoicePaid(ref){
     .reduce((m,s)=>Math.max(m, num(s.prevPaid) + num(s.received)), 0);
   if(paid <= num(inv.paid)) return '';
   inv.paid = String(Math.round(paid*100)/100);
-  return `. Invoice ${inv.number} now shows MKW ${money(paid)} paid`;
+  return `. Invoice ${inv.number} now shows MWK ${money(paid)} paid`;
 }
 const shortDate = t => new Date(t).toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
 const TAG = {quote:['QUO',''], invoice:['INV','inv'], receipt:['RCT','rct'], card:['TC','tc']};
@@ -1814,7 +1814,7 @@ function renderSaved(){
   L.innerHTML = saved.map(s=>{
     const type = s.type || 'quote', [tag, cls] = TAG[type];
     const amount = type==='card' ? esc((s.subjects||[]).map(x=>x.name).filter(Boolean).join(', ') || 'Tuition card')
-      : type==='receipt' ? `Received MKW ${money(s.receivedAmt||0)}` : `MKW ${money(s.total||0)}`;
+      : type==='receipt' ? `Received MWK ${money(s.receivedAmt||0)}` : `MWK ${money(s.total||0)}`;
     const next = type==='quote' ? 'invoice' : type==='invoice' ? 'receipt' : null;
     const toCard = type==='invoice' || type==='receipt';
     return `
@@ -1968,11 +1968,11 @@ function updateSendStatus(){
 /* The wording LHQ submits to Meta for approval (see README). Used for the preview
    until the app can read the live templates from Meta. */
 const WA_TEMPLATE_FALLBACK = {
-  body: 'Hello {{1}}, thank you for choosing LHQ Learning Solutions. Please find attached your tutoring {{2}} ({{3}}) for {{4}}.\n\nTotal: MKW {{5}}\nBalance due: MKW {{6}}\n\nKindly send proof of payment to 0992 525 250 or learnhqes@gmail.com. A receipt will be issued once payment is confirmed.',
+  body: 'Hello {{1}}, thank you for choosing LHQ Learning Solutions. Please find attached your tutoring {{2}} ({{3}}) for {{4}}.\n\nTotal: MWK {{5}}\nBalance due: MWK {{6}}\n\nKindly send proof of payment to 0992 525 250 or learnhqes@gmail.com. A receipt will be issued once payment is confirmed.',
   footer: 'LHQ Learning Solutions · +265 992 525 250'
 };
 const WA_RECEIPT_FALLBACK = {
-  body: 'Hello {{1}}, thank you for your payment of MKW {{2}} for {{3}}. Please find attached your receipt ({{4}}).\n\nBalance remaining: MKW {{5}}\n\nPlease keep this receipt for your records.',
+  body: 'Hello {{1}}, thank you for your payment of MWK {{2}} for {{3}}. Please find attached your receipt ({{4}}).\n\nBalance remaining: MWK {{5}}\n\nPlease keep this receipt for your records.',
   footer: 'LHQ Learning Solutions · +265 992 525 250'
 };
 /* Values for the approved template's numbered placeholders, in order */
@@ -2152,7 +2152,7 @@ window.hubToast = toast;
 window.hubApply = ()=>{
   saved = store.get('lhq_saved', []);
   settings = withDefaults(store.get('lhq_settings', {}));
-  templates = Object.assign({}, DEFAULT_TEMPLATES, store.get('lhq_templates', {}));
+  templates = Object.assign({}, DEFAULT_TEMPLATES, Object.fromEntries(Object.entries(store.get('lhq_templates', {}) || {}).map(([k, v]) => [k, typeof v === 'string' ? v.replace(/\bMKW\b/g, 'MWK') : v])));
   const open = doc.id && saved.find(s=>s.id===doc.id);
   if(open && open.savedAt > (doc.savedAt||0) && open.updatedBy){ toast(`${open.number} was updated by ${open.updatedBy}. Open it again to see the changes.`); }
   renderSaved(); fillStudentList(); fillBackup(); fillNumbering(); fillSettings(); fillTemplates();

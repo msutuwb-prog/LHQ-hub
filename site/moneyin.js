@@ -128,7 +128,7 @@ window.MIN = (function(){
   const colOf = (k, dd) => k === 'New' && dd === 'nr' ? 'var(--gold)' : k === 'Others' ? COLS[5] : COLS[Math.min(Math.max(0, (data().order[dd] || []).indexOf(k)), 4)];
   const pct = (a, b) => b ? Math.round((a - b) / b * 100) : null;
   const arrow = (a, b) => b == null ? '' : !b ? (a ? '<span class="up">▲ new</span>' : '<span class="fl">no change</span>') : Math.round(a) === Math.round(b) ? '<span class="fl">no change</span>' : `<span class="${a > b ? 'up' : 'dn'}">${a > b ? '▲' : '▼'} ${a > b && a >= b * 10 ? (a / b).toFixed(0) + '×' : Math.abs(pct(a, b)) + '%'}</span>`;
-  const short = n => mkShort(n).replace('MKW ', '');
+  const short = n => mkShort(n).replace('MWK ', '');
 
   /* ---------- this device's choices ---------- */
   const LS = (k, v) => { try{ if(v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); }catch(e){} return null; };

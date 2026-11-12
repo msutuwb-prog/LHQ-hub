@@ -1,4 +1,4 @@
-/* LHQ Hub demo data (previews only): six months of made-up students (about 40 at a time, averaging about MKW 700,000 a period at MKW 15,000 a session), quotes, invoices, receipts,
+/* LHQ Hub demo data (previews only): six months of made-up students (about 40 at a time, averaging about MWK 700,000 a period at MWK 15,000 a session), quotes, invoices, receipts,
    tuition cards, session logs and SRAs, with every situation the Hub handles: paid, part-paid, in grace,
    overdue, ending this week, renewed, ended, quotes waiting, a card with no tutor, a deleted document.
    Everyone here is invented. Dates are worked out from today, so the demo always looks current. */
@@ -27,7 +27,7 @@
     'Physics':['Emmanuel Mkwamba','Peter Mvula'],'Chemistry':['Emmanuel Mkwamba','Dalitso Phiri'],'Science':['Peter Mvula','Dalitso Phiri'],'Biology':['Maureen Story','Dalitso Phiri'],
     'Business Studies':['Maureen Story','Joseph Nkhoma'],'Economics':['Wanangwa Msutu','Joseph Nkhoma'],'Accounting':['Joseph Nkhoma']};
   const tutorFor = (subj, i) => { const p = POOL[subj] || ['Grace Chinyama']; return p[i % p.length]; };
-  /* LHQ's fee is MKW 15,000 a session for every level; what changes is how many sessions a student takes
+  /* LHQ's fee is MWK 15,000 a session for every level; what changes is how many sessions a student takes
      (days a week per subject, over a 4-week period: 5 days = 20 sessions) */
   const RATE = () => 15000;
   const WEEKDAYS = ['Mo','Tu','We','Th','Fr'];

@@ -666,7 +666,7 @@ function metrics(list){
     tutors: tutorNames.size, perTutor: tutorNames.size ? Math.round(active.length / tutorNames.size * 10) / 10 : 0, noTutor};
 }
 /* a line on a Home card that opens the list behind it (plain text while editing Home) */
-const mkV = h => String(h).replace(/^MKW\s+/, '<small class="u">MKW</small>');
+const mkV = h => String(h).replace(/^MWK\s+/, '<small class="u">MWK</small>');
 const L = (href, html, cls = 's') => { if(cls === 'v') html = mkV(html); return route.page === 'edithome' ? `<div class="${cls}">${html}</div>` : `<a class="mcl ${cls}" href="${href}">${html}<span class="mca">›</span></a>`; };
 const trend = (now, before, word) => { if(!before && !now) return ''; if(!before) return `<div class="tr fl">First month with figures</div>`; const p = Math.round((now - before) / before * 100); return `<div class="tr ${p >= 0 ? 'up' : 'dn'}">${p >= 0 ? '▲' : '▼'} ${Math.abs(p)}% ${word}</div>`; };
 const CARDS = {
@@ -1345,7 +1345,7 @@ function reqList(){
 }
 P.reqs = () => {
   const R = reqList(), ap = R.filter(r => !r.dec.s), buy = R.filter(r => r.dec.s === 'approved'), done = R.filter(r => ['bought','declined'].includes(r.dec.s)).slice(0, 20);
-  const row = r => `<div class="it" style="align-items:flex-start;flex-wrap:wrap"><span class="t" style="min-width:200px"><b>${esc(r.item.item)}${r.item.qty && r.item.qty !== '1' ? ' × ' + esc(r.item.qty) : ''}</b><small>${esc(r.rep.tutor)} · asked ${nice(r.rep.d)}${r.item.by ? ' · needed by ' + nice(r.item.by) : ''}${r.item.for ? ' · for ' + esc(r.item.for.replace(/\b\w/g, c => c.toUpperCase())) : ''}${r.dec.s ? ` · ${{approved:'approved', declined:'declined', bought:'bought'}[r.dec.s]} by ${esc(r.dec.boughtBy || r.dec.by)}` : ''}${r.dec.cost ? ' · MKW ' + Number(r.dec.cost).toLocaleString('en-US') : ''}${r.dec.note ? ' · ' + esc(r.dec.note) : ''}</small></span>
+  const row = r => `<div class="it" style="align-items:flex-start;flex-wrap:wrap"><span class="t" style="min-width:200px"><b>${esc(r.item.item)}${r.item.qty && r.item.qty !== '1' ? ' × ' + esc(r.item.qty) : ''}</b><small>${esc(r.rep.tutor)} · asked ${nice(r.rep.d)}${r.item.by ? ' · needed by ' + nice(r.item.by) : ''}${r.item.for ? ' · for ' + esc(r.item.for.replace(/\b\w/g, c => c.toUpperCase())) : ''}${r.dec.s ? ` · ${{approved:'approved', declined:'declined', bought:'bought'}[r.dec.s]} by ${esc(r.dec.boughtBy || r.dec.by)}` : ''}${r.dec.cost ? ' · MWK ' + Number(r.dec.cost).toLocaleString('en-US') : ''}${r.dec.note ? ' · ' + esc(r.dec.note) : ''}</small></span>
     <span class="acts">${!r.dec.s && isDir() ? `<button class="btn sm n" data-rq="approve:${esc(r.key)}">Approve</button><button class="btn sm" data-rq="decline:${esc(r.key)}">Decline</button>` : r.dec.s === 'approved' && can('spend') ? `<button class="btn sm n" data-rq="bought:${esc(r.key)}">Mark bought</button>` : ''}</span></div>`;
   return `${crumb('#home', 'Home', 'reqs')}<div class="ph"><div class="tt"><h1>Requisitions</h1><p>${isDir() ? 'You approve · bought goes to Spending' : 'The Director approves · bought goes to Spending'}</p></div></div>
   <div class="h2">To approve <em>${ap.length}</em></div><div class="card">${ap.map(row).join('') || '<p class="empty">Nothing waiting. ✓</p>'}</div>
@@ -1359,7 +1359,7 @@ function reqSheet(action, key){
   const cats = (settingsKV().spendCats || '').split('\n').map(x => x.trim()).filter(Boolean);
   openSheet(`<div class="hx"><h3>${action === 'decline' ? 'Decline' : 'Mark bought'}</h3><button class="ib" data-close>✕</button></div><p class="sp">${esc(r.item.item)}${r.item.qty && r.item.qty !== '1' ? ' × ' + esc(r.item.qty) : ''} · for ${esc(r.rep.tutor)}</p>
     ${action === 'decline' ? `<label class="f"><span>Why (the tutor sees this)</span><input class="in" id="rqN" placeholder="e.g. We have some in the office"></label>`
-      : `<div class="r2"><label class="f"><span>What it cost (MKW)</span><input class="in" id="rqC" inputmode="numeric"></label><label class="f"><span>Category</span><select class="in" id="rqK">${cats.map(c => `<option${c === 'Stationery' ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select></label></div>
+      : `<div class="r2"><label class="f"><span>What it cost (MWK)</span><input class="in" id="rqC" inputmode="numeric"></label><label class="f"><span>Category</span><select class="in" id="rqK">${cats.map(c => `<option${c === 'Stationery' ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select></label></div>
       <label class="f"><span>Paid by</span><select class="in" id="rqM">${['Cash','Bank transfer','Airtel Money','TNM Mpamba'].map(m => `<option>${m}</option>`).join('')}</select></label>`}
     <button class="btn n full" id="rqGo">${action === 'decline' ? 'Decline' : 'Save'}</button>`);
   $('rqGo').onclick = () => send(action === 'decline' ? {note: $('rqN').value} : {cost: String($('rqC').value).replace(/[^\d]/g, ''), cat: $('rqK').value, method: $('rqM').value});
@@ -1706,10 +1706,10 @@ S.company = () => { const s = settingsKV();
   <button class="btn n" data-save="email,phone,bank,accname,branch,accno,popphone,mobile">Save</button></div>`; };
 /* fees in dollars: what the cost per session is worth today, and what it was worth when it was set (a falling kwacha shows here first) */
 function feeUsd(s){ if(!window.FX || !FX.may() || !FX.now() || !(+s.rate > 0)) return ''; const n = FX.now().rate, a = s.rateAt, now$ = +s.rate / n, was$ = a && a.fx ? +s.rate / a.fx : null, dpc = was$ ? Math.round((now$ - was$) / was$ * 100) : null;
-  return `<p class="note" style="margin:10px 0 0">MKW ${Number(s.rate).toLocaleString('en-US')} a session = <b>$${now$.toFixed(2)}</b> today${was$ ? ` · was $${was$.toFixed(2)} when set (${nice(a.d)})${dpc ? ` · <b style="color:${dpc < 0 ? 'var(--am)' : 'var(--ok)'}">${dpc > 0 ? '+' : ''}${dpc}%</b>` : ''}` : ''} · bank rate ${n.toFixed(2)}</p>`; }
+  return `<p class="note" style="margin:10px 0 0">MWK ${Number(s.rate).toLocaleString('en-US')} a session = <b>$${now$.toFixed(2)}</b> today${was$ ? ` · was $${was$.toFixed(2)} when set (${nice(a.d)})${dpc ? ` · <b style="color:${dpc < 0 ? 'var(--am)' : 'var(--ok)'}">${dpc > 0 ? '+' : ''}${dpc}%</b>` : ''}` : ''} · bank rate ${n.toFixed(2)}</p>`; }
 S.payments = () => { const s = settingsKV();
   return `<h2 class="sec-h">Payments & due dates</h2><p class="sec-p">Defaults for new documents. Each document can still be changed.</p>
-  <div class="card pad"><div class="r2">${fieldRow('c_rate','Default cost per session (MKW)',s.rate,'inputmode="decimal"')}${fieldRow('c_validDays','Quotes valid for (days)',s.validDays,'inputmode="numeric"')}${fieldRow('c_dueDays','Invoices due after (days, 0 = same day)',s.dueDays,'inputmode="numeric"')}${fieldRow('c_graceDays','Instalment grace period (days)',s.graceDays,'inputmode="numeric"')}</div>
+  <div class="card pad"><div class="r2">${fieldRow('c_rate','Default cost per session (MWK)',s.rate,'inputmode="decimal"')}${fieldRow('c_validDays','Quotes valid for (days)',s.validDays,'inputmode="numeric"')}${fieldRow('c_dueDays','Invoices due after (days, 0 = same day)',s.dueDays,'inputmode="numeric"')}${fieldRow('c_graceDays','Instalment grace period (days)',s.graceDays,'inputmode="numeric"')}</div>
   <button class="btn n" data-save="rate,validDays,dueDays,graceDays">Save</button>${feeUsd(s)}</div>
   ${payDatesHTML()}`; };
 /* payment dates parents see as Next payment: term fees per term, fast track intakes' dates; holiday tuition is due before the first session */
@@ -1736,7 +1736,7 @@ S.numbering = () => `<h2 class="sec-h">Numbering</h2><p class="sec-p">Set the ne
 let msgTab = 'emailBody';
 const MSG = [['emailBody','Quotes & invoices · email'],['waBody','Quotes & invoices · WhatsApp'],['receiptEmailBody','Receipts · email'],['receiptWaBody','Receipts · WhatsApp']];
 const VARS = ['{name}','{student}','{level}','{type}','{Type}','{number}','{ref}','{date}','{due}','{for}','{period}','{subjects}','{summary}','{subtotal}','{discount}','{total}','{paid}','{balance}','{received}','{prevpaid}','{method}','{bank}','{accname}','{branch}','{accno}','{mobile}','{includesline}','{popphone}','{email}','{phone}'];
-const templates = () => Object.assign({}, DEFAULT_TEMPLATES, store.get('lhq_templates', {}));
+const templates = () => Object.assign({}, DEFAULT_TEMPLATES, Object.fromEntries(Object.entries(store.get('lhq_templates', {}) || {}).map(([k, v]) => [k, typeof v === 'string' ? v.replace(/\bMKW\b/g, 'MWK') : v])));   // saved messages written with MKW read as MWK
 S.messages = () => { const t = templates();
   return `<h2 class="sec-h">Messages</h2><p class="sec-p">Message sent with each document. Tap a field to insert it.</p>
   <div class="tabs">${MSG.map(([k, l]) => `<a href="#set/messages" class="${msgTab === k ? 'on' : ''}" data-msg="${k}">${l}</a>`).join('')}</div>

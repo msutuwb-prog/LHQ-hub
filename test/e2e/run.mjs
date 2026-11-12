@@ -27,7 +27,7 @@ const signInWithCode = async (p, code, password) => {
 const VIEW = process.env.E2E_VIEW === "full" ? "full" : "lean";
 // dates as LHQ sees them (Malawi, UTC+2), so a run just after midnight agrees with the Hub
 const iso = d => new Date(d.getTime() + 2 * 3600e3).toISOString().slice(0, 10), today = iso(new Date()), addD = n => iso(new Date(Date.now() + n * 864e5));
-const money = n => "MKW " + Math.round(n).toLocaleString("en-US");
+const money = n => "MWK " + Math.round(n).toLocaleString("en-US");
 
 try {
   /* 1. The Director sets up the Hub and moves it onto the database */
@@ -66,8 +66,8 @@ try {
     subjects: [{ name: "Mathematics", tutor: "Emmanuel Mkwamba", days: ["Tu", "Th"], start: "14:00", end: "15:00", perWeek: "2", sessions: "8" }] }, base) }] });
   check(!r1.error && !c1.error, "Admin records the payment and makes the tuition card", JSON.stringify([r1, c1]).slice(0, 200));
   await pull(D); await go(D, "", 1500); const homeAfter = await text(D, ".mcs");
-  const recv = t => { const m = /(?:Money this month|Money in)\s*MKW\s*([\d.,]+)(k|M)?/i.exec(t.replace(/\s+/g, " ")); return m ? +m[1].replace(/,/g, "") * (m[2] === "M" ? 1e6 : m[2] === "k" ? 1e3 : 1) : NaN; };
-  check(recv(homeAfter) - (recv(homeBefore) || 0) === 120000, "the Director's Home shows the MKW 120,000 received", `before ${recv(homeBefore)} after ${recv(homeAfter)}`);
+  const recv = t => { const m = /(?:Money this month|Money in)\s*MWK\s*([\d.,]+)(k|M)?/i.exec(t.replace(/\s+/g, " ")); return m ? +m[1].replace(/,/g, "") * (m[2] === "M" ? 1e6 : m[2] === "k" ? 1e3 : 1) : NaN; };
+  check(recv(homeAfter) - (recv(homeBefore) || 0) === 120000, "the Director's Home shows the MWK 120,000 received", `before ${recv(homeBefore)} after ${recv(homeAfter)}`);
   await go(D, "#biz/owed", 1500);
   check(!(await text(D)).includes(st), "the paid invoice leaves Owed to LHQ");
   await go(D, "#student/" + encodeURIComponent(key), 1500);
@@ -123,7 +123,7 @@ try {
 
   /* 6. Admin records spending; the Director's Business shows it; the tutor can't open money */
   const spOk = await api(A, "sync", { kv: { lhq_spend: { e2esp1: { date: today, cat: "Stationery", amount: 45000, what: "Printer paper", method: "Cash", at: Date.now() } } } });
-  check(!spOk.error, "Admin records MKW 45,000 of stationery", JSON.stringify(spOk).slice(0, 200));
+  check(!spOk.error, "Admin records MWK 45,000 of stationery", JSON.stringify(spOk).slice(0, 200));
   await pull(D); await go(D, "#biz/spending", 1500);
   check(/Printer paper|Stationery/.test(await text(D)), "the Director's Spending shows it");
   check((await api(Tt, "state")).status === 403, "the tutor can't open LHQ's documents or money");
@@ -142,14 +142,14 @@ try {
   await pull(A); await go(A, "#reqs", 1200); await A.locator('[data-rq^="bought:"]').first().click(); await A.waitForTimeout(400);
   await A.fill("#rqC", "4500"); await A.click("#rqGo"); await A.waitForTimeout(1800);
   const bought = await sql("SELECT amount, body->>'what' AS what FROM money WHERE kind = 'spend' AND body->>'what' LIKE 'Graph paper%'");
-  check(bought.length === 1 && +bought[0].amount === 4500, "the Director approves, Admin marks it bought, and MKW 4,500 is in Spending", JSON.stringify(bought));
+  check(bought.length === 1 && +bought[0].amount === 4500, "the Director approves, Admin marks it bought, and MWK 4,500 is in Spending", JSON.stringify(bought));
   const tv2 = await api(Tt, "tutor", null, "GET");
   check(Object.values(tv2.reqs || {}).some(v => v.s === "bought") && (tv2.makeups || []).some(m => m.status === "ok"), "the tutor sees the make-up confirmed and the paper bought");
 
   /* 7. Activity: the Director sees who did what */
   await go(D, "#activity", 2500); const av = await text(D);
-  const want = [["Catherine Mkwinda", /New receipt RCT-0001 · Linga Shaba · MKW 120,000/], ["Emmanuel Mkwamba", /Logged 2 sessions/], ["Emmanuel Mkwamba", /Teaching them together: Linga Shaba and Tadala Phiri/],
-    ["Emmanuel Mkwamba", /Moved Tadala Phiri's Mathematics from Thu 14:00–15:00/], ["Wanangwa Msutu", /Settled Linga Shaba/], ["Catherine Mkwinda", /Recorded spending · Stationery · MKW 45,000/]];
+  const want = [["Catherine Mkwinda", /New receipt RCT-0001 · Linga Shaba · MWK 120,000/], ["Emmanuel Mkwamba", /Logged 2 sessions/], ["Emmanuel Mkwamba", /Teaching them together: Linga Shaba and Tadala Phiri/],
+    ["Emmanuel Mkwamba", /Moved Tadala Phiri's Mathematics from Thu 14:00–15:00/], ["Wanangwa Msutu", /Settled Linga Shaba/], ["Catherine Mkwinda", /Recorded spending · Stationery · MWK 45,000/]];
   const actRows = await sql("SELECT a.summary, coalesce(p.name, a.data->>'who') who FROM activity a LEFT JOIN people p ON p.id = a.actor_id");
   // the page tells stories: session logs show as one row ("2 sessions logged"); the rest show their own words
   const onPage = re => re.source === "Logged 2 sessions" ? /2 sessions logged/ : re;
