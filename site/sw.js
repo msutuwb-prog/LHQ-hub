@@ -1,20 +1,40 @@
 /* LHQ Hub offline copy (service worker).
    Keeps the Hub's own files on the device, so pages open straight away and still open with no internet.
-   Each file is shown from the device first, then quietly checked online; if LHQ Hub has been updated,
-   the page shows "A newer version is ready" and one tap loads it. Saving and syncing (/api/…) always go online. */
-const CACHE = 'lhq-hub-v59', FONTS = 'lhq-fonts-v1';
+   Each file is shown from the device first. A release (a new CACHE name) installs fresh files and the page shows
+   "A newer version is ready"; one tap loads it. A sweep every 12 hours catches anything else. Saving and syncing (/api/…) always go online. */
+const CACHE = 'lhq-hub-v60', FONTS = 'lhq-fonts-v1';
 const CORE = ['index.html', 'doc.html', 'reports.html', 'checklist.html', 'tutor.html', 'account.html', 'hub.css', 'theme.js', 'picker.js', 'testbar.js', 'schedule.js', 'sreport.js', 'search.js', 'marks.js', 'pako.min.js', 'store.js', 'sync.js',
   'defaults.js', 'payplan.js', 'hubdata.js', 'nav.js', 'schools.js', 'business.js', 'insights.js', 'moneyin.js', 'perf.js', 'cards.js', 'sra.js', 'attn.js', 'examdata.js', 'exams.js', 'examsui.js', 'kpi.js', 'kpiui.js', 'tpay.js', 'tpayui.js', 'srafig.js', 'fu.js', 'stuview.js', 'motion.js', 'move.js', 'fx.js', 'sxtras.js', 'splan.js', 'review.js', 'sounds.js', 'push.js', 'teach.js', 'famdocs.js', 'family.js', 'card.js', 'topics.js', 'codec.js', 'report-render.js',
   'logo.png', 'logo-white.png', 'arrow.png', 'icon-32.png', 'icon-180.png', 'icon-192.png', 'icon-app-192.png', 'icon-app-512.png', 'badge-96.png',
   'manifest.webmanifest', 'lib/html2pdf.bundle.min.js'];
-const CHECK_EVERY = 60000;   // look online for a newer copy of a file at most once a minute (an unchanged file costs a tiny 'not modified' reply)
-const checked = new Map();
+/* Checking for updates, cheaply (every request counts against Netlify's credits):
+   - a release changes CACHE below, so the browser installs this worker again with fresh files and the page offers the new version;
+   - as a safety net, once every 12 hours on a device the stored pages are compared with the online copies (about 50 small requests). */
+const SWEEP_EVERY = 12 * 3600e3, META = 'lhq-meta';
+async function sweepDue(){
+  try{
+    const m = await caches.open(META), r = await m.match('/__sweep'), last = r ? +(await r.text()) : 0, now = Date.now();
+    if(now - last < SWEEP_EVERY) return false;
+    await m.put('/__sweep', new Response(String(now))); return true;
+  }catch(e){ return false; }
+}
+async function sweep(){
+  if(!(await sweepDue())) return;
+  const cache = await caches.open(CACHE);
+  for(const key of CORE){ if(key.startsWith('lib/')) continue; const cached = await cache.match(key); if(cached) await refresh(key, new Request(key, {cache: 'no-cache'}), cached); }
+}
 
 self.addEventListener('install', e => {
-  e.waitUntil(caches.open(CACHE).then(c => Promise.all(CORE.map(u => c.add(new Request(u, {cache: 'reload'})).catch(() => {})))).then(() => self.skipWaiting()));
+  e.waitUntil(caches.open(CACHE).then(c => Promise.all(CORE.map(u => c.add(new Request(u, {cache: 'reload'})).catch(() => {}))))
+    .then(() => caches.open(META)).then(m => m.put('/__sweep', new Response(String(Date.now()))))   // just fetched: no sweep needed yet
+    .then(() => self.skipWaiting()));
 });
 self.addEventListener('activate', e => {
-  e.waitUntil(caches.keys().then(ks => Promise.all(ks.filter(k => k !== CACHE && k !== FONTS).map(k => caches.delete(k)))).then(() => self.clients.claim()));
+  e.waitUntil(caches.keys().then(async ks => {
+    const old = ks.filter(k => k !== CACHE && k !== FONTS && k !== META);
+    await Promise.all(old.map(k => caches.delete(k))); await self.clients.claim();
+    if(old.some(k => /^lhq-hub-v/.test(k))) soon();   // a new release replaced an older one: offer it on the open page
+  }));
 });
 
 /* "/", "/t" (tutor links) and page addresses map onto the stored pages */
@@ -29,10 +49,7 @@ let notifyTimer = null;
 const soon = () => { clearTimeout(notifyTimer); notifyTimer = setTimeout(notify, 800); };
 
 async function refresh(key, req, cached){
-  const now = Date.now();
   if(cached && key.startsWith('lib/')) return;   // libraries never change at the same address
-  if(cached && now - (checked.get(key) || 0) < CHECK_EVERY) return;
-  checked.set(key, now);
   try{
     const res = await fetch(req, {cache: 'no-cache'});
     if(!res.ok || res.type !== 'basic') return;
@@ -68,8 +85,8 @@ self.addEventListener('fetch', e => {
       throw err;
     }
   }));
-  // then quietly look for a newer copy
-  e.waitUntil(found.then(({cached}) => cached ? refresh(key, new Request(key, {cache: 'no-cache'}), cached) : null));
+  // opening a page: now and then, quietly compare the stored files with the online ones
+  if(req.mode === 'navigate') e.waitUntil(sweep());
 });
 
 /* phone notifications: show what the Hub sends, and open the right page when tapped */

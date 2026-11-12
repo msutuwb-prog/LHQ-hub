@@ -1888,6 +1888,8 @@ async function squeeze(req, r) {
   } catch { return r; }
 }
 export default async (req, context) => squeeze(req, await handle(req, context));
+/* the scheduler's key: worked out from LHQ_SECRET, so there's nothing extra to set up; LHQ_TICK_KEY replaces it if set */
+export const tickKey = () => process.env.LHQ_TICK_KEY || crypto.createHash("sha256").update("lhq-tick|" + secret()).digest("base64url").slice(0, 24);
 async function handle(req, context) {
   site = (context && context.deploy && context.deploy.context) || "production"; siteName = whichSite(req, context);
   if (!secret()) return fail("LHQ Hub isn't set up yet: add LHQ_SECRET in Netlify's environment variables.", 500);
@@ -1899,6 +1901,12 @@ async function handle(req, context) {
     if (req.method === "POST" && path === "login") return await login(req);
     if (req.method === "POST" && path === "recover") return await recover(req);
     if (req.method === "GET" && /^cal\//.test(path)) return await calFeed(path);
+    /* the timed reminders from an outside scheduler (a preview has no Netlify timer): /api/hub/tick?key=… at 07:00 and 16:00 */
+    if (path === "tick") {
+      const k = new URL(req.url).searchParams.get("key") || "";
+      if (!k || k.length !== tickKey().length || !crypto.timingSafeEqual(Buffer.from(k), Buffer.from(tickKey()))) return fail("Not allowed.", 403);
+      const r = await pushTick(null, Date.now()); return json({ ok: true, hour: r && r.hour, sent: r && r.sent ? r.sent.length : 0, skipped: r && r.skipped });
+    }
     /* sign-in with a password (database on) */
     const ua = req.headers.get("user-agent") || "", ip = req.headers.get("x-nf-client-connection-ip") || req.headers.get("x-forwarded-for") || "";
     if (req.method === "POST" && ["signin", "code", "dircode", "password"].includes(path)) {

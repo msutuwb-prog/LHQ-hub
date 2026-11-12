@@ -727,3 +727,10 @@ test("big replies go gzipped when the phone accepts it, plain otherwise", async 
   const p = await hub(new Request("http://x/api/hub/state", { headers: { authorization: "Bearer " + DIR } }));
   assert.equal(p.headers.get("content-encoding"), null); assert.ok(Array.isArray((await p.json()).docs));
 });
+
+test("the outside scheduler runs the reminders only with the right key", async () => {
+  assert.equal((await hub(new Request("http://x/api/hub/tick?key=wrong"))).status, 403);
+  assert.equal((await hub(new Request("http://x/api/hub/tick"))).status, 403);
+  const r = await hub(new Request("http://x/api/hub/tick?key=" + hubMod.tickKey()));
+  assert.equal(r.status, 200); assert.equal((await r.json()).ok, true);
+});
