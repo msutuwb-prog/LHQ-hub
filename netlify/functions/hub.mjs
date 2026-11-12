@@ -63,7 +63,7 @@ async function usesDbStore() {
 /* compare two values whatever order their keys come in (the database keeps keys in its own order) */
 const canon = v => JSON.stringify(v, (k, x) => x && typeof x === "object" && !Array.isArray(x) ? Object.keys(x).sort().reduce((o, key) => (o[key] = x[key], o), {}) : x);
 
-const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes", "lhq_treps", "lhq_avail", "lhq_cardack", "lhq_makeups", "lhq_reqs", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams", "lhq_kpi", "lhq_pay", "lhq_asks", "lhq_school", "lhq_fu", "lhq_obj"];
+const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes", "lhq_treps", "lhq_avail", "lhq_cardack", "lhq_makeups", "lhq_reqs", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams", "lhq_kpi", "lhq_pay", "lhq_asks", "lhq_school", "lhq_fu", "lhq_obj", "lhq_fx"];
 
 /* ---------- roles and permissions ---------- */
 const PERMS = ["quotes", "receipts", "cards", "delete", "restore", "students", "money", "tpay", "tutors", "msgs", "numbering", "backup", "classes", "moveclass", "spend", "pl"];
@@ -75,7 +75,7 @@ const LIST_FIELDS = ["subjects", "levels", "methods", "includes", "tutors", "gra
 const KV_READ = { lhq_spend: p => can(p, "spend") || can(p, "pl"), lhq_income: p => can(p, "spend") || can(p, "pl"), lhq_budget: p => can(p, "pl"),
   lhq_sreports: p => isDirector(p) || can(p, "tutors"),
   lhq_kpi: p => isDirector(p) || can(p, "tutors"),
-  lhq_pay: p => isDirector(p) || can(p, "tpay"), lhq_asks: p => isDirector(p) || can(p, "tutors"), lhq_school: p => isDirector(p) || can(p, "students") || can(p, "tutors"), lhq_fu: p => isDirector(p) || can(p, "tutors") };   // tutor pay: rules, placements, items, payslips (tutors get their own payslips through /api/hub/pay)   // tutor KPIs: observations, reviews (admin sees them only when the Director switches it on)   // students' daily reports: never tutors (they get averages only)
+  lhq_pay: p => isDirector(p) || can(p, "tpay"), lhq_asks: p => isDirector(p) || can(p, "tutors"), lhq_school: p => isDirector(p) || can(p, "students") || can(p, "tutors"), lhq_fu: p => isDirector(p) || can(p, "tutors"), lhq_fx: p => isDirector(p) || can(p, "money") };   // tutor pay: rules, placements, items, payslips (tutors get their own payslips through /api/hub/pay)   // tutor KPIs: observations, reviews (admin sees them only when the Director switches it on)   // students' daily reports: never tutors (they get averages only)
 const MERGED = ["lhq_spend", "lhq_income"];   // recorded on several devices at once: merged entry by entry
 /* Spending is recorded on several devices at once, so entries are merged one by one (newest wins) instead of the whole list being replaced.
    Deleting marks an entry del:true, so a device that hasn't heard about it yet can't bring it back. */
@@ -321,7 +321,7 @@ async function checkSync(me, upserts, deletes, kv) {
       const ch = Object.keys(v || {}).filter(id => canon(v[id]) !== canon(old[id]) && (!old[id] || (v[id].at || 0) >= (old[id].at || 0)));
       if (ch.length && !can(me, "spend")) return "You don't have permission to record spending.";
       if (ch.some(id => old[id] && old[id].by !== me.name)) return "You can only change spending you recorded. Ask the Director to change the others.";
-    } else if (["lhq_makeups", "lhq_reqs", "lhq_treps", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams", "lhq_kpi", "lhq_pay", "lhq_asks", "lhq_school", "lhq_fu", "lhq_obj"].includes(k)) {
+    } else if (["lhq_makeups", "lhq_reqs", "lhq_treps", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams", "lhq_kpi", "lhq_pay", "lhq_asks", "lhq_school", "lhq_fu", "lhq_obj", "lhq_fx"].includes(k)) {
       if (changedKeys(old, v).length) return "Make-ups, requisitions, clashes, targets and tutors' reports change through their own buttons.";
     } else if (k === "lhq_avail" || k === "lhq_cardack") {
       if (changedKeys(old, v).length && !can(me, "tutors")) return "You don't have permission to change tutors' times.";
@@ -1210,6 +1210,35 @@ function moveMerge(cur, inc, depth = 0) {
   }
   return inc;
 }
+/* ---------- MK / $: the Reserve Bank of Malawi rate (MWK per USD), fetched once a day; the Director or a money admin can correct today's ----------
+   Free sources that follow the official rate; the first that answers wins. kv lhq_fx = {days: {date: rate}, fix: {date: rate}, src, at} */
+const FX_SRC = [["open.er-api.com", "https://open.er-api.com/v6/latest/USD", j => j && j.rates && j.rates.MWK],
+  ["currency-api", "https://cdn.jsdelivr.net/npm/@fawazahmed0/currency-api@latest/v1/currencies/usd.json", j => j && j.usd && j.usd.mwk]];
+let fxFetcher = null; export const _setFxFetcher = f => { fxFetcher = f; };
+async function fxGet(url) { if (fxFetcher) return fxFetcher(url); const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 8000); try { const r = await fetch(url, { signal: ctl.signal }); return r.ok ? r.json() : null; } finally { clearTimeout(tm); } }
+async function fxDaily(force) {
+  const t = mwToday(), cur = (await store().get("kv/lhq_fx", { type: "json" })) || {};
+  if (!force && (cur.days || {})[t]) return { ok: true, rate: cur.days[t], cached: true };
+  for (const [name, url, pick] of FX_SRC) {
+    try { const v = Number(pick(await fxGet(url))); if (v > 100 && v < 100000) {
+      await writeKv("lhq_fx", old => { const o = Object.assign({ days: {}, fix: {} }, old); o.days = Object.assign({}, o.days, { [t]: Math.round(v * 100) / 100 }); o.src = name; o.at = Date.now(); return o; });
+      return { ok: true, rate: v, src: name }; } } catch (e) {}
+  }
+  return { ok: false };
+}
+async function fxPost(req, me) {
+  if (!(isDirector(me) || can(me, "money"))) return fail("Only the Director and admins with money access.", 403);
+  const b = await req.json().catch(() => ({}));
+  if (b.op === "fetch") { const r = await fxDaily(true); return r.ok ? json(r) : fail("The bank rate couldn't be fetched just now. Type today's rate instead.", 502); }
+  if (b.op === "fix") {
+    const t = mwToday(), v = b.rate == null ? null : Number(b.rate);
+    if (v !== null && !(v > 100 && v < 100000)) return fail("Check the rate.");
+    await writeKv("lhq_fx", old => { const o = Object.assign({ days: {}, fix: {} }, old); o.fix = Object.assign({}, o.fix); if (v === null) delete o.fix[t]; else o.fix[t] = Math.round(v * 100) / 100; return o; });
+    await act(me, "business", "fx.fix", v === null ? "Bank rate: back to the fetched rate for today" : `Bank rate for today corrected to ${v.toFixed(2)} MWK per USD`, "settings", "fx");
+    return json({ ok: true });
+  }
+  return fail("Unknown rate action.");
+}
 async function movePost(req, me) {
   if (!isDirector(me)) return fail("Only the Director can move data.", 403);
   if (!dbMode()) return fail("Moving data needs the shared records (Settings › Shared records).", 409);
@@ -1866,6 +1895,7 @@ export default async (req, context) => {
     if (req.method === "POST" && path === "restore") return await restore(req, me);
     if (req.method === "POST" && path === "demo") return await demo(req, me);
     if (req.method === "POST" && path === "move") return await movePost(req, me);
+    if (req.method === "POST" && path === "fx") return await fxPost(req, me);
     if (req.method === "POST" && path === "reset") return await reset(req, me);
     if (req.method === "POST" && path === "store") return await hubStore(req, me);
     if (req.method === "POST" && path === "confirm") return await confirmSession(req, me);
@@ -1983,8 +2013,9 @@ async function pushRoute(req, me) {
    tutors' daily report at 16:00, a student's report the hour after their last session */
 export async function pushTick(context, at = Date.now()) {
   site = (context && context.deploy && context.deploy.context) || "production"; if (context && context.site) siteName = context.site.name || siteName;
-  const k = vapidKeys(); if ((!k.pub || !k.priv) && !pushSender) return { skipped: "no keys" };
   storeOnDb = await usesDbStore();
+  { const mw0 = new Date(at + 2 * 3600e3); if (mw0.getUTCMinutes() < 5 && [6, 9, 12, 15].includes(mw0.getUTCHours())) await fxDaily(false).catch(() => null); }   // the bank rate, early, with retries
+  const k = vapidKeys(); if ((!k.pub || !k.priv) && !pushSender) return { skipped: "no keys" };
   const mw = new Date(at + 2 * 3600e3), h = mw.getUTCHours(), t = mw.toISOString().slice(0, 10), sent = [], nowM = h * 60 + mw.getUTCMinutes(), top = mw.getUTCMinutes() < 5;
   const log = (await store().get("kv/lhq_pushlog", { type: "json" })) || {}, mark = {};
   const once = async (key, fn) => { if (log[key] || mark[key]) return; mark[key] = 1; await fn(); sent.push(key); };

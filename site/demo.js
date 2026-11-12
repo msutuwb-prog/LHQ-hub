@@ -294,7 +294,9 @@
       if(act === 'retest' && by < iso(now) && i % 4) f.res = {pc: Math.min(100, pcOf(e) + (i % 2 ? 22 : 4)), d: by, at: f.at + 14 * DAY};
       if(act === 'take' && i % 2) f.th = {pc: 70 + i % 20, d: by};
       lhq_fu[id] = f; });
-    return {docs, trash, people:PEOPLE, kv:{lhq_fu, lhq_focus, lhq_plan, lhq_treps:{e:treps}, lhq_makeups:makeups, lhq_students:recs, lhq_logs:{e:logs, imports}, lhq_counters:{quote:C.quote, invoice:C.invoice, receipt:C.receipt + 1, card:C.card}, lhq_spend:money.spend, lhq_budget:money.budget, lhq_targets:targets, lhq_pay:{
+    /* bank rates (MWK per USD) for the MK / $ button: a slow drift over the last 12 months, no random draws */
+    const lhq_fx = {days: {}, fix: {}, src: 'demo'}; for(let i = 365; i >= 0; i -= 1){ const d = iso(new Date(T - i * DAY)); lhq_fx.days[d] = Math.round((1735 + (365 - i) * 0.045 + Math.sin(i / 9) * 0.6) * 100) / 100; }
+    return {docs, trash, people:PEOPLE, kv:{lhq_fx, lhq_fu, lhq_focus, lhq_plan, lhq_treps:{e:treps}, lhq_makeups:makeups, lhq_students:recs, lhq_logs:{e:logs, imports}, lhq_counters:{quote:C.quote, invoice:C.invoice, receipt:C.receipt + 1, card:C.card}, lhq_spend:money.spend, lhq_budget:money.budget, lhq_targets:targets, lhq_pay:{
       place: Object.fromEntries([...new Set(Object.values(POOL).flat())].map(n => [n.toLowerCase(), [{p: ['Catherine Mkwinda','Emmanuel Mkwamba'].includes(n) ? 'full' : 'part', from: '2026-01-01'}]])),
       items: {pi1: {id: 'pi1', tutor: 'Peter Mvula', m: iso(new Date(T)).slice(0, 7), kind: 'advance', amt: 30000, label: 'Advance', d: iso(new Date(T - 4 * DAY)), by: 'Wanangwa Msutu', at: T - 4 * DAY},
         pi2: {id: 'pi2', tutor: 'Emmanuel Mkwamba', m: iso(new Date(T)).slice(0, 7), kind: 'allowance', amt: 10000, label: 'Transport · exam invigilation', d: iso(new Date(T - 2 * DAY)), by: 'Wanangwa Msutu', at: T - 2 * DAY}}}}};

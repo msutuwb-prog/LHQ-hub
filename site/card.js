@@ -612,7 +612,7 @@ async function cardTutorLink(savedList, tutor){
   return new URL('t', location.href).href + '#' + await lhqEncode(cardTutorPayload(savedList, tutor));
 }
 /* a tutor with an LHQ Hub account sees their cards there (Got it, or Can't make this time; LHQ is told after a day unseen), so the link is only for a tutor without one */
-function cardHasAccount(t){ try{ const L = (window.store && store.get('lhq_people', [])) || [], n = String(t || '').trim().toLowerCase().replace(/\s+/g, ' ');
+function cardHasAccount(t){ try{ const st = (window.HD && HD.store) || (typeof store !== 'undefined' ? store : null), L = (st && st.get('lhq_people', [])) || [], n = String(t || '').trim().toLowerCase().replace(/\s+/g, ' ');
   return L.some(p => p && p.active !== false && (p.role === 'tutor' || p.tutor) && String(p.name || '').trim().toLowerCase().replace(/\s+/g, ' ') === n); }catch(e){ return false; } }
 /* which tutors have already had a link (so the how-to text goes only the first time) */
 function cardTlinks(){ try{ return JSON.parse(localStorage.getItem('lhq_tlinks')||'{}') || {}; }catch(e){ return {}; } }

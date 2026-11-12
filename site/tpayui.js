@@ -4,7 +4,7 @@ window.TPAYUI = (function(){
   const P = () => window.TPAY;
   const may = () => isDir() || can('tpay');
   const n = v => Math.round(v || 0).toLocaleString('en-US');
-  const mk = n => (n < 0 ? '− ' : '') + 'MKW ' + Math.abs(Math.round(n || 0)).toLocaleString('en-US');
+  const mk = n => window.FX && FX.active() ? FX.usd(n || 0) : (n < 0 ? '− ' : '') + 'MKW ' + Math.abs(Math.round(n || 0)).toLocaleString('en-US');
   const ctx = () => ({cards: saved.filter(d => typeOf(d) === 'card'), entries: Object.values(((store.get('lhq_logs', {e: {}}) || {}).e) || {}),
     classes: (v => Array.isArray(v) ? v : Object.values(v || {}))(store.get('lhq_classes', [])), pay: store.get('lhq_pay', {}) || {}, t: HD.today()});
   const ym = d => d.slice(0, 7), addM = (m, n) => { const d = new Date(Date.UTC(+m.slice(0, 4), +m.slice(5) - 1 + n, 1)); return d.toISOString().slice(0, 7); };

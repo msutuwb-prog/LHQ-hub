@@ -629,6 +629,24 @@ test("phone notifications: devices, choices, events, quiet hours and the 07:00 s
   hubMod._setPushSender(null);
 });
 
+test("MK / $: the bank rate is fetched once a day, the first source that answers wins; money staff can correct today's; nobody else sees it", async () => {
+  const urls = []; hubMod._setFxFetcher(async u => { urls.push(u); if (u.includes("er-api")) throw new Error("down"); return { usd: { mwk: 1751.337 } }; });
+  assert.equal((await call("fx", { op: "fetch" }, DIR)).status, 200);
+  let fx = (await call("state", null, DIR, "GET")).j.kv.lhq_fx; const t = Object.keys(fx.days)[0];
+  assert.equal(fx.days[t], 1751.34, "rounded to 2 places"); assert.equal(fx.src, "currency-api", "the second source when the first is down");
+  assert.equal(urls.length, 2);
+  assert.equal((await call("fx", { op: "fix", rate: 12 }, DIR)).status, 400, "a real rate");
+  assert.equal((await call("fx", { op: "fix", rate: 1752.5 }, DIR)).status, 200);
+  fx = (await call("state", null, DIR, "GET")).j.kv.lhq_fx; assert.equal(fx.fix[t], 1752.5);
+  assert.equal((await call("fx", { op: "fix", rate: null }, DIR)).status, 200); assert.ok(!((await call("state", null, DIR, "GET")).j.kv.lhq_fx.fix || {})[t], "back to the fetched rate");
+  const tutorTok = (await call("signin", { id: "emmanuel.mkwamba", password: "Maths!2026x" })).j.token;
+  assert.equal((await call("fx", { op: "fix", rate: 1800 }, tutorTok)).status, 403, "tutors never");
+  hubMod._setFxFetcher(async () => { throw new Error("offline"); });
+  assert.equal((await call("fx", { op: "fetch" }, DIR)).status, 502, "both down: say so, keep the last rate");
+  assert.equal((await call("state", null, DIR, "GET")).j.kv.lhq_fx.days[t], 1751.34);
+  hubMod._setFxFetcher(null);
+});
+
 test("moving pilot data: the live Hub copies the pilot group; the test site moves it back; nothing doubles, passwords still work", async () => {
   const callAt = async (ctx, body, token) => { const r = await hub(new Request("http://x/api/hub/move", { method: "POST", headers: { "content-type": "application/json", authorization: "Bearer " + token }, body: JSON.stringify(body) }), ctx);
     return { status: r.status, j: await r.json() }; };

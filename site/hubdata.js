@@ -7,8 +7,8 @@
                   set(k, v){ try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} } };
   const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   const num = v => { const n = parseFloat(String(v ?? '').replace(/,/g,'')); return isNaN(n) ? 0 : n; };
-  const mk = n => 'MKW ' + Math.round(n).toLocaleString('en-US');
-  const mkShort = n => { const a = Math.abs(n); return 'MKW ' + (a >= 1e6 ? (n/1e6).toFixed(2).replace(/\.?0+$/,'') + 'M' : a >= 1e4 ? Math.round(n/1e3) + 'k' : Math.round(n).toLocaleString('en-US')); };
+  const mk = (n, d) => window.FX && FX.active() ? FX.usd(+n || 0, d) : 'MKW ' + Math.round(n).toLocaleString('en-US');   // $ only on money pages, when the Director chose MK / $
+  const mkShort = (n, d) => { if(window.FX && FX.active()) return FX.usdShort(+n || 0, d); const a = Math.abs(n); return 'MKW ' + (a >= 1e6 ? (n/1e6).toFixed(2).replace(/\.?0+$/,'') + 'M' : a >= 1e4 ? Math.round(n/1e3) + 'k' : Math.round(n).toLocaleString('en-US')); };
   const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const isoOf = dt => dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
   const parseISO = iso => { const [y,m,d] = String(iso).split('-').map(Number); return new Date(y, m-1, d); };

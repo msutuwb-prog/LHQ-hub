@@ -115,8 +115,10 @@ window.MIN = (function(){
   }
   const first = () => data().first;
   const inP = (x, p) => x.d >= p.start && x.d <= endOf(p);
-  const paysIn = p => data().pays.filter(x => inP(x, p));
-  const rowsIn = p => data().rows.filter(x => inP(x, p));
+  /* MK / $: each payment re-priced at its own month's rate, so a period's total in dollars is right */
+  const fxOn = () => window.FX && FX.active();
+  const paysIn = p => { const L = data().pays.filter(x => inP(x, p)); return fxOn() ? L.map(x => Object.assign({}, x, {a: FX.adj(x.a, x.d)})) : L; };
+  const rowsIn = p => { const L = data().rows.filter(x => inP(x, p)); return fxOn() ? L.map(r => Object.assign({}, r, {amt: FX.adj(r.amt, r.d)})) : L; };
   const otherIn = p => BIZ.incomeLive().filter(e => e.date && e.date >= p.start && e.date <= endOf(p)).sort((a, b) => b.date.localeCompare(a.date));
   const sum = (L, f) => L.reduce((t, x) => t + (f ? f(x) : x.a), 0);
   const DIMS = [['prog','Programme'],['sub','Subject'],['level','Level'],['tutor','Tutor'],['school','School'],['nr','New or returning']];
@@ -246,7 +248,7 @@ window.MIN = (function(){
     if(p.type === 'day') cmp = [{w:{start:add(W.start, -14), end:add(W.end, -14)}, l:'14 days before', go:periodOf('day', add(p.start, -14))}, {w:{start:add(W.start, -364), end:add(W.end, -364)}, l:'Same days last year', go:periodOf('day', add(p.start, -364))}];
     else { const b = before(p), y = lastYear(p); cmp = [b && {w:b, l:compL(b, p).replace(/^./, c => c.toUpperCase()), go:b}, y && {w:y, l:'Same ' + word(p) + ' last year', go:y}]; }
     cmp = cmp.map(c => c && (!first() || c.w.end >= first()) ? c : null);
-    const P = data().pays, upTo = (w, o) => { const e = add(w.start, o), E = e < w.end ? e : w.end; return sum(P.filter(x => x.d >= w.start && x.d <= E && x.d <= T())); };
+    const P = fxOn() ? data().pays.map(x => Object.assign({}, x, {a: FX.adj(x.a, x.d)})) : data().pays, upTo = (w, o) => { const e = add(w.start, o), E = e < w.end ? e : w.end; return sum(P.filter(x => x.d >= w.start && x.d <= E && x.d <= T())); };
     const offs = B.map(b => diff(W.start, inB(b).end));
     return {B, cmp, cur: B.map((b, i) => inB(b).start > T() ? null : upTo(W, offs[i])), lines: cmp.map(c => c ? B.map((b, i) => upTo(c.w, offs[i])) : null)};
   }
@@ -324,7 +326,7 @@ window.MIN = (function(){
   }
   /* the picker: a calendar for days and weeks, a list for the rest, each with its total */
   function pickSheet(p, month){
-    const P = data().pays, dayT = d => sum(P.filter(x => x.d === d));
+    const P = fxOn() ? data().pays.map(x => Object.assign({}, x, {a: FX.adj(x.a, x.d)})) : data().pays, dayT = d => sum(P.filter(x => x.d === d));
     if(p.type === 'day' || p.type === 'week'){
       const m0 = month || monStart(p.start), rows = []; for(let w = weekStart(m0); w <= monEnd(m0); w = add(w, 7)) rows.push(w);
       const inner = d => { const t = dayT(d); return `<b>${+d.slice(8)}</b><small>${t ? short(t) : ''}</small>`; };

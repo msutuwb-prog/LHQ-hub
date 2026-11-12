@@ -27,6 +27,7 @@ if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash)
 <script src="defaults.js"></script>
 <script src="payplan.js"></script>
 <script src="hubdata.js"></script>
+<script src="fx.js"></script>
 <script src="schedule.js"></script>
 <script src="sreport.js"></script>
 <script src="search.js"></script>
@@ -509,6 +510,7 @@ function render(){
   if(!['new','makeups'].includes(route.page)) LHQNav.visit(pageLabel());
   bind();
   fillAsk();
+  if(window.FX) FX.after();
   if(window.MOTION) MOTION.after();
   if(route.page === 'new') newSheet(route.args[0]);
   if(route.page === 'makeups') makeupSheet(route.args[0]);
@@ -596,6 +598,8 @@ function attention(list){
     { const L7 = Object.values((store.get('lhq_logs', {e:{}}) || {}).e || {}).filter(e => e && !e.x && e.ty === 's' && e.a === 'late' && e.d >= addDays(t, -6)), byS = {};
       L7.forEach(e => { (byS[e.k.split('|')[0]] = byS[e.k.split('|')[0]] || []).push(e); });
       Object.values(byS).filter(L => L.length >= 2).forEach(L => out.push({w:0, g:'late2', s:{name:`${L[0].st} late ${L.length} times this week`}, href:stuLink(L[0].k.split('|')[0], 'sessions'), ico:'clock', col:'--am', sub:L.map(e => `${e.sub} · ${nice(e.d)}`).join(' · ')})); }
+    if(window.FX && FX.may()){ const T = FX.table(); if(T.length > 1){ const [d1, r1] = T[T.length - 1], wk = T.filter(([d]) => d <= addDays(d1, -7)), base = (wk.length ? wk[wk.length - 1] : T[0]), pc = Math.round((r1 - base[1]) / base[1] * 1000) / 10;
+      if(Math.abs(pc) >= 5 && d1 >= addDays(today(), -14)) out.push({w:-1, s:{name:`The kwacha ${pc > 0 ? 'fell' : 'rose'} ${Math.abs(pc)}% against the dollar`}, href:'#set/payments', ico:'alert', col:'--am', sub:`Bank rate ${base[1].toFixed(2)} on ${nice(base[0])} → ${r1.toFixed(2)} on ${nice(d1)} · check fees`}); } }
     if(window.FUP && (isDir() || can('tutors'))){ const O = FUP.overdue(); if(O.length) out.push({w:0, s:{name:`${O.length} follow-up${O.length === 1 ? '' : 's'} overdue`}, href:'#fu', ico:'clock', col:'--am', sub:O.slice(0, 3).map(f => `${f.st} · ${f.tk} · ${f.tutor}`).join(' · ')}); }
     { const A = Object.values(store.get('lhq_asks', {}) || {}).filter(a => a && !a.done); if(A.length) out.push({w:-1, s:{name: A.length === 1 ? `${A[0].st}: move ${A[0].sub} on ${nice(A[0].d)}?` : `${A.length} sessions tutors asked to move`}, href:'#asks', ico:'clock', col:'--am', sub: A.slice(0, 2).map(a => `${a.st} · ${a.why || a.sub} · ${a.tutor}`).join(' · ')}); }
     const behind = sessionRows().filter(r => r.T.behind >= 2);
@@ -1700,10 +1704,13 @@ S.company = () => { const s = settingsKV();
   <div class="cap">Bank</div><div class="r2">${fieldRow('c_bank','Bank name',s.bank)}${fieldRow('c_accname','Account name',s.accname)}${fieldRow('c_branch','Branch',s.branch)}${fieldRow('c_accno','Account number',s.accno,'inputmode="numeric"')}</div>
   <div class="cap">Mobile money</div><div class="r2">${fieldRow('c_popphone','Proof of payment number',s.popphone)}${fieldRow('c_mobile','Mobile banking number',s.mobile)}</div>
   <button class="btn n" data-save="email,phone,bank,accname,branch,accno,popphone,mobile">Save</button></div>`; };
+/* fees in dollars: what the cost per session is worth today, and what it was worth when it was set (a falling kwacha shows here first) */
+function feeUsd(s){ if(!window.FX || !FX.may() || !FX.now() || !(+s.rate > 0)) return ''; const n = FX.now().rate, a = s.rateAt, now$ = +s.rate / n, was$ = a && a.fx ? +s.rate / a.fx : null, dpc = was$ ? Math.round((now$ - was$) / was$ * 100) : null;
+  return `<p class="note" style="margin:10px 0 0">MKW ${Number(s.rate).toLocaleString('en-US')} a session = <b>$${now$.toFixed(2)}</b> today${was$ ? ` · was $${was$.toFixed(2)} when set (${nice(a.d)})${dpc ? ` · <b style="color:${dpc < 0 ? 'var(--am)' : 'var(--ok)'}">${dpc > 0 ? '+' : ''}${dpc}%</b>` : ''}` : ''} · bank rate ${n.toFixed(2)}</p>`; }
 S.payments = () => { const s = settingsKV();
   return `<h2 class="sec-h">Payments & due dates</h2><p class="sec-p">Defaults for new documents. Each document can still be changed.</p>
   <div class="card pad"><div class="r2">${fieldRow('c_rate','Default cost per session (MKW)',s.rate,'inputmode="decimal"')}${fieldRow('c_validDays','Quotes valid for (days)',s.validDays,'inputmode="numeric"')}${fieldRow('c_dueDays','Invoices due after (days, 0 = same day)',s.dueDays,'inputmode="numeric"')}${fieldRow('c_graceDays','Instalment grace period (days)',s.graceDays,'inputmode="numeric"')}</div>
-  <button class="btn n" data-save="rate,validDays,dueDays,graceDays">Save</button></div>
+  <button class="btn n" data-save="rate,validDays,dueDays,graceDays">Save</button>${feeUsd(s)}</div>
   ${payDatesHTML()}`; };
 /* payment dates parents see as Next payment: term fees per term, fast track intakes' dates; holiday tuition is due before the first session */
 let pdDraft = null;
@@ -2023,7 +2030,9 @@ function bind(){
     const s = settingsKV(), L = lines(s.tutors), add = Object.keys(info).filter(n => !L.includes(n) && !HD.people().some(p => p.name === n));
     const f = {tutorInfo: info}; if(add.length) f.tutors = L.concat(add).join('\n');
     tiDraft = null; saveSettings(f); render(); };
-  on('[data-save]', el => { const f = {}; el.dataset.save.split(',').forEach(k => f[k] = $('c_' + k).value.trim()); saveSettings(f); });
+  on('[data-save]', el => { const f = {}; el.dataset.save.split(',').forEach(k => f[k] = $('c_' + k).value.trim());
+    if('rate' in f && f.rate !== String(settingsKV().rate || '') && window.FX && FX.now()) f.rateAt = {d: today(), fx: FX.now().rate};   // what the fee was worth in dollars when set
+    saveSettings(f); render(); });
   if($('numSave')) $('numSave').onclick = () => {
     const c = store.get('lhq_counters', {}), problems = [];
     ['quote','invoice','receipt','card'].forEach(t => { const n = parseInt($('n_' + t).value, 10); if(!n || n < 1){ problems.push(`${t}: enter a number`); return; }

@@ -381,7 +381,9 @@ window.PERF = (function(){
       AUD: {parent: {n: 'Parent', s: ['summary','attendance','topics','tests','recall','comments','next'], anon: false, money: false}, internal: {n: 'Inside LHQ', s: ['summary','attendance','topics','tests','recall','comments','next','payments'], anon: false, money: true}}, build: buildStudent, pick: 'student'},
   };
   const okK = k => KINDS[k] && KINDS[k].need.split('|').some(x => can(x));
-  function build(c){ return KINDS[rk].build(c); }
+  function build(c){ const o = KINDS[rk].build(c);   // in dollars (MK / $): the rule and the rates used, inside the report so the download carries them
+    if(window.FX && FX.active() && o && o.html && o.R){ const n = FX.note(o.R.from, o.R.to), i = o.html.lastIndexOf('</div>'); if(i > 0) o.html = o.html.slice(0, i) + n + o.html.slice(i); }
+    return o; }
 
   /* ---------- the choice sheet ---------- */
   function sheet(){
@@ -456,7 +458,7 @@ window.PERF = (function(){
         html2canvas: {scale: 2, useCORS: true, backgroundColor: '#ffffff', x: 0, y: 0, scrollX: 0, scrollY: 0, width: w, windowWidth: w},
         jsPDF: {unit: 'mm', format: 'a4', orientation: 'portrait'}, pagebreak: {mode: ['css'], before: rk === 'business' ? '.pf-s.first + .pf-s' : [], avoid: ['.pf-t.sm', '.pf-t tr', '.pf-b', '.pf-ks', 'h2', 'h3', '.pf-chart', '.pf-hl li']}}).from(el).outputPdf('blob');
       const who = rk === 'student' ? ((HD.students().find(s => s.key === c.stu) || {}).name || '') : rk === 'tutor' ? (c.tutor || 'All tutors') : (K.AUD[c.aud] || {}).n || '';
-      const name = `LHQ ${K.t}_ ${who ? who + '_ ' : ''}${R.label}.pdf`.replace(/[\\/:*?"<>|]/g, '');
+      const name = `LHQ ${K.t}_ ${who ? who + '_ ' : ''}${R.label}${window.FX && FX.active() ? ' (USD)' : ''}.pdf`.replace(/[\\/:*?"<>|]/g, '');
       const u = URL.createObjectURL(blob), a = document.createElement('a'); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 30000);
       toast('PDF downloaded');
     }catch(e){ console.error(e); toast('Couldn\'t make the PDF. Try again.'); }
