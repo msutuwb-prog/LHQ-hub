@@ -25,7 +25,8 @@ const signInWithCode = async (p, code, password) => {
   }, [code, password]);
 };
 const VIEW = process.env.E2E_VIEW === "full" ? "full" : "lean";
-const iso = d => d.toISOString().slice(0, 10), today = iso(new Date()), addD = n => iso(new Date(Date.now() + n * 864e5));
+// dates as LHQ sees them (Malawi, UTC+2), so a run just after midnight agrees with the Hub
+const iso = d => new Date(d.getTime() + 2 * 3600e3).toISOString().slice(0, 10), today = iso(new Date()), addD = n => iso(new Date(Date.now() + n * 864e5));
 const money = n => "MKW " + Math.round(n).toLocaleString("en-US");
 
 try {
@@ -80,7 +81,7 @@ try {
     { id: "e2es2x", ty: "s", k: "linga shaba|mathematics", st, sub: "Mathematics", d: addD(-2), a: "present", t1: "14:00", t2: "15:00", tp: ["Algebra"], c: Date.now() - 3 * 3600e3 }] });
   check(lg.ok, "the tutor logs two sessions", JSON.stringify(lg).slice(0, 200));
   await Tt.evaluate(async () => { try { await TUT.refresh(); } catch (e) {} }); await go(Tt, "#teach", 2000);
-  check(/waiting for confirmation/.test(await text(Tt)), "the tutor sees the session waiting for confirmation");
+  { const tt = await text(Tt); check(/waiting for confirmation/.test(tt), "the tutor sees the session waiting for confirmation", tt.slice(0, 900)); }
   await pull(A); await go(A, "#sessions", 1500);
   check(/Linga Shaba · Mathematics[\s\S]{0,80}2 of 8 had/.test(await text(A)), "Admin's Sessions page counts 2 of 8 had for Linga", (await text(A)).slice(0, 400));
   check((await api(A, "confirm", { action: "confirm", id: "e2es1x", how: "By phone" })).status === 403, "Admin doesn't confirm for the family: students do");
@@ -147,10 +148,12 @@ try {
 
   /* 7. Activity: the Director sees who did what */
   await go(D, "#activity", 2500); const av = await text(D);
-  const want = [["Catherine Mkwinda", /Made receipt RCT-0001 · Linga Shaba · MKW 120,000/], ["Emmanuel Mkwamba", /Logged 2 sessions/], ["Emmanuel Mkwamba", /Teaching them together: Linga Shaba and Tadala Phiri/],
+  const want = [["Catherine Mkwinda", /New receipt RCT-0001 · Linga Shaba · MKW 120,000/], ["Emmanuel Mkwamba", /Logged 2 sessions/], ["Emmanuel Mkwamba", /Teaching them together: Linga Shaba and Tadala Phiri/],
     ["Emmanuel Mkwamba", /Moved Tadala Phiri's Mathematics from Thu 14:00–15:00/], ["Wanangwa Msutu", /Settled Linga Shaba/], ["Catherine Mkwinda", /Recorded spending · Stationery · MKW 45,000/]];
   const actRows = await sql("SELECT a.summary, coalesce(p.name, a.data->>'who') who FROM activity a LEFT JOIN people p ON p.id = a.actor_id");
-  for (const [who, re] of want) check(actRows.some(r => r.who === who && re.test(r.summary)) && re.test(av), `Activity: ${who} · ${re.source.replace(/\\/g, "")}`);
+  // the page tells stories: session logs show as one row ("2 sessions logged"); the rest show their own words
+  const onPage = re => re.source === "Logged 2 sessions" ? /2 sessions logged/ : re;
+  for (const [who, re] of want) check(actRows.some(r => r.who === who && re.test(r.summary)) && onPage(re).test(av), `Activity: ${who} · ${re.source.replace(/\\/g, "")}`);
 
   /* 8. Two devices saving at the same moment: nothing lost */
   const both = await Promise.all([api(A, "sync", { upserts: [{ doc: Object.assign({ id: "e2eq2", type: "quote", number: "Q-1002", date: today }, base, { student: "Tadala Phiri" }) }] }),

@@ -73,7 +73,10 @@ window.PC = (function(){
     students: () => ['active','new','ending'].concat(can('money') ? ['overdue'] : ['waiting']),
     student: () => ['attendance','sessions','makeups'].concat(can('money') ? ['payment'] : ['tests']),
     tutors: () => ['teaching','notutor','logged','quiet'],
+    money: () => window.MIN ? MIN.DEF() : [],
   };
+  /* Money in: whole sections rather than small cards (moneyin.js) */
+  Object.defineProperty(LIB, 'money', {get: () => window.MIN ? MIN.LIB : {}, enumerable: true});
 
   /* Students list */
   LIB.students = {
@@ -161,6 +164,15 @@ window.PC = (function(){
       <p class="note">Only you see your choice, on any device.</p>` : '';
     return head + grid + add;
   }
+  /* a page made of sections: the pencil sits in the page header; while editing, the page shows the chooser */
+  const pencil = page => `<button class="ib${editing === page ? ' on' : ''}" data-pcedit="${page}" title="${editing === page ? 'Done' : 'Choose sections'}" aria-label="${editing === page ? 'Done' : 'Choose sections'}">${editing === page ? '✓' : ic('edit', 17)}</button>`;
+  function sections(page){
+    const L = chosen(page), lib = Object.entries(LIB[page]).filter(([k, c]) => okNeed(c) && !L.includes(k));
+    const row = (k, i) => { const c = LIB[page][k]; return `<div class="it"><span class="ico">${ic(c.ic)}</span><span class="t"><b>${esc(c.t)}</b></span><span class="pc-ctl"><button class="ib" ${i === 0 ? 'disabled' : ''} data-pcmv="${page}:${i}:-1" aria-label="Up">${ic('back',15,2.2)}</button><button class="ib" ${i === L.length - 1 ? 'disabled' : ''} data-pcmv="${page}:${i}:1" aria-label="Down">${ic('chev',15,2.2)}</button><button class="ib" data-pcrm="${page}:${i}" aria-label="Remove">✕</button></span></div>`; };
+    return `<div class="h2">Showing <em>${L.length}</em></div><div class="card">${L.map(row).join('') || '<p class="empty">None.</p>'}</div>
+      ${lib.length ? `<div class="h2">Add</div><div class="card">${lib.map(([k, c]) => `<div class="it"><span class="ico">${ic(c.ic)}</span><span class="t"><b>${esc(c.t)}</b><small>${esc(c.d)}</small></span><button class="btn sm" data-pcadd="${page}:${k}">Add</button></div>`).join('')}</div>` : ''}
+      <button class="btn n full" data-pcedit="${page}">Done</button>`;
+  }
   function bind(){
     const on = (sel, fn) => document.querySelectorAll(sel).forEach(el => el.onclick = e => { e.preventDefault(); e.stopPropagation(); fn(el); });
     on('[data-pcedit]', el => { editing = editing === el.dataset.pcedit ? '' : el.dataset.pcedit; render(); });
@@ -169,5 +181,5 @@ window.PC = (function(){
     on('[data-pcadd]', el => { const [p, k] = el.dataset.pcadd.split(':'), L = chosen(p).slice(); if(!L.includes(k)) L.push(k); save(p, L); });
   }
   function pinChart(name, c){ const L = chosen('biz').slice(); if(L.length >= 16){ toast('Remove a card first: 16 at most'); return; } L.push({k:'chart', n: name, c}); save('biz', L); toast('Pinned to Business'); }
-  return {block, bind, pinChart, chosen, planned, rawLogs, curCards, LIB, BIZ_SECTIONS, isEditing: p => editing === p};
+  return {block, sections, pencil, bind, pinChart, chosen, planned, rawLogs, curCards, LIB, BIZ_SECTIONS, isEditing: p => editing === p};
 })();

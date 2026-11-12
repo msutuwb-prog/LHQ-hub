@@ -21,6 +21,7 @@
 <script src="store.js"></script>
 <script src="sync.js"></script>
 <script src="defaults.js"></script>
+<script src="payplan.js"></script>
 <script src="hubdata.js"></script>
 <script src="schedule.js"></script>
 <script src="nav.js"></script>
@@ -645,9 +646,15 @@ body[data-mode=view] .dp-aside{grid-area:aside}
           <input id="f_discReason" placeholder="Reason, e.g. Sibling" aria-label="Discount reason (prints on the document)">
         </div>
       </div>
+      <div class="fld" id="ttRow" style="margin-top:14px;margin-bottom:0"><span class="lbl">Tuition</span>
+        <div class="seg" id="ttSeg" role="group" aria-label="Tuition" style="max-width:420px;margin-bottom:10px">
+          <button type="button" data-t="term">Term to term</button><button type="button" data-t="fast">Fast track</button><button type="button" data-t="hol">Holiday</button>
+        </div>
+        <div id="ftkRow" hidden><select class="in" id="f_ftk" aria-label="Fast track intake" style="max-width:420px"></select><p class="hint" id="ftkHint" style="margin:4px 0 0"></p></div>
+      </div>
       <div class="fld lm" id="planRow" style="margin-top:14px;margin-bottom:0"><span class="lbl">Payment</span>
-        <div class="seg seg2" id="planSeg" role="group" aria-label="Payment" style="max-width:380px;margin-bottom:10px">
-          <button type="button" data-p="" class="on">Pay in full</button><button type="button" data-p="half">50/50 plan</button>
+        <div class="seg seg2" id="planSeg" role="group" aria-label="Payment" style="max-width:420px;margin-bottom:10px">
+          <button type="button" data-p="" class="on">Pay in full</button><button type="button" data-p="half">50/50 plan</button><button type="button" data-p="set" hidden>Intake dates</button>
         </div>
         <div class="grid2" id="planDates" hidden>
           <div class="fld"><span class="lbl">1st 50% due by</span><button type="button" class="date-btn" data-cal="plan1" id="btnPlan1" aria-haspopup="dialog" aria-expanded="false"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span></span></button></div>
@@ -661,7 +668,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
     </div>
 
     <div class="panel lm" id="incPanel">
-      <h2>Every LHQ Enrollment Includes</h2>
+      <h2>Every LHQ enrolment includes</h2>
       <div class="inc-chips" id="incChips" role="group" aria-label="Items to include"></div>
       <p class="hint" id="incHint"></p>
     </div>
@@ -708,7 +715,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
         <label><span>Subjects, one per line</span><textarea id="s_subjects" rows="8"></textarea></label>
         <label><span>Year &amp; level, one per line</span><textarea id="s_levels" rows="6"></textarea></label>
         <label><span>Payment methods, one per line</span><textarea id="s_methods" rows="4"></textarea></label>
-        <label><span>Every LHQ Enrollment Includes, one per line</span><textarea id="s_includes" rows="6"></textarea></label>
+        <label><span>Every LHQ enrolment includes, one per line</span><textarea id="s_includes" rows="6"></textarea></label>
         <label><span>Tutors, one per line</span><textarea id="s_tutors" rows="6"></textarea></label>
         <label><span>Grades, one per line</span><textarea id="s_grades" rows="5"></textarea></label>
         <label><span>Grade based on, one per line</span><textarea id="s_gradeBasis" rows="6"></textarea></label>
@@ -716,7 +723,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
       </details>
       <details id="clSetup">
         <summary>Student topic checklist</summary>
-        <p class="hint" style="margin:0 0 10px">Send students this link. They choose their subjects and topics and send it to 0992 525 250 on WhatsApp or to learnhqes@gmail.com. Open the link in their message on this device and a new tuition card fills in with their choices.</p>
+        <p class="hint" style="margin:0 0 10px">Students pick their subjects and topics and send it back. Open their link here and a tuition card fills in.</p>
         <input id="clLink" readonly aria-label="Checklist link">
         <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
           <button class="small" id="btnClCopy">Copy link</button>
@@ -726,7 +733,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
       </details>
       <details id="numSetup">
         <summary>Numbering</summary>
-        <p class="hint" style="margin:0 0 10px">Numbers fill in automatically. Set where each series continues from, for example if LHQ has already issued invoices up to 57, set the next invoice to 58.</p>
+        <p class="hint" style="margin:0 0 10px">Set the next number in each series, e.g. 58 if the last invoice was 57.</p>
         <div class="num-grid">
           <label><span>Next quote</span><input id="n_quote" inputmode="numeric" autocomplete="off"><small id="np_quote"></small></label>
           <label><span>Next invoice</span><input id="n_invoice" inputmode="numeric" autocomplete="off"><small id="np_invoice"></small></label>
@@ -758,7 +765,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
       </details>
       <details id="backupSetup">
         <summary>Backup &amp; restore</summary>
-        <p class="hint" style="margin:0 0 8px">Everything is stored online in LHQ Hub and shared between your devices. A backup is an extra copy: one file with all your quotes, invoices, receipts, tuition cards, numbering, lists and messages. Keep it in Google Drive or send it to yourself on WhatsApp.</p>
+        <p class="hint" style="margin:0 0 8px">Everything is stored online. A backup is one extra file of it all: keep it in Google Drive.</p>
         <p class="svc" id="bkStatus"><span class="dot"></span><span></span></p>
         <p class="svc" id="bkPersist"><span class="dot"></span><span></span></p>
         <div style="display:flex;flex-wrap:wrap;gap:8px">
@@ -772,7 +779,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
         <p class="svc" id="svcEmail"><span class="dot"></span><span>Email: checking…</span></p>
         <p class="svc" id="svcWa"><span class="dot"></span><span>WhatsApp: checking…</span></p>
         <label><span>Access code</span><input id="s_code" type="password" autocomplete="off" placeholder="The code set in Netlify"></label>
-        <p class="hint">Enter the access code once on each phone, tablet or computer. It stays on this device and stops strangers from using the app to send messages from LHQ's accounts.</p>
+        <p class="hint">Enter the access code once on each phone, tablet or computer. It stays on this device and stops strangers from using LHQ Hub to send messages from LHQ's accounts.</p>
         <button class="small" id="btnCheckSvc" style="margin-top:8px">Check connection</button>
       </details>
     </div>
@@ -845,7 +852,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
     <div class="dlg-body">
       <div class="cs-tutors">
         <div class="cs-sec">Send to tutors</div>
-        <p class="hint" style="margin:2px 0 6px">Each tutor gets one link with all their students: the full card for each, plus where they log sessions for reports. Send it again when you add a student or change a card.</p>
+        <p class="hint" style="margin:2px 0 6px">One link per tutor with all their students. Send it again after a change.</p>
         <div id="csTutors"></div>
         <label class="cs-howto"><input type="checkbox" id="csHowTo"> Include the how-to text <small>Added automatically the first time a tutor gets a link</small></label>
       </div>
@@ -992,7 +999,7 @@ function periodText(d = doc){
 const DOC_FIELDS = { id:null, type:'quote', number:'', date:'', dueDate:'', ref:'', name:'', student:'', level:'', address:'', email:'', phone:'',
   forWhat:'', periodStart:'', periodEnd:'', period:'', items:[], discType:'pct', discValue:'', discReason:'',
   paid:'', received:'', prevPaid:'', method:'Bank transfer', payRef:'', receivedBy:'',
-  school:'', exam:'', where:'', cardNote:'', subjects:[], intake:'', checklistId:'', incOff:[], plan:'', plan1:'', plan2:'', noInstLine:false };
+  school:'', exam:'', where:'', cardNote:'', subjects:[], intake:'', checklistId:'', incOff:[], plan:'', plan1:'', plan2:'', planD:[], tt:'', ftk:'', noInstLine:false };
 const normalize = d => Object.assign(JSON.parse(JSON.stringify(DOC_FIELDS)), d || {});
 function defaultDue(type, from){
   if(type==='quote') return addDays(from, num(settings.validDays) || 30);
@@ -1057,24 +1064,23 @@ if(!doc.date) doc.date = todayISO();
    Coordinates in points, taken from the original PDF (612 x 792 pt). */
 /* ---------- payment plan: 50% at the start, 50% half-way through the tuition period ---------- */
 function planInfo(d = doc){
-  if(d.plan!=='half' || d.type==='card' || d.type==='quote') return null;   // quotes are always in full
-  const t = totals(d), a1 = Math.round(t.total*50)/100, a2 = Math.round((t.total - a1)*100)/100;
-  const start = d.periodStart || d.date || todayISO();
-  const date1 = d.plan1 || start;
-  // the 2nd instalment is due on the first day of the second half, counted in whole weeks (4 weeks -> start of week 3)
-  let mid = addDays(date1, 14);
-  if(d.periodStart && d.periodEnd){
-    const days = dayDiff(d.periodStart, d.periodEnd) + 1, weeks = Math.round(days / 7);
-    mid = weeks >= 2 ? addDays(d.periodStart, Math.floor(weeks / 2) * 7) : addDays(d.periodStart, Math.floor(days / 2));
-  }
-  const date2 = d.plan2 || mid;
+  if((d.plan!=='half' && d.plan!=='set') || d.type==='card' || d.type==='quote') return null;   // quotes are always in full
+  const t = totals(d), rows = PAYPLAN.rows(d, t.total, todayISO()); if(!rows) return null;
   const paid = d.type==='invoice' ? t.paid : d.type==='receipt' ? t.prevPaid + t.received : 0;
-  const rows = [{n:1, label:'1st instalment (50%)', short:'1st instalment', amt:a1, due:date1, paid: paid >= a1 - 0.005},
-                {n:2, label:'2nd instalment (50%)', short:'2nd instalment', amt:a2, due:date2, paid: paid >= t.total - 0.005}];
-  const next = rows.find(r=>!r.paid) || null;
-  // what is still owed on the next instalment (part payments count towards it)
-  if(next) next.left = Math.round((next.n===1 ? a1 - paid : t.total - Math.max(paid, a1))*100)/100;
+  const next = PAYPLAN.mark(rows, paid) || null;
   return {rows, next, paid, total:t.total};
+}
+/* tuition type, and a fast track intake's payment dates (Settings › Payments & due dates) */
+const fastIntakes = () => ((settings.payDates || {}).fast || []).filter(x => x && (x.dates || []).filter(Boolean).length);
+function fillTT(){
+  const inv = doc.type==='invoice';
+  F('ttRow').hidden = !(inv || doc.type==='quote');
+  document.querySelectorAll('#ttSeg button').forEach(b=>b.classList.toggle('on', b.dataset.t===(doc.tt||'')));
+  const L = fastIntakes(), sel = F('f_ftk');
+  F('ftkRow').hidden = !(inv && doc.tt==='fast');
+  sel.innerHTML = '<option value="">Choose the intake…</option>' + L.map(x=>`<option value="${esc(x.id)}" ${doc.ftk===x.id?'selected':''}>${esc(x.name)} · ${x.dates.filter(Boolean).length} payments</option>`).join('');
+  F('ftkHint').textContent = L.length ? '' : 'Add intakes in Settings › Payments & due dates.';
+  document.querySelector('#planSeg [data-p="set"]').hidden = !(doc.plan==='set');
 }
 /* Receipts: quick amounts (the instalment due, the whole balance, or another amount) and what the amount means */
 function drawPayPick(t){
@@ -1249,7 +1255,9 @@ function fillPlan(){
   F('planDates').hidden = !P; F('planHint').hidden = !P;
   F('planRow').hidden = doc.type!=='invoice';
   F('instLineRow').hidden = doc.type!=='quote'; F('f_instLine').checked = !doc.noInstLine;
+  fillTT();
   if(!P) return;
+  if(doc.plan==='set'){ F('planDates').hidden = true; F('planHint').textContent = P.rows.map(r=>`MKW ${money(r.amt)} by ${niceDate(r.due)}`).join(' · ') + '. From the intake\'s dates.'; return; }
   setBtnText(F('btnPlan1'), wkDate(P.rows[0].due), 'Choose');
   setBtnText(F('btnPlan2'), wkDate(P.rows[1].due), 'Choose');
   F('planHint').textContent = `MKW ${money(P.rows[0].amt)} + MKW ${money(P.rows[1].amt)}. ${doc.plan2 ? '' : 'The 2nd date is half-way through the tuition period. '}Tap a date to change it.`;
@@ -1397,7 +1405,7 @@ function pickCtx(){
   }
   if(pk.field){
     const list = pk.field==='level' ? levelList() : methodList(), cur = doc[pk.field] || '';
-    return { list, cur, other:false, title: pk.field==='level' ? 'Year & level' : 'Payment method',
+    return { list, cur, other:false, title: pk.field==='level' ? 'Year and level' : 'Payment method',
       noun: pk.field==='level' ? 'level' : 'method', allowOther:false };
   }
   const it = doc.items[pk.i], list = subjectList(), other = isCustom(it);
@@ -1524,6 +1532,11 @@ window.addEventListener('scroll', e=>{ if(!F('picker').hidden && !isSheet() && !
 
 F('f_instLine').addEventListener('change', e=>{ doc.noInstLine = !e.target.checked; update(); });
 document.querySelectorAll('#planSeg button').forEach(b=>b.addEventListener('click', ()=>{ doc.plan = b.dataset.p; fillPlan(); update(); }));
+document.querySelectorAll('#ttSeg button').forEach(b=>b.addEventListener('click', ()=>{ doc.tt = doc.tt===b.dataset.t ? '' : b.dataset.t;
+  if(doc.tt!=='fast' && doc.plan==='set'){ doc.plan = ''; doc.planD = []; doc.ftk = ''; }
+  if(doc.tt==='hol' && doc.periodStart && doc.type==='invoice' && !doc.plan) doc.dueDate = doc.periodStart;   // holiday tuition: paid before the first session
+  fillPlan(); fillDates(); update(); }));
+F('f_ftk').addEventListener('change', ()=>{ const x = fastIntakes().find(y=>y.id===F('f_ftk').value); doc.ftk = x ? x.id : ''; if(x){ doc.plan = 'set'; doc.planD = x.dates.filter(Boolean).slice(); } else if(doc.plan==='set'){ doc.plan = ''; doc.planD = []; } fillPlan(); update(); });
 F('incChips').addEventListener('click', e=>{
   const b = e.target.closest('[data-inc]'); if(!b) return;
   const x = b.dataset.inc, off = (doc.incOff || []).slice();
@@ -2302,7 +2315,7 @@ function drawAside(){
     if(!st.paidUp && H.can('receipts')) nx.push(`<a class="dp-b g full" href="doc.html#conv=receipt:${ch.inv.id}">${st.plan && st.firstPaid ? 'Receive 2nd instalment' : 'Record a payment'} · ${H.mk(st.balance)}</a>`);
     if(!ch.card && H.can('cards')) nx.push(`<a class="dp-b ${st.paidUp || st.firstPaid ? 'n' : ''} full" href="${cardHref(ch.inv)}">Make tuition card${lastCard ? ' (same tutors as last time)' : ''}</a>`);
     const end = ch.inv.periodEnd;
-    if(t === 'invoice' && ch.card && H.can('quotes') && (!end || H.dayDiff(H.today(), end) <= 14)) nx.push(`<a class="dp-b n full" href="doc.html#renew=${ch.inv.id}">Renew for the next period</a><p class="dp-note">Makes the next invoice with the same subjects. The card after it copies days, times and tutors.</p>`);
+    if(t === 'invoice' && ch.card && H.can('quotes') && (!end || H.dayDiff(H.today(), end) <= 14)) nx.push(`<a class="dp-b n full" href="doc.html#renew=${ch.inv.id}">Renew for the next period</a><p class="dp-note">Next invoice, same subjects; the card copies days, times and tutors.</p>`);
   }
   if(t === 'card' && H.can('cards')) nx.push(`<button class="dp-b n full" onclick="openCardShare()">${svg('<path d="M4 12l16-8-6 17-3-7-7-2z"/>',16)} Send to tutors</button>`);
   F('dpNext').innerHTML = nx.length ? `<div class="dp-box"><div class="dp-cap">Next step</div>${nx.join('')}</div>` : '';
@@ -2405,7 +2418,7 @@ function fillBackup(){
 async function askPersist(){
   let on = false;
   try{ if(navigator.storage && navigator.storage.persist){ on = await navigator.storage.persisted() || await navigator.storage.persist(); } }catch(e){}
-  setSvc('bkPersist', on ? 'ok' : 'warn', on ? 'Storage: protected from automatic clean-up by the browser' : 'Storage: not protected from automatic clean-up. Install the app to your home screen to help, and keep backing up.');
+  setSvc('bkPersist', on ? 'ok' : 'warn', on ? 'Storage: protected from automatic clean-up by the browser' : 'Storage: not protected from automatic clean-up. Install LHQ Hub to your home screen to help, and keep backing up.');
 }
 let pendingRestore = null;
 function readRestore(file){

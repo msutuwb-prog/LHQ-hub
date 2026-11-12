@@ -24,16 +24,37 @@ if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash)
 <script src="store.js"></script>
 <script src="sync.js"></script>
 <script src="defaults.js"></script>
+<script src="payplan.js"></script>
 <script src="hubdata.js"></script>
 <script src="schedule.js"></script>
+<script src="sreport.js"></script>
+<script src="search.js"></script>
+<script src="marks.js"></script>
 <script src="nav.js"></script>
 <script src="schools.js"></script>
 <script src="business.js"></script>
 <script src="insights.js"></script>
+<script src="moneyin.js"></script>
 <script src="perf.js"></script>
 <script src="cards.js"></script>
 <script src="sra.js"></script>
+<script src="attn.js"></script>
+<script src="examdata.js"></script>
+<script src="exams.js"></script>
+<script src="examsui.js"></script>
+<script src="kpi.js"></script>
+<script src="kpiui.js"></script>
+<script src="tpay.js"></script>
+<script src="tpayui.js"></script>
+<script src="srafig.js"></script>
+<script src="fu.js"></script>
+<script src="push.js"></script>
 <script src="teach.js"></script>
+<script src="famdocs.js"></script>
+<script src="sxtras.js"></script>
+<script src="splan.js"></script>
+<script src="review.js"></script>
+<script src="sounds.js"></script>
 <script src="family.js"></script>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
@@ -54,12 +75,16 @@ a{color:inherit}
 .ph p{margin:3px 0 0;color:var(--muted);font-size:13.5px}
 .crumb{display:inline-flex;align-items:center;gap:4px;border:0;background:none;color:var(--muted);font-weight:700;font-size:13.5px;padding:4px 0;margin:0 0 4px;text-decoration:none}
 .crumb:hover{color:var(--ink)}
+.pd-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line2)}.pd-row:first-of-type{border-top:0}.pd-row .t{flex:1;min-width:0}.pd-row .t small{display:block;color:var(--muted);font-size:12.5px}.pd-row input{width:170px;flex:none}
+.pd-fast{padding:10px 0;border-top:1px solid var(--line2)}.pd-fh{display:flex;gap:8px;align-items:center;margin-bottom:8px}.pd-fh input{flex:1;min-width:0}.pd-ds{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px}@media (max-width:620px){.pd-ds{grid-template-columns:repeat(2,minmax(0,1fr))}.pd-row input{width:150px}}
+.tp-row{display:grid;grid-template-columns:150px 120px 110px minmax(0,1fr) minmax(0,1fr) 36px;gap:6px;align-items:center;margin-bottom:8px}@media (max-width:760px){.tp-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr);padding-bottom:8px;border-bottom:1px solid var(--line2)}.tp-row input:nth-child(5){grid-column:1/-1}.tp-row .ib{justify-self:end;grid-column:1/-1}}
+.tm-row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr) 36px;gap:6px;align-items:center;margin-bottom:8px}@media (max-width:520px){.tm-row{grid-template-columns:minmax(0,1fr) minmax(0,1fr) 36px}.tm-row input:first-child{grid-column:1/-1}}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;border:1px solid var(--line);background:var(--surface);color:var(--brand);border-radius:11px;padding:9px 14px;font-weight:800;font-size:13.5px;min-height:40px;white-space:nowrap;text-decoration:none}
 .btn:hover{border-color:var(--muted)}
 .btn.n{background:var(--accent);border-color:var(--accent);color:var(--onaccent)}
 .btn.g{background:var(--wa);border-color:var(--wa);color:#fff}
 .btn.rd{color:var(--rd)}
-.btn.full{width:100%;margin-top:8px}
+.btn.full{width:100%;margin-top:8px;white-space:normal;text-align:center;min-width:0}
 .btn.sm{min-height:32px;padding:6px 11px;font-size:12.5px;border-radius:9px}
 .btn:disabled{opacity:.45;cursor:default}
 .acts{display:flex;gap:8px;flex-wrap:wrap}
@@ -94,6 +119,43 @@ a.it:hover .t b,button.it:hover .t b{text-decoration:underline;text-underline-of
 .av{width:32px;height:32px;border-radius:50%;background:var(--bl-bg);color:var(--bl);display:grid;place-items:center;font-weight:800;font-size:12.5px;flex:none}
 .kv{display:grid;grid-template-columns:120px 1fr;gap:8px 10px;font-size:13.5px;margin:4px 0}
 .kv dd .tag{margin-left:8px;vertical-align:1px}
+/* Activity */
+.ac-bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:10px}
+.ac-sel{width:auto;flex:1;min-width:120px;max-width:240px}
+.ac-tks .tk .cbx{border-color:var(--c,var(--line))}.ac-tks .tk.on .cbx{background:var(--c,var(--accent));border-color:var(--c,var(--accent));color:#fff}
+.ac-r{align-items:flex-start}
+.ap-sw{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-bottom:14px}.ap-sw button{border:1.5px solid var(--line);background:var(--surface);border-radius:12px;padding:8px;display:flex;align-items:center;gap:8px;cursor:pointer;color:var(--ink);font:inherit;min-width:0}.ap-sw button.on{border-color:var(--ink)}.ap-sw i{width:22px;height:22px;border-radius:50%;flex:none}.ap-sw small{font-weight:700;font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ac-i,.ac-tks{--payc:#9a6a00}[data-theme=dark] .ac-i,[data-theme=dark] .ac-tks{--payc:#f4c35a}
+.ac-mcs{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:12px}.ac-mcs .mc{cursor:pointer;font:inherit;color:inherit;padding:12px 14px}.ac-mcs .mc:hover{border-color:var(--muted)}.ac-mcs .mc .v{font-size:22px;font-weight:800;color:var(--brand);display:flex;align-items:center;gap:3px}.ac-mcs .mc .v .mca{opacity:.55;font-size:16px}.ac-mcs .mc .s{font-size:12px;color:var(--muted)}.ac-mcs .mc.on{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.ac-r{font:inherit}.ac-r .chev{margin-left:6px;align-self:center}
+.ac-i{--pu:#6d4fc4;width:30px;height:30px;border-radius:9px;display:grid;place-items:center;flex:none;color:var(--c);background:color-mix(in srgb,var(--c) 14%,transparent);margin-top:1px}
+.ac-tks{--pu:#6d4fc4}
+.ac-tm{color:var(--muted);font-size:12px;white-space:nowrap;margin-left:auto;padding:2px 0 0 8px}
+.ac-st{display:flex;flex-wrap:wrap;gap:2px 6px;font-size:12px;color:var(--muted);margin:3px 0 1px}
+.ac-st span{white-space:nowrap}.ac-st span:not(:last-child):after{content:" →"}.it .t .ac-st b,.ac-st b{display:inline;color:var(--ink);font-weight:700}
+.ac-r .t b{white-space:normal}
+.ac-f{display:grid;grid-template-columns:1fr 1fr;gap:8px;padding:12px}
+.ac-f div{background:var(--bg);border-radius:10px;padding:8px 10px}
+.ac-f small{display:block;font-size:10.5px;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.ac-f b{font-size:19px;color:var(--brand);font-variant-numeric:tabular-nums}
+.ac-ph,.ac-ph.mcs{display:none}
+.ac-who{width:100%;background:none;border:0;text-align:left;font:inherit;color:inherit;cursor:pointer}
+.ac-who.on .t b{color:var(--brand);text-decoration:underline}
+.ac-c{margin-left:auto;color:var(--muted)}
+.ac-g{display:flex;width:100%;margin-bottom:8px}.ac-g button{flex:1;padding:7px 4px;font-size:12.5px;display:flex;flex-direction:column;align-items:center;line-height:1.2}.ac-g button small{font-size:11px;opacity:.75;font-weight:700}
+.ac-q{display:flex;gap:14px;margin:0 2px 8px}
+.ac-sel-p{display:flex;align-items:center;gap:10px;padding:10px 14px;margin-bottom:12px;border-left:3px solid var(--gold)}.ac-sel-p .t{flex:1;min-width:0}.ac-sel-p .t b{display:block}.ac-sel-p .t small{color:var(--muted)}
+.ac-pp{display:flex;align-items:center;gap:10px;width:100%;padding:12px 14px;margin-bottom:12px;text-align:left;font:inherit;color:inherit;cursor:pointer}.ac-pp .t{flex:1}.ac-pp .t b{display:block}.ac-pp .t small{color:var(--muted)}
+@container (min-width:860px){.ac-pp{display:none}}
+.ac-cols>div:last-child{display:none}
+@container (min-width:860px){.ac-cols>div:last-child{display:block}#actWho{display:none}}
+@media (min-width:700px){#actKind{display:none}}
+@media (max-width:699px){.ac-tks{display:none}.ac-ph,.ac-ph.mcs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));margin-bottom:12px}.ac-bar .seg{flex:1 1 100%}.ac-bar .seg button{flex:1}}
+table.says{width:100%;border-collapse:collapse;font-size:13.5px;font-variant-numeric:tabular-nums;min-width:560px}
+table.says th{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;text-align:right;padding:12px 8px 6px;font-weight:800}
+table.says td{padding:10px 8px;border-top:1px solid var(--line2);text-align:right}
+table.says th:first-child,table.says td:first-child{text-align:left;font-weight:700;padding-left:0}
+table.says td.lo{color:var(--am);font-weight:800}table.says tr.all td{color:var(--muted)}
 .kv dt{color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em;padding-top:2px}.kv dd{margin:0;font-weight:700;min-width:0;overflow-wrap:anywhere}
 .note{font-size:12.5px;color:var(--muted);margin:8px 0 0}
 .empty{color:var(--muted);font-size:13.5px;margin:12px 0}
@@ -162,8 +224,13 @@ textarea.in{min-height:200px;line-height:1.45;resize:vertical}
 .svc i{width:9px;height:9px;border-radius:50%;background:var(--muted);flex:none}.svc.ok i{background:#2fa36b}.svc.warn i{background:#d08a00}
 
 /* home cards */
-.mcs{display:flex;flex-wrap:wrap;gap:12px;margin-bottom:18px}
-.mcs>.mc{flex:1 1 190px;min-width:0;overflow:hidden}
+/* cards: balanced columns, every card in a row the same width; rows split evenly (5 = 3 + 2), never one card stretched across */
+.mcs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-bottom:18px}
+.mcs>.mc{min-width:0;overflow:hidden}
+.mcs[data-n="1"]{grid-template-columns:minmax(0,1fr)}
+@container (min-width:560px){.mcs[data-n="3"]{grid-template-columns:repeat(3,minmax(0,1fr))}.mcs[data-n="4"]{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .mcs[data-n="5"],.mcs[data-n="6"]{grid-template-columns:repeat(3,minmax(0,1fr))}.mcs[data-n="7"],.mcs[data-n="8"]{grid-template-columns:repeat(4,minmax(0,1fr))}}
+@container (min-width:860px){.mcs[data-n="5"]{grid-template-columns:repeat(5,minmax(0,1fr))}}
 /* Lean: compact Home cards (a number and one line), three across */
 html.lean:not(.lean-open) .lm{display:none!important}
 .lean-more{display:none;width:100%;border:1px dashed var(--line);background:none;border-radius:12px;padding:12px 14px;font:inherit;font-weight:700;color:var(--brand);margin:0 0 12px;cursor:pointer}
@@ -184,7 +251,8 @@ a.bz-bud{display:block;text-decoration:none;color:inherit}a.bz-bud:hover b{text-
 .mc .v{font-size:25px;font-weight:800;color:var(--brand);letter-spacing:-.5px;font-variant-numeric:tabular-nums;line-height:1.2;margin-top:3px;white-space:nowrap}
 .mc .v small.u{font-size:11px;font-weight:800;letter-spacing:.04em;margin-right:4px}
 .mc .v small{font-size:13px;color:var(--muted);font-weight:700;letter-spacing:0}
-.mc .s{font-size:12.5px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.mc .s{font-size:12.5px;color:var(--muted)}
+html.lean .mc .s{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
 .mc .s.warn{color:var(--am);font-weight:700}.mc .s.bad{color:var(--rd);font-weight:700}
 .mc .tr{font-size:11.5px;font-weight:800;margin-top:auto;padding-top:4px}.mc .tr.up{color:var(--ok)}.mc .tr.dn{color:var(--rd)}.mc .tr.fl{color:var(--muted)}
 .mc .bar{height:6px;border-radius:99px;background:var(--gr-bg);overflow:hidden;margin:6px 0 3px}.mc .bar i{display:block;height:100%;background:var(--gold)}
@@ -193,10 +261,11 @@ a.bz-bud{display:block;text-decoration:none;color:inherit}a.bz-bud:hover b{text-
 .mc .ctl button{width:30px;height:30px;border-radius:8px;border:1px solid var(--line);background:var(--surface);padding:0;display:grid;place-items:center;color:var(--ink)}
 .mc .ctl button.rm{color:var(--rd);margin-left:auto}
 .mc .ctl button:disabled{opacity:.3}
-@media (max-width:699px){.mc{padding:11px 12px}.mc .v{font-size:21px}.mc .v small{font-size:12px}.mcs{gap:8px}.mcs>.mc{flex-basis:130px}
-  html.lean .mcs:not([data-n="2"]):not([data-n="4"])>.mc{flex-basis:90px;padding:9px 10px}
-  html.lean .mcs:not([data-n="2"]):not([data-n="4"]) .mc .v{font-size:19px;letter-spacing:-.4px}
-  html.lean .mcs:not([data-n="2"]):not([data-n="4"]) .mc .s{display:none}
+@media (max-width:699px){.mc{padding:11px 12px}.mc .v{font-size:21px}.mc .v small{font-size:12px}.mcs{gap:8px}
+  html.lean .mcs[data-n="3"]{grid-template-columns:repeat(3,minmax(0,1fr))}
+  html.lean .mcs[data-n="3"]>.mc{padding:9px 10px}
+  html.lean .mcs[data-n="3"] .mc .v{font-size:19px;letter-spacing:-.4px}
+  html.lean .mcs[data-n="3"] .mc .s{display:none}
   html.lean .mc .l{font-size:10px;letter-spacing:.04em}html.lean .mc .l svg{display:none}html.lean .mc .s{font-size:11.5px}
   .mc .v small.u{font-size:10px;margin-right:3px}html.lean .mcs .mc .v .mca{display:none}}
 
@@ -274,7 +343,6 @@ a.bz-bud{display:block;text-decoration:none;color:inherit}a.bz-bud:hover b{text-
 .pf-paper .ins-leg{font-size:10.5px}.pf-paper svg{width:100%}
 .pf-f{border-top:1px solid #e4e7ec;padding-top:8px;margin-top:10px;color:#6b7585;font-size:10px}
 .pc-h{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:4px}.pc-h:empty{display:none}
-@media (min-width:700px){.pc-g>.mc{flex-basis:170px}}
 .pc-spark{margin:4px -4px 0}.pc-spark svg{min-width:0!important;height:70px}
 .bz-secs{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:8px}
 .bz-secs a{display:flex;justify-content:space-between;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:11px 14px;font-weight:700;color:var(--ink);text-decoration:none}
@@ -356,7 +424,7 @@ a.ins-row:hover b{text-decoration:underline;text-underline-offset:2px}
 <script>
 const $ = id => document.getElementById(id);
 const {store, esc, num, mk, mkShort, nice, range, ago, first, sk, same, today, addDays, dayDiff, WORD, typeOf, can, isDir, me, roleText} = HD;
-const ICP = {quote:'<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/>', invoice:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>', receipt:'<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>', card:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10h6M7 14h10"/>',
+const ICP = {bell:'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',quote:'<path d="M7 3h7l5 5v13H7z"/><path d="M14 3v5h5M10 13h6M10 17h6"/>', invoice:'<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>', receipt:'<path d="M6 3h12v18l-3-2-3 2-3-2-3 2z"/><path d="M9 8h6M9 12h6"/>', card:'<rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 10h6M7 14h10"/>',
  users:'<circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.5 3-6 6-6s6 2.5 6 6"/><path d="M16 4.5a3.5 3.5 0 010 7M18 14c2 .8 3 3 3 6"/>', alert:'<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/>', clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', chev:'<path d="M9 6l6 6-6 6"/>', back:'<path d="M15 6l-6 6 6 6"/>', search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
  edit:'<path d="M4 20h4L19 9l-4-4L4 16v4z"/>', plus:'<path d="M12 5v14M5 12h14"/>', user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>', key:'<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3"/>', bank:'<path d="M3 10l9-6 9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/>', cash:'<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>', hash:'<path d="M9 4L7 20M17 4l-2 16M4 9h16M3 15h16"/>', msg:'<path d="M4 5h16v11H9l-5 4z"/>', list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>', link:'<path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/>', wa:'<path d="M4 20l1.3-4A8 8 0 1112 20a8 8 0 01-4-1z"/>', box:'<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>', bin:'<path d="M4 7h16M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/>', restore:'<path d="M4 12a8 8 0 108-8 8 8 0 00-6 2.7L4 9"/><path d="M4 4v5h5"/>', out:'<path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/>', rep:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>', copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V4h12"/>', down:'<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>', layout:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 16h18"/>'};
 const ic = (n, s = 20, w = 1.8) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${ICP[n]||''}</svg>`;
@@ -408,27 +476,36 @@ async function bellOpen(){
   const B = bellItems(), seen = +(localStorage.getItem(BELL_SEEN) || 0);
   if(staffRole() && can('tutors')){ try{ const j = await hub.api('activity?from=' + encodeURIComponent(new Date(Date.now() - 3 * 864e5).toISOString())); window.BELLINFO = (j.rows || []).filter(x => x.who !== me().name).slice(0, 12).map(x => ({t:x.summary, s:x.who + ' · ' + ago(new Date(x.created_at).getTime()), at:new Date(x.created_at).getTime(), href:'#activity'})); B.info = B.info.concat(window.BELLINFO); }catch(e){} }
   const row = (x, need) => `<a class="it" href="${esc(x.href || '#')}" data-close><span class="ico" style="color:var(${need ? '--am' : '--bl'})">${ic(need ? 'alert' : 'clock')}</span><span class="t"><b style="${!need && (x.at || 0) <= seen ? 'font-weight:600' : ''}">${esc(x.t)}</b>${x.s ? `<small>${esc(x.s)}</small>` : ''}</span><span class="chev">›</span></a>`;
-  openSheet(`<div class="hx"><h3>Bell</h3><button class="ib" data-close>✕</button></div>
+  openSheet(`<div class="hx"><h3>Notifications</h3><button class="ib" data-close>✕</button></div>
     <div class="h2">Needs you <em>${B.need.length}</em></div><div class="card">${B.need.slice(0, 30).map(x => row(x, true)).join('') || '<p class="empty">Nothing. ✓</p>'}</div>
     <div class="h2">For your info</div><div class="card">${B.info.sort((a, b) => (b.at || 0) - (a.at || 0)).slice(0, 20).map(x => row(x, false)).join('') || '<p class="empty">Nothing new.</p>'}</div>`);
   try{ localStorage.setItem(BELL_SEEN, String(Date.now())); }catch(e){}
 }
 document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-leanmore]'); if(b){ e.preventDefault(); document.documentElement.classList.add('lean-open'); }
   const fb = e.target.closest && e.target.closest('[data-flt]'); if(fb){ e.preventDefault(); document.documentElement.classList.toggle('flt-open'); } });
+/* the one-line "Notifications on this phone?" prompt, on each person's Home only */
+async function fillAsk(){
+  if(!window.LHQPush || !hub.session()) return;
+  const home = route.page === 'home' || (['teach','me'].includes(route.page) && !route.args[0]); if(!home) return;
+  const html = await LHQPush.prompt(); const m = $('main'); if(!html || !m || m.querySelector('.lp-ask')) return;
+  const ph = m.querySelector('.ph'); if(ph) ph.insertAdjacentHTML('afterend', html); else m.insertAdjacentHTML('afterbegin', html);
+  LHQPush.bindPrompt(m);
+}
 function render(){
   load(); parse();
   document.documentElement.classList.toggle('lean', LEAN());
   if(render.last !== route.page){ document.documentElement.classList.remove('flt-open'); render.last = route.page; }
   if(render.lastH !== location.hash){ document.documentElement.classList.remove('lean-open'); render.lastH = location.hash; }
-  if(me().role === 'tutor' && !['teach','settings','set'].includes(route.page)){ location.replace('#teach'); route = {page:'teach', args:[]}; }
-  if(['student','parent'].includes(me().role) && !['me','settings','set'].includes(route.page)){ location.replace('#me'); route = {page:'me', args:[]}; }
-  const sec = route.page === 'me' ? ({practice:'mprac', calendar:'mcal', progress:'mprog', sessions:'mprog', subject:'mprog', payments:'mpay', more:'more'}[route.args[0]] || 'me') : route.page === 'teach' && me().role === 'tutor' ? ({sra:'tsra', report:'trep', cal:'tcal', avail:'tcal'}[route.args[0]] || 'teach') : {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', teach:'teach', tutors:'tutors', bookings:'tutors', reqs:'tutors', sessions:'tutors', confirm:'tutors', clashes:'tutors', calendar:'calendar', more:'more'}[route.page] || route.page;
+  if(me().role === 'tutor' && !['teach','settings','set','exams'].includes(route.page)){ location.replace('#teach'); route = {page:'teach', args:[]}; }
+  if(['student','parent'].includes(me().role) && !['me','settings','set','exams'].includes(route.page)){ location.replace('#me'); route = {page:'me', args:[]}; }
+  const sec = route.page === 'me' ? ({practice:'mprac', calendar:'mcal', progress:'mprog', sessions:'mprog', subject:'mprog', payments:'mpay', more:'more', habits: me().role === 'parent' ? 'more' : 'mprog', day:'mcal', week:'mcal', year:'mcal', blk:'mcal', review:'mprog', school:'mprog', reflect:'mprog', sounds:'more', sharing:'more', callink:'more', focus:'mfocus', report:'mrep', reminders:'more', bar:'more'}[route.args[0]] || 'me') : route.page === 'teach' && me().role === 'tutor' ? ({sra:'tsra', fu:'tsra', report:'trep', cal:'tcal', avail:'tcal'}[route.args[0]] || 'teach') : {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', srafig:'reports', fu:'reports', teach:'teach', tutors:'tutors', bookings:'tutors', reqs:'tutors', sessions:'tutors', confirm:'tutors', clashes:'tutors', calendar:'calendar', says:'tutors', more:'more'}[route.page] || route.page;
   LHQNav.section(sec);
   const m = $('main');
   m.className = 'main' + (['edithome','new','tutors','teach'].includes(route.page) ? ' narrow' : '');
   m.innerHTML = P[route.page](...route.args) || '';
   if(!['new','makeups'].includes(route.page)) LHQNav.visit(pageLabel());
   bind();
+  fillAsk();
   if(route.page === 'new') newSheet(route.args[0]);
   if(route.page === 'makeups') makeupSheet(route.args[0]);
   if(route.page === 'tutors' && route.args[0] === 'none' && $('none')) $('none').scrollIntoView();
@@ -511,6 +588,12 @@ function attention(list){
     const TF = Object.values(store.get('lhq_moves', {}) || {}).filter(m => m && !m.told);
     TF.forEach(m => { const sp = HD.students().find(x => SCHED.nk(x.name) === SCHED.nk(m.st)), msg = tellMsg(m);
       out.push({w:-1, g:'tell', s:{name:`Tell the family: ${m.st}`}, href:'#clashes', ico:'msg', col:'--am', sub:`${m.sub} moves from ${SCHED.DAYN[m.from.day]} ${m.from.s} to ${SCHED.DAYN[m.to.day]} ${m.to.s} · moved by ${m.by}`, btn:['WhatsApp', `https://wa.me/${sp && sp.phone ? waNum(sp.phone) : ''}?text=${encodeURIComponent(msg)}`]}); });
+    if(window.KPIUI) KPIUI.attention().forEach(x => out.push({w:-1, s:{name:x.t}, href:x.href, ico:'rep', col: x.col === 'var(--rd)' ? '--rd' : x.col === 'var(--am)' ? '--am' : '--muted', sub:x.s}));
+    { const L7 = Object.values((store.get('lhq_logs', {e:{}}) || {}).e || {}).filter(e => e && !e.x && e.ty === 's' && e.a === 'late' && e.d >= addDays(t, -6)), byS = {};
+      L7.forEach(e => { (byS[e.k.split('|')[0]] = byS[e.k.split('|')[0]] || []).push(e); });
+      Object.values(byS).filter(L => L.length >= 2).forEach(L => out.push({w:0, g:'late2', s:{name:`${L[0].st} late ${L.length} times this week`}, href:stuLink(L[0].k.split('|')[0], 'sessions'), ico:'clock', col:'--am', sub:L.map(e => `${e.sub} · ${nice(e.d)}`).join(' · ')})); }
+    if(window.FUP && (isDir() || can('tutors'))){ const O = FUP.overdue(); if(O.length) out.push({w:0, s:{name:`${O.length} follow-up${O.length === 1 ? '' : 's'} overdue`}, href:'#fu', ico:'clock', col:'--am', sub:O.slice(0, 3).map(f => `${f.st} · ${f.tk} · ${f.tutor}`).join(' · ')}); }
+    { const A = Object.values(store.get('lhq_asks', {}) || {}).filter(a => a && !a.done); if(A.length) out.push({w:-1, s:{name: A.length === 1 ? `${A[0].st}: move ${A[0].sub} on ${nice(A[0].d)}?` : `${A.length} sessions tutors asked to move`}, href:'#asks', ico:'clock', col:'--am', sub: A.slice(0, 2).map(a => `${a.st} · ${a.why || a.sub} · ${a.tutor}`).join(' · ')}); }
     const behind = sessionRows().filter(r => r.T.behind >= 2);
     if(behind.length) out.push({w:-1, s:{name:`${behind.length} student${behind.length === 1 ? '' : 's'} behind on sessions`}, href:'#sessions/behind', ico:'clock', col:'--am', sub:behind.slice(0, 3).map(r => `${r.it.st} · ${r.it.sub} ${r.T.behind} behind`).join(' · '), btn:['See', '#sessions/behind']});
     const MU = Object.values(store.get('lhq_makeups', {}) || {}).filter(m => m && m.status === 'asked');
@@ -518,6 +601,31 @@ function attention(list){
     const RQ = reqList(), ap = RQ.filter(r => !r.dec.s), buy = RQ.filter(r => r.dec.s === 'approved');
     if(isDir() && ap.length) out.push({w:-1, s:{name:`${ap.length} requisition${ap.length === 1 ? '' : 's'} to approve`}, href:'#reqs', ico:'box', col:'--am', sub:ap.slice(0, 3).map(r => `${r.item.item} · ${r.rep.tutor}`).join(' · '), btn:['Review', '#reqs']});
     if(can('spend') && buy.length) out.push({w:-1, s:{name:`${buy.length} approved requisition${buy.length === 1 ? '' : 's'} to buy`}, href:'#reqs', ico:'box', col:'--am', sub:buy.slice(0, 3).map(r => r.item.item).join(' · '), btn:['Review', '#reqs']});
+    /* students' daily reports (only for those who may read them) */
+    const SR = store.get('lhq_sreports', null);
+    if(SR && window.SREP){ const nm = k => (HD.students().find(x => x.key === k) || {name:k}).name;
+      SREP.flags(SR, t).forEach(f => {
+        if(f.kind === 'prep') out.push({w:-1, g:'rprep', s:{name:`${f.tutor} · not prepared ${f.n} times`}, href:'#says', ico:'alert', col:'--rd', sub:`Last 30 days · ${f.names.map(k => first(nm(k))).join(', ')}`});
+        if(f.kind === 'guide') out.push({w:0, g:'rguide', s:{name:`${f.tutor} · no guide before, ${f.n} times`}, href:stuLink(f.st, 'reports'), ico:'list', col:'--am', sub:`${nm(f.st)} · this week`});
+        if(f.kind === 'week') out.push({w:0, g:'rweek', s:{name:`${nm(f.st)}: ${f.a}`}, href:stuLink(f.st, 'reports'), ico:'msg', col:'--am', sub:f.q});
+        if(f.kind === 'note') out.push({w:0, g:'rnote', s:{name:`${nm(f.st)} wrote to LHQ`}, href:stuLink(f.st, 'reports'), ico:'msg', col:'--am', sub:`“${f.note}”`});
+      });
+      const from = SREP.first(SR), cards = saved.filter(d => typeOf(d) === 'card');
+      if(from) HD.people().filter(p => p.role === 'student' && p.status === 'active').forEach(p => { const key = SCHED.nk(p.name), mine = SR[key] || {};
+        const days = [...new Set(SCHED.sessions(cards, SREP.addDays(t, -21), SREP.addDays(t, -1), {student: p.name}).map(e => e.date))].filter(d => d >= from).sort().slice(-3);
+        if(days.length === 3 && days.every(d => !mine[d])) out.push({w:0, g:'rmiss', s:{name:`${p.name} hasn't reported`}, href:stuLink(key, 'reports'), ico:'clock', col:'--am', sub:'Last 3 session days'}); });
+    }
+    /* told in advance: today's absences and lateness from students and parents */
+    const NT = Object.values(store.get('lhq_notices', {}) || {}).filter(n => n && !n.x && n.d === t).sort((a, b) => String(a.s).localeCompare(String(b.s)));
+    const ntl = n => `${n.name} · ${n.sub.replace(/^Mathematics$/, 'Maths')} ${n.s}${n.kind === 'late' ? ' · ' + n.mins + ' min' : ' · ' + String(n.why || '').toLowerCase()}`;
+    [['abs', 'absent'], ['late', 'late']].forEach(([k, w]) => { const L = NT.filter(n => n.kind === k);
+      if(L.length) out.push({w:-1, s:{name:`${L.length} ${w} today`}, href:stuLink(L[0].st, 'sessions'), ico:'clock', col: k === 'abs' ? '--am' : '--bl', sub:L.slice(0, 3).map(ntl).join(' · ') + (L.length > 3 ? ` · +${L.length - 3}` : '')}); });
+    /* students slipping (the tutors' rules): one grouped line, each student inside */
+    if(window.ATTN){ const LG = Object.values((store.get('lhq_logs', {e:{}}) || {}).e || {}), I = SCHED.items(saved.filter(d => typeOf(d) === 'card'), t), seenS = new Set();
+      const PKX = window.EXUI ? EXUI.staffPack([], []) : null, tgOf = k => { if(!PKX) return null; const it = I.find(y => y.k === k); const i = EXUI.info(k, Object.assign({}, PKX, {subs: it ? {[k]: {card: EXAMS.fromCard(it.x)}} : {}}), []); return i.c.g ? {g: i.c.g, tp: i.tp} : null; };
+      ATTN.slipping(I, LG, t, {target: tgOf}).forEach(x => { const key = SCHED.nk(x.st) + '|' + x.level; if(seenS.has(key + x.kind)) return; seenS.add(key + x.kind);
+        out.push({w: x.level === 'now' ? -1 : 0, g:'slip', s:{name:`${x.st} · ${x.what}`}, href:stuLink(SCHED.nk(x.st), x.kind === 'drop' || x.kind === 'fall' || x.kind === 'below' ? 'marks' : 'sessions'), ico: x.level === 'now' ? 'alert' : 'clock', col: x.level === 'now' ? '--rd' : '--am', sub:`${x.sub.replace(/^Mathematics$/, 'Maths')} · ${x.detail} · ${x.tutor || 'no tutor'}`}); }); }
+    packsAll().filter(p => !p.out && p.on < t).forEach(p => out.push({w:-1, g:'pkout', s:{name:`Pack not handed over: ${p.st}`}, href:stuLink(SCHED.nk(p.st), 'marks'), ico:'box', col:'--am', sub:`${p.sub} · ${p.tutor || 'tutor'} · last session ${nice(p.on)} · ${p.sheets.length} sheets`}));
     disp.filter(e => !e.cf.step || e.cf.step === 'lhq').forEach(e => out.push({w:-2, g:'disp', s:{name:'Settle: ' + e.st}, href:'#confirm/' + encodeURIComponent(e.id), ico:'alert', col:'--rd', sub:`${e.sub} with ${e.tutor || 'tutor'} · ${nice(e.d)} · ${cfLine(e)}`, tag:['Disputed','rd']}));
   }
   return out.sort((a, b) => a.w - b.w);
@@ -554,7 +662,7 @@ const mkV = h => String(h).replace(/^MKW\s+/, '<small class="u">MKW</small>');
 const L = (href, html, cls = 's') => { if(cls === 'v') html = mkV(html); return route.page === 'edithome' ? `<div class="${cls}">${html}</div>` : `<a class="mcl ${cls}" href="${href}">${html}<span class="mca">›</span></a>`; };
 const trend = (now, before, word) => { if(!before && !now) return ''; if(!before) return `<div class="tr fl">First month with figures</div>`; const p = Math.round((now - before) / before * 100); return `<div class="tr ${p >= 0 ? 'up' : 'dn'}">${p >= 0 ? '▲' : '▼'} ${Math.abs(p)}% ${word}</div>`; };
 const CARDS = {
-  money:{s:'Money in', t:'Money this month', ic:'cash', need:'money', d:'Received this month against what was invoiced, and what is still owed', href:() => can('pl') ? '#biz/money/' + ym(today()) : '#docs/receipt/m-' + ym(today()),
+  money:{s:'Money in', t:'Money this month', ic:'cash', need:'money', d:'Received vs invoiced this month', href:() => can('pl') ? '#biz/money/' + ym(today()) : '#docs/receipt/m-' + ym(today()),
     html:m => `${L(can('pl') ? '#biz/money/' + ym(today()) : '#docs/receipt/m-' + ym(today()), mkShort(m.recv), 'v')}<div class="bar"><i style="width:${m.invoiced ? Math.min(100, Math.round(m.recv / m.invoiced * 100)) : 0}%"></i></div>${L(can('pl') ? '#biz/money/' + ym(today()) : '#docs/invoice/m-' + ym(today()), `${mkShort(m.invoiced)} invoiced this month`)}${L('#docs/invoice/unpaid', `Outstanding ${mkShort(m.owed)}${m.overN ? ` · ${m.overN} overdue` : ''}`, 's' + (m.overN ? ' bad' : ''))}${trend(m.recv, m.recvLast, 'received vs last month')}`},
   owed:{s:'Owed', t:'Outstanding & overdue', ic:'alert', need:'money', d:'Unpaid balances, with overdue ones first', href:'#biz/owed',
     html:m => `${L('#biz/owed', mkShort(m.owed), 'v')}${L('#biz/owed', `${m.owingN} invoice${m.owingN === 1 ? '' : 's'} not fully paid`)}${m.overN ? L('#biz/owed', `${m.overN} overdue · ${mkShort(m.overAmt)}`, 's bad') : '<div class="s">Nothing overdue</div>'}`},
@@ -566,12 +674,13 @@ const CARDS = {
     html:m => `${L('#students/ending', `${m.ending}`, 'v')}${L('#students/ending', `period${m.ending === 1 ? '' : 's'} end in the next 7 days`)}<div class="s">${m.renewed} renewed already</div>${m.endingNext ? `<div class="tr fl">Next: ${esc(m.endingNext.name)}, ${nice(m.endingNext.cur.inv.periodEnd)}</div>` : ''}`},
   tutors:{s:'Tutors', t:'Tutors', ic:'user', d:'Tutors teaching now, and subjects with no tutor', href:'#tutors',
     html:m => `${L('#tutors', `${m.tutors} <small>teaching</small>`, 'v')}<div class="s">${m.perTutor ? `About ${m.perTutor} students each` : 'From the current tuition cards'}</div>${m.noTutor ? L('#tutors/none', `${m.noTutor} subject${m.noTutor === 1 ? ' has' : 's have'} no tutor yet`, 's warn') : '<div class="s">Every subject has a tutor</div>'}`},
-  sessions:{t:'Sessions this week', ic:'clock', step2:true, d:'Sessions done and still to come, from tutors’ logs'},
+  sessions:{t:'Sessions this week', ic:'clock', step2:true, d:'Sessions done and still to come, from tutors\' logs'},
   sras:{t:'SRAs due', ic:'restore', step2:true, d:'Spaced repetition reviews due this week'},
   reports:{t:'Reports to send', ic:'rep', step2:true, d:'Weekly reports ready for parents'},
   profit:{s:'Profit', t:'Profit this month', ic:'cash', need:'pl', d:'Money in less spending this month, and the margin', href:'#biz/pl', html:() => BIZ.cardProfit()},
   spend:{s:'Spending', t:'Spending this month', ic:'box', need:'spend', d:'What has been spent this month, against the budget', href:'#biz/spending', html:() => BIZ.cardSpend()},
-  tpay:{t:'Tutor pay this month', ic:'cash', need:'tpay', step2:true, d:'Pay so far from logged sessions, and what is left after paying tutors'},
+  tpay:{s:'Tutor pay', t:'Tutor pay this month', ic:'cash', need:'tpay', d:'Tutor pay so far this month', href:'#pay',
+    html:() => { const c = TPAYUI.card(); return `${L('#pay', mkShort(c.tot), 'v')}${L('#pay', `${c.sessions} session${c.sessions === 1 ? '' : 's'} · ${c.n} tutor${c.n === 1 ? '' : 's'}`)}<div class="s">${c.conf} of ${c.n} payslips confirmed</div>`; }},
 };
 const DEFAULT_HOME = () => LEAN() ? (can('money') ? ['money','owed','students'] : ['students','enrol','renew']) : can('money') ? ['money','students','enrol','tutors'] : ['students','enrol','renew','tutors'];
 function myCards(){ const h = me().home; return (Array.isArray(h) ? h : DEFAULT_HOME()).filter(k => CARDS[k] && !CARDS[k].step2 && (!CARDS[k].need || can(CARDS[k].need))); }
@@ -582,7 +691,8 @@ async function saveHome(cards){
 }
 /* Needs attention: the same kind of task more than once becomes one line (tap it to see each) */
 const GL = {over:'invoices overdue', grace:'payments in their grace period', nocard:'paid without a tuition card', notutor:'cards with a subject without a tutor', end:'periods end this week', muend:'periods ended with make-ups owed',
-  quote:'quotes waiting over a week', cant:"cards a tutor can't make", seen:"cards tutors haven't seen", tell:'families to tell about a move', disp:'disputed sessions'};
+  quote:'quotes waiting over a week', cant:"cards a tutor can't make", seen:"cards tutors haven't seen", tell:'families to tell about a move', disp:'disputed sessions',
+  rprep:'tutors not prepared', rguide:'guides missing', rweek:'answers to look at', rnote:'notes from students', rmiss:"students who haven't reported", pkout:'packs not handed over', slip:'students slipping'};
 let attG = {};
 function attRows(att){
   const out = [], done = {};
@@ -635,7 +745,7 @@ P.students = (f = 'all') => {
   const list = HD.students(); if(!S_F[f]) f = 'all';
   return `${crumb(null, null, 'students')}<div class="ph"><div class="tt"><h1>Students</h1><p>${list.length} student${list.length === 1 ? '' : 's'}</p></div>${can('students') || can('quotes') ? `<button class="btn" id="addStu">${ic('plus',16,2.2)} Add student</button>` : ''}</div>
   ${window.PC ? PC.block('students', {}, 'At a glance') : ''}
-  <label class="search">${ic('search',18)}<input id="sq" type="search" placeholder="Search name, parent or number" value="${esc(sQ)}" autocomplete="off"></label>
+
   ${f === 'all' ? `<button class="btn sm flt-btn" data-flt style="margin:0 0 10px">${ic('list',14)} Filter</button>` : ''}<div class="chips ${f === 'all' ? 'flt' : ''}">${Object.entries(S_F).filter(([k]) => !S_HIDE.includes(k) || k === f).map(([k, [l, fn]]) => `<a class="chip ${f === k ? 'on' : ''}" href="#students/${k}">${l}<i>${list.filter(fn).length}</i></a>`).join('')}</div>
   <div class="card one" id="slist">${studentRows(list, f)}</div>`;
 };
@@ -644,7 +754,7 @@ function studentRows(list, f){
   const rows = list.filter(S_F[f || 'all'][1]).filter(s => !q || sk([s.name, s.parent, s.level, ...s.docs.map(d => d.number)].join(' ')).includes(q));
   const per = s => s.cur ? range(s.cur.inv.periodStart, s.cur.inv.periodEnd) : '';
   return (rows.length ? `<div class="it srow sh"><span></span><span>Name</span><span class="c">Year</span><span class="c">Period</span><span class="c">Subjects</span><span>Status</span></div>` : '') + rows.map(s => `<a class="it srow" href="${stuLink(s.key)}"><span class="av">${inits(s.name)}</span><span class="t"><b>${esc(s.name)}</b><small>${esc([s.level, per(s), subjectsOf(s)].filter(Boolean).join(' · '))}</small></span><span class="c">${esc(s.level || '–')}</span><span class="c">${esc(per(s) || '–')}</span><span class="c">${esc(subjectsOf(s) || '–')}</span><span class="tag ${s.status.cls}">${s.status.text}</span></a>`).join('')
-    || `<p class="empty">${list.length ? 'No students match.' : 'No students yet. Add one, or they appear as soon as a quote is saved.'}</p>`;
+    || `<p class="empty">${list.length ? 'No students match.' : 'No students yet.'}</p>`;
 }
 function subjectsOf(s){
   const d = s.cur ? s.cur.card || s.cur.inv : s.openQuote || s.loneCard; if(!d) return '';
@@ -655,9 +765,9 @@ P.student = (key, tab = 'overview') => {
   const s = HD.students().find(x => x.key === key);
   if(!s) return `${crumb('#students', 'Students')}<p class="empty">That student isn't here. They may have been renamed.</p>`;
   const myRows = can('tutors') ? sessionRows().filter(r => SCHED.nk(r.it.st) === SCHED.nk(s.name)) : [];
-  const tabs = [['overview','Overview']].concat(myRows.length ? [['sessions','Sessions']] : [], (isDir() || can('tutors')) && PREVIEW_OR_DB() ? [['accounts','Accounts']] : [], [['documents',`Doc<span class="x-ph">ument</span>s<i>${s.docs.length}</i>`],['details','Details']]);
+  const tabs = [['overview','Overview']].concat(myRows.length ? [['sessions','Sessions']] : [], (isDir() || can('tutors')) && PREVIEW_OR_DB() ? [['accounts','Accounts']] : [], [['marks','Marks']], store.get('lhq_sreports', null) ? [['reports','Reports']] : [], [['documents',`Doc<span class="x-ph">ument</span>s<i>${s.docs.length}</i>`],['details','Details']]);
   let body = '';
-  if(tab === 'overview') body = (window.PC ? PC.block('student', {s}, 'This period') : '') + stuOverview(s);
+  if(tab === 'overview') body = (window.PC ? PC.block('student', {s}, 'This period') : '') + stuOverview(s) + (window.SRAFIG && can('tutors') ? SRAFIG.student(s.key) : '');
   if(tab === 'accounts'){
     const ppl = HD.people(), nkk = SCHED.nk, sp = ppl.find(p => p.role === 'student' && nkk(p.name) === nkk(s.name)), par = ppl.filter(p => p.role === 'parent' && (p.children || []).some(c => nkk(c) === nkk(s.name)));
     const conf = (store.get('lhq_confirmer', {}) || {})[nkk(s.name)] === 'parent' ? 'parent' : 'student';
@@ -675,14 +785,43 @@ P.student = (key, tab = 'overview') => {
       <div class="t-ses" style="grid-template-columns:repeat(4,1fr)"><div><b>${T.planned || '?'}</b><small>Planned</small></div><div><b>${T.had}</b><small>Had</small></div><div><b>${T.remaining}</b><small>Left</small></div><div><b>${T.owed}</b><small>Owed</small></div></div>${sBar(T)}
       ${it.cap && T.planned < it.cap ? `<p class="note" style="margin:8px 0 0;color:var(--am);font-weight:700">The card's days only fit ${T.planned} of the ${it.cap} sessions paid for: add a day or a make-up.</p>` : ''}
       <p class="note" style="margin:8px 0 0">${nice(it.pa)} – ${nice(it.b)}${it.cap ? ` · ${it.cap} sessions on the card` : ''} · ${T.confirmed} confirmed${T.waiting ? ` · ${T.waiting} waiting` : ''}${T.disputed ? ` · ${T.disputed} disputed` : ''}${T.lost ? ` · ${T.lost} min taken off` : ''} · ${T.behind ? `<b style="color:var(--am)">${T.behind} behind</b>` : 'on track'}</p></div>
-      <div class="card">${T.entries.slice().reverse().map(e => { const st = HD.cfState(e); return `<button class="it" ${st ? `data-cf="${esc(e.id)}"` : ''}>${st ? cfMark(st) : '<span class="cfm" style="border:2px solid var(--line)"></span>'}<span class="t"><b>${nice(e.d)}${e.t1 ? ' · ' + esc(e.t1) + '–' + esc(e.t2 || '') : ''}${e.mk ? ' · make-up' : ''}</b><small>${esc({attended:'On time', present:'Present', late:'Late', absent:'Absent · owed', cancelled:'Cancelled · owed'}[e.a] || e.a || '')}${st ? ' · ' + CFL[st] : ''}${(e.tp || []).length ? ' · ' + esc(e.tp.join(', ')) : ''} · ${esc(e.tutor || '')}</small></span></button>`; }).join('') || '<p class="empty">No sessions logged yet.</p>'}</div>`).join('');
+      <div class="card">${T.entries.slice().reverse().map(e => { const st = HD.cfState(e); return `<button class="it" ${st ? `data-cf="${esc(e.id)}"` : ''}>${st ? cfMark(st) : '<span class="cfm" style="border:2px solid var(--line)"></span>'}<span class="t"><b>${nice(e.d)}${e.t1 ? ' · ' + esc(e.t1) + '–' + esc(e.t2 || '') : ''}${e.mk ? ' · make-up' : ''}</b><small>${esc({attended:'On time', present:'Present', late:'Late', absent:'Absent · owed', cancelled:'Cancelled · owed'}[e.a] || e.a || '')}${e.a === 'absent' || e.a === 'late' ? (e.told || Object.values(store.get('lhq_notices', {}) || {}).some(n => n && !n.x && n.k === e.k && n.d === e.d) ? ' · told' : e.a === 'absent' ? ' · not told' : '') : ''}${st ? ' · ' + CFL[st] : ''}${(e.tp || []).length ? ' · ' + esc(e.tp.join(', ')) : ''} · ${esc(e.tutor || '')}</small></span></button>`; }).join('') || '<p class="empty">No sessions logged yet.</p>'}</div>`).join('');
+  }
+  if(tab === 'marks'){
+    const E = Object.values((store.get('lhq_logs', {e:{}}) || {}).e || {}).filter(e => e && String(e.k || '').split('|')[0] === s.key);
+    const PK = packsAll().filter(p => p.k.split('|')[0] === s.key), sd = store.get('lhq_sradone', {}) || {}, sid = x => [x.k, x.topic, x.stage].join('|');
+    const M = MARKS.fromEntries(E), pc = o => o && Number(o.mx) > 0 ? Math.round(Number(o.sc) / Number(o.mx) * 100) : null;
+    PK.forEach(p => p.sheets.filter(x => x.status !== 'in').forEach(x => { const d = sd[sid(x)];
+      if(d && d.sc != null && pc(d) != null) M.r.push({sub: x.sub, tk: x.topic, rv: x.stage, p: pc(d), d: x.doOn, self: 1}); else (M.p = M.p || []).push({sub: x.sub, tk: x.topic, rv: x.stage, d: x.doOn}); }));
+    const B = MARKS.bySubject(M);
+    /* targets, On track and exams, per subject (exams.js) */
+    const tgt = (() => { if(!window.EXUI) return '';
+      const I = SCHED.items(saved.filter(d => typeOf(d) === 'card'), HD.today()).filter(it => SCHED.nk(it.st) === SCHED.nk(s.name)); if(!I.length) return '';
+      EXUI.ensureLibs(render); const PKX = EXUI.staffPack(I, E), mayT = isDir() || can('tutors') || can('students');
+      const my = (PKX.myexams[SCHED.nk(s.name)] || []);
+      return `<div class="h2">Targets <em>avg of last 3</em></div><div class="card">${I.map(it => EXUI.row(EXUI.info(it.k, PKX, M.w.filter(m => m.sub === it.sub)), it.sub, mayT ? `data-extg="${esc(it.k)}"` : '')).join('')}</div>
+        ${my.length ? `<p class="note" style="margin:-4px 2px 14px">Also sitting: ${my.map(c => esc(c.code + ' ' + EXAMS.EXS[c.ex])).join(' · ')}</p>` : ''}`; })();
+    const pk = PK.length ? (() => { const S = PK.flatMap(p => p.sheets), n = S.filter(x => sd[sid(x)] || x.status === 'in').length, self = S.filter(x => (sd[sid(x)] || {}).sc != null && x.status !== 'in'), last = S.map(x => x.doOn).sort().pop();
+      const avg = self.length ? Math.round(self.reduce((a, x) => a + pc(sd[sid(x)]), 0) / self.length) : null, onDay = S.filter(x => { const d = sd[sid(x)]; return d && d.at && HD.isoOf(new Date(d.at)) <= x.doOn; }).length;
+      return `<div class="card pad mk-pack"><div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px"><b>Take-home pack</b><small class="note" style="margin:0">to ${nice(last)}</small></div>
+        <p style="margin:6px 0 8px"><b>${n} of ${S.length} done</b><span class="note" style="margin:0"> · ${self.length} self-marked${avg != null ? ' · average ' + avg + '%' : ''} · on their day ${onDay} of ${n}</span></p>
+        ${PK.map(p => `<div class="it"><span class="cfm" style="${p.out ? 'background:var(--ok);border-color:var(--ok);color:#fff' : 'border:2px solid var(--' + (p.on < HD.today() ? 'rd' : 'line') + ')'}">${p.out ? '✓' : ''}</span><span class="t"><b>${esc(p.sub)} · ${p.sheets.length} sheet${p.sheets.length === 1 ? '' : 's'}</b><small${!p.out && p.on < HD.today() ? ' style="color:var(--rd)"' : ''}>${p.out ? `Handed over ${nice(p.out.d)}${p.out.by ? ' · ' + esc(p.out.by) : ''}` : `${p.on < HD.today() ? 'Not handed over' : 'Last session ' + nice(p.on)} · ${esc(p.tutor || '')}`}</small></span></div>`).join('')}</div>`; })() : '';
+    body = tgt + (window.REV && (isDir() || can('students') || can('tutors')) ? REV.lhqCard(s.name) : '') + pk + (B.length ? `<div class="mk-cards" style="${MARKS.cols(B.length)}">${B.map(x => `<div class="card pad"><div style="display:flex;justify-content:space-between;gap:8px;align-items:baseline"><b>${esc(x.sub)}</b>${x.last != null ? `<span class="mk-big">${x.last}%${MARKS.change(x.diff)}</span>` : ''}</div><p class="note" style="margin:0 0 4px">Assessments</p>${MARKS.line(x, 340, 160)}${MARKS.avgs(x)}</div>`).join('')}</div>
+      <div class="h2">SRAs <em>% at each review</em></div><div class="mk-cards" style="${MARKS.cols(B.length)}">${B.map(x => `<div class="card pad"><b style="display:block;margin-bottom:6px">${esc(x.sub)}</b>${MARKS.grid(x)}</div>`).join('')}</div>`
+      : '<p class="empty">No marks yet.</p>');
+  }
+  if(tab === 'reports'){
+    const R = (store.get('lhq_sreports', {}) || {})[s.key] || {}, days = Object.keys(R).sort().reverse().slice(0, 30);
+    body = days.map(d => { const r = R[d] || {}, q = r.wk && SREP.qOf(r.wk.k);
+      return `<div class="h2">${nice(d)}</div><div class="card">${Object.entries(r.ses || {}).map(([sb, a]) => `<div class="it"><span class="t"><b>${esc(sb)}${a.tutor ? ' · ' + esc(a.tutor) : ''}</b><small>Session ${a.rate} · Prepared ${esc(a.prep)} · Topic ${a.conf} · Got ${[a.gb && 'guide', a.na && 'notes', a.sra && 'SRA'].filter(Boolean).join(', ') || 'nothing'}</small></span></div>`).join('')}
+        ${q ? `<div class="it"><span class="t"><b>${esc(r.wk.a)}</b><small>${esc(q.q)}</small></span></div>` : ''}${r.note ? `<div class="it"><span class="t"><b>“${esc(r.note)}”</b><small>To LHQ</small></span></div>` : ''}</div>`; }).join('') || '<p class="empty">No reports yet.</p>';
   }
   if(tab === 'documents'){
     body = `<div class="card">${s.docs.map(d => docRow(d, {noName:true})).join('') || '<p class="empty">No documents yet.</p>'}</div>
       ${can('quotes') ? `<a class="btn" href="${D('new=quote&student=' + encodeURIComponent(s.key))}">${ic('plus',16,2.2)} New quote for ${esc(first(s.name))}</a>` : ''}`;
   }
   if(tab === 'details'){
-    const F = [['Student name','name'],['Year & level','level'],['School','school'],['Parent / guardian','parent'],['WhatsApp','phone'],['Email','email'],['Area','area'],['District','district'],['Address','address'],['Heard about LHQ via','heard']];
+    const F = [['Student name','name'],['Year and level','level'],['School','school'],['Parent / guardian','parent'],['WhatsApp','phone'],['Email','email'],['Area','area'],['District','district'],['Address','address'],['Heard about LHQ via','heard']];
     body = editDetails
       ? `<div class="card pad">${F.map(([l, f]) => `<label class="f"><span>${l}</span>${f === 'level' ? levelSelect('sd_level', s.level) : f === 'school' ? schoolInput('sd_school', s.school) : f === 'district' ? districtSelect('sd_district', s.district) : f === 'heard' ? heardSelect('sd_heard', s.heard) : f === 'area' ? `<input class="in" id="sd_area" value="${esc(s.area)}" placeholder="e.g. Area 47">` : `<input class="in" id="sd_${f}" value="${esc(s[f])}">`}</label>`).join('')}
          <div class="acts"><button class="btn n" id="sdSave">Save details</button><button class="btn" id="sdCancel">Cancel</button></div></div>`
@@ -710,7 +849,7 @@ function stuOverview(s){
     if(!c.st.paidUp && can('receipts')) nexts.push(`<a class="btn g full" href="${D('conv=receipt:' + c.inv.id)}">${c.st.plan && c.st.firstPaid ? 'Receive 2nd instalment' : 'Record a payment'} · ${mk(c.st.balance)}</a>`);
     if(!c.card && can('cards')) nexts.push(`<a class="btn ${c.st.paidUp || c.st.firstPaid ? 'n' : ''} full" href="${cardLink(s)}">Make tuition card${s.lastCard ? ' (same subjects and tutors as last time)' : ''}</a>`);
     const soon = !c.inv.periodEnd || dayDiff(today(), c.inv.periodEnd) <= 14;
-    if(c.card && !s.openQuote && soon && can('quotes')) nexts.push(`<a class="btn n full" href="${D('renew=' + c.inv.id)}">Renew for the next period</a><p class="note">Makes the next invoice with the same subjects, starting after ${esc(nice(c.inv.periodEnd) || 'this period')}. The card after it copies days, times and tutors.</p>`);
+    if(c.card && !s.openQuote && soon && can('quotes')) nexts.push(`<a class="btn n full" href="${D('renew=' + c.inv.id)}">Renew for the next period</a><p class="note">Next invoice from ${esc(nice(c.inv.periodEnd) || 'this period')}, same subjects; the card copies days, times and tutors.</p>`);
   } else if(s.loneCard){ head = 'Tuition card'; chain = chip(s.loneCard, 'Card'); }
   if(s.openQuote){
     if(!c){ head = 'New enrolment'; chain = chip(s.openQuote, 'Quote') + ar + chip(null, 'Invoice') + ar + chip(null, 'Receipt') + ar + chip(null, 'Card'); }
@@ -743,7 +882,7 @@ function schoolInput(id, v){ const L = (window.SCHOOLS || []).map(x => x.n || x.
 function newStudentSheet(thenQuote){
   openSheet(`<div class="hx"><h3>New student</h3><button class="ib" data-close>✕</button></div><p class="sp">Saved once, then filled in on every document.</p>
     <label class="f"><span>Student name</span><input class="in" id="ns_name" placeholder="First and last name" autocomplete="off"></label>
-    <div class="r2"><label class="f"><span>Year & level</span>${levelSelect('ns_level', '')}</label><label class="f"><span>School</span>${schoolInput('ns_school', '')}</label></div>
+    <div class="r2"><label class="f"><span>Year and level</span>${levelSelect('ns_level', '')}</label><label class="f"><span>School</span>${schoolInput('ns_school', '')}</label></div>
     <div class="r2"><label class="f"><span>Parent / guardian</span><input class="in" id="ns_parent"></label><label class="f"><span>Parent's WhatsApp</span><input class="in" id="ns_phone" inputmode="tel" placeholder="0991 234 567"></label></div>
     <label class="f"><span>Parent's email</span><input class="in" id="ns_email" type="email" inputmode="email"></label>
     <div class="r2"><label class="f"><span>Area</span><input class="in" id="ns_area" placeholder="e.g. Area 47" autocomplete="off"></label><label class="f"><span>District</span>${districtSelect('ns_district', 'Lilongwe')}</label></div>
@@ -863,7 +1002,7 @@ P.docs = (type = 'all', f = '') => {
     ${can('quotes') || can('receipts') || can('cards') ? `<a class="btn n" href="#new${type !== 'all' ? '/' + type : ''}">${ic('plus',16,2.4)} New${type !== 'all' ? ' ' + (type === 'card' ? 'card' : WORD[type].toLowerCase()) : ''}</a>` : ''}</div>
   <div class="tabs">${Object.entries(T).map(([k, l]) => `<a class="${type === k ? 'on' : ''}" href="#docs${k === 'all' ? '' : '/' + k}">${l} <span style="opacity:.6">${k === 'all' ? saved.length : saved.filter(d => typeOf(d) === k).length}</span></a>`).join('')}</div>
   ${F ? `<div class="fbar">${ic('list',16)}<span>${esc(T[type])}: <b>${esc(F.label)}</b> · ${fr.length}${filterTotal(type, fr)}</span><a href="#docs${type === 'all' ? '' : '/' + type}">Show all</a></div>` : ''}
-  <label class="search">${ic('search',18)}<input id="dq" type="search" placeholder="Search number or student" value="${esc(dQ)}" autocomplete="off"></label>
+
   <div class="card" id="dlist">${docRows(type, f)}</div>`;
 };
 function docList(type, f){
@@ -891,6 +1030,13 @@ P.more = () => `<div class="ph"><div class="tt"><h1>More</h1></div></div><div cl
 
 /* ---------- sessions: tutors log, students confirm (Stage 2), LHQ oversees and settles disputes ---------- */
 const SF = {tutor:'', q:''};
+/* take-home packs across LHQ: reviews after a student's last session, from the cards and the tutors' logs */
+function packsAll(){
+  if(!window.SRA || !window.SCHED) return [];
+  const t = HD.today(), cards = saved.filter(d => typeOf(d) === 'card'), I = SCHED.items(cards, t, 45);
+  const E = Object.values((store.get('lhq_logs', {e:{}}) || {}).e || {}).filter(e => e && !e.x);
+  return SRA.packs(SRA.build(I, E, t), t, 7).map(p => Object.assign(p, {tutor: (I.find(i => i.k === p.k) || {}).tutor || ''}));
+}
 function sessionRows(){
   const t = today(), cards = saved.filter(x => typeOf(x) === 'card'), E = Object.values((store.get('lhq_logs', {e:{}}) || {}).e || {}).filter(Boolean);
   return SCHED.items(cards, t).map(it => ({it, T: SCHED.tally(it, E, t, HD.cfState)})).sort((p, q) => q.T.behind - p.T.behind || p.it.st.localeCompare(q.it.st) || p.it.sub.localeCompare(q.it.sub));
@@ -993,8 +1139,8 @@ function confirmSheet(id, mode){
 }
 
 /* ---------- Activity: everything done in the Hub, by whom (Director and Admin) ---------- */
-const ACT = {key:'', rows:[], people:[], areas:[], busy:false, err:'', more:false};
-const AF = {when:'week', areas:new Set(), who:''};
+const ACT = {key:'', rows:[], people:[], areas:[], counts:[], busy:false, err:'', more:false};
+const AF = {when:'week', areas:new Set(), who:'', grp:'tutor', quiet:false};
 const AREAL = {documents:'Documents', money:'Money', budgets:'Budgets', students:'Students', teaching:'Teaching', sessions:'Sessions', people:'People', settings:'Settings', pay:'Pay'};
 function actFrom(){ const d = new Date(); d.setHours(0, 0, 0, 0); if(AF.when === 'week') d.setDate(d.getDate() - ((d.getDay() + 6) % 7)); if(AF.when === 'month') d.setDate(1); if(AF.when === 'all') return '2000-01-01'; return d.toISOString(); }
 async function actLoad(more){
@@ -1002,25 +1148,135 @@ async function actLoad(more){
   if(!more && ACT.key === key) return; ACT.busy = true; ACT.key = key; if(!more){ ACT.rows = []; } render();
   try{ const before = more && ACT.rows.length ? ACT.rows[ACT.rows.length - 1].created_at : '';
     const j = await hub.api(`activity?from=${encodeURIComponent(actFrom())}&area=${[...AF.areas].join(',')}&who=${encodeURIComponent(AF.who)}${before ? '&before=' + encodeURIComponent(before) : ''}`);
-    ACT.rows = more ? ACT.rows.concat(j.rows || []) : (j.rows || []); ACT.people = j.people || []; ACT.areas = j.areas || []; ACT.more = (j.rows || []).length === 300; ACT.err = j.off ? 'Activity starts once the Hub uses the database.' : '';
+    ACT.rows = more ? ACT.rows.concat(j.rows || []) : (j.rows || []); ACT.people = j.people || []; ACT.areas = j.areas || []; ACT.counts = j.counts || []; ACT.more = (j.rows || []).length === 300; ACT.err = j.off ? 'Activity starts once the Hub uses the database.' : '';
   }catch(e){ ACT.err = e.message; }
   ACT.busy = false; if(route.page === 'activity') render();
 }
-const actHref = x => x.entity === 'documents' && x.action !== 'doc.delete' ? D('d=' + x.entity_id) : x.entity === 'logs' && x.area === 'sessions' ? '#confirm/' + encodeURIComponent(x.entity_id) : x.area === 'money' ? '#biz/spending' : x.entity === 'students' && x.entity_id ? stuLink(x.entity_id) : x.area === 'settings' ? '#set/lists' : x.area === 'people' ? '#set/people' : x.action === 'doc.delete' ? '#set/deleted' : '';
+const actHref = x => x.entity === 'documents' && x.action !== 'doc.delete' ? D('d=' + x.entity_id) : x.entity === 'logs' && x.area === 'sessions' ? '#confirm/' + encodeURIComponent(x.entity_id) : x.area === 'money' ? '#biz/spending' : x.entity === 'students' && x.entity_id ? stuLink(x.entity_id) : x.area === 'settings' ? '' : x.area === 'people' ? '#set/people' : x.action === 'pay.rules' ? '#set/tpay' : x.area === 'pay' ? '#pay' : x.action === 'session.cancel' ? '#confirm/' + encodeURIComponent(x.entity_id) : x.action === 'assess.add' ? '#calendar' : x.action === 'kpi.review' || /^kpi\./.test(x.action) ? '#kpi' : x.action === 'doc.delete' ? '#set/deleted' : '';
+/* Who was active: people by role (staff, tutors, students, parents), how much each did in the period, and who did nothing */
+const ROLEG = r => ['tutor','student','parent'].includes(r) ? r : 'staff';
+const GRPL = {staff:'Staff', tutor:'Tutors', student:'Students', parent:'Parents'};
+const ROLEL = r => ({director:'Director', admin:'Admin', tutor:'Tutor', student:'Student', parent:'Parent', bdo:'BDO'})[r] || '';
+const WHENL = () => ({today:'today', week:'this week', month:'this month', all:'so far'})[AF.when];
+function actPeople(){
+  const P = (HD.people ? HD.people() : []).filter(p => p.status !== 'off' && p.status !== 'removed');
+  const roleOf = n => { const c = ACT.counts.find(x => x.who === n); return (c && c.role) || (P.find(p => p.name === n) || {}).role || ''; };
+  const act = ACT.counts.map(c => ({name:c.who, role:c.role || roleOf(c.who), n:c.n}));
+  const seen = new Set(act.map(x => x.name));
+  const quiet = P.filter(p => !seen.has(p.name) && p.status !== 'off').map(p => ({name:p.name, role:p.role, n:0, setup: p.status === 'setup' || p.status === 'pin'}));
+  const G = {}; Object.keys(GRPL).forEach(g => G[g] = {act: act.filter(x => ROLEG(x.role) === g), quiet: quiet.filter(x => ROLEG(x.role) === g)});
+  return G;
+}
+/* the link to someone's own page, when there is one */
+const personHref = x => { const r = ROLEG(x.role);
+  if(r === 'tutor') return '#tutors/' + encodeURIComponent(x.name);
+  if(r === 'student'){ const s0 = HD.students().find(s => same(s.name, x.name)); return s0 ? stuLink(s0.key) : ''; }
+  return r === 'staff' && allowed('people') ? '#set/people' : ''; };
+const pRow = (x, big) => `<button class="it ac-who${AF.who === x.name ? ' on' : ''}" data-actwho="${esc(x.name)}"><span class="av">${esc(inits(x.name))}</span><span class="t"><b>${esc(x.name)}</b>${big || x.setup ? `<small>${esc([big ? ROLEL(x.role) : '', x.setup ? 'Not signed in yet' : ''].filter(Boolean).join(' · '))}</small>` : ''}</span><b class="ac-c">${x.n || ''}</b></button>`;
+function actPeoplePanel(full){
+  const G = actPeople(), g = G[AF.grp] ? AF.grp : 'tutor', L = AF.quiet ? G[g].quiet : G[g].act;
+  const head = `<div class="seg ac-g">${Object.keys(GRPL).map(k => `<button class="${k === g ? 'on' : ''}" data-actg="${k}">${GRPL[k]}<small>${G[k].act.length}</small></button>`).join('')}</div>
+    <div class="ac-q"><button class="tk${AF.quiet ? '' : ' on'}" data-actq="0"><span class="cbx">${AF.quiet ? '' : '✓'}</span>Active ${G[g].act.length}</button><button class="tk${AF.quiet ? ' on' : ''}" data-actq="1"><span class="cbx">${AF.quiet ? '✓' : ''}</span>Not active ${G[g].quiet.length}</button></div>`;
+  const list = (full ? L : L.slice(0, 5)).map(x => pRow(x, full)).join('') || `<p class="empty" style="padding:10px 0">${AF.quiet ? `Everyone was active ${WHENL()}.` : `No one ${WHENL()}.`}</p>`;
+  return {head, list, more: !full && L.length > 5 ? L.length : 0};
+}
+function actPeopleSheet(){
+  const draw = () => { const P0 = actPeoplePanel(true), q = (($('acpQ') || {}).value || '').toLowerCase();
+    $('acpL').innerHTML = P0.list; $('acpH').innerHTML = P0.head;
+    if(q) $('acpL').querySelectorAll('.ac-who').forEach(b => b.hidden = !b.dataset.actwho.toLowerCase().includes(q));
+    $('sheet').querySelectorAll('[data-actg]').forEach(b => b.onclick = () => { AF.grp = b.dataset.actg; draw(); });
+    $('sheet').querySelectorAll('[data-actq]').forEach(b => b.onclick = () => { AF.quiet = b.dataset.actq === '1'; draw(); });
+    $('sheet').querySelectorAll('[data-actwho]').forEach(b => b.onclick = () => { AF.who = b.dataset.actwho; closeSheet(); actLoad(); }); };
+  openSheet(`<div class="hx"><h3>People · ${WHENL()}</h3><button class="ib" data-close>✕</button></div><div id="acpH"></div><label class="f" style="margin:8px 0"><input class="in" id="acpQ" type="search" placeholder="Find a name" autocomplete="off"></label><div class="card" id="acpL"></div>`);
+  draw(); $('acpQ').oninput = draw;
+}
+
+/* what each kind looks like: icon and colour; account events fold into one row */
+const AKIND = {money:['cash','--ok'], budgets:['bank','--ok'], pay:['cash','--payc'], documents:['invoice','--bl'], sessions:['clock','--am'], teaching:['list','--pu'], students:['users','--brand'], people:['key','--muted'], settings:['layout','--muted']};
+const QUIET = a => a === 'password' || a === 'person.code';
+const STEP = x => ({'session.dispute':'✕ not right', 'session.keep':'kept the times', 'session.accept':'accepted', 'session.settle':'settled', 'session.confirm':'✓ confirmed'})[x.action] || (x.action === 'session.reply' ? (/LHQ/.test(x.summary) ? 'sent to LHQ' : 'OK') : x.summary);
+/* one day's rows become stories: a dispute is one row with its steps; session logs, confirmations and account events are one row each */
+function actStories(L){
+  const out = [], used = new Set(), hmS = s => new Date(s).toTimeString().slice(0, 5);
+  const span = G => { const a = hmS(G[G.length - 1].created_at), b = hmS(G[0].created_at); return a === b ? a : a + '–' + b; };
+  const by = (G, f) => { const m = new Map(); G.forEach(x => { const k = f(x); m.set(k, (m.get(k) || 0) + (x.n || 1)); }); return [...m.entries()].sort((p, q) => q[1] - p[1]); };
+  const list = E => E.slice(0, 3).map(([k, n]) => `${k} ${n}`).join(' · ') + (E.length > 3 ? ` · +${E.length - 3}` : '');
+  const nOf = x => +((x.data || {}).n) || +((x.summary.match(/^Logged (\d+) session/) || [])[1]) || (/^Logged a session/.test(x.summary) ? 1 : 0);
+  const logs = L.filter(x => x.action === 'log.add' && nOf(x)).map(x => Object.assign(x, {n: nOf(x)}));
+  const marks = L.filter(x => x.action === 'sra.mark');
+  const conf = L.filter(x => x.action === 'session.confirm'), quiet = L.filter(x => QUIET(x.action));
+  const story = {}; L.filter(x => /^session\.(dispute|keep|accept|reply|settle)$/.test(x.action) || /^payslip\./.test(x.action)).forEach(x => (story[x.entity_id] = story[x.entity_id] || []).push(x));
+  L.forEach(x => {
+    if(used.has(x)) return;
+    if(logs.includes(x)){ logs.forEach(y => used.add(y)); const n = logs.reduce((a, y) => a + y.n, 0), T = by(logs, y => y.who);
+      out.push({x, area:'teaching', head:`${n} session${n === 1 ? '' : 's'} logged`, sub: T.length > 1 ? list(T) : '', who: T.length === 1 ? T[0][0] : `${T.length} tutors`, tm:span(logs), sheet:'list', G:logs}); return; }
+    if(marks.includes(x)){ marks.forEach(y => used.add(y)); const n = marks.reduce((a, y) => a + (+(y.data || {}).n || 1), 0), w = marks.reduce((a, y) => a + (+(y.data || {}).ars || 0), 0), T = by(marks.map(y => Object.assign({}, y, {n: +(y.data || {}).n || 1})), y => y.who);
+      out.push({x, area:'teaching', head:`${n} SRA${n === 1 ? '' : 's'} marked · ${w} with the ARS`, sub: T.length > 1 ? list(T) : '', who: T.length === 1 ? T[0][0] : `${T.length} tutors`, tm:span(marks), sheet:'marks', G:marks}); return; }
+    if(conf.includes(x)){ conf.forEach(y => used.add(y)); const T = by(conf, y => y.who);
+      out.push({x, area:'sessions', head:`${conf.length} session${conf.length === 1 ? '' : 's'} confirmed`, sub: T.length > 1 ? list(T) : '', who: T.length === 1 ? T[0][0] : `${T.length} people`, tm:span(conf), sheet:'list', G:conf}); return; }
+    if(quiet.includes(x)){ quiet.forEach(y => used.add(y)); out.push({x, area:'people', head:`${quiet.length} account event${quiet.length === 1 ? '' : 's'}`, sub:[...new Set(quiet.map(y => y.action === 'person.code' ? 'setup codes' : 'passwords'))].join(' and ') + ' · ' + [...new Set(quiet.map(y => first(y.who || '')))].slice(0, 4).join(', '), who:'', tm:span(quiet), sheet:'list', G:quiet, quiet:true}); return; }
+    const G = x.entity_id && story[x.entity_id];
+    if(G && G.length > 1 && /^payslip\./.test(x.action)){ G.forEach(y => used.add(y)); const last = G[0], m = (G.find(y => y.action === 'payslip.confirm') || last).summary;
+      out.push({x:last, area:'pay', head: m.replace(' confirmed', '').replace(/^(.+?) · (.+? payslip)/, '$2 · $1') + ' · ' + ({'payslip.sign':'signed', 'payslip.query':'queried', 'payslip.unconfirm':'reopened', 'payslip.confirm':'confirmed'})[last.action], sub:'',
+        steps: G.slice().reverse().map(y => [first(y.who || ''), ({'payslip.confirm':'confirmed', 'payslip.sign':'signed', 'payslip.query':'queried', 'payslip.unconfirm':'reopened'})[y.action]]), who:'', tm:span(G), href:'#pay/' + encodeURIComponent(last.summary.split(' · ')[0]) + '/' + ((last.entity_id || '').split('|')[1] || '')}); return; }
+    if(G && G.length > 1){ G.forEach(y => used.add(y)); const last = G[0], d0 = G.find(y => y.action === 'session.dispute') || last, m = d0.summary.match(/(?:Said|Settled|Sent|Kept their times on|Accepted) (.+?)'s (.+?) with ([^:]+?)(?: wasn't right| to LHQ|:|$)/);
+      out.push({x:last, area:'sessions', head: last.action === 'session.settle' ? 'Disputed session settled' + (/(\d+) min/.test(last.summary) ? ` · ${last.summary.match(/(\d+) min/)[1]} min off` : '') : 'Disputed session', sub: m ? `${m[1]} · ${m[2]} · ${m[3]}` : '',
+        steps: G.slice().reverse().map(y => [first(y.who || ''), STEP(y)]), who:'', tm:span(G), href:actHref(last)}); return; }
+    used.add(x); out.push({x, area:x.area, head:x.summary, sub:'', who:x.who ? `${x.who}${x.role ? ' · ' + ({director:'Director', admin:'Admin', tutor:'Tutor', student:'Student', parent:'Parent', bdo:'BDO'}[x.role] || x.role) : ''}` : '', tm:hmS(x.created_at), href:actHref(x)});
+  });
+  return out;
+}
+function actSheet(i){
+  const s0 = (ACT.S || [])[i]; if(!s0) return;
+  const hmS = t => new Date(t).toTimeString().slice(0, 5), E = (store.get('lhq_logs', {e:{}}) || {}).e || {};
+  const half = n => n == null || n === '' ? '–' : String(n).replace(/\.5$/, '½').replace(/^0½$/, '½');
+  let rows = '';
+  if(s0.sheet === 'marks'){
+    const ids = s0.G.flatMap(y => (y.data || {}).ids || []), L = ids.map(id => E[id]).filter(Boolean);
+    rows = L.map(e => `<div class="it"><span class="t"><b>${esc(e.st)} · ${esc(e.tk || '')} ${e.rv ? 'R' + e.rv : 'LD'}</b><small>${esc(e.sub)} · ${esc(e.tutor || '')}</small></span><b style="white-space:nowrap">${e.na ? 'No ARS' : 'ARS ' + half(e.ars) + (e.ao ? ' / ' + e.ao : '')} · SRA ${esc(String(e.sc ?? '–'))}${e.mx ? ' / ' + esc(String(e.mx)) : ''}</b></div>`).join('')
+      || s0.G.map(y => `<div class="it"><span class="t"><b>${esc(y.summary)}</b><small>${esc(y.who || '')} · ${hmS(y.created_at)}</small></span></div>`).join('');
+  } else rows = (s0.G || [s0.x]).map(y => { const h = actHref(y); return `<${h ? `a class="it" href="${h}"` : 'div class="it"'}><span class="t"><b>${esc(y.summary)}</b><small>${esc(y.who || 'LHQ Hub')} · ${hmS(y.created_at)}</small></span>${h ? '<span class="chev">›</span>' : ''}</${h ? 'a' : 'div'}>`; }).join('');
+  const more = s0.area === 'settings' ? '<a class="btn full" href="#settings" style="margin-top:4px">Settings</a>' : s0.href ? `<a class="btn full" href="${s0.href}" style="margin-top:4px">Open</a>` : '';
+  openSheet(`<div class="hx"><h3>${esc(s0.head)}</h3><button class="ib" data-close>✕</button></div><p class="sp">${esc([s0.sub, s0.who, s0.tm].filter(Boolean).join(' · '))}</p><div class="card">${rows}</div>${more}`);
+  document.querySelectorAll('#sheet a').forEach(a => a.addEventListener('click', () => closeSheet()));
+}
 P.activity = () => {
   if(!isDir() && me().role !== 'admin') return `${crumb('#home', 'Home')}<p class="empty">Activity is for the Director and Admin.</p>`;
   setTimeout(() => actLoad(), 0);
-  const days = {}; ACT.rows.forEach(x => { const d = x.created_at.slice(0, 10); (days[d] = days[d] || []).push(x); });
-  const t = new Date(), tk = t.toISOString().slice(0, 10), hm = s => new Date(s).toTimeString().slice(0, 5), dl = d => d === tk ? 'Today' : nice(d);
+  const days = {}; ACT.rows.forEach(x => { const d = HD.isoOf(new Date(x.created_at)); (days[d] = days[d] || []).push(x); });   // the day here, not in UTC
+  const tk = HD.isoOf(new Date()), dl = d => d === tk ? 'Today' : d === HD.addDays(tk, -1) ? 'Yesterday' : nice(d);
   const areas = (ACT.areas.length ? ACT.areas : Object.keys(AREAL)).filter(a => AREAL[a]);
+  const one = AF.areas.size === 1 ? [...AF.areas][0] : '';
+  ACT.S = [];
+  const row = s => { const k = AKIND[s.area] || ['list', '--muted'], i = ACT.S.push(s) - 1, tag = s.href && !s.sheet ? `a href="${s.href}"` : `button type="button" data-acts="${i}"`;
+    return `<${tag} class="it ac-r"><span class="ac-i" style="--c:var(${k[1]})">${ic(k[0], 16, 2)}</span><span class="t"><b>${esc(s.head)}</b>${s.sub ? `<small>${esc(s.sub)}</small>` : ''}${s.steps ? `<span class="ac-st">${s.steps.map(([w, v]) => `<span><b>${esc(w)}</b> ${esc(v)}</span>`).join('')}</span>` : ''}${s.who ? `<small>${esc(s.who)}</small>` : ''}</span><span class="ac-tm">${s.tm}</span><span class="chev">›</span></${tag.split(' ')[0]}>`; };
+  const feed = Object.entries(days).map(([d, L]) => { const S0 = actStories(L); return `<div class="h2">${dl(d)} <em>${S0.length}</em></div><div class="card">${S0.map(row).join('')}</div>`; }).join('')
+    || (ACT.busy ? '<p class="note">Loading…</p>' : '<div class="card"><p class="empty">Nothing in this period.</p></div>');
+  /* in numbers, and who was active, for the period shown */
+  const R = ACT.rows, cnt = f => R.filter(f).length;
+  const logged = R.filter(x => x.action === 'log.add').reduce((a, x) => a + (+((x.summary.match(/^Logged (\d+) session/) || [])[1] || 0)), 0);
+  const marks = R.filter(x => x.action === 'sra.mark'), nM = marks.reduce((a, x) => a + (+(x.data || {}).n || 1), 0), nA = marks.reduce((a, x) => a + (+(x.data || {}).ars || 0), 0);
+  const nLog = R.filter(x => x.action === 'log.add').reduce((a, x) => a + (+((x.data || {}).n) || +((x.summary.match(/^Logged (\d+) session/) || [])[1] || 0) || (/^Logged a session/.test(x.summary) ? 1 : 0)), 0);
+  const figs = [['Money', 'cash', cnt(x => x.area === 'money' && /recorded/.test(x.action)), 'recorded', 'money'], ['Documents', 'quote', cnt(x => x.area === 'documents' && !/delete/.test(x.action)), 'new or changed', 'documents'], ['Logged', 'clock', nLog, 'sessions', 'teaching'], ['SRAs marked', 'list', nM, `${nA} with the ARS`, 'teaching'], ['Confirmed', 'check', cnt(x => x.action === 'session.confirm'), 'sessions', 'sessions'], ['Disputes', 'alert', cnt(x => x.action === 'session.dispute'), 'raised', 'sessions'], ['Accounts', 'users', cnt(x => x.action === 'person.add'), 'new', 'people']]
+    .concat(areas.includes('pay') ? [['Payslips', 'cash', cnt(x => x.action === 'payslip.confirm'), `${cnt(x => x.action === 'payslip.sign')} signed`, 'pay']] : []);
+  const tile = ([l, i, n, sub, a]) => `<button type="button" class="mc${one === a ? ' on' : ''}" data-actf="${a}"><span class="l">${ic(i, 15, 2)}${l}</span><span class="v">${n}<span class="mca">›</span></span><span class="s">${esc(sub)}</span></button>`;
+  const PP = actPeoplePanel(false), G0 = actPeople(), nAct = Object.values(G0).reduce((a, g) => a + g.act.length, 0), nQ = Object.values(G0).reduce((a, g) => a + g.quiet.length, 0);
+  const side = `<div><div class="h2">In numbers</div><div class="mcs ac-mcs">${figs.map(tile).join('')}</div>
+    <div class="h2">Who was active</div>${PP.head}<div class="card">${PP.list}${PP.more ? `<button class="btn sm" data-actall style="margin:8px 0 10px">All ${PP.more}</button>` : ''}</div></div>`;
+  /* who is shown: their role, how much, their page */
+  const selP = AF.who && (() => { const c = ACT.counts.find(x => x.who === AF.who) || {}, x = {name: AF.who, role: c.role || ((HD.people ? HD.people() : []).find(p => p.name === AF.who) || {}).role, n: c.n || 0}, h = personHref(x);
+    return `<div class="card ac-sel-p"><span class="av">${esc(inits(x.name))}</span><span class="t"><b>${esc(x.name)}</b><small>${[ROLEL(x.role), `${x.n} action${x.n === 1 ? '' : 's'} ${WHENL()}`].filter(Boolean).join(' · ')}</small></span>${h ? `<a class="btn sm" href="${h}">Their page</a>` : ''}<button class="ib" data-actwho="" aria-label="Show everyone">✕</button></div>`; })();
+  const pplRow = `<button class="card ac-pp" data-actall><span class="t"><b>People</b><small>${nAct} active · ${nQ} not active ${WHENL()}</small></span><span class="chev">›</span></button>`;
   return `${crumb('#home', 'Home', 'activity')}
-  <div class="ph"><div class="tt"><h1>Activity</h1><p>Who did what</p></div></div>
-  <button class="btn sm flt-btn" data-flt style="margin:0 0 10px">${ic('list',14)} Filter</button><div class="actf ${AF.when === 'week' && !AF.who ? 'flt' : ''}"><div class="seg">${[['today','Today'],['week','This week'],['month','This month'],['all','All']].map(([k, l]) => `<button class="${AF.when === k ? 'on' : ''}" data-actw="${k}">${l}</button>`).join('')}</div>
-    <label class="f" style="margin:0;min-width:200px;flex:1;max-width:300px"><select class="in" id="actWho" aria-label="Person"><option value="">Everyone</option>${ACT.people.map(n => `<option ${AF.who === n ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label></div>
-  <div class="tks ${AF.areas.size ? '' : 'flt'}">${areas.map(a => `<button class="tk${AF.areas.has(a) ? ' on' : ''}" data-acta="${a}" aria-pressed="${AF.areas.has(a)}"><span class="cbx">${AF.areas.has(a) ? '✓' : ''}</span>${AREAL[a]}</button>`).join('')}${AF.areas.size ? '<button class="btn sm" data-acta="">Clear</button>' : ''}</div>
+  <div class="ph"><div class="tt"><h1>Activity</h1></div></div>
+  <div class="ac-bar"><div class="seg">${[['today','Today'],['week','Week'],['month','Month'],['all','All']].map(([k, l]) => `<button class="${AF.when === k ? 'on' : ''}" data-actw="${k}">${l}</button>`).join('')}</div>
+    <select class="in ac-sel" id="actKind" aria-label="Kind"><option value="">All kinds</option>${areas.map(a => `<option value="${a}" ${one === a ? 'selected' : ''}>${AREAL[a]}</option>`).join('')}</select>
+    <select class="in ac-sel" id="actWho" aria-label="Person"><option value="">Everyone</option>${(G => Object.keys(GRPL).filter(k => G[k].act.length).map(k => `<optgroup label="${GRPL[k]}">${G[k].act.map(x => `<option value="${esc(x.name)}" ${AF.who === x.name ? 'selected' : ''}>${esc(x.name)} (${x.n})</option>`).join('')}</optgroup>`).join(''))(actPeople())}</select></div>
+  <div class="tks ac-tks"><button class="tk${AF.areas.size ? '' : ' on'}" data-acta=""><span class="cbx">${AF.areas.size ? '' : '✓'}</span>All</button>${areas.map(a => `<button class="tk${AF.areas.has(a) ? ' on' : ''}" data-acta="${a}" aria-pressed="${AF.areas.has(a)}" style="--c:var(${(AKIND[a] || [])[1] || '--muted'})"><span class="cbx">${AF.areas.has(a) ? '✓' : ''}</span>${AREAL[a]}</button>`).join('')}</div>
   ${ACT.err ? `<p class="note">${esc(ACT.err)}</p>` : ''}
-  ${Object.entries(days).map(([d, L]) => `<div class="h2">${dl(d)} <em>${L.length}</em></div><div class="card">${L.map(x => { const h = actHref(x); return `<${h ? `a href="${h}"` : 'div'} class="it"><span class="av">${esc(inits(x.who || '?'))}</span><span class="t"><b>${esc(x.who || 'LHQ Hub')}${x.role ? ` <span style="color:var(--muted);font-weight:600">· ${esc({director:'Director', admin:'Admin', tutor:'Tutor', student:'Student', parent:'Parent'}[x.role] || x.role)}</span>` : ''}</b><small>${esc(x.summary)}</small><small style="font-size:12px">${AREAL[x.area] || x.area} · ${hm(x.created_at)}</small></span>${h ? '<span class="chev">›</span>' : ''}</${h ? 'a' : 'div'}>`; }).join('')}</div>`).join('') || (ACT.busy ? '<p class="note">Loading…</p>' : '<div class="card"><p class="empty">Nothing in this period.</p></div>')}
-  ${ACT.more ? '<button class="btn" data-actmore>Show earlier</button>' : ''}`;
+  <div class="ac-ph mcs ac-mcs">${[figs[0], figs[2], figs[3], figs[4]].map(tile).join('')}</div>
+  ${selP || pplRow}
+  <div class="hcols ac-cols"><div>${feed}${ACT.more ? '<button class="btn" data-actmore>Show earlier</button>' : ''}</div>${side}</div>`;
 };
 
 /* ---------- the all-tutors calendar (Director and Admin): every session on the current cards, clashes in red ---------- */
@@ -1115,16 +1371,74 @@ P.tutors = (show = '') => {
   const ppl = HD.people(), pid = n => (ppl.find(p => p.name.toLowerCase() === n.toLowerCase()) || {}).id;
   const row = ({s, card, x}) => `<a class="it" href="${openLink(card)}"><span class="t"><b>${esc(s.name)}</b><small>${esc([x.name, (x.days || []).join(' '), x.start ? x.start + '–' + (x.end || '') : ''].filter(Boolean).join(' · '))}</small></span><span class="chev">${ic('chev',16,2)}</span></a>`;
   return `${crumb('#home', 'Home', 'tutors')}
-  <div class="ph"><div class="tt"><h1>Tutors</h1><p>${list.length} teaching${none.length ? ` · ${none.length} without a tutor` : ''}</p></div>${can('tutors') && !LEAN() ? `<div class="acts"><a class="btn" href="#calendar">${ic('clock',15)} Calendar</a><a class="btn" href="#bookings">Make-ups</a><a class="btn" href="#reqs">Requisitions</a><a class="btn" href="#sessions">${ic('clock',15)} Sessions</a><a class="btn" href="#clashes">Clashes</a></div>` : ''}</div>
+  <div class="ph"><div class="tt"><h1>Tutors</h1><p>${list.length} teaching${none.length ? ` · ${none.length} without a tutor` : ''}</p></div>${can('tutors') && !LEAN() ? `<div class="acts"><a class="btn" href="#calendar">${ic('clock',15)} Calendar</a><a class="btn" href="#bookings">Make-ups</a>${store.get('lhq_sreports', null) ? '<a class="btn" href="#says">What students say</a>' : ''}<a class="btn" href="#reqs">Requisitions</a><a class="btn" href="#sessions">${ic('clock',15)} Sessions</a><a class="btn" href="#clashes">Clashes</a>${window.KPIUI && KPIUI.may() ? '<a class="btn" href="#kpi">KPIs</a>' : ''}</div>` : ''}</div>
   ${can('tutors') ? (() => { const dsp = HD.sessionsToConfirm().filter(e => HD.cfState(e) === 'disputed').length, beh = sessionRows().filter(r => r.T.behind >= 2).length, cl = openClashes().length,
       mu = Object.values(store.get('lhq_makeups', {}) || {}).filter(m => m && m.status === 'asked').length, rq = reqList().filter(r => !r.dec.s || r.dec.s === 'approved').length;
       const r = (h, t, s) => `<a class="it" href="${h}"><span class="t"><b>${t}</b><small>${s}</small></span><span class="chev">›</span></a>`;
-      return LEAN() ? `<div class="card">${r('#sessions', 'Sessions', [beh ? beh + ' behind' : 'On track', dsp ? dsp + ' disputed' : ''].filter(Boolean).join(' · '))}${r('#clashes', 'Clashes', cl ? String(cl) : 'None')}${r('#bookings', 'Make-ups', mu ? mu + ' to confirm' : 'None waiting')}${r('#reqs', 'Requisitions', rq ? rq + ' open' : 'None open')}</div><div class="h2">Teaching</div>` : ''; })() : ''}
+      return LEAN() ? `<div class="card">${window.KPIUI && KPIUI.may() ? r('#kpi', 'KPIs', 'Last 4 weeks') : ''}${window.TPAYUI && TPAYUI.may() ? r('#pay', 'Pay', 'This month') : ''}${store.get('lhq_sreports', null) ? r('#says', 'What students say', 'Last 4 weeks') : ''}${r('#sessions', 'Sessions', [beh ? beh + ' behind' : 'On track', dsp ? dsp + ' disputed' : ''].filter(Boolean).join(' · '))}${r('#clashes', 'Clashes', cl ? String(cl) : 'None')}${r('#bookings', 'Make-ups', mu ? mu + ' to confirm' : 'None waiting')}${r('#reqs', 'Requisitions', rq ? rq + ' open' : 'None open')}</div><div class="h2">Teaching</div>` : ''; })() : ''}
   ${window.PC ? PC.block('tutors', {}, 'At a glance') : ''}
   ${none.length ? `<div class="h2" id="none">No tutor yet <em>${none.length}</em></div><div class="card" style="border-color:var(--gold)">${none.map(row).join('')}</div>` : ''}
   ${list.map(([n, items]) => { const st = new Set(items.map(i => i.s.key)).size, open = show === encodeURIComponent(n) || show === n;
     return `<div class="card"><a class="it" href="#tutors/${encodeURIComponent(open ? '' : n)}"><span class="av">${inits(n)}</span><span class="t"><b>${esc(n)}</b><small>${st} student${st === 1 ? '' : 's'} · ${esc([...new Set(items.map(i => i.x.name))].join(', '))}</small></span><span class="chev">${ic(open ? 'back' : 'chev',16,2)}</span></a>
       ${open ? items.map(row).join('') + (pid(n) && (isDir() || can('tutors')) ? `<a class="btn sm" style="margin:4px 0 12px" href="#person/${pid(n)}">${ic('user',14)} ${esc(first(n))}'s account</a>` : '') : ''}</div>`; }).join('') || '<p class="empty">No current tuition cards have tutors yet.</p>'}`;
+};
+
+/* ================= search: everything this person can open, for the search box in the top bar ================= */
+window.LHQSearchScope = () => ({students:'Students', student:'Students', docs:'Documents', tutors:'People', set:'Pages'})[route.page] || '';
+const SKW = {account:'password sign in devices sign out', appearance:'theme dark light auto text size bar sidebar menu lean full', terms:'school terms holidays calendar term dates', kpi:'tutor kpis performance targets falling short slipping observation review admin tutors see', bands:'grade boundaries percent target grades a* outstanding checkpoint igcse a level', exams:'exam series timetable zone topical dates correct a paper date cambridge', notifications:'phone notifications push alerts quiet hours morning summary devices', people:'staff access accounts setup code tutors admin',
+  company:'bank address logo contact', payments:'due dates instalments', hours:'opening hours times saturday sunday', numbering:'numbers prefix', messages:'whatsapp email wording templates',
+  lists:'subjects schools year levels spending categories', enrol:'checklist', sending:'whatsapp email', backup:'export download restore', deleted:'bin trash restore', demo:'sample data'};
+LHQSearch.provider = () => {
+  const m = me(); if(!m || !m.role) return [];
+  const I = n => ic(n, 16, 2), G = [];
+  const setPages = () => SETS.flatMap(([, items]) => items).filter(x => !x[3] || x[3]()).map(([id, i, l]) => ({t:l, s:'Settings', k:SKW[id] || '', href: id.includes('.html') ? id : '#set/' + id, ic:I(i)}));
+  if(m.role === 'student' || m.role === 'parent') return window.FAM && FAM.searchGroups ? FAM.searchGroups() : [];
+  if(m.role === 'tutor'){
+    const seen = new Set(), its = (window.TUT && TUT.items ? TUT.items() : []).filter(it => !seen.has(it.k) && seen.add(it.k));
+    G.push({g:'Students', items: its.map(it => ({t:it.st, s:it.sub, href:'#teach/student/' + encodeURIComponent(it.k), ic:`<b style="font-size:11px">${esc(inits(it.st))}</b>`}))});
+    G.push({g:'Pages', items: [['#teach','Home','today'],['#teach/cal','Calendar','timetable week clashes'],['#teach/students','My students','sessions'],['#teach/sra','SRA tracker','spaced repetition print'],['#teach/report','Daily report','end of day'],['#teach/makeups','Make-ups','book'],['#teach/classes','Classes','groups'],['#teach/avail',"Times you can't teach",'availability away'],['#teach/sra/pack','Take-home packs','holiday print hand over'],['#teach/wa','Assessment marks','weekly monthly mock topical past paper']]
+      .map(([h, t, k]) => ({t, k, href:h, ic:I('layout')})).concat(setPages())});
+    if(window.TUT && TUT.searchGroups) TUT.searchGroups().forEach(g => { if(g.items.length) G.push(g); });
+    G.push({g:'Payslips', items: [{t:'My pay', s:'payslips, sign, something\'s wrong', k:'pay payslip salary', href:'#teach/pay', ic:I('cash')}]});
+    G.push({g:'Actions', items: [['#teach/log','Log a session','attendance topics'],['#teach/marks','Enter marks','sra weekly assessment scores'],['#teach/assess','Schedule an assessment','weekly monthly topical mock past paper test']].map(([h, t, k]) => ({t, k, href:h, ic:I('plus')}))});
+    return G;
+  }
+  if(!staffRole()) return [];
+  G.push({g:'Students', items: HD.students().map(x => ({t:x.name, s:[x.level, x.school].filter(Boolean).join(' · '), k:Object.values(x).filter(v => typeof v === 'string').join(' ') + ' ' + subjectsOf(x), href:stuLink(x.key), ic:`<b style="font-size:11px">${esc(inits(x.name))}</b>`}))});
+  G.push({g:'Documents', items: saved.map(d => { const t = typeOf(d), amt = t === 'receipt' ? num(d.received) : d.total != null ? d.total : HD.total(d);
+    return {t:`${d.number || WORD[t]} · ${d.student || d.name || '(no name)'}`, s:[WORD[t], t === 'card' ? '' : mk(amt), nice(d.date)].filter(Boolean).join(' · '), k:`${(d.number || '').replace(/-/g, ' ')} ${amt || ''} ${String(amt || '').replace(/\B(?=(\d{3})+(?!\d))/g, ',')}`, href:openLink(d), ic:I(t)}; })});
+  const ppl = (HD.people ? HD.people() : []).filter(p => p.role !== 'student' && p.role !== 'parent');
+  if(ppl.length) G.push({g:'People', items: ppl.map(p => ({t:p.name, s:({director:'Director', admin:'Admin', tutor:'Tutor', bdo:'BDO'})[p.role] || p.role, k:p.username || '', href: p.role === 'tutor' || p.tutor ? '#tutors/' + encodeURIComponent(p.name) : allowed('people') ? '#set/people' : '#tutors', ic:`<b style="font-size:11px">${esc(inits(p.name))}</b>`}))});
+  const pages = LHQNav.pool().map(([k, l, h]) => ({t:l, href:h.replace('index.html', ''), ic:I({students:'users', docs:'quote', business:'cash', reports:'rep', calendar:'clock', tutors:'users', activity:'list', teach:'list', settings:'layout'}[k] || 'layout')}));
+  pages.push({t:'Sessions', k:'confirm dispute settle attendance', href:'#sessions', ic:I('clock')}, {t:'Make-ups', k:'bookings', href:'#bookings', ic:I('clock')}, {t:'Clashes', k:'double booked', href:'#clashes', ic:I('alert')});
+  if(can('pl') && window.MIN){ const t = today(), q = MIN.periodOf('term', t);
+    pages.push({t:'Money in · today', k:'received payments day', href:'#biz/money/d' + t, ic:I('cash')}, {t:'Money in · this week', k:'received payments week', href:'#biz/money/' + MIN.key(MIN.periodOf('week', t)), ic:I('cash')},
+      {t:'Money in · this term', k:'received payments school term holiday', href:'#biz/money/' + MIN.key(q), ic:I('cash')}, {t:'Money in · this year', k:'received payments financial year half', href:'#biz/money/' + MIN.key(MIN.periodOf('year', t)), ic:I('cash')}); }
+  if(can('tutors')) pages.push({t:'Topics · hardest first', k:'topic difficulty hardest sra ars assessments', href:'#srafig/topics', ic:I('rep')}, {t:'Follow-ups', k:'follow up reteach retest take-home worked weak topics', href:'#fu', ic:I('rep')});
+  if(can('tutors')) pages.push({t:'SRA figures', k:'sra reviews average topics dropping handed in ars recall', href:'#srafig', ic:I('rep')});
+  if(window.TPAYUI && TPAYUI.may()) pages.push({t:'Tutor pay', k:'pay payslip salary allowance advance deduction bonus overtime cap', href:'#pay', ic:I('cash')});
+  if(window.KPIUI && KPIUI.may()) pages.push({t:'Tutor KPIs', k:'performance falling short slipping meeting observation review renewals', href:'#kpi', ic:I('users')});
+  if(window.EXUI) pages.push({t:'Exam timetable', k:'exams dates papers cambridge igcse a level as checkpoint june november march', href:'#exams', ic:I('list')});
+  if(store.get('lhq_sreports', null)) pages.push({t:'What students say', k:'daily reports ratings', href:'#says', ic:I('msg')});
+  G.push({g:'Pages', items: pages.concat(setPages())});
+  const A = [['quote','New quote','quotes','quote'],['invoice','New invoice','quotes','invoice'],['receipt','Record a payment','receipts','receipt'],['card','New tuition card','cards','card']].filter(x => can(x[2])).map(([t, l, , i]) => ({t:l, k:'new ' + t + (t === 'receipt' ? ' receipt payment received' : ''), href:'#new/' + t, ic:I(i)}));
+  if(can('spend')) A.push({t:'Record spending', k:'expense spend money out', href:'#biz/spending', ic:I('cash')});
+  if(m.tutor) A.push({t:'Log a session', k:'teaching', href:'#teach/log', ic:I('plus')});
+  G.push({g:'Actions', items: A});
+  return G;
+};
+
+/* ================= what students say (from their daily reports; LHQ only) ================= */
+P.says = () => {
+  const SR = store.get('lhq_sreports', null);
+  if(!SR) return `${crumb('#tutors', 'Tutors', 'says')}<p class="empty">Only LHQ sees this.</p>`;
+  const B = SREP.byTutor(SR, today()), A = B.all, W = SREP.weekAnswers(SR, today()), T = Object.entries(B.tutors).sort((a, b) => a[0].localeCompare(b[0]));
+  const lo = (v, a, gap) => A && v < a - gap ? ' class="lo"' : '';
+  const row = (n, x, me) => `<tr${me ? ' class="all"' : ''}><td>${esc(n)}</td><td${me ? '' : lo(x.rate, A.rate, .3)}>${x.rate}</td><td${me ? '' : lo(x.prep, A.prep, 10)}>${x.prep}%</td><td${me ? '' : lo(x.gb, A.gb, 10)}>${x.gb}%</td><td${me ? '' : lo(x.na, A.na, 10)}>${x.na}%</td><td${me ? '' : lo(x.sra, A.sra, 10)}>${x.sra}%</td><td${me ? '' : lo(x.conf, A.conf, .3)}>${x.conf}</td><td>${x.n}</td></tr>`;
+  return `${crumb('#tutors', 'Tutors', 'says')}<div class="ph"><div class="tt"><h1>What students say</h1><p>${nice(B.from)} – ${nice(B.to)}</p></div></div>
+  ${A ? `<div class="card"><div class="bz-scroll"><table class="says"><tr><th>Tutor</th><th>Session</th><th>Prepared</th><th>Guides</th><th>Notes</th><th>SRAs</th><th>Topic</th><th>Answers</th></tr>${T.map(([n, x]) => row(n, x)).join('')}${row('LHQ', A, true)}</table></div></div>
+    <p class="note" style="margin:-6px 2px 16px">Session and Topic out of 5. Amber: well below LHQ.</p>` : '<p class="empty">No reports in the last 4 weeks.</p>'}
+  <div class="h2">This week <em>${esc(W.q.q)}</em></div><div class="card">${W.q.o.map(o => `<div class="it"><span class="t"><b>${esc(o)}</b></span><b${W.q.bad.includes(o) && W.counts[o] ? ' style="color:var(--am)"' : ''}>${W.counts[o]}</b></div>`).join('')}</div>`;
 };
 
 /* ================= business (business.js) ================= */
@@ -1133,20 +1447,37 @@ P.perf = () => { setTimeout(() => location.replace('#rep/business'), 0); return 
 P.reports = () => PERF.page() + (isDir() || me().role === 'admin' ? `<div class="card" style="margin-top:14px"><a class="it" href="#activity"><span class="t"><b>Activity</b><small>Everything done in the Hub, by whom</small></span><span class="chev">›</span></a></div>` : '');
 P.teach = (sub, a1, a2) => TUT.page(sub, a1, a2);
 P.me = (sub, a1, a2) => FAM.page(sub, a1, a2);
+/* tutor KPIs (kpi.js, kpiui.js): the Director, and Admin when switched on */
+P.kpi = a1 => KPIUI.route(a1);
+/* tutor pay (tpay.js, tpayui.js): the Director, and Admin with Tutor pay */
+P.pay = a1 => TPAYUI.route(a1);
+P.srafig = a1 => a1 === 'topics' ? SRAFIG.topicsPage() : SRAFIG.page();
+P.fu = () => { SRAFIG.ensure(); return FUP.page(); };
+P.sounds = () => SOUNDS.page('#set/notifications');
+/* tutors' requests to move a session that falls on a student's busy date: LHQ moves it (from Calendar › Clashes or the card) or keeps it */
+P.asks = () => { const L = Object.values(store.get('lhq_asks', {}) || {}).filter(a => a && !a.done).sort((a, b) => a.d.localeCompare(b.d)), D = Object.values(store.get('lhq_asks', {}) || {}).filter(a => a && a.done).sort((a, b) => b.done - a.done).slice(0, 10);
+  return `<a class="crumb" href="#home">‹ Home</a><div class="ph"><div class="tt"><h1>Move a session?</h1><p>Asked by tutors</p></div></div>
+    <div class="card">${L.map(a => `<div class="it"><span class="t"><b>${esc(a.st)} · ${esc(a.sub)} · ${nice(a.d)}${a.s ? ' ' + esc(a.s) : ''}</b><small>${esc(a.why || '')} · ${esc(a.tutor)}</small></span><button class="btn sm" data-askd="${a.id}|kept">Keep</button><button class="btn sm n" data-askd="${a.id}|moved">Moved</button></div>`).join('') || '<p class="empty">Nothing waiting.</p>'}</div>
+    ${D.length ? `<div class="h2">Done</div><div class="card">${D.map(a => `<div class="it"><span class="f-mk ok">✓</span><span class="t"><b>${esc(a.st)} · ${esc(a.sub)} · ${nice(a.d)}</b><small>${a.how === 'moved' ? 'Moved' : 'Kept'} · ${esc(a.by || '')}</small></span></div>`).join('')}</div>` : ''}
+    <p class="note">Move it from the tuition card or Calendar › Clashes, then mark it Moved. The tutor is told.</p>`; };
+/* the exam timetable (exams.js, examsui.js): everyone; students add subjects to My exams from here */
+P.exams = () => { EXUI.setMine(['student','parent'].includes(me().role) && window.FAM && FAM.mineCtx ? FAM.mineCtx() : null);
+  const back = me().role === 'tutor' ? '<a class="crumb" href="#teach">‹ Home</a>' : ['student','parent'].includes(me().role) ? '<a class="crumb" href="#me/exams">‹ My exams</a>' : crumb(null, null, 'exams');
+  return EXUI.timetable(back); };
 P.rep = (kind, arg) => PERF.page(kind, arg);
 
 /* ================= settings ================= */
 const SETS = [
-  ['Account', [['account','user','My account'],['appearance','layout','Appearance']]],
-  ['LHQ', [['people','users','People & access', () => isDir() || can('tutors')],['company','bank','Company & bank details', isDir],['payments','cash','Payments & due dates', isDir],['hours','clock','Opening hours', isDir],['tutorinfo','users','Tutors\' contacts', () => isDir() || can('tutors') || can('msgs')]]],
+  ['Account', [['account','user','My account'],['appearance','layout','Appearance'],['notifications','bell','Notifications']]],
+  ['LHQ', [['people','users','People & access', () => isDir() || can('tutors')],['company','bank','Company & bank details', isDir],['payments','cash','Payments & due dates', isDir],['hours','clock','Opening hours', isDir],['terms','clock','School terms', isDir],['bands','rep','Grade boundaries', isDir],['kpi','users','Tutor KPIs', isDir],['teachset','list','Teaching', isDir],['tpay','cash','Tutor pay', isDir],['exams','list','Exams', isDir],['tutorinfo','users','Tutors\' contacts', () => isDir() || can('tutors') || can('msgs')]]],
   ['Documents', [['numbering','hash','Numbering', () => can('numbering')],['messages','msg','Messages', () => can('msgs')],['lists','list','Lists', () => can('msgs')]]],
   ['Enrolment & sending', [['enrol','link','Student checklist', () => staffRole()],['sending','wa','Email & WhatsApp', () => staffRole()]]],
   ['Data', [['records.html','layout','Shared records', () => isDir()],['backup','box','Backup & restore', () => can('backup')],['deleted','bin','Recently deleted', () => can('restore')],['demo','restore','Demo data (preview)', () => isDir() && PREVIEW]]],
 ];
 const setVis = ids => SETS.flatMap(([, items]) => items).filter(x => ids.includes(x[0]) && (!x[3] || x[3]()));
-const DETAILS = ['company','payments','hours','numbering','messages','sending','tutorinfo','enrol'], DATA = ['records.html','backup','deleted','demo'];
+const DETAILS = ['company','payments','hours','terms','bands','exams','kpi','teachset','tpay','numbering','messages','sending','tutorinfo','enrol'], DATA = ['records.html','backup','deleted','demo'];
 /* Lean: 5 places. Things set once sit inside LHQ details; shared records, backups and the bin inside Data */
-const LEAN_SETS = () => [['Account', [['account','user','My account'],['appearance','layout','Appearance']]],
+const LEAN_SETS = () => [['Account', [['account','user','My account'],['appearance','layout','Appearance'],['notifications','bell','Notifications']]],
   ['LHQ', setVis(['people']).concat(setVis(DETAILS).length ? [['details','bank','LHQ details']] : [], setVis(['lists']))],
   ['Data', setVis(DATA).length ? [['data','box','Data']] : []]];
 const allowed = id => SETS.some(([, items]) => items.some(x => x[0] === id && (!x[3] || x[3]()))) || (id === 'details' && setVis(DETAILS).length > 0) || (id === 'data' && setVis(DATA).length > 0);
@@ -1163,6 +1494,24 @@ function setWrap(id, person){
 }
 const S = {};
 const settingsKV = () => withDefaults(store.get('lhq_settings', {}));
+/* Settings › Teaching › Topic objectives: the Director can correct any topic's list (tutors set them from the ARS) */
+function objSheet(ed){
+  const O = store.get('lhq_obj', {}) || {}, subs = [...new Set(saved.filter(d => d.type === 'card').flatMap(d => (d.subjects || []).map(x => x.name)).filter(Boolean))].sort();
+  if(ed === undefined){
+    const L = Object.entries(O).sort((a, b) => (a[1].sub + a[1].tk).localeCompare(b[1].sub + b[1].tk));
+    openSheet(`<div class="hx"><h3>Topic objectives</h3><button class="ib" data-close>✕</button></div><p class="sp">Set by tutors or you · other topics use the syllabus</p><div class="card">${L.map(([k, v]) => `<button type="button" class="it" data-obje="${esc(k)}"><span class="t"><b>${esc(v.tk)}</b><small>${esc(v.sub)} · ${v.l.length} · ${esc(v.by || '')}</small></span><span class="chev">›</span></button>`).join('') || '<p class="empty">None yet.</p>'}</div><button class="btn n full" type="button" data-obje="">${ic('plus', 16, 2.4)} Add a topic</button>`);
+  } else {
+    const v = O[ed] || {sub: subs[0] || '', tk: '', l: []};
+    openSheet(`<div class="hx"><h3>${ed ? esc(v.tk) : 'Add a topic'}</h3><button class="ib" data-close>✕</button></div>${ed ? `<p class="sp">${esc(v.sub)}</p>` : `<label class="f"><span>Subject</span><select class="in" id="objSub">${subs.map(x => `<option${x === v.sub ? ' selected' : ''}>${esc(x)}</option>`).join('')}</select></label><label class="f"><span>Topic</span><input class="in" id="objTk" autocomplete="off"></label>`}
+      <label class="f"><span>Objectives · one per line</span><textarea class="in" id="objL" rows="8">${esc(v.l.join('\n'))}</textarea></label>
+      <button class="btn n full" type="button" id="objSave">Save</button>${ed ? '<button class="btn full" type="button" id="objDel" style="margin-top:8px">Use the syllabus instead</button>' : ''}<p class="note">Kept for every student of the subject. Earlier ARS marks stay as they were.</p>`);
+  }
+  document.querySelectorAll('[data-obje]').forEach(b => b.onclick = () => objSheet(b.dataset.obje));
+  const put = (k, val) => { const o = Object.assign({}, store.get('lhq_obj', {}) || {}); if(val) o[k] = val; else delete o[k]; store.set('lhq_obj', o); };
+  if($('objSave')) $('objSave').onclick = () => { const l = $('objL').value.split('\n').map(x => x.trim()).filter(Boolean).slice(0, 30), sub = ed ? O[ed].sub : $('objSub').value, tk = ed ? O[ed].tk : $('objTk').value.trim();
+    if(!sub || !tk){ toast('Which topic?'); return; } const k = SCHED.nk(sub) + '|' + SCHED.nk(tk); if(ed && ed !== k) put(ed, null); put(k, l.length ? {sub, tk, l, by: me().name || 'Director', at: Date.now()} : null); toast('Saved'); objSheet(); render(); };
+  if($('objDel')) $('objDel').onclick = () => { put(ed, null); toast('Removed'); objSheet(); render(); };
+}
 function saveSettings(fields){ const s = Object.assign({}, store.get('lhq_settings', {}), fields); store.set('lhq_settings', s); toast('Saved'); }
 const fieldRow = (id, l, v, attrs = '') => `<label class="f"><span>${l}</span><input class="in" id="${id}" value="${esc(v)}" ${attrs}></label>`;
 
@@ -1171,6 +1520,37 @@ S.hours = () => { const H = Object.assign({}, SCHED.OPEN, settingsKV().openHours
   const sel = (id, v) => `<select class="in" id="${id}" style="padding:8px">${['', ...T].map(t => `<option value="${t}" ${t === (v || '') ? 'selected' : ''}>${t || 'Closed'}</option>`).join('')}</select>`;
   return `<h2 class="sec-h">Opening hours</h2><div class="card pad">${D.map(([d, n]) => `<div class="r2" style="align-items:center;grid-template-columns:110px 1fr 1fr;margin-bottom:8px"><b>${n}</b>${sel('oh' + d + 'a', (H[d] || [])[0])}${sel('oh' + d + 'b', (H[d] || [])[1])}</div>`).join('')}
     <button class="btn n" id="ohSave">Save</button></div><p class="note">Used for free times when moving a session.</p>`; };
+let termDraft = null;
+S.terms = () => { const L = termDraft || (window.MIN ? MIN.terms() : []).map(t => t.slice());
+  termDraft = L;
+  return `<h2 class="sec-h">School terms</h2><div class="card pad">${L.map((t, i) => `<div class="tm-row"><input class="in" data-tm="${i}:0" value="${esc(t[0])}" aria-label="Name"><input class="in" type="date" data-tm="${i}:1" value="${esc(t[1])}" aria-label="Starts"><input class="in" type="date" data-tm="${i}:2" value="${esc(t[2])}" aria-label="Ends"><button class="ib" data-tmrm="${i}" aria-label="Remove">✕</button></div>`).join('')}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"><button class="btn" id="tmAdd">+ Term</button><button class="btn n" id="termSave">Save</button></div></div><p class="note">Holidays are the gaps between terms. Used by Money in.</p>`; };
+let bandSc = 'al', exTab = 'series', topDraft = null;
+S.tpay = () => TPAYUI.settings();
+S.teachset = () => { const c = settingsKV(), sw = (id, on, t, sub) => `<div class="it"><span class="t"><b>${t}</b><small>${sub}</small></span><button class="lp-sw${on ? ' on' : ''}" id="${id}" role="switch" aria-checked="${on}" aria-label="${t}"></button></div>`;
+  return `<h2 class="sec-h">Teaching</h2><div class="card">${sw('tsSee', !!c.tsee, 'Tutors see focus and study', 'Each student\'s weekly totals · students can hide theirs')}</div><p class="sec-p">Never block names, times or topics. Dates and busy times students choose to share reach their tutors either way.</p>
+    <div class="card">${sw('tsObj', !!(c.obj || {}).on, 'ARS by objective', 'Tutors tap what wasn\'t recalled')}</div>${(c.obj || {}).on ? (() => { const on = (c.obj.subs || []), all = [...new Set(saved.filter(d => d.type === 'card').flatMap(d => (d.subjects || []).map(x => x.name)).filter(Boolean))].sort();
+      return `<div class="h2">Subjects <em>${on.length ? on.length : 'all'}</em></div><div class="chips">${all.map(x => `<button class="chip${on.some(y => SCHED.nk(y) === SCHED.nk(x)) ? ' on' : ''}" data-tsobs="${esc(x)}">${esc(x)}</button>`).join('')}</div><p class="sec-p">None ticked: every subject.</p><div class="card"><button type="button" class="it" data-tsobl><span class="t"><b>Topic objectives</b><small>${Object.keys(store.get('lhq_obj', {}) || {}).length} topics set by tutors or you · the rest from the syllabus</small></span><span class="chev">›</span></button></div>`; })() : '<p class="sec-p">Off: the ARS is one number. Turn on once tutors are briefed.</p>'}`; };
+S.kpi = () => { const c = KPI.conf(settingsKV()), sw = (id, on, t, sub) => `<div class="it"><span class="t"><b>${t}</b><small>${sub}</small></span><button class="lp-sw${on ? ' on' : ''}" id="${id}" role="switch" aria-checked="${on}" aria-label="${t}"></button></div>`;
+  return `<h2 class="sec-h">Tutor KPIs</h2><div class="h2">Who sees it</div><div class="card">${sw('kAdm', c.admin, 'Admin', 'All tutors · with Tutors access')}${sw('kTut', c.tutors, 'Tutors', 'Their own · Week and Month')}</div>
+    <div class="h2">Targets</div><div class="card pad">${KPI.CORE.map(([id, n]) => `<div class="it" style="padding:6px 0"><span class="t">${esc(n)}</span><input class="in" style="width:80px;text-align:right" inputmode="numeric" data-ktg="${id}" value="${c.tg[id]}"> %</div>`).join('')}</div>
+    <div class="h2">Falling short</div><div class="card pad"><div class="it" style="padding:6px 0"><span class="t">A KPI below target</span><input class="in" style="width:70px;text-align:right" inputmode="numeric" id="kRun" value="${c.run}"> weeks running</div><div class="it" style="padding:6px 0"><span class="t">Or below target at once</span><input class="in" style="width:70px;text-align:right" inputmode="numeric" id="kMany" value="${c.many}"> KPIs</div></div>
+    <div class="acts"><button class="btn n" id="kSave">Save</button><a class="btn" href="#kpi">KPIs</a></div>`; };
+S.bands = () => { const E0 = EXAMS, cur = E0.bandsOf(bandSc, settingsKV());
+  return `<h2 class="sec-h">Grade boundaries</h2><p class="sec-p">% of the marks for each grade. Used for On track.</p>
+    <div class="chips">${E0.SCALES.map(([k, l]) => `<button class="chip${bandSc === k ? ' on' : ''}" data-bsc="${k}">${esc(l)}</button>`).join('')}</div>
+    <div class="card pad">${E0.GRADES[bandSc].map(g => `<div class="it" style="padding:6px 0"><span class="ex-gr">${esc(g)}</span><span class="t"></span><input class="in" style="width:80px;text-align:right" inputmode="numeric" data-bnd="${esc(g)}" value="${esc(cur[g])}"> %</div>`).join('')}</div>
+    <div class="acts"><button class="btn n" id="bndSave">Save</button><button class="btn" id="bndReset">Cambridge-style default</button></div>`; };
+S.exams = () => { const E0 = EXAMS, set = settingsKV(), I = (window.EXAMDATA || {}).series || {}, fix = set.examFix || {};
+  const tabs = `<div class="chips"><button class="chip${exTab === 'series' ? ' on' : ''}" data-extab="series">Exam series</button><button class="chip${exTab === 'top' ? ' on' : ''}" data-extab="top">Assessment dates</button></div>`;
+  if(exTab === 'top'){ const L = topDraft || (set.topicals || []).map(x => Object.assign({}, x)); topDraft = L;
+    return `<h2 class="sec-h">Exams</h2>${tabs}<div class="card pad">${L.map((x, i) => `<div class="tp-row"><input class="in" type="date" data-tp="${i}:d" value="${esc(x.d || '')}" aria-label="Date"><select class="in" data-tp="${i}:ak" aria-label="Type">${[['w','Weekly'],['m','Monthly'],['p','Past paper']].map(([k, l]) => `<option value="${k}" ${(x.ak || 'm') === k ? 'selected' : ''}>${l}</option>`).join('')}</select><select class="in" data-tp="${i}:ex" aria-label="Exam">${E0.EX.map(([k, l]) => `<option value="${k}" ${x.ex === k ? 'selected' : ''}>${esc(E0.EXS[k])}</option>`).join('')}</select><input class="in" data-tp="${i}:sub" value="${esc(x.sub || '')}" placeholder="Subject" aria-label="Subject"><input class="in" data-tp="${i}:tp" value="${esc(x.tp || '')}" placeholder="Topics" aria-label="Topics"><button class="ib" data-tprm="${i}" aria-label="Remove">✕</button></div>`).join('') || '<p class="empty" style="margin:0 0 8px">None yet.</p>'}
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"><button class="btn" id="tpAdd">+ Assessment</button><button class="btn n" id="tpSave">Save</button></div></div><p class="note">Shows on the students' Practice and calendar, and on their tutors' Home.</p>`; }
+  return `<h2 class="sec-h">Exams</h2>${tabs}<div class="card"><div class="it"><span class="t"><b>Zone</b><small>Malawi</small></span><b>${esc((window.EXAMDATA || {}).zone || '3')}</b></div>
+    ${Object.entries(I).map(([sr, x]) => { const n = (E0.rowsAll(set)[sr] || []).length; return `<div class="it"><span class="t"><b>${esc(x.name)} · ${x.exams.map(k => E0.EXS[k]).filter((v, i, a) => a.indexOf(v) === i).join(', ')}</b><small>${n ? n + ' papers' : 'Not published yet'}</small></span>${n ? '<span class="ex-st ok"><i>✓</i></span>' : '<span class="ex-st no"><i></i></span>'}</div>`; }).join('')}</div>
+    <a class="btn" href="#exams">Exam timetable</a>
+    <div class="h2">Correct a date</div><div class="card pad"><div class="tp-row" style="grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)"><select class="in" id="fxSr">${Object.entries(I).filter(([sr]) => (E0.rowsAll(set)[sr] || []).length).map(([sr, x]) => `<option value="${sr}">${esc(x.name)}</option>`).join('')}</select><input class="in" id="fxCc" placeholder="0580/22"><input class="in" type="date" id="fxD"></div><button class="btn n" id="fxSave" style="margin-top:8px">Save</button></div>
+    ${Object.keys(fix).length ? `<div class="card">${Object.entries(fix).map(([k, v]) => `<div class="it"><span class="t"><b>${esc(k.split('|')[1])}</b><small>${esc((I[k.split('|')[0]] || {}).name || '')} · ${esc(EXUI.dly(v.a))}</small></span><button class="ib" data-fxrm="${esc(k)}" aria-label="Remove">✕</button></div>`).join('')}</div>` : ''}`; };
 S.details = () => `<h2 class="sec-h">LHQ details</h2>${setList(DETAILS)}`;
 S.data = () => `<h2 class="sec-h">Data</h2>${setList(DATA)}`;
 S.account = () => { const m = me(), L = LHQNav.layout();
@@ -1188,6 +1568,9 @@ S.account = () => { const m = me(), L = LHQNav.layout();
   <div class="card pad"><div class="cap">Sign out</div><p class="note" style="margin:0 0 10px">Clears this device. Everything stays online.</p><button class="btn rd" id="outGo">${ic('out',16)} Sign out of this device</button></div>`; };
 
 /* Appearance: how the Hub looks. Theme, text size and bar or sidebar are per device; Lean or Full, the menu and Home cards follow the person */
+/* phone notifications (push.js): filled in once the server answers */
+S.notifications = () => { setTimeout(fillPush, 0); return `<h2 class="sec-h">Notifications</h2><div id="lpPage"><p class="note">Loading…</p></div>${window.SOUNDS ? '<div class="card" style="margin-top:12px"><a class="it" href="' + (me().role === 'tutor' ? '#teach/sounds' : me().role === 'student' || me().role === 'parent' ? '#me/sounds' : '#sounds') + '"><span class="t"><b>Sounds</b><small>While LHQ Hub is open</small></span><span class="chev">›</span></a></div>' : ''}`; };
+async function fillPush(){ const el = $('lpPage'); if(!el || !window.LHQPush) return; el.innerHTML = await LHQPush.page(); LHQPush.bindPage(fillPush); }
 S.appearance = () => { const L = LHQNav.layout(), th = lhqTheme.choice(), tx = lhqTheme.text(), staffNav = !['tutor','student','parent'].includes(me().role);
   const seg = (attr, cur, opts) => `<div class="seg" style="margin-bottom:${attr === 'data-layout' || attr === 'data-view' ? 6 : 14}px">${opts.map(([v, l]) => `<button class="${cur === v ? 'on' : ''}" ${attr}="${v}">${l}</button>`).join('')}</div>`;
   let menu = '';
@@ -1203,11 +1586,13 @@ S.appearance = () => { const L = LHQNav.layout(), th = lhqTheme.choice(), tx = l
   return `<h2 class="sec-h" style="margin-bottom:14px">Appearance</h2>
   <div class="h2">This device</div>
   <div class="card pad"><div class="cap">Theme</div>${seg('data-thm', th, [['light','Light'],['dark','Dark'],['auto','Auto']])}
-    <div class="cap">Text size</div>${seg('data-txt', tx, [['s','Standard'],['l','Large']])}
+    <div class="cap">Colour</div><div class="ap-sw">${[['navy','Navy','#073763','#f4b223'],['teal','Teal','#0f766e','#2dd4bf'],['purple','Purple','#6d28d9','#c4b5fd'],['forest','Forest','#166534','#4ade80'],['rose','Rose','#be123c','#fda4af'],['sunset','Sunset','#c2410c','#fdba74']].map(([v, l, a, b]) => `<button type="button" class="${lhqTheme.col() === v ? 'on' : ''}" data-apcol="${v}"><i style="background:${lhqTheme.get() === 'dark' ? b : a}"></i><small>${l}</small></button>`).join('')}</div>
+    <div class="cap">Text size</div>${seg('data-txt', tx, [['s','Standard'],['l','Large'],['xl','Larger']])}
     <div class="x-ph"><div class="cap">Menu</div>${seg('data-layout', L, [['bottom','Bottom bar'],['side','Sidebar']])}</div></div>
   <div class="h2">Everywhere you sign in</div>
-  <div class="card pad"><div class="cap">What you see</div>${seg('data-view', LEAN() ? 'lean' : 'full', [['lean','Lean'],['full','Full']])}
-    <p class="note" style="margin:0">${LEAN() ? 'Main places and fields. The rest under More.' : 'Everything in view.'}</p></div>
+  ${me().role === 'parent' ? '' : `<div class="card pad"><div class="cap">What you see</div>${seg('data-view', LEAN() ? 'lean' : 'full', [['lean','Lean'],['full','Full']])}
+    <p class="note" style="margin:0">${me().role === 'student' ? (LEAN() ? 'The essentials. Full adds your cards, focus, habits, reviews, planning and school results.' : 'Everything: planning, focus, reviews, school results, countdowns.') : LEAN() ? 'Main places and fields. The rest under More.' : 'Everything in view.'}</p>
+    ${me().role === 'student' ? '<p class="note" style="margin:6px 0 0">🔒 Always shown: Today, reminders, On track, sessions, the month calendar, Practice today.</p>' : ''}</div>`}
   ${menu}
   ${staffNav ? `<div class="card"><a class="it" href="#edithome"><span class="ico">${ic('edit', 18)}</span><span class="t"><b>Home cards</b><small>${myCards().length} on Home</small></span><span class="chev">›</span></a></div>` : ''}`;
 };
@@ -1222,27 +1607,27 @@ function peoplePw(){
   const all = HD.people(), D0 = isDir(), need = p => p.locked || ['setup','pin'].includes(p.status);
   const F = [['all','Everyone'],['need','Needs something'],['staff','Staff'],['student','Students'],['parent','Parents']];
   const list = all.filter(p => peopleShow === 'all' || (peopleShow === 'need' ? need(p) : peopleShow === 'staff' ? ['director','admin','tutor','bdo'].includes(p.role) : p.role === peopleShow));
-  return `<h2 class="sec-h">People & access</h2><p class="sec-p">${all.length} accounts · ${all.filter(need).length} need something. ${D0 ? 'Admin manages students, parents and tutors; only you add or reset Admin and BDO accounts.' : 'You manage students, parents and tutors. Admin and BDO accounts are managed by Wanangwa.'}</p>
-  <div class="seg" style="margin-bottom:12px;flex-wrap:wrap">${F.map(([k, l]) => `<button class="${peopleShow === k ? 'on' : ''}" data-pshow="${k}">${l}</button>`).join('')}</div>
+  return `<h2 class="sec-h">People & access</h2><p class="sec-p">${all.length} accounts · ${all.filter(need).length} need something. ${D0 ? 'Admin manages students, parents and tutors; only you add or reset Admin and BDO accounts.' : 'You manage students, parents and tutors. Admin accounts are managed by the Director.'}</p>
+  <div class="seg" style="margin-bottom:12px;display:flex;flex-wrap:wrap;max-width:100%">${F.map(([k, l]) => `<button class="${peopleShow === k ? 'on' : ''}" data-pshow="${k}">${l}</button>`).join('')}</div>
   <div class="card">${list.map(p => { const self = p.id === me().id, mine = mayManage(p);
     return `<a class="it" ${mine ? `href="#person/${p.id}"` : self ? 'href="#set/account"' : 'style="cursor:default"'}><span class="av">${inits(p.name)}</span><span class="t"><b>${esc(p.name)}${self ? ' (you)' : ''}</b><small>${roleText(p)} · ${esc(p.username || '')}${p.children && p.children.length ? ' · ' + esc(p.children.join(', ')) : ''}${p.seen && p.status === 'active' ? ' · last in ' + ago(p.seen) : ''}</small></span>${pStatus(p)}${mine ? '<span class="chev">›</span>' : ''}</a>`; }).join('') || '<p class="empty">Nobody here.</p>'}</div>
   ${D0 || can('tutors') ? `<button class="btn n" id="addPerson">${ic('plus',16,2.2)} Add a person</button>` : ''}`;
 }
 function peoplePin(){ const list = HD.people(), D0 = isDir();
-  return `<h2 class="sec-h">People & access</h2><p class="sec-p">${D0 ? 'Everyone who can sign in. You decide what each person can see and do.' : 'You can add tutors, reset their PINs and switch them off. Only the Director changes admins.'}</p>
+  return `<h2 class="sec-h">People & access</h2><p class="sec-p">${D0 ? 'Everyone who can sign in. You decide what each person can see and do.' : 'You can add tutors, give them setup codes and switch them off. Only the Director changes admins.'}</p>
   <div class="card">${list.map(p => { const self = p.id === me().id, mine = !self && p.role !== 'director' && (D0 || p.role === 'tutor');
     return `<a class="it" ${mine ? `href="#person/${p.id}"` : self ? 'href="#set/account"' : 'style="cursor:default"'}><span class="av">${inits(p.name)}</span><span class="t"><b>${esc(p.name)}${self ? ' (you)' : ''}</b><small>${roleText(p)}${p.seen ? ' · last seen ' + ago(p.seen) : ''}</small></span>${p.role === 'director' ? '<span class="rolechip">Director</span>' : ''}${p.active ? '' : '<span class="tag rd">Off</span>'}${mine || self ? `<span class="chev">${ic('chev',16,2)}</span>` : p.role === 'director' ? '' : '<span class="tag gr">Director only</span>'}</a>`; }).join('') || '<p class="empty">Loading…</p>'}</div>
   <button class="btn" id="addPerson">${ic('plus',16,2.2)} ${D0 ? 'Add a person' : 'Add a tutor'}</button>`; };
 const PERMS = [
   ['Documents', [['quotes','Make and edit quotes and invoices'],['receipts','Record payments (receipts)'],['cards','Make tuition cards'],['delete','Delete documents'],['restore','Restore deleted documents']]],
   ['Students', [['students','Add and edit student details']]],
-  ['Money', [['money','See money totals and reports','Money cards on Home, money in Overview, totals and trends. Amounts on single documents stay visible to anyone who makes them.'],['tpay','See tutor pay','What each tutor earns (arrives with step 2)']]],
+  ['Money', [['money','See money totals and reports','Money cards, totals and trends. Amounts on a document stay visible to whoever makes it.'],['tpay','Tutor pay','Work out, add items and confirm payslips']]],
   ['Business', [['spend','Record spending','Add spending and see the spending list. They can change only what they recorded.'],['pl','See profit and loss and budgets','Money in against spending, profit, budgets, and the Profit card on Home']]],
   ['People', [['tutors','Add tutors, students and parents, give them setup codes, switch them off']]],
   ['Settings', [['msgs','Messages and lists'],['numbering','Numbering'],['backup','Backup and restore']]],
-  ['Tutors · arrives with step 2', [['classes','See every tutor’s classes'],['moveclass','Move classes between tutors']]],
+  ['Tutors · arrives with step 2', [['classes','See every tutor\'s classes'],['moveclass','Move classes between tutors']]],
 ];
-const DIRECTOR_ONLY = ['Company and bank details (the account parents pay into)','Payments and due dates','Add or remove admins, and remove any account','Change anyone’s permissions'];
+const DIRECTOR_ONLY = ['Company and bank details (the account parents pay into)','Payments and due dates','Add or remove admins, and remove any account','Change anyone\'s permissions'];
 function personPage(id){
   const p = HD.people().find(x => x.id === id), D0 = isDir();
   if(!p) return '<p class="empty">Loading…</p>';
@@ -1255,10 +1640,10 @@ function personPage(id){
       <div class="acts" style="margin-top:12px"><button class="btn sm" id="permDefault">Use admin defaults</button></div>
       <div class="cap" style="margin-top:18px">Only you, as Director</div>${DIRECTOR_ONLY.map(x => `<div class="lock">${ic('key',16)}${x}</div>`).join('')}</div>` : ''}` : ''}
   ${PWD() ? `<div class="card pad"><div class="cap">Sign-in</div><dl class="kv"><dt>Username</dt><dd>${esc(p.username || '')}</dd><dt>Email</dt><dd>${esc(p.email || 'not added')}</dd><dt>Status</dt><dd>${pStatus(p)}</dd>${p.children && p.children.length ? `<dt>Children</dt><dd>${esc(p.children.join(', '))}</dd>` : ''}</dl>
-      <p class="note" style="margin:6px 0 10px">${p.status === 'setup' ? `${esc(first(p.name))} hasn't set up yet. Give them a setup code: they choose their own password with it.` : p.status === 'pin' ? `${esc(first(p.name))} still signs in with their PIN. They choose a password the next time they sign in.` : `Forgotten password? Make a new setup code: their old password works until they use it.`}</p>
+      <p class="note" style="margin:6px 0 10px">${p.status === 'setup' ? `${esc(first(p.name))} hasn't set up yet. Give them a setup code: they choose their own password with it.` : p.status === 'pin' ? `${esc(first(p.name))} still signs in with their PIN. They choose a password the next time they sign in.` : `Forgot their password? Make a new setup code.`}</p>
       <div class="acts">${p.locked ? '<button class="btn n sm" id="pUnlock">Unlock</button>' : ''}<button class="btn sm" id="pCode">${p.status === 'setup' ? 'Make a setup code' : 'Reset password · new setup code'}</button><button class="btn sm" id="pEmail">${p.email ? 'Change email' : 'Add email'}</button><button class="btn sm" id="pOutAll">Sign out of every device</button></div></div>` : `<div class="card pad"><div class="cap">PIN</div><div class="r2"><label class="f"><span>New PIN for ${esc(first(p.name))}</span><input class="in" id="ppin" inputmode="numeric" maxlength="6" placeholder="4 to 6 digits"></label></div><button class="btn" id="ppinGo">Reset PIN</button><p class="note">Tell ${esc(first(p.name))} the new PIN yourself. They are signed out until they use it.</p></div>`}
   <div class="card pad"><div class="cap">Recent activity</div>${acts.length ? acts.map(a => `<a class="it" href="${openLink(a.d)}"><span class="t"><b>${esc(actText(a))}</b><small>${esc(a.d.number)} · ${esc(a.d.student || a.d.name || '')} · ${ago(a.at)}</small></span></a>`).join('') : '<p class="empty" style="margin:0">Nothing recorded yet.</p>'}</div>
-  <div class="card pad"><div class="cap">Access</div><p class="note" style="margin:0 0 10px">${p.active ? 'Switching off signs them out on every device straight away. Their documents and logs stay.' : 'Switched off. They cannot sign in.'}</p>
+  <div class="card pad"><div class="cap">Access</div><p class="note" style="margin:0 0 10px">${p.active ? 'Signs them out everywhere. Their work stays.' : 'Switched off. They cannot sign in.'}</p>
     <div class="acts"><button class="btn ${p.active ? 'rd' : ''}" id="pOnOff">${p.active ? 'Switch off' : 'Switch on'}</button>${D0 ? `<button class="btn rd" id="pRemove">${ic('bin',16)} Remove account</button>` : ''}</div></div>`;
 }
 const actText = a => ({created:'Created', edited:'Edited', emailed:'Emailed', whatsapp:'Sent on WhatsApp', paid:'Payment recorded', restored:'Restored'}[a.a] || a.a);
@@ -1269,7 +1654,7 @@ async function addPersonPw(){
   addDraft = addDraft || {name:'', role:'student', email:'', kids:[], students:null};
   if(!addDraft.students) hub.api('people', {method:'POST', body:JSON.stringify({action:'students'})}).then(r => { addDraft.students = r.students; if(!$('sheet').hidden) draw(); }).catch(() => {});
   const draw = () => { const F = addDraft;
-    openSheet(`<div class="hx"><h3>Add a person</h3><button class="ib" data-close>✕</button></div><p class="sp">They get a username and a one-time setup code. With the code they choose their own password.</p>
+    openSheet(`<div class="hx"><h3>Add a person</h3><button class="ib" data-close>✕</button></div><p class="sp">They get a username and a setup code to choose a password.</p>
       <label class="f"><span>Full name</span><input class="in" id="ap_name" autocomplete="off" value="${esc(F.name)}" placeholder="e.g. Kondwani Kalua"></label>
       <label class="f"><span>Role</span></label><div class="seg" style="flex-wrap:wrap;margin-bottom:12px">${roles.map(([k, l]) => `<button class="${F.role === k ? 'on' : ''}" data-aprole="${k}">${l}</button>`).join('')}</div>
       ${F.role === 'parent' ? `<label class="f"><span>Their children</span></label>${F.students ? F.students.map(st => `<button type="button" class="kidtick${F.kids.includes(st.id) ? ' on' : ''}" data-apkid="${st.id}"><span class="bx">${F.kids.includes(st.id) ? '✓' : ''}</span><span><b>${esc(st.name)}</b>${st.level ? `<small style="display:block;color:var(--muted)">${esc(st.level)}</small>` : ''}</span></button>`).join('') || '<p class="note">No students in the records yet.</p>' : '<p class="note">Loading students…</p>'}` : ''}
@@ -1304,7 +1689,7 @@ async function peopleCall(body, msg){
 }
 
 S.company = () => { const s = settingsKV();
-  return `<h2 class="sec-h">Company & bank details</h2><p class="sec-p">Printed on every quote, invoice and receipt. Only you can change these.</p>
+  return `<h2 class="sec-h">Company & bank details</h2><p class="sec-p">On every document. Director only.</p>
   <div class="card pad"><div class="cap">Contact</div><div class="r2">${fieldRow('c_email','Email',s.email,'type="email"')}${fieldRow('c_phone','Phone (header)',s.phone)}</div>
   <div class="cap">Bank</div><div class="r2">${fieldRow('c_bank','Bank name',s.bank)}${fieldRow('c_accname','Account name',s.accname)}${fieldRow('c_branch','Branch',s.branch)}${fieldRow('c_accno','Account number',s.accno,'inputmode="numeric"')}</div>
   <div class="cap">Mobile money</div><div class="r2">${fieldRow('c_popphone','Proof of payment number',s.popphone)}${fieldRow('c_mobile','Mobile banking number',s.mobile)}</div>
@@ -1312,14 +1697,26 @@ S.company = () => { const s = settingsKV();
 S.payments = () => { const s = settingsKV();
   return `<h2 class="sec-h">Payments & due dates</h2><p class="sec-p">Defaults for new documents. Each document can still be changed.</p>
   <div class="card pad"><div class="r2">${fieldRow('c_rate','Default cost per session (MKW)',s.rate,'inputmode="decimal"')}${fieldRow('c_validDays','Quotes valid for (days)',s.validDays,'inputmode="numeric"')}${fieldRow('c_dueDays','Invoices due after (days, 0 = same day)',s.dueDays,'inputmode="numeric"')}${fieldRow('c_graceDays','Instalment grace period (days)',s.graceDays,'inputmode="numeric"')}</div>
-  <button class="btn n" data-save="rate,validDays,dueDays,graceDays">Save</button></div>`; };
+  <button class="btn n" data-save="rate,validDays,dueDays,graceDays">Save</button></div>
+  ${payDatesHTML()}`; };
+/* payment dates parents see as Next payment: term fees per term, fast track intakes' dates; holiday tuition is due before the first session */
+let pdDraft = null;
+function payDatesHTML(){
+  const P = pdDraft || (pdDraft = JSON.parse(JSON.stringify(Object.assign({term: {}, fast: []}, settingsKV().payDates || {})))), T = window.MIN ? MIN.terms() : [];
+  return `<div class="h2" style="margin-top:18px">Payment dates <em>parents see these</em></div>
+  <div class="card pad"><div class="cap">Term to term · fees due</div>${T.map(t => `<div class="pd-row"><span class="t"><b>${esc(t[0])}</b><small>${nice(t[1])} – ${nice(t[2])}</small></span><input class="in" type="date" data-pdt="${esc(t[1])}" value="${esc(P.term[t[1]] || t[1])}" aria-label="${esc(t[0])} fees due"></div>`).join('') || '<p class="empty" style="margin:0">Add the school terms first.</p>'}
+    <div class="cap" style="margin-top:16px">Fast track intakes</div>${P.fast.map((x, i) => `<div class="pd-fast"><div class="pd-fh"><input class="in" data-pdn="${i}" value="${esc(x.name || '')}" placeholder="e.g. IGCSE Fast track · Sep 2026" aria-label="Intake"><button class="ib" data-pdrm="${i}" aria-label="Remove">✕</button></div>
+      <div class="pd-ds">${[0, 1, 2, 3].map(j => `<input class="in" type="date" data-pdd="${i}:${j}" value="${esc((x.dates || [])[j] || '')}" aria-label="Payment ${j + 1}">`).join('')}</div></div>`).join('')}
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px"><button class="btn" id="pdAdd">+ Intake</button><button class="btn n" id="pdSave">Save</button></div>
+    <p class="note" style="margin:12px 0 0">Holiday tuition: due before the first session.</p></div>`;
+}
 
 const nextFor = t => { const c = Object.assign({quote: store.get('lhq_lastnum', 1037), invoice:0, receipt:0, card:0}, store.get('lhq_counters', {})); saved.forEach(d => { const p = parseNo(d.number); if(p && p.type === typeOf(d) && p.n > (c[p.type] || 0)) c[p.type] = p.n; }); return (c[t] || 0) + 1; };
 const usedMax = t => saved.reduce((m, d) => { const p = parseNo(d.number); return p && p.type === t && typeOf(d) === t && p.n > m ? p.n : m; }, 0);
 function parseNo(n){ const m = String(n || '').trim().match(/^(Q|INV|RCT|TC)-?(\d+)$/i); return m ? {type:{Q:'quote',INV:'invoice',RCT:'receipt',TC:'card'}[m[1].toUpperCase()], n:+m[2]} : null; }
 const PFX = {quote:'Q', invoice:'INV', receipt:'RCT', card:'TC'};
 const fmtNo = (t, n) => PFX[t] + '-' + String(n).padStart(4, '0');
-S.numbering = () => `<h2 class="sec-h">Numbering</h2><p class="sec-p">Numbers fill in by themselves. Set where a series continues from, for example if LHQ has issued invoices up to 57, set the next invoice to 58.</p>
+S.numbering = () => `<h2 class="sec-h">Numbering</h2><p class="sec-p">Set the next number in each series, e.g. 58 if the last invoice was 57.</p>
   <div class="card pad"><div class="r2">${['quote','invoice','receipt','card'].map(t => `<label class="f"><span>Next ${t === 'card' ? 'tuition card' : t}</span><input class="in" id="n_${t}" inputmode="numeric" value="${nextFor(t)}"><small style="display:block;margin-top:4px;color:var(--brand);font-weight:700">Next: ${fmtNo(t, nextFor(t))}${usedMax(t) ? ` · used up to ${fmtNo(t, usedMax(t))}` : ''}</small></label>`).join('')}</div>
   <button class="btn n" id="numSave">Save</button></div>`;
 
@@ -1328,14 +1725,14 @@ const MSG = [['emailBody','Quotes & invoices · email'],['waBody','Quotes & invo
 const VARS = ['{name}','{student}','{level}','{type}','{Type}','{number}','{ref}','{date}','{due}','{for}','{period}','{subjects}','{summary}','{subtotal}','{discount}','{total}','{paid}','{balance}','{received}','{prevpaid}','{method}','{bank}','{accname}','{branch}','{accno}','{mobile}','{includesline}','{popphone}','{email}','{phone}'];
 const templates = () => Object.assign({}, DEFAULT_TEMPLATES, store.get('lhq_templates', {}));
 S.messages = () => { const t = templates();
-  return `<h2 class="sec-h">Messages</h2><p class="sec-p">The wording sent with each document. Tap a field below to add it where the cursor is.</p>
+  return `<h2 class="sec-h">Messages</h2><p class="sec-p">Message sent with each document. Tap a field to insert it.</p>
   <div class="tabs">${MSG.map(([k, l]) => `<a href="#set/messages" class="${msgTab === k ? 'on' : ''}" data-msg="${k}">${l}</a>`).join('')}</div>
   <div class="card pad">${msgTab === 'emailBody' ? fieldRow('t_emailSubject','Email subject',t.emailSubject) : ''}
   <label class="f"><span>Message</span><textarea class="in" id="t_body" style="min-height:280px">${esc(t[msgTab])}</textarea></label>
   <div class="vars">${VARS.map(v => `<button data-var="${v}">${v}</button>`).join('')}</div>
   <div class="acts"><button class="btn n" id="tplSave">Save</button><button class="btn" id="tplReset">Restore the default wording</button></div></div>`; };
 
-const LISTS = [['subjects','Subjects'],['levels','Year & level'],['methods','Payment methods'],['includes','Every LHQ Enrollment Includes'],['tutors','Tutors on tuition cards'],['grades','Grades'],['gradeBasis','Grade based on'],['sessionLengths','Session lengths'],['spendCats','Spending categories'],['heardFrom','How families hear about LHQ (also marketing channels)'],['districts','Districts']];
+const LISTS = [['subjects','Subjects'],['levels','Year and level'],['methods','Payment methods'],['includes','Every LHQ enrolment includes'],['tutors','Tutors on tuition cards'],['grades','Grades'],['gradeBasis','Grade based on'],['sessionLengths','Session lengths'],['spendCats','Spending categories'],['heardFrom','How families hear about LHQ (also marketing channels)'],['districts','Districts']];
 S.lists = () => { const s = settingsKV();
   return `<h2 class="sec-h">Lists</h2><p class="sec-p">The choices in every dropdown. Changes save straight away.</p>
   ${LISTS.map(([k, l]) => `<div class="card pad"><div class="cap">${l}</div><div class="lchips">${lines(s[k]).map((x, i) => `<span>${esc(x)}<button data-lrm="${k}:${i}" aria-label="Remove ${esc(x)}">✕</button></span>`).join('')}</div>
@@ -1361,7 +1758,7 @@ function parseContacts(text, names){
   for(let i = 1; i < parts.length; i += 2){
     const before = parts[i - 1].replace(/\(mailto:[^)]*\)/gi, ' ').replace(/[\[\]]/g, ' '), email = parts[i].replace(/^mailto:/i, '').toLowerCase();
     const ph = (before.match(/\+?\d[\d\s-]{7,}\d/g) || []).pop() || '';
-    const nm = before.replace(/\+?\d[\d\s-]{7,}\d/g, ' ').replace(/[•·|,:;]/g, ' ').replace(/\s+/g, ' ').trim().split(' ').filter(w => /^[a-z'’-]+$/i.test(w)).slice(-3).join(' ');
+    const nm = before.replace(/\+?\d[\d\s-]{7,}\d/g, ' ').replace(/[•·|,:;]/g, ' ').replace(/\s+/g, ' ').trim().split(' ').filter(w => /^[a-z'\'-]+$/i.test(w)).slice(-3).join(' ');
     if(!nm) continue;
     const title = nm.toLowerCase().replace(/\b\w/g, c => c.toUpperCase()), w = title.split(' '), sur = w[w.length - 1].toLowerCase(), fst = w[0].toLowerCase();
     // same surname and a first name starting the same way (Cathy → Catherine); anything less certain stays a new name to check
@@ -1382,7 +1779,7 @@ S.sending = () => `<h2 class="sec-h">Email & WhatsApp</h2><p class="sec-p">Sendi
   </div>`;
 
 S.backup = () => { const last = store.get('lhq_lastBackup', 0);
-  return `<h2 class="sec-h">Backup & restore</h2><p class="sec-p">Everything is stored online in LHQ Hub. A backup is an extra copy as one file: keep it in Google Drive or send it to yourself.</p>
+  return `<h2 class="sec-h">Backup & restore</h2><p class="sec-p">Everything is stored online. A backup is one extra file of it all: keep it in Google Drive.</p>
   <div class="card pad"><dl class="kv"><dt>Last backup</dt><dd>${last ? ago(last) : 'Never'}</dd><dt>Documents</dt><dd>${saved.length}</dd>${window.lhqStorageUse ? `<dt>This device</dt><dd>${(lhqStorageUse() / 1048576).toFixed(1)} MB used of about 5 MB</dd>` : ''}</dl>
   <div class="acts" style="margin-top:12px"><button class="btn n" id="bkGo">Back up now</button><button class="btn" id="rsGo">Add from a backup</button></div>
   <p class="note">Adds what's missing; the newer copy wins. Never deletes.</p></div>`; };
@@ -1390,7 +1787,7 @@ S.backup = () => { const last = store.get('lhq_lastBackup', 0);
 /* previews have their own storage; the Director can fill it with demo data */
 let PREVIEW = false; try{ PREVIEW = sessionStorage.getItem('lhq_preview') === '1'; }catch(e){}
 fetch('/api/hub/people?v=2', {cache:'no-store'}).then(r => r.json()).then(j => { const was = PREVIEW; PREVIEW = !!j.preview; try{ sessionStorage.setItem('lhq_preview', PREVIEW ? '1' : '0'); }catch(e){} if(was !== PREVIEW) render(); }).catch(() => {});
-S.demo = () => `<h2 class="sec-h">Demo data</h2><p class="sec-p">This preview has its own storage, separate from LHQ's real documents. Fill it with six months of made-up students to try every page.</p>
+S.demo = () => `<h2 class="sec-h">Demo data</h2><p class="sec-p">Test copy only. Load six months of demo data.</p>
   <div class="card pad"><div class="cap">What you get</div>
   <p class="note" style="margin:0 0 6px">About 50 invented students from May to today (around 40 at a time): quotes, invoices, receipts and tuition cards; 50/50 plans; payments in grace and overdue; periods ending this week and renewed; ended students; quotes waiting; a card with no tutor; a sibling discount; a deleted receipt; tutors' session logs, SRAs and comments for Reports; and Business: spending from May to today with budgets, and repeating costs waiting to be confirmed.</p>
   <p class="note" style="margin:0 0 12px">It also adds Catherine Mkwinda (Admin, who can record spending), eight tutors, and Mayamiko Goliati (switched off). Their PIN is <b>1111</b>. Your own account stays as it is.</p>
@@ -1441,7 +1838,14 @@ function bind(){
   on('[data-actw]', el => { AF.when = el.dataset.actw; actLoad(); });
   on('[data-acta]', el => { const a = el.dataset.acta; if(!a) AF.areas.clear(); else AF.areas.has(a) ? AF.areas.delete(a) : AF.areas.add(a); actLoad(); });
   on('[data-actmore]', () => actLoad(true));
+  on('[data-acts]', el => actSheet(+el.dataset.acts));
+  on('[data-actf]', el => { const a = el.dataset.actf; if(AF.areas.size === 1 && AF.areas.has(a)) AF.areas.clear(); else { AF.areas.clear(); AF.areas.add(a); } actLoad(); });
   if($('actWho')) $('actWho').onchange = () => { AF.who = $('actWho').value; actLoad(); };
+  if($('actKind')) $('actKind').onchange = () => { AF.areas.clear(); if($('actKind').value) AF.areas.add($('actKind').value); actLoad(); };
+  on('[data-actwho]', el => { AF.who = AF.who === el.dataset.actwho ? '' : el.dataset.actwho; actLoad(); });
+  on('[data-actg]', el => { AF.grp = el.dataset.actg; render(); });
+  on('[data-actq]', el => { AF.quiet = el.dataset.actq === '1'; render(); });
+  on('[data-actall]', () => actPeopleSheet());
   if($('cfQ')) $('cfQ').oninput = () => { cfQuery = $('cfQ').value; const pos = $('cfQ').selectionStart; render(); const q = $('cfQ'); if(q){ q.focus(); q.setSelectionRange(pos, pos); } };
   if($('attAll')) $('attAll').onclick = () => { attAll = true; render(); };
   document.querySelectorAll('[data-acode]').forEach(el => el.onclick = async () => { try{ const r = await hub.api('people', {method:'POST', body: JSON.stringify({action:'code', id: el.dataset.acode})}); store.set('lhq_people', r.people); codeSheet(r); }catch(e){ toast(e.message); } });
@@ -1456,6 +1860,54 @@ function bind(){
       ${others.length ? `<div class="h2">Or an existing parent</div><div class="card">${others.slice(0, 30).map(p => `<button class="it" data-alink="${p.id}"><span class="t"><b>${esc(p.name)}</b><small>${esc((p.children || []).join(', '))}</small></span></button>`).join('')}</div>` : ''}`);
     $('apAdd').onclick = () => go($('apN').value.trim(), $('apE').value.trim());
     document.querySelectorAll('[data-alink]').forEach(b => b.onclick = async () => { try{ const r = await hub.api('people', {method:'POST', body: JSON.stringify({action:'link', id: b.dataset.alink, childName: s0.name})}); store.set('lhq_people', r.people); closeSheet(); render(); toast('Linked'); }catch(e){ toast(e.message); } }); });
+  document.querySelectorAll('[data-tm]').forEach(el => el.onchange = () => { const [i, j] = el.dataset.tm.split(':').map(Number); if(termDraft && termDraft[i]) termDraft[i][j] = el.value; });
+  document.querySelectorAll('[data-tmrm]').forEach(el => el.onclick = () => { termDraft.splice(+el.dataset.tmrm, 1); render(); });
+  if($('tmAdd')) $('tmAdd').onclick = () => { const last = termDraft[termDraft.length - 1], n = last ? (+(last[0].match(/\d+/) || [0])[0] % 3) + 1 : 1; termDraft.push(['Term ' + n, '', '']); render(); };
+  document.querySelectorAll('[data-bsc]').forEach(b => b.onclick = () => { bandSc = b.dataset.bsc; render(); });
+  const kSaveConf = patch => saveSettings({kpi: Object.assign({}, settingsKV().kpi || {}, patch)});
+  if($('tsSee')) $('tsSee').onclick = () => { saveSettings({tsee: !settingsKV().tsee}); render(); };
+  if(document.querySelector('[data-tsobl]')) document.querySelector('[data-tsobl]').onclick = () => objSheet();
+  if($('tsObj')) $('tsObj').onclick = () => { const o = Object.assign({subs: []}, settingsKV().obj); o.on = !o.on; saveSettings({obj: o}); render(); };
+  document.querySelectorAll('[data-tsobs]').forEach(b => b.onclick = () => { const o = Object.assign({subs: []}, settingsKV().obj), x = b.dataset.tsobs, has = (o.subs || []).some(y => SCHED.nk(y) === SCHED.nk(x)); o.subs = has ? o.subs.filter(y => SCHED.nk(y) !== SCHED.nk(x)) : (o.subs || []).concat(x); saveSettings({obj: o}); render(); });
+  document.querySelectorAll('[data-askd]').forEach(b => b.onclick = async () => { const [id, how] = b.dataset.askd.split('|'); try{ await hub.api('asks', {method: 'POST', body: JSON.stringify({id, how})}); await hub.pull(); toast(how === 'moved' ? 'Marked moved · tutor told' : 'Kept · tutor told'); render(); }catch(e){ toast(e.message); } });
+  if($('kAdm')) $('kAdm').onclick = () => { kSaveConf({admin: !KPI.conf(settingsKV()).admin}); render(); };
+  if($('kTut')) $('kTut').onclick = () => { kSaveConf({tutors: !KPI.conf(settingsKV()).tutors}); render(); };
+  if($('kSave')) $('kSave').onclick = () => { const tg = {}; let bad = false; document.querySelectorAll('[data-ktg]').forEach(el => { const n = Number(el.value); if(!(n >= 0 && n <= 100)) bad = true; tg[el.dataset.ktg] = n; });
+    const run = Math.round(Number($('kRun').value)), many = Math.round(Number($('kMany').value)); if(bad || !(run >= 1 && run <= 8) || !(many >= 1 && many <= 6)){ toast('Check the numbers'); return; }
+    kSaveConf({tg, run, many}); toast('Saved'); render(); };
+  if($('bndSave')) $('bndSave').onclick = () => { const v = {}; let bad = false; document.querySelectorAll('[data-bnd]').forEach(el => { const n = Number(el.value); if(!(n >= 0 && n <= 100)) bad = true; v[el.dataset.bnd] = n; });
+    const G = EXAMS.GRADES[bandSc]; if(bad || G.some((g, i) => i && v[g] > v[G[i - 1]])){ toast('Each grade needs a lower % than the one above'); return; }
+    saveSettings({bands: Object.assign({}, settingsKV().bands || {}, {[bandSc]: v})}); toast('Saved'); render(); };
+  if($('bndReset')) $('bndReset').onclick = () => { const b = Object.assign({}, settingsKV().bands || {}); delete b[bandSc]; saveSettings({bands: b}); render(); };
+  document.querySelectorAll('[data-extab]').forEach(b => b.onclick = () => { exTab = b.dataset.extab; topDraft = null; render(); });
+  document.querySelectorAll('[data-tp]').forEach(el => el.onchange = () => { const [i, f] = el.dataset.tp.split(':'); if(topDraft && topDraft[+i]) topDraft[+i][f] = el.value; });
+  document.querySelectorAll('[data-tprm]').forEach(el => el.onclick = () => { topDraft.splice(+el.dataset.tprm, 1); render(); });
+  if($('tpAdd')) $('tpAdd').onclick = () => { topDraft.push({id: 't' + Date.now().toString(36), d: '', ak: 'm', ex: 'I', sub: '', tp: ''}); render(); };
+  if($('tpSave')) $('tpSave').onclick = () => { const L = topDraft.filter(x => x.d && String(x.sub).trim()).map(x => ({id: x.id || 't' + Math.random().toString(36).slice(2, 8), d: x.d, ak: x.ak || 'm', ex: x.ex, sub: String(x.sub).trim(), tp: String(x.tp || '').trim()})).sort((a, b) => a.d.localeCompare(b.d)); saveSettings({topicals: L}); topDraft = null; toast('Saved'); render(); };
+  if($('fxSave')) $('fxSave').onclick = () => { const sr = $('fxSr').value, cc = $('fxCc').value.trim(), d = $('fxD').value;
+    if(!/^\d{4}\/\d{2}$/.test(cc) || !d){ toast('Give the paper (e.g. 0580/22) and its date'); return; }
+    if(!(EXAMS.rowsAll({})[sr] || []).some(p => p.code + '/' + p.comp === cc)){ toast('That paper isn\'t in this series'); return; }
+    saveSettings({examFix: Object.assign({}, settingsKV().examFix || {}, {[sr + '|' + cc]: {a: d}})}); toast('Saved'); render(); };
+  document.querySelectorAll('[data-fxrm]').forEach(b => b.onclick = () => { const f = Object.assign({}, settingsKV().examFix || {}); delete f[b.dataset.fxrm]; saveSettings({examFix: f}); render(); });
+  document.querySelectorAll('[data-extg]').forEach(b => b.onclick = () => { const k = b.dataset.extg, s0 = HD.students().find(x => x.key === route.args[0]) || {}, it = SCHED.items(saved.filter(d => typeOf(d) === 'card'), HD.today()).find(y => y.k === k); if(!it) return;
+    const E = Object.values((store.get('lhq_logs', {e:{}}) || {}).e || {}).filter(e => e && e.k === k), M = MARKS.fromEntries(E);
+    EXUI.targetSheet({k, name: s0.name || it.st, sub: it.sub, i: EXUI.info(k, EXUI.staffPack([it], E), M.w), onSaved: async () => { await hub.pull(); render(); }}); });
+  if(route.page === 'exams' && window.EXUI) EXUI.bindTimetable(render);
+  if(route.page === 'kpi' && window.KPIUI) KPIUI.bindDir();
+  if(window.SRAFIG && (route.page === 'srafig' || route.page === 'student')){ SRAFIG.bind(); SRAFIG.tdBind(); }
+  if(window.FUP && route.page === 'fu') FUP.bind();
+  if(window.REV && route.page === 'student') REV.bindLHQ();
+  if(window.SOUNDS && route.page === 'sounds') SOUNDS.bind();
+  if(window.TPAYUI && (route.page === 'pay' || (route.page === 'set' && /tpay/.test(location.hash)))) TPAYUI.bind();
+  document.querySelectorAll('[data-pdt]').forEach(el => el.onchange = () => { pdDraft.term[el.dataset.pdt] = el.value; });
+  document.querySelectorAll('[data-pdn]').forEach(el => el.oninput = () => { pdDraft.fast[+el.dataset.pdn].name = el.value; });
+  document.querySelectorAll('[data-pdd]').forEach(el => el.onchange = () => { const [i, j] = el.dataset.pdd.split(':').map(Number), x = pdDraft.fast[i]; x.dates = x.dates || []; x.dates[j] = el.value; });
+  document.querySelectorAll('[data-pdrm]').forEach(el => el.onclick = () => { pdDraft.fast.splice(+el.dataset.pdrm, 1); render(); });
+  if($('pdAdd')) $('pdAdd').onclick = () => { pdDraft.fast.push({id: 'f' + Date.now().toString(36), name: '', dates: []}); render(); };
+  if($('pdSave')) $('pdSave').onclick = () => { const fast = pdDraft.fast.map(x => ({id: x.id || 'f' + Math.random().toString(36).slice(2, 8), name: String(x.name || '').trim(), dates: (x.dates || []).filter(Boolean).sort()})).filter(x => x.name && x.dates.length);
+    if(pdDraft.fast.some(x => String(x.name || '').trim() && !(x.dates || []).filter(Boolean).length)){ toast('Give each intake at least one payment date'); return; }
+    const term = {}; Object.entries(pdDraft.term).forEach(([a, d]) => { if(d) term[a] = d; }); saveSettings({payDates: {term, fast}}); pdDraft = null; render(); };
+  if($('termSave')) $('termSave').onclick = () => { const L = termDraft.filter(t => t[0].trim() && t[1] && t[2]); if(L.some(t => t[1] > t[2])){ toast('A term ends before it starts'); return; } saveSettings({terms: L.map(t => [t[0].trim(), t[1], t[2]])}); termDraft = null; render(); };
   if($('ohSave')) $('ohSave').onclick = () => { const o = {}; ['Mo','Tu','We','Th','Fr','Sa','Su'].forEach(d => { const a = $('oh' + d + 'a').value, b = $('oh' + d + 'b').value; o[d] = a && b && a < b ? [a, b] : null; }); saveSettings({openHours: o}); };
   document.querySelectorAll('[data-view]').forEach(el => el.onclick = async () => { const v = el.dataset.view, s0 = hub.session();
     if(s0 && s0.me){ s0.me.view = v; localStorage.setItem('lhq_session', JSON.stringify(s0)); } LHQNav.section(route.page); render();
@@ -1480,6 +1932,7 @@ function bind(){
   // account
   on('[data-thm]', el => { lhqTheme.set(el.dataset.thm); render(); });
   on('[data-txt]', el => { lhqTheme.setText(el.dataset.txt); render(); });
+  on('[data-apcol]', el => { lhqTheme.setCol(el.dataset.apcol); render(); });
   const saveNav = async nav => { const s0 = hub.session(); if(s0 && s0.me){ s0.me.nav = nav; localStorage.setItem('lhq_session', JSON.stringify(s0)); } render();
     try{ await hub.api('people', {method:'POST', body: JSON.stringify({action:'nav', nav})}); }catch(e){ toast('Saved on this device'); } };
   on('[data-navk]', el => { const k = el.dataset.navk, C = LHQNav.chosenKeys().slice(), i = C.indexOf(k);
@@ -1546,7 +1999,7 @@ function bind(){
     if($('ppinGo')) $('ppinGo').onclick = () => peopleCall({action:'pin', id:pid, pin:$('ppin').value}, `New PIN set for ${first(P0.name)}`);
     if($('pOnOff')) $('pOnOff').onclick = () => { if(P0.active && !confirm(`Switch off ${P0.name}? They are signed out everywhere straight away.`)) return; peopleCall({action:P0.active ? 'off' : 'on', id:pid}, P0.active ? `${first(P0.name)} is switched off` : `${first(P0.name)} can sign in again`); };
     if($('pRemove')) $('pRemove').onclick = () => {
-      openSheet(`<h3>Remove ${esc(P0.name)}?</h3><p class="sp">Their account is deleted and they can't sign in. Documents and logs they made stay, with their name on them. To stop access for now, Switch off is enough.</p><div class="acts"><button class="btn rd" id="rmGo">${ic('bin',16)} Remove</button><button class="btn" data-close>Keep</button></div>`);
+      openSheet(`<h3>Remove ${esc(P0.name)}?</h3><p class="sp">Deletes the account. Their documents and logs stay. To pause access, use Switch off.</p><div class="acts"><button class="btn rd" id="rmGo">${ic('bin',16)} Remove</button><button class="btn" data-close>Keep</button></div>`);
       bind(); $('rmGo').onclick = async () => { if(await peopleCall({action:'remove', id:pid}, 'Account removed')){ closeSheet(); location.hash = '#set/people'; } };
     };
   }

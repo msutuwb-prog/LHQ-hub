@@ -1,6 +1,10 @@
 [build]
   publish = "site"
   functions = "netlify/functions"
+  # Save credits: the live Hub (site lhqhub) builds only its main branch; the test site (and test copies) build only when the latest commit says [preview]
+  ignore = '''if [ "$SITE_NAME" = "lhqhub" ]; then [ "$CONTEXT" = "production" ] && exit 1 || exit 0; fi; if git log -1 --pretty=%B | grep -q "\[preview\]"; then exit 1; fi; exit 0'''
 
 [functions]
   node_bundler = "esbuild"
+  # read at run time (topic lists and card rules, for syllabus codes and topic counts)
+  included_files = ["site/topics.js", "site/card.js"]

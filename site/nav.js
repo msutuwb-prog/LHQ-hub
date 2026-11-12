@@ -4,7 +4,7 @@
   const KEY = 'lhq_layout';
   const P = {home:'<path d="M4 11l8-7 8 7v9H4z"/>', students:'<circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.5 3-6 6-6s6 2.5 6 6"/><path d="M16 4.5a3.5 3.5 0 010 7M18 14c2 .8 3 3 3 6"/>',
     docs:'<path d="M8 3h8l4 4v12H8z"/><path d="M16 3v4h4"/><path d="M4 7v14h12"/>', reports:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>', tsra:'<path d="M3 12a9 9 0 1 0 3-6.7"/><path d="M3 4v5h5"/><path d="M12 8v4l3 2"/>', trep:'<path d="M8 3h8l4 4v14H4V3z"/><path d="M8 12h8M8 16h5"/>', teach:'<path d="M3 7l9-4 9 4-9 4z"/><path d="M7 9v5c0 1.7 2.2 3 5 3s5-1.3 5-3V9"/><path d="M21 7v6"/>', business:'<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6.5 9.5v.01M17.5 14.5v.01"/>',
-    settings:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>', plus:'<path d="M12 5v14M5 12h14"/>', activity:'<path d="M3 12h4l2-6 4 12 2-6h6"/>', me:'<path d="M4 11l8-7 8 7v9H4z"/>', mprac:'<path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/>', mcal:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>', mprog:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>', mpay:'<rect x="2" y="6" width="20" height="13" rx="2"/><circle cx="12" cy="12.5" r="2.5"/>', more:'<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>', tutors:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>', tcal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>', calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'};
+    settings:'<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M4.2 4.2l2.1 2.1M17.7 17.7l2.1 2.1M2 12h3M19 12h3M4.2 19.8l2.1-2.1M17.7 6.3l2.1-2.1"/>', plus:'<path d="M12 5v14M5 12h14"/>', activity:'<path d="M3 12h4l2-6 4 12 2-6h6"/>', me:'<path d="M4 11l8-7 8 7v9H4z"/>', mprac:'<path d="M9 11l3 3 8-8"/><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h9"/>', mcal:'<rect x="3" y="4" width="18" height="17" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/>', mprog:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>', mfocus:'<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2M9 2h6"/>', mrep:'<path d="M8 3h8l4 4v14H4V3z"/><path d="M8 12h8M8 16h5"/>', mpay:'<rect x="2" y="6" width="20" height="13" rx="2"/><circle cx="12" cy="12.5" r="2.5"/>', more:'<circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/>', tutors:'<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>', tcal:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>', calendar:'<rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/>'};
   const ic = (n, s = 20, w = 1.8) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${P[n]}</svg>`;
   const ALL = [['home','Home','index.html#home'],['students','Students','index.html#students'],['docs','Documents','index.html#docs'],['business','Business','index.html#biz'],['reports','Reports','index.html#reports'],['settings','Settings','index.html#settings']];
   /* Business shows for the Director, and for an admin given spending or profit and loss */
@@ -12,7 +12,8 @@
   const who = () => { try{ return (JSON.parse(localStorage.getItem('lhq_session') || 'null') || {}).me || {}; }catch(e){ return {}; } };
   /* tutors see Teaching and Settings; staff who also teach get Teaching beside Home */
   const items = () => { const m = who();
-    if(m.role === 'student') return [['me','Home','index.html#me'],['mprac','Practice','index.html#me/practice'],['mcal','Calendar','index.html#me/calendar'],['mprog','Progress','index.html#me/progress'],['more','More','index.html#me/more']];
+    if(m.role === 'student'){ const C = window.SX ? SX.CHOICE : [['mcal','Calendar','index.html#me/calendar'],['mprog','Progress','index.html#me/progress']], P = window.SX ? SX.barPicks() : ['mcal','mprog'];
+      return [['me','Home','index.html#me'],['mprac','Practice','index.html#me/practice']].concat(P.map(k => C.find(c => c[0] === k)).filter(Boolean), [['more','More','index.html#me/more']]); }
     if(m.role === 'parent') return [['me','Home','index.html#me'],['mprog','Sessions','index.html#me/sessions'],['mpay','Payments','index.html#me/payments'],['mcal','Calendar','index.html#me/calendar'],['more','More','index.html#me/more']];
     if(m.role === 'tutor') return [['teach','Home','index.html#teach'],['tcal','Calendar','index.html#teach/cal'],['tsra','SRAs','index.html#teach/sra'],['trep','Report','index.html#teach/report'],['settings','Settings','index.html#settings']];
     return [HOME].concat(chosen(), moreItems().length ? [['more','More','index.html#more']] : []); };
@@ -41,18 +42,19 @@
   let current = '';
   const onKey = L => { if(L.some(x => x[0] === current) || ['tutor','student','parent'].includes(who().role)) return current; return moreItems().some(x => x[0] === current) ? 'more' : current; };
   function draw(){
+    { const sb = document.getElementById('hnSearch'); if(sb) sb.hidden = !who().role; }
     const logo = window.lhqTheme ? lhqTheme.logo() : 'logo.png';
     const side = document.getElementById('hnSide'), bar = document.getElementById('hnBar');
     if(side) side.innerHTML = `<a class="hn-logo" href="index.html#${{tutor:'teach', student:'me', parent:'me'}[who().role] || 'home'}"><img class="lhq-logo" src="${logo}" alt="LHQ Learning Solutions"></a>
       ${['tutor','student','parent'].includes(who().role) ? '' : `<a class="hn-new" href="index.html#new">${ic('plus',18,2.4)}<span>New</span></a>`}
       ${(SL => SL.map(([k,l,h]) => `<a class="hn-i ${onKey(SL)===k?'on':''}" href="${h}">${ic(l === 'Home' ? 'home' : k,20)}<span>${l}</span></a>`).join(''))(sideItems())}`;
-    const BL = items(); if(bar) bar.innerHTML = BL.map(([k,l,h]) => `<a class="${onKey(BL)===k?'on':''}" href="${h}">${ic(l === 'Home' ? 'home' : k,22)}${l}</a>`).join('');
+    const BL = items(); if(bar) bar.innerHTML = BL.map(([k,l,h]) => `<a class="${onKey(BL)===k?'on':''}" href="${h}">${ic(l === 'Home' ? 'home' : k,22)}<span class="hn-l">${l}</span></a>`).join('');
   }
   function mount(section){
     current = section;
     if(!document.getElementById('hnTop')){
       const logo = window.lhqTheme ? lhqTheme.logo() : 'logo.png';
-      document.body.insertAdjacentHTML('afterbegin', `<header class="topbar hn-top" id="hnTop"><a class="hn-logo" href="index.html#${{tutor:'teach', student:'me', parent:'me'}[who().role] || 'home'}"><img class="lhq-logo" src="${logo}" alt="LHQ Learning Solutions"></a><div class="actions"><button class="hn-bellb" id="hnBell" type="button" aria-label="Bell" hidden><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span class="hn-bn" hidden></span></button><button class="theme-btn" type="button"></button></div></header><aside class="hn-side" id="hnSide"></aside>`);
+      document.body.insertAdjacentHTML('afterbegin', `<header class="topbar hn-top" id="hnTop"><a class="hn-logo" href="index.html#${{tutor:'teach', student:'me', parent:'me'}[who().role] || 'home'}"><img class="lhq-logo" src="${logo}" alt="LHQ Learning Solutions"></a><div class="actions"><button class="hn-bellb" id="hnSearch" type="button" aria-label="Search" title="Search (/ or Ctrl+K)" onclick="window.LHQSearch && LHQSearch.open(window.LHQSearchScope ? LHQSearchScope() : '')"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg></button><button class="hn-bellb" id="hnBell" type="button" aria-label="Notifications" title="Notifications" hidden><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg><span class="hn-bn" hidden></span></button><button class="theme-btn" type="button"></button></div></header><aside class="hn-side" id="hnSide"></aside>`);
       document.body.insertAdjacentHTML('beforeend', '<nav class="hn-bar" id="hnBar" aria-label="Sections"></nav>');
     }
     apply(); draw();
@@ -80,5 +82,5 @@
   }
   /* a section opened from the menu starts a fresh trail, so it shows no back link */
   document.addEventListener('click', e => { if(e.target.closest && e.target.closest('#hnSide a, #hnBar a, .hn-top .hn-logo')){ try{ sessionStorage.setItem(TK, '[]'); }catch(err){} } }, true);
-  window.LHQNav = {mount, layout, setLayout, lean, moreItems, pool, chosenKeys, DEF, section: s => { current = s; draw(); }, ic, visit, back, trail};
+  window.LHQNav = {mount, refresh: () => draw(), layout, setLayout, lean, moreItems, pool, chosenKeys, DEF, section: s => { current = s; draw(); }, ic, visit, back, trail};
 })();

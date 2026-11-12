@@ -159,7 +159,7 @@ window.BIZ = (function(){
       ${toRec ? `<tr class="sub"><td>Repeating costs not yet confirmed <a href="#biz/spending/${period}">confirm</a></td><td>−${mk(toRec)}</td></tr>` : ''}</table>
       ${f.capital || f.repaid ? `<div class="cap" style="margin-top:14px">Not counted in profit</div><table class="bz-pl">${Object.entries(f.byType).filter(([t]) => NOT_INCOME.includes(t)).map(([t, v]) => `<tr class="sub"><td>${esc(t)}</td><td>${mk(v)}</td></tr>`).join('')}${f.repaid ? `<tr class="sub"><td>Loan repayments</td><td>−${mk(f.repaid)}</td></tr>` : ''}</table>` : ''}
       ${live ? '<p class="note">This period is still going: costs paid at month end (such as salaries and tutor pay) are not all in yet, so profit looks higher than it will be.</p>' : ''}
-      <p class="note">Salaries here are what was recorded in Spending. Tutor pay from session logs arrives with the tutor part.</p></div>
+      <p class="note">From Spending. Tutor pay from logs comes with Tutor pay.</p></div>
     ${!isM(period) ? monthTable(months(period)) : ''}`;
   }
   function monthTable(ms){
@@ -177,7 +177,7 @@ window.BIZ = (function(){
     return `${D.length ? `<div class="card pad" style="border-color:var(--gold)"><div class="cap">Repeating costs to confirm</div>
         ${D.map(d => `<div class="it bz-due"><span class="t"><b>${esc(String(d.last.what || d.last.cat).replace(new RegExp('\\b' + MONL[+d.last.date.slice(5, 7) - 1] + '\\b', 'g'), MONL[+d.date.slice(5, 7) - 1]))}</b><small>${nice(d.date)} · ${esc(d.last.cat)} · last time ${mk(num(d.last.amount))}</small></span>
           <div class="acts"><button class="btn sm n" data-bzok="${d.sid}|${d.date}">Paid ${mkShort(num(d.last.amount))}</button><button class="btn sm" data-bzchg="${d.sid}|${d.date}">Other amount</button><button class="btn sm" data-bzskip="${d.sid}|${d.date}">Skip</button></div></div>`).join('')}
-        <p class="note">Rent, internet and salaries set to repeat come back here each month. Confirm when they are paid.</p></div>` : ''}
+        <p class="note">Repeating costs come back monthly. Confirm when paid.</p></div>` : ''}
       ${catF ? '' : '<button class="btn sm flt-btn" data-flt style="margin:0 0 10px">Filter</button>'}<div class="chips ${catF ? '' : 'flt'}"><a class="chip ${catF ? '' : 'on'}" href="#biz/spending/${period}">All <i>${f.list.length}</i></a>${present.map(c => `<a class="chip ${catF === c ? 'on' : ''}" href="#biz/spending/${period}/${encodeURIComponent(c)}">${esc(c)}</a>`).join('')}</div>
       <div class="card">${list.map(e => `<${mayEdit(e) ? `button class="it" data-bzedit="${e.id}"` : 'div class="it"'}><span class="t"><b>${esc(e.what || e.cat)}</b><small>${[nice(e.date), e.cat, e.to, e.method, e.by ? 'by ' + first(e.by) : ''].filter(Boolean).map(esc).join(' · ')}</small></span>${e.rep === 'm' ? '<span class="tag bl">Monthly</span>' : ''}<b class="bz-amt">${mk(num(e.amount))}</b></${mayEdit(e) ? 'button' : 'div'}>`).join('') || `<p class="empty">No spending recorded for ${periodLabel(period)}${catF ? ' in ' + esc(catF) : ''}.</p>`}</div>
       ${present.length ? `<div class="card pad"><div class="cap bz-cap">By category <b>${mk(f.exp)}</b></div>${Object.entries(f.byCat).sort((a, b) => b[1] - a[1]).map(([c, v]) => `<div class="bz-hb"><span>${esc(c)}</span><span class="tr"><i style="width:${v / max * 100}%"></i></span><b>${mkShort(v)}</b></div>`).join('')}</div>` : ''}
@@ -204,6 +204,8 @@ window.BIZ = (function(){
   function page(tab, period, cat){
     const T = SEC();
     if(!T.length) return `<div class="ph"><div class="tt"><h1>Business</h1></div></div><p class="empty">The Director hasn't given you access to Business.</p>`;
+    const miK = tab === 'money' && window.MIN && MIN.ok(period) ? period : '';   // Money in also takes a day, week, term or half-year
+    if(miK) period = MIN.std(miK);
     if(!period || !(isM(period) || isQ(period) || isY(period))){ if(tab === 'charts' && period) cat = period; period = thisMonth(); }
     const fy = isY(period) ? +period.slice(2) : fyOf(isQ(period) ? qMonths(period)[0] : period);
     const acts = `<div class="acts">${can('spend') ? `<button class="btn" data-bzin>${ic('plus',16,2.4)} Money in</button><button class="btn n" data-bznew>${ic('plus',16,2.4)} Spending</button>` : ''}</div>`;
@@ -219,10 +221,10 @@ window.BIZ = (function(){
     if(tab === 'charts' && /^p\d+$/.test(cat || '') && window.PC){ const it = PC.chosen('biz')[+cat.slice(1)]; if(it && it.c) INS.setChart(it.c); }
     const name = SEC_NAME[tab] || (T.find(x => x[0] === tab) || [])[1] || 'Business';
     const body = tab === 'pl' ? plView(period) : tab === 'budgets' ? budgetView(period) : tab === 'allocations' ? (window.INS ? INS.pots(period) : '') : tab === 'spending' ? (window.INS ? INS.spendTop(period) : '') + spendingView(period, cat)
-      : window.INS ? INS.view(tab, period, cat) : '';
+      : tab === 'money' && window.MIN ? MIN.view(miK || period) : window.INS ? INS.view(tab, period, cat) : '';
     return `${crumb('#biz/home/' + period, 'Business', 'biz/' + (tab === 'cat' ? 'cat' : tab))}
-      <div class="ph"><div class="tt"><h1>${esc(name)}</h1><p>${tab === 'owed' ? 'As of today' : tab === 'charts' ? 'Build a chart from any of the figures' : periodLabel(period)}</p></div>${['spending','cat','money'].includes(tab) ? acts : ''}</div>
-      ${['charts','owed','allocations'].includes(tab) ? '' : periodBar(tab, period, tab === 'cat' ? cat : '')}
+      <div class="ph"><div class="tt"><h1>${esc(name)}</h1><p>${tab === 'owed' ? 'As of today' : tab === 'charts' ? 'Build a chart from any of the figures' : tab === 'money' && window.MIN ? esc(MIN.label(miK || period)) : periodLabel(period)}</p></div>${['spending','cat','money'].includes(tab) ? (tab === 'money' && window.PC && window.MIN ? acts.replace('<div class="acts">', '<div class="acts">' + PC.pencil('money')) : acts) : ''}</div>
+      ${['charts','owed','allocations'].includes(tab) ? '' : tab === 'money' && window.MIN ? MIN.bar(miK || period) : periodBar(tab, period, tab === 'cat' ? cat : '')}
       ${body}`;
   }
 
@@ -239,7 +241,7 @@ window.BIZ = (function(){
       <div class="r2 lm"><label class="f"><span>Paid by</span><select class="in" id="inMethod"><option value="">Choose</option>${methods().map(m => `<option ${e.method === m ? 'selected' : ''}>${esc(m)}</option>`).join('')}</select></label>
         <label class="f"><span>Repeats</span><select class="in" id="inRep"><option value="">Once</option><option value="m" ${e.rep === 'm' ? 'selected' : ''}>Every month</option></select></label></div>
       <button class="lean-more" type="button" data-leanmore>+ More</button><button class="btn n full" id="inSave">Save</button>${isNew ? '' : `<button class="btn rd full" id="inDel">${ic('bin',16)} Delete</button>`}`);
-    const note = c => { $('inNote').textContent = c === 'Loan received' ? 'Borrowed money: shown in cash and allocations, never as revenue or profit. Record repayments under Spending › Loan repayment, paid to the same lender.' : c === 'Owner investment' ? 'Money put in by the owner: not revenue or profit.' : ''; $('inFromL').textContent = c === 'Loan received' ? 'Lender' : 'From'; };
+    const note = c => { $('inNote').textContent = c === 'Loan received' ? 'Not revenue or profit. Record repayments under Loan repayment.' : c === 'Owner investment' ? 'Money put in by the owner: not revenue or profit.' : ''; $('inFromL').textContent = c === 'Loan received' ? 'Lender' : 'From'; };
     document.querySelectorAll('#inTypes .chip').forEach(b => b.onclick = () => { document.querySelectorAll('#inTypes .chip').forEach(x => x.classList.toggle('on', x === b)); note(b.dataset.c); });
     note(e.cat);
     $('inAmt').oninput = ev => { const d = ev.target.value.replace(/[^\d]/g, ''); ev.target.value = d ? Number(d).toLocaleString('en-US') : ''; };
@@ -316,7 +318,7 @@ window.BIZ = (function(){
   }
   function budgetSheet(){
     const B = budget(), C = cats();
-    openSheet(`<div class="hx"><h3>Monthly budgets</h3><button class="ib" data-close>✕</button></div><p class="sp">How much each category should cost in a month. Leave one-off categories empty if you don't plan for them.</p>
+    openSheet(`<div class="hx"><h3>Monthly budgets</h3><button class="ib" data-close>✕</button></div><p class="sp">Monthly budget per category. Leave one-offs empty.</p>
       ${C.map(c => `<label class="f bz-bf"><span>${esc(c)}</span><input class="in" data-bud="${esc(c)}" inputmode="numeric" value="${B[c] ? Number(B[c]).toLocaleString('en-US') : ''}" placeholder="0"></label>`).join('')}
       <p class="note" id="bzBudTot"></p><button class="btn n full" id="bzBudSave">Save budgets</button>`);
     const tot = () => { let t = 0; document.querySelectorAll('[data-bud]').forEach(i => t += num(i.value)); $('bzBudTot').textContent = `Total ${mk(t)} a month · ${mk(t * 12)} a year`; };
@@ -333,6 +335,7 @@ window.BIZ = (function(){
       const L = d.last, e = {id:uid(), sid, date, cat:L.cat, amount:L.amount, from:L.from || '', what:L.what || '', method:L.method || '', rep:'m', at:Date.now(), by:me().name};
       const all = store.get('lhq_income', {}) || {}; all[e.id] = e; store.set('lhq_income', all); toast(`Recorded: ${mk(num(e.amount))} · ${e.cat}`); render(); });
     if(window.INS) INS.bind();
+    if(window.MIN) MIN.bind();
     on('[data-bzedit]', el => { const e = (store.get('lhq_spend', {}) || {})[el.dataset.bzedit]; if(e) sheet(Object.assign({}, e)); });
     on('[data-bzp]', el => { location.hash = '#biz/' + el.dataset.bzp; });
     on('[data-bzcsv]', el => csv(el.dataset.bzcsv));

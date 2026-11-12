@@ -5,7 +5,7 @@
   'use strict';
   const API = '/api/hub/';
   const DOCS = 'lhq_saved';
-  const KV = ['lhq_settings','lhq_templates','lhq_counters','lhq_repEdits','lhq_logs','lhq_tlinks','lhq_students','lhq_spend','lhq_budget','lhq_income','lhq_classes','lhq_avail','lhq_cardack','lhq_treps','lhq_makeups','lhq_reqs','lhq_clashes','lhq_moves','lhq_confirmer','lhq_sradone'];
+  const KV = ['lhq_settings','lhq_templates','lhq_counters','lhq_repEdits','lhq_logs','lhq_tlinks','lhq_students','lhq_spend','lhq_budget','lhq_income','lhq_classes','lhq_avail','lhq_cardack','lhq_treps','lhq_makeups','lhq_reqs','lhq_clashes','lhq_moves','lhq_confirmer','lhq_sradone','lhq_sreports','lhq_notices','lhq_targets','lhq_myexams','lhq_kpi','lhq_pay','lhq_asks','lhq_school','lhq_fu','lhq_obj'];
   const PRIVATE = ['lhq_spend','lhq_budget','lhq_income'];   // only sent to people allowed to see them; removed here when that changes
   const SESSION = 'lhq_session', BASE = 'lhq_syncBase', KVHASH = 'lhq_syncKv', REV = 'lhq_syncRev', DIRTY = 'lhq_syncDirty', EPOCH = 'lhq_syncEpoch';
   const ls = window.localStorage;
@@ -340,7 +340,7 @@
     box.innerHTML = head('Sign in to LHQ Hub', esc(msg || 'Students, parents and staff all sign in here.')) + errBox(err, locked) +
       `<label class="hub-l">Name, username or email<input class="hub-in" id="hubId" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="e.g. Linga Phiri" value="${esc(id || '')}"></label>
       ${pwIn('hubPw', 'Password', 'current-password')}
-      ${tick('hubKeep', keepMe, 'Keep me signed in on this device', 'For 30 days. Leave it off on a shared or family phone: you are signed out after 12 hours.')}
+      ${tick('hubKeep', keepMe, 'Keep me signed in on this device', '30 days. Leave off on a shared phone.')}
       <button class="hub-go" data-k="go">Sign in</button>
       <button type="button" class="hub-link" data-k="forgot">Forgot password?</button><button type="button" class="hub-link" data-k="code">First time here? I have a setup code</button>
       <p class="hub-foot">Staff: the first time, sign in with your username and your old PIN.</p>`;
@@ -391,7 +391,7 @@
   }
   function pwForgot(){
     const box = overlay(), msg = 'Hello LHQ, I\'ve forgotten my LHQ Hub password. Please send me a setup code.';
-    box.innerHTML = backL('Sign in') + head('Forgot your password?', 'For your safety only LHQ Admin can reset a password. They give you a setup code, and you choose a new password with it.') +
+    box.innerHTML = backL('Sign in') + head('Forgot your password?', 'Ask LHQ for a setup code, then choose a new password.') +
       `<a class="hub-go hub-wa2" target="_blank" rel="noopener" href="https://wa.me/${LHQ_WA}?text=${encodeURIComponent(msg)}">Ask LHQ on WhatsApp</a>
       <a class="hub-btn2" href="tel:+${LHQ_WA}">Call +265 992 525 250</a>
       <button type="button" class="hub-link" data-k="code">I have a setup code</button><button type="button" class="hub-link" data-k="dir">I'm the Director</button>`;
@@ -515,7 +515,8 @@
   const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
   window.addEventListener('DOMContentLoaded', () => {
     if(location.protocol === 'file:') return;           // opened as a file: works on this device only, as before
-    setInterval(check, 60000);
+    // check in every 2 minutes, only while the Hub is on screen (a tab left in the background costs nothing); and at once on coming back
+    setInterval(() => { if(document.visibilityState === 'visible') check(); }, 120000);
     document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') check(); });
     window.addEventListener('online', () => { if(!session()) return; status('saving'); schedulePush(1000); setTimeout(() => { if(get(DIRTY, false)) push(); }, 5000); });
     window.addEventListener('offline', () => { if(session()) status('offline'); });
