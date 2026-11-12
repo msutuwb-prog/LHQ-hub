@@ -128,7 +128,7 @@ window.PERF = (function(){
     }
     if(has('money') && money){
       const D = (key, title) => { const now = grp(f.rows, r => r[key], r => r.amt), bef = grp(p.rows, r => r[key], r => r.amt);
-        return `<div><h3>${title}</h3>` + table(['', 'Amount', 'Share', 'vs before'], srt(now).slice(0, 10).map(([k, v]) => ({c: [esc(k), M(v), pc(v, f.tuition) + '%', ar(chg(v, bef[k] || 0))]}))) + '</div>'; };
+        return `<div class="pf-blk"><h3>${title}</h3>` + table(['', 'Amount', 'Share', 'vs before'], srt(now).slice(0, 10).map(([k, v]) => ({c: [esc(k), M(v), pc(v, f.tuition) + '%', ar(chg(v, bef[k] || 0))]}))) + '</div>'; };
       out.push(sec('Money in, explained', `<p class="pf-n">Tuition received ${M(f.tuition)}. Each payment is split across its invoice's subjects in proportion to their amounts.</p>
         <div class="pf-2">${D('prog', 'By programme')}${D('sub', 'By subject')}</div><div class="pf-2">${D('tutor', 'By tutor')}${D('mode', 'Online or in person')}</div>
         <div class="pf-2">${D('district', 'By district')}${D('school', 'By school')}</div><div class="pf-2">${D('newRet', 'New or returning')}${D('source', 'How they heard')}</div>`));
@@ -141,7 +141,7 @@ window.PERF = (function(){
     if(has('pl') && money){
       out.push(sec('Profit & loss', table(['', 'This period', 'Before', 'Last year'], [
         {c: ['Tuition received', M(f.tuition), M(p.tuition), M(l.tuition)]}, {c: ['Other money in', M(f.other), M(p.other), M(l.other)]}, {cls: 'sub', c: ['Money in', M(f.revenue), M(p.revenue), M(l.revenue)]},
-        {c: ['Spending', '−' + M(f.exp), '−' + M(p.exp), '−' + M(l.exp)]}, {cls: 'tot', c: ['Profit', (f.profit < 0 ? '−' : '') + M(Math.abs(f.profit)), (p.profit < 0 ? '−' : '') + M(Math.abs(p.profit)), (l.profit < 0 ? '−' : '') + M(Math.abs(l.profit))]},
+        {c: ['Spending', ...[f.exp, p.exp, l.exp].map(v => (v > 0.5 ? '−' : '') + M(v))]}, {cls: 'tot', c: ['Profit', (f.profit < 0 ? '−' : '') + M(Math.abs(f.profit)), (p.profit < 0 ? '−' : '') + M(Math.abs(p.profit)), (l.profit < 0 ? '−' : '') + M(Math.abs(l.profit))]},
         {c: ['Margin', f.revenue ? pc(f.profit, f.revenue) + '%' : '–', p.revenue ? pc(p.profit, p.revenue) + '%' : '–', l.revenue ? pc(l.profit, l.revenue) + '%' : '–']}],
         {note: `Invoiced in this period: ${M(f.invoiced)} on ${f.nInv} invoices. Loans and owner investment (${M(f.capital)}) and loan repayments are not counted in profit.`})));
     }
@@ -456,7 +456,7 @@ window.PERF = (function(){
       const el = stage.firstElementChild, w = el.offsetWidth;
       const blob = await (await lhqPdf())().set({margin: [10, 0, 12, 0], image: {type: 'jpeg', quality: 0.96},
         html2canvas: {scale: 2, useCORS: true, backgroundColor: '#ffffff', x: 0, y: 0, scrollX: 0, scrollY: 0, width: w, windowWidth: w},
-        jsPDF: {unit: 'mm', format: 'a4', orientation: 'portrait'}, pagebreak: {mode: ['css'], before: rk === 'business' ? '.pf-s.first + .pf-s' : [], avoid: ['.pf-t.sm', '.pf-t tr', '.pf-b', '.pf-ks', 'h2', 'h3', '.pf-chart', '.pf-hl li']}}).from(el).outputPdf('blob');
+        jsPDF: {unit: 'mm', format: 'a4', orientation: 'portrait'}, pagebreak: {mode: ['css'], before: rk === 'business' ? '.pf-s.first + .pf-s' : [], avoid: ['.pf-t.sm', '.pf-t tr', '.pf-b', '.pf-ks', 'h2', 'h3', '.pf-chart', '.pf-hl li', '.pf-2']}}).from(el).outputPdf('blob');
       const who = rk === 'student' ? ((HD.students().find(s => s.key === c.stu) || {}).name || '') : rk === 'tutor' ? (c.tutor || 'All tutors') : (K.AUD[c.aud] || {}).n || '';
       const name = `LHQ ${K.t}_ ${who ? who + '_ ' : ''}${R.label}${window.FX && FX.active() ? ' (USD)' : ''}.pdf`.replace(/[\\/:*?"<>|]/g, '');
       const u = URL.createObjectURL(blob), a = document.createElement('a'); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 30000);

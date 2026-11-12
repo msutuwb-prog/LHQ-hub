@@ -80,11 +80,14 @@ window.INS = (function(){
   function lineChart(labels, series, o = {}){
     const W = 720, H = o.h || 230, pl = 52, pr = 10, pt = 14, pb = 28, n = labels.length;
     const all = series.flatMap(s => s.vals), max = Math.max(1, ...all), min = Math.min(0, ...all);
-    const nice = v => { const p = Math.pow(10, Math.floor(Math.log10(Math.max(1, v)))); return Math.ceil(v / p) * p; }, top = nice(max), bot = min < 0 ? -nice(-min) : 0;
+    /* axis steps of 1, 2, 2.5 or 5 × 10ⁿ, in dollars when MK / $ is on (a money chart: no fmt given) */
+    const usd = !o.fmt && window.FX && FX.active() && (FX.now() || {}).rate, f = usd ? 1 / usd : 1;
+    const stepOf = v => { const p = Math.pow(10, Math.floor(Math.log10(Math.max(1e-9, v)))), m = v / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10) * p; };
+    const step = stepOf(Math.max((max - min) * f / 4, f < 1 ? 1 : 1)) / f, top = Math.ceil(max / step) * step, bot = Math.floor(min / step) * step, nT = Math.max(1, Math.round((top - bot) / step));
     const x = i => pl + (n <= 1 ? (W - pl - pr) / 2 : (W - pl - pr) * i / (n - 1)), y = v => pt + (H - pt - pb) * (1 - (v - bot) / (top - bot || 1));
-    const fmt = o.fmt || (v => Math.abs(v) >= 1e6 ? (v / 1e6).toFixed(Math.abs(v) >= 1e7 ? 0 : 1) + 'M' : Math.abs(v) >= 1e3 ? Math.round(v / 1e3) + 'k' : Math.round(v));
+    const fmt = o.fmt || (usd ? (v => FX.usdShort(v)) : null) || (v => Math.abs(v) >= 1e6 ? (v / 1e6).toFixed(Math.abs(v) >= 1e7 ? 0 : 1) + 'M' : Math.abs(v) >= 1e3 ? Math.round(v / 1e3) + 'k' : Math.round(v));
     let g = '';
-    for(let k = 0; k <= 4; k++){ const v = bot + (top - bot) * k / 4; g += `<line x1="${pl}" x2="${W - pr}" y1="${y(v)}" y2="${y(v)}" style="stroke:var(--line2)"/><text x="${pl - 6}" y="${y(v) + 4}" text-anchor="end" font-size="10.5" style="fill:var(--muted)">${fmt(v)}</text>`; }
+    for(let k = 0; k <= nT; k++){ const v = bot + step * k; g += `<line x1="${pl}" x2="${W - pr}" y1="${y(v)}" y2="${y(v)}" style="stroke:var(--line2)"/><text x="${pl - 6}" y="${y(v) + 4}" text-anchor="end" font-size="10.5" style="fill:var(--muted)">${fmt(v)}</text>`; }
     if(o.bars){
       const bw = Math.max(4, (W - pl - pr) / n * .6 / series.length);
       series.forEach((s, si) => s.vals.forEach((v, i) => { const cx = pl + (W - pl - pr) * (i + .5) / n - bw * series.length / 2 + si * bw;
