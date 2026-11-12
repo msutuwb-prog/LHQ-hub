@@ -23,7 +23,7 @@ import crypto from "node:crypto";
 import webpush from "web-push";
 import * as A from "../lib/auth.mjs";
 import { pgStore, moveFromBlobs as copyBlobs, copyToBlobs } from "../lib/pgstore.mjs";
-import { one, q } from "../lib/db.mjs";
+import { one, q, tx, newId } from "../lib/db.mjs";
 import vm from "node:vm";
 import fs from "node:fs";
 import path from "node:path";
@@ -1187,6 +1187,117 @@ async function wipe(keepPeople) {
   await putPeople(list);
   return list;
 }
+/* ---------- moving pilot data between the live Hub and the test site (Director only; the browser locks the file with a passphrase) ----------
+   live-to-test: the pilot group (chosen students), their tuition cards and documents, their tutors, their accounts with their passwords,
+     LHQ's settings, and the lines of the teaching lists that mention them. Made on the live Hub, added on the test site.
+   test-to-live: everything the pilot made: accounts (with passwords), students' links to accounts and parents, and the teaching lists
+     (session logs, SRA and ARS marks, follow-ups, objectives, school results, plans, focus, reports...). Documents and money stay with the live Hub.
+   Adding never deletes: an item in both keeps the newer copy (the file's when it has no date). Phone notifications and calendar links can't move:
+   they are tied to each site's own keys. */
+const MOVE_TEACH = ["lhq_logs", "lhq_classes", "lhq_treps", "lhq_avail", "lhq_cardack", "lhq_makeups", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices",
+  "lhq_targets", "lhq_myexams", "lhq_kpi", "lhq_asks", "lhq_school", "lhq_fu", "lhq_obj", "lhq_focus", "lhq_plan", "lhq_sxp"];
+const MOVE_IN = MOVE_TEACH.concat(["lhq_students"]), MOVE_WHOLE = ["lhq_settings", "lhq_templates"];
+const PCOLS = ["id", "name", "role", "username", "email", "phone", "perms", "status", "pw_salt", "pw_hash", "pin_salt", "pin_hash", "pv", "also_tutor", "prefs"];
+const isRec = v => v && typeof v === "object" && !Array.isArray(v);
+const stamp = v => isRec(v) ? +(v.at || v.savedAt || v.updatedAt || v.c || 0) : 0;
+function moveMerge(cur, inc, depth = 0) {
+  if (inc === undefined) return cur;
+  if (cur === undefined || cur === null) return inc;
+  if (Array.isArray(cur) && Array.isArray(inc)) { const seen = new Set(cur.map(x => canon(x))); return cur.concat(inc.filter(x => !seen.has(canon(x)))); }
+  if (isRec(cur) && isRec(inc)) {
+    if (depth > 0 && (inc.id != null || stamp(inc))) return stamp(cur) > stamp(inc) ? cur : inc;   // one record: the newer copy
+    const o = Object.assign({}, cur); Object.keys(inc).forEach(k => { o[k] = moveMerge(cur[k], inc[k], depth + 1); }); return o;
+  }
+  return inc;
+}
+async function movePost(req, me) {
+  if (!isDirector(me)) return fail("Only the Director can move data.", 403);
+  if (!dbMode()) return fail("Moving data needs the shared records (Settings › Shared records).", 409);
+  const b = await req.json().catch(() => ({})), dir = b.dir, test = isPreview();
+  if (!["live-to-test", "test-to-live"].includes(dir)) return fail("Which way?");
+  const from = dir === "live-to-test" ? !test : test;
+  if (b.op === "export") {
+    if (!from) return fail(dir === "live-to-test" ? "Make this file on the live Hub." : "Make this file on the test site.", 409);
+    let keys = null, tutors = null;
+    if (dir === "live-to-test") {
+      keys = new Set((Array.isArray(b.students) ? b.students : []).map(nk).filter(Boolean)); if (!keys.size) return fail("Choose the pilot students.");
+      const cards = (await readAll("doc/")).filter(d => d && d.type === "card" && keys.has(nk(d.student)));
+      tutors = new Set(cards.flatMap(c => (c.subjects || []).map(x => nk(x.tutor)).filter(Boolean)));
+    }
+    const mention = v => { const t = JSON.stringify(v || "").toLowerCase(); return [...keys].some(k => t.includes(k)) || [...tutors].some(n => t.includes(n)); };
+    const stuRows = (await q("SELECT id, person_id, key, name, level, school, exam, info FROM students WHERE NOT del", [])).filter(r => !keys || keys.has(nk(r.name)));
+    const stuIds = new Set(stuRows.map(r => r.id));
+    const gRows = (await q("SELECT id, parent_id, student_id FROM guardians WHERE NOT del", [])).filter(r => stuIds.has(r.student_id));
+    const pids = new Set([...stuRows.map(r => r.person_id).filter(Boolean), ...gRows.map(r => r.parent_id)]);
+    const people = (await q(`SELECT ${PCOLS.join(", ")} FROM people WHERE NOT del AND role <> 'director'`, [])).filter(r => !keys || pids.has(r.id) || ((r.role === "tutor" || r.also_tutor) && tutors.has(nk(r.name))));
+    const kv = {};
+    for (const k of (keys ? MOVE_IN.concat(MOVE_WHOLE) : MOVE_TEACH)) {
+      let v = await store().get("kv/" + k, { type: "json" }); if (v == null) continue;
+      if (keys && !MOVE_WHOLE.includes(k)) {
+        if (isRec(v) && isRec(v.e)) v = Object.assign({}, v, { e: Object.fromEntries(Object.entries(v.e).filter(([, x]) => x && keys.has(String(x.k || "").split("|")[0]))) }), delete v.imports;
+        else if (Array.isArray(v)) v = v.filter(mention);
+        else if (isRec(v)) v = Object.fromEntries(Object.entries(v).filter(([kk, x]) => keys.has(nk(kk)) || keys.has(nk(kk).split("|")[0]) || tutors.has(nk(kk)) || mention(x)));
+      }
+      kv[k] = v;
+    }
+    const docs = keys ? (await readAll("doc/")).filter(d => d && keys.has(nk(d.student || d.name))) : [];
+    await act(me, "settings", "move.export", `Made a move file · ${dir === "live-to-test" ? "the pilot group, " + keys.size + " students" : "the pilot, for the live Hub"} · ${people.length} accounts`, "settings", "move");
+    return json({ ok: true, dir, at: Date.now(), people, students: stuRows, guardians: gRows, kv, docs });
+  }
+  if (b.op === "import") {
+    if (from) return fail(dir === "live-to-test" ? "Add this file on the test site." : "Add this file on the live Hub.", 409);
+    const out = {};
+    if (b.part === "people") {
+      const idMap = {}; let added = 0, updated = 0;
+      await tx(async T => {
+        for (const p of (b.people || []).filter(x => x && x.id && x.name && x.role !== "director")) {
+          let r = await T.one("SELECT id, pw_hash FROM people WHERE id = $1", [p.id]) || await T.one("SELECT id, pw_hash FROM people WHERE NOT del AND lower(name) = lower($1) AND role = $2", [p.name, p.role]);
+          const row = Object.fromEntries(PCOLS.filter(c => c !== "id" && c !== "username" && c !== "email").map(c => [c, ["perms", "prefs"].includes(c) ? JSON.stringify(p[c] || (c === "perms" ? [] : {})) : p[c] ?? null]));
+          if (r) { idMap[p.id] = r.id; const k = Object.keys(row).filter(c => !(r.pw_hash && !p.pw_hash && ["pw_salt", "pw_hash", "status"].includes(c)));
+            await T.q(`UPDATE people SET ${k.map((c, i) => `${c} = $${i + 2}`).join(", ")}, del = false WHERE id = $1`, [r.id, ...k.map(c => row[c])]); updated++; continue; }
+          let u = p.username || nk(p.name).replace(/[^a-z ]/g, "").split(" ").filter(Boolean).join(".") || "user", i = 2; const base = u; while (await T.one("SELECT 1 FROM people WHERE username = $1", [u])) u = base + i++;
+          const em = p.email && !(await T.one("SELECT 1 FROM people WHERE lower(email) = lower($1)", [p.email])) ? p.email : null;
+          const ins = Object.assign({ id: p.id, username: u, email: em }, row), k = Object.keys(ins);
+          await T.q(`INSERT INTO people (${k.join(", ")}) VALUES (${k.map((_, j) => "$" + (j + 1)).join(", ")})`, k.map(c => ins[c])); idMap[p.id] = p.id; added++;
+        }
+        const sMap = {};
+        for (const st of b.students || []) {
+          const pid = st.person_id ? (idMap[st.person_id] || ((await T.one("SELECT 1 FROM people WHERE id = $1", [st.person_id])) ? st.person_id : null)) : null;
+          const cur = await T.one("SELECT id, person_id, info FROM students WHERE key = $1", [st.key]) || await T.one("SELECT id, person_id, info FROM students WHERE id = $1", [st.id]);
+          if (cur) { sMap[st.id] = cur.id; await T.q("UPDATE students SET person_id = coalesce($2, person_id), name = $3, level = coalesce($4, level), school = coalesce($5, school), exam = coalesce($6, exam), info = $7, del = false WHERE id = $1",
+              [cur.id, pid && !(await T.one("SELECT 1 FROM students WHERE person_id = $1 AND id <> $2", [pid, cur.id])) ? pid : null, st.name, st.level, st.school, st.exam, JSON.stringify(moveMerge(cur.info || {}, st.info || {}))]); }
+          else { await T.q("INSERT INTO students (id, person_id, key, name, level, school, exam, info) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)", [st.id, pid, st.key, st.name, st.level, st.school, st.exam, JSON.stringify(st.info || {})]); sMap[st.id] = st.id; }
+        }
+        for (const g of b.guardians || []) {
+          const pa = idMap[g.parent_id] || g.parent_id, su = sMap[g.student_id] || g.student_id;
+          if (!(await T.one("SELECT 1 FROM people WHERE id = $1", [pa])) || !(await T.one("SELECT 1 FROM students WHERE id = $1", [su]))) continue;
+          await T.q("INSERT INTO guardians (id, parent_id, student_id) VALUES ($1, $2, $3) ON CONFLICT (parent_id, student_id) DO UPDATE SET del = false", [g.id && !(await T.one("SELECT 1 FROM guardians WHERE id = $1", [g.id])) ? g.id : newId("gu"), pa, su]);
+        }
+      });
+      Object.assign(out, { added, updated });
+    } else if (b.part === "kv") {
+      const k = String(b.key || ""); if (!MOVE_IN.concat(MOVE_WHOLE).includes(k)) return fail("That list doesn't move.");
+      if (dir === "test-to-live" && !MOVE_TEACH.includes(k)) return fail("That list stays with the live Hub.");
+      await writeKv(k, old => k === "lhq_settings" ? Object.assign(moveMerge(old || {}, b.value), { pilot: (old || {}).pilot }) : moveMerge(old, b.value));
+      out.key = k;
+    } else if (b.part === "docs") {
+      if (dir !== "live-to-test") return fail("Documents stay with the live Hub.");
+      const s = store(), D = (b.docs || []).filter(d => d && d.id).slice(0, 60), wrote = [];
+      for (const d of D) { const cur = await s.get("doc/" + d.id, { type: "json" }); if (cur && (cur.savedAt || 0) >= (d.savedAt || 0)) continue; await s.setJSON("doc/" + d.id, d); wrote.push(d); }
+      for (let j = 0; j < 6 && wrote.length; j++) {
+        const { data: idx, etag } = await getIndex(); idx.docs = idx.docs || {}; const r = (idx.rev || 0) + 1;
+        wrote.forEach(d => { idx.docs[d.id] = { type: d.type || "quote", number: d.number, savedAt: d.savedAt || Date.now(), by: d.updatedBy || "", r }; if (idx.gone) delete idx.gone[d.id]; });
+        idx.rev = r; idx.at = Date.now(); if (!idx.epoch) idx.epoch = crypto.randomBytes(6).toString("hex");
+        const w = await s.setJSON("index", idx, etag ? { onlyIfMatch: etag } : { onlyIfNew: true }); if (!(w && w.modified === false)) break;
+      }
+      out.docs = wrote.length;
+    } else if (b.part === "done") {
+      await act(me, "settings", "move.import", `Added a move file · ${dir === "live-to-test" ? "the pilot group, from the live Hub" : "the pilot, from the test site"} · ${b.summary || ""}`, "settings", "move");
+    } else return fail("Which part?");
+    return json(Object.assign({ ok: true }, out));
+  }
+  return fail("Unknown move action.");
+}
 async function demo(req, me) {
   if (!isPreview()) return fail("Demo data only works on a preview, never on the live site.", 403);
   if (!isDirector(me)) return fail("Only the Director can load demo data.", 403);
@@ -1754,6 +1865,7 @@ export default async (req, context) => {
     if (req.method === "GET" && path === "trash") return await trash(req, me);
     if (req.method === "POST" && path === "restore") return await restore(req, me);
     if (req.method === "POST" && path === "demo") return await demo(req, me);
+    if (req.method === "POST" && path === "move") return await movePost(req, me);
     if (req.method === "POST" && path === "reset") return await reset(req, me);
     if (req.method === "POST" && path === "store") return await hubStore(req, me);
     if (req.method === "POST" && path === "confirm") return await confirmSession(req, me);
