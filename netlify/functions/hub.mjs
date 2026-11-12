@@ -2066,7 +2066,7 @@ export async function pushTick(context, at = Date.now()) {
       for (const x of Object.values(plan[nk(r.name)] || {}).filter(x => x && !x.all && blockOn(x, t) && S.mins(x.s) != null)) {
         const st = S.mins(x.s), msg = m => ({ title: `${x.name || "Study"} · ${m ? x.s + " in " + m + " min" : x.s + "–" + x.e}`, body: x.sub || "Your plan", url: "/#me/day/" + t,
           actions: [{ title: x.type === "study" || x.type === "rev" ? "Start now" : "Open", url: x.type === "study" || x.type === "rev" ? "/#me/focus/blk:" + x.id : "/#me/day/" + t }, { title: "Snooze 10", url: "/#me/snooze/" + x.id + "/10" }] });
-        for (const m of (x.rem && x.rem.length ? x.rem : [0])) { const due = st - m; if (nowM > due - 15 && nowM <= due) await once(`${t}|${r.person_id}|blk|${x.id}|${m}`, () => pushTo([r.person_id], "block", msg(st - nowM))); }   // the run before it's due: a little early, never late
+        for (const m of (x.rem && x.rem.length ? x.rem : [0])) { const due = st - m; if (nowM > due - 15 && nowM <= due) await once(`${t}|${r.person_id}|blk|${x.id}|${m}`, () => pushTo([r.person_id], "block", msg(st - nowM <= 2 ? 0 : Math.round((st - nowM) / 5) * 5))); }   // whole 5 minutes; a run a minute or two late still reads cleanly   // the run before it's due: a little early, never late
         if (x.snz && x.snz.d === t && nowM >= x.snz.m && nowM < x.snz.m + 15) await once(`${t}|${r.person_id}|snz|${x.id}|${x.snz.m}`, () => pushTo([r.person_id], "block", msg(0)));
       }
     }
