@@ -409,7 +409,7 @@ function render(){
     : state.freq==='2' ? 'Every 2 weeks: the same one-page layout covering two weeks.'
     : 'Monthly (4 weeks): the at-a-glance page plus the detailed report, with an overall comment you can edit.';
   // tutors
-  const cs = cardSubjects(), tutors = [...new Set(cs.map(s=>s.tutor).filter(Boolean))].sort();
+  const cs = cardSubjects(), all = [...new Set(cs.map(s=>s.tutor).filter(Boolean))].sort(), tutors = all.filter(t => !cardHasAccount(t)), inHub = all.filter(t => cardHasAccount(t));
   const inP = entries().filter(e=>e.d >= a && e.d <= b);
   F('tutorTags').innerHTML = tutors.map(t=>{
     const n = inP.filter(e=>e.tutor===t).length, imp = LOG.imports.find(i=>i.t===t);
@@ -439,7 +439,8 @@ F('btnLinks').onclick = async ()=>{
   F('linksList').innerHTML = tutors.map((t,i)=>{ const n = cs.filter(s=>s.tutor===t);
     return `<div class="links-row"><b>${esc(t)}<small style="display:block;font-weight:400;color:var(--muted);font-size:12.5px">${(()=>{ const st = new Set(n.map(s=>s.student)).size, subs = [...new Set(n.map(s=>s.name))]; return `${st} student${st===1?'':'s'} · ${esc(subs.join(', '))}`; })()} · ${esc(cardTutorSentText(t))}</small></b>
       <button class="small wa" data-send="${i}">Send on WhatsApp</button><button class="small" data-copy="${i}">Copy link</button></div>`; }).join('')
-    || '<p class="empty">No tuition cards with a tutor yet. Open a tuition card in LHQ Hub, choose a tutor for each subject, and save it.</p>';
+    || (inHub.length ? '' : '<p class="empty">No tuition cards with a tutor yet. Open a tuition card in LHQ Hub, choose a tutor for each subject, and save it.</p>');
+  if(inHub.length) F('linksList').innerHTML += `<p class="hint" style="margin-top:10px">In LHQ Hub, no link needed: ${inHub.map(esc).join(', ')}. Their cards show on their Home.</p>`;
   F('linksList').onclick = async e=>{
     const b = e.target.closest('[data-send],[data-copy]'); if(!b) return;
     const t = tutors[+(b.dataset.send ?? b.dataset.copy)], link = await tutorLink(t);

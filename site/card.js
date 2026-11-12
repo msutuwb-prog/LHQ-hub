@@ -456,10 +456,11 @@ function renderCardShare(){
       const subs = doc.subjects.filter(x=>x.tutor===t).map(x=>x.name).join(', ');
       const n = new Set(cardRosterSubjects(others.concat([doc])).filter(x=>x.tutor===t).map(x=>cardNormName(x.student))).size;
       const ct = cardTutorContact(t);
+      if(cardHasAccount(t)) return `<div class="cs-trow"><span><b>${esc(t)}</b><small>${esc(subs)} · ${n} student${n===1?'':'s'} in total</small><small>In LHQ Hub: the card shows on their Home when you save it</small></span></div>`;
       return `<div class="cs-trow"><span><b>${esc(t)}</b><small>${esc(subs)} · ${n} student${n===1?'':'s'} in total</small><small>${esc(cardTutorSentText(t))}</small>${!ct.phone && !ct.email ? '<small class="warn">No WhatsApp number or email yet · <a href="index.html#set/tutorinfo">add</a></small>' : ''}</span>
         <span class="cs-tb"><button type="button" class="small wa" data-tutor="${esc(t)}">${ct.phone ? 'WhatsApp' : 'Send link'}</button>${ct.email ? `<button type="button" class="small" data-temail="${esc(t)}">Email</button>` : ''}</span></div>`; }).join('')
     : '<p class="hint" style="margin:0">Choose a tutor for each subject on the card to send them their link.</p>';
-  const em = tutors.filter(t => cardTutorContact(t).email);
+  const em = tutors.filter(t => cardTutorContact(t).email && !cardHasAccount(t));
   if(em.length > 1) F('csTutors').innerHTML += `<button type="button" class="small" data-temail="*" style="margin-top:8px">Email all ${em.length} tutors their link and card</button>`;
 }
 async function cardShareFile(kind, save){
@@ -487,7 +488,7 @@ function initCard(){
   F('csSave').onclick = ()=>cardShareFile('png', true);
   F('csTutors').onclick = async e=>{
     const m = e.target.closest('[data-temail]');
-    if(m){ saveDoc(true); const all = m.dataset.temail === '*', list = all ? [...new Set((doc.subjects||[]).map(x=>x.tutor).filter(t=>t && cardTutorContact(t).email))] : [m.dataset.temail];
+    if(m){ saveDoc(true); const all = m.dataset.temail === '*', list = all ? [...new Set((doc.subjects||[]).map(x=>x.tutor).filter(t=>t && cardTutorContact(t).email && !cardHasAccount(t)))] : [m.dataset.temail];
       m.disabled = true; const done = [], failed = [];
       for(const t of list){ toast(`Emailing ${t}…`); try{ await cardEmailTutor(saved, t); done.push(t); }catch(err){ failed.push(t + ': ' + err.message); } }
       m.disabled = false; renderCardShare();
@@ -610,6 +611,9 @@ function cardTutorPayload(savedList, tutor){
 async function cardTutorLink(savedList, tutor){
   return new URL('t', location.href).href + '#' + await lhqEncode(cardTutorPayload(savedList, tutor));
 }
+/* a tutor with an LHQ Hub account sees their cards there (Got it, or Can't make this time; LHQ is told after a day unseen), so the link is only for a tutor without one */
+function cardHasAccount(t){ try{ const L = (window.store && store.get('lhq_people', [])) || [], n = String(t || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  return L.some(p => p && p.active !== false && (p.role === 'tutor' || p.tutor) && String(p.name || '').trim().toLowerCase().replace(/\s+/g, ' ') === n); }catch(e){ return false; } }
 /* which tutors have already had a link (so the how-to text goes only the first time) */
 function cardTlinks(){ try{ return JSON.parse(localStorage.getItem('lhq_tlinks')||'{}') || {}; }catch(e){ return {}; } }
 function cardMarkTutorSent(tutor){ const o = cardTlinks(); o[tutor] = Date.now(); try{ localStorage.setItem('lhq_tlinks', JSON.stringify(o)); }catch(e){} }
