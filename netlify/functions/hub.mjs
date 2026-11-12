@@ -828,7 +828,7 @@ async function familyPost(req, me) {
     await writeKv("lhq_sxp", old => { const o = Object.assign({}, old); o[kids[0].key] = Object.assign({}, o[kids[0].key], { hide: b.hide ? 1 : 0 }); return o; });
     return json({ ok: true });
   }
-  if (b.action === "snooze") {   // remind again in 5, 10 or 15 minutes (the 5-minute reminder run sends it)
+  if (b.action === "snooze") {   // remind again in 5, 10 or 15 minutes (the next 15-minute run sends it)
     if (me.role !== "student" || !kids[0]) return fail("Only the student.", 403);
     const m = [5, 10, 15].includes(+b.m) ? +b.m : 10, mw = new Date(now + 2 * 3600e3), at = mw.getUTCHours() * 60 + mw.getUTCMinutes() + m;
     await writeKv("lhq_plan", old => { const o = Object.assign({}, old), M = Object.assign({}, o[kids[0].key]); if (M[b.id]) M[b.id] = Object.assign({}, M[b.id], { snz: { d: mwToday(), m: at } }); o[kids[0].key] = M; return o; });
@@ -2009,14 +2009,14 @@ async function pushRoute(req, me) {
   if (b.action === "test") { const n = await pushTo([me.id], "test", { title: "LHQ Hub", body: "Notifications are on for this device.", url: "/" }, { now: true }); return json({ ok: true, sent: n }); }
   return fail("Unknown action.");
 }
-/* hourly (scheduled function): the morning summary and held messages at 07:00, SRAs and take-home sheets at 07:00,
+/* every 15 minutes (scheduled function): the morning summary and held messages at 07:00, SRAs and take-home sheets at 07:00,
    tutors' daily report at 16:00, a student's report the hour after their last session */
 export async function pushTick(context, at = Date.now()) {
   site = (context && context.deploy && context.deploy.context) || "production"; if (context && context.site) siteName = context.site.name || siteName;
   storeOnDb = await usesDbStore();
-  { const mw0 = new Date(at + 2 * 3600e3); if (mw0.getUTCMinutes() < 5 && [6, 9, 12, 15].includes(mw0.getUTCHours())) await fxDaily(false).catch(() => null); }   // the bank rate, early, with retries
+  { const mw0 = new Date(at + 2 * 3600e3); if (mw0.getUTCMinutes() < 15 && [6, 9, 12, 15].includes(mw0.getUTCHours())) await fxDaily(false).catch(() => null); }   // the bank rate, early, with retries
   const k = vapidKeys(); if ((!k.pub || !k.priv) && !pushSender) return { skipped: "no keys" };
-  const mw = new Date(at + 2 * 3600e3), h = mw.getUTCHours(), t = mw.toISOString().slice(0, 10), sent = [], nowM = h * 60 + mw.getUTCMinutes(), top = mw.getUTCMinutes() < 5;
+  const mw = new Date(at + 2 * 3600e3), h = mw.getUTCHours(), t = mw.toISOString().slice(0, 10), sent = [], nowM = h * 60 + mw.getUTCMinutes(), top = mw.getUTCMinutes() < 15;   // runs every 15 minutes: the first run of each hour is the top
   const log = (await store().get("kv/lhq_pushlog", { type: "json" })) || {}, mark = {};
   const once = async (key, fn) => { if (log[key] || mark[key]) return; mark[key] = 1; await fn(); sent.push(key); };
   const all = (await store().get("kv/lhq_push", { type: "json" })) || {}, ppl = await getPeople();
@@ -2061,8 +2061,8 @@ export async function pushTick(context, at = Date.now()) {
       for (const x of Object.values(plan[nk(r.name)] || {}).filter(x => x && !x.all && blockOn(x, t) && S.mins(x.s) != null)) {
         const st = S.mins(x.s), msg = m => ({ title: `${x.name || "Study"} · ${m ? x.s + " in " + m + " min" : x.s + "–" + x.e}`, body: x.sub || "Your plan", url: "/#me/day/" + t,
           actions: [{ title: x.type === "study" || x.type === "rev" ? "Start now" : "Open", url: x.type === "study" || x.type === "rev" ? "/#me/focus/blk:" + x.id : "/#me/day/" + t }, { title: "Snooze 10", url: "/#me/snooze/" + x.id + "/10" }] });
-        for (const m of (x.rem && x.rem.length ? x.rem : [0])) { const due = st - m; if (nowM >= due && nowM < due + 5) await once(`${t}|${r.person_id}|blk|${x.id}|${m}`, () => pushTo([r.person_id], "block", msg(m))); }
-        if (x.snz && x.snz.d === t && nowM >= x.snz.m && nowM < x.snz.m + 5) await once(`${t}|${r.person_id}|snz|${x.id}|${x.snz.m}`, () => pushTo([r.person_id], "block", msg(0)));
+        for (const m of (x.rem && x.rem.length ? x.rem : [0])) { const due = st - m; if (nowM > due - 15 && nowM <= due) await once(`${t}|${r.person_id}|blk|${x.id}|${m}`, () => pushTo([r.person_id], "block", msg(st - nowM))); }   // the run before it's due: a little early, never late
+        if (x.snz && x.snz.d === t && nowM >= x.snz.m && nowM < x.snz.m + 15) await once(`${t}|${r.person_id}|snz|${x.id}|${x.snz.m}`, () => pushTo([r.person_id], "block", msg(0)));
       }
     }
   }
