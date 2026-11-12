@@ -309,7 +309,7 @@ window.INS = (function(){
     const row = x => { const s = F.byStu.get(x.key) || {}, msg = `Hello ${x.inv.name || ''}, a gentle reminder from LHQ Learning Solutions that ${mk(x.now)} (${x.kind.toLowerCase()}) ${x.late > 0 ? 'was due on' : 'is due on'} ${nice(x.due)} for ${x.inv.student || 'your child'} (invoice ${x.inv.number}). Thank you.`;
       return `<div class="it"><span class="t"><a href="doc.html#d=${x.inv.id}" style="text-decoration:none;color:inherit"><b>${esc(x.inv.student || x.inv.name)} · ${esc(x.inv.number)}</b><small>${esc(x.kind)} ${mk(x.now)} · ${x.late > 0 ? `<span style="font-weight:800;color:${x.late > 30 ? 'var(--rd)' : 'var(--am)'}">${x.late} day${x.late === 1 ? '' : 's'} late</span>` : `due ${nice(x.due)}`}${x.later ? ` · then ${mk(x.later)} later` : ''}${s.parent ? ' · ' + esc(s.parent) : ''}</small></a></span>
         <div class="acts"><a class="btn sm g" target="_blank" rel="noopener" href="${waLink(s.phone || x.inv.phone, msg)}">${ic('wa',14)} Remind</a>${can('receipts') ? `<a class="btn sm" href="doc.html#conv=receipt:${x.inv.id}">Payment</a>` : ''}</div></div>`; };
-    return `<div class="kpis">${kpi('Owed to LHQ', mkShort(total), `${L.length} invoice${L.length === 1 ? '' : 's'} not fully paid`)}${kpi('Late now', mkShort(sum(late, x => x.now)), `${late.length} famil${late.length === 1 ? 'y' : 'ies'}`)}
+    return `<div class="kpis">${kpi('Owed to LHQ', mkShort(total), `${L.length} invoice${L.length === 1 ? '' : 's'} not fully paid`)}${(() => { const ov = L.filter(x => x.st.over), gr = late.filter(x => !x.st.over); return kpi('Overdue', mkShort(sum(ov, x => x.now)), `${ov.length} famil${ov.length === 1 ? 'y' : 'ies'}${gr.length ? ` · ${mkShort(sum(gr, x => x.now))} in grace` : ''}`); })()}
       ${kpi('Due in 7 days', mkShort(sum(soon, x => x.now)), `${soon.length} payment${soon.length === 1 ? '' : 's'}`)}${kpi('Due in 30 days', mkShort(sum(month, x => x.now) + 0), later ? `+ ${mkShort(later)} second instalments after that` : 'expected in')}</div>
     <div class="grid2"><div class="card pad"><div class="cap">How late</div>${shareRows(B.map(k => ({k, v: byB[k] || 0, col: COL[k], extra: `${L.filter(x => bucket(x) === k).length} invoice${L.filter(x => bucket(x) === k).length === 1 ? '' : 's'}`})), sum(Object.values(byB)))}
       <p class="note">Late counts from the due date of the instalment or invoice; the grace period is ${num(HD.settings.graceDays) || 0} days.</p></div>
@@ -370,7 +370,8 @@ window.INS = (function(){
     const active = F.S.filter(s => s.cur && (!s.cur.inv.periodEnd || s.cur.inv.periodEnd >= ms[ms.length - 1] + '-01')).length;
     const M = lastMonths(endOf(period), 12);
     return `<div class="kpis">
-      ${kpi('Spending' + (live ? ' so far' : ''), mkShort(f.exp), `${arrow(chg(f.exp, p.exp), -1)} vs ${b.periodLabel(pp)}${part}`)}
+      ${(() => { const d0 = today().slice(8), pExp = live ? sum(p.list.filter(e => !b.NOT_COST.includes(e.cat) && String(e.date || '').slice(8) <= d0), e => window.FX ? FX.adj(num(e.amount), e.date) : num(e.amount)) : p.exp;   /* a month still going: against the same days of the month before, like Money in */
+        return kpi('Spending' + (live ? ' so far' : ''), mkShort(f.exp), `${arrow(chg(f.exp, pExp), -1)} vs ${live ? `1–${+d0} ` : ''}${b.periodLabel(pp)}${part} (${mkShort(pExp)})`); })()}
       ${kpi('Spending ÷ money in', f.revenue ? pc(f.exp, f.revenue) + '%' : '–', 'of every kwacha that came in')}
       ${kpi('Cost per student', active ? mkShort(f.exp / active) : '–', `${active} students in a period`)}
       ${fc || kpi('Biggest category', cats.length ? esc(sortObj(f.byCat)[0] ? sortObj(f.byCat)[0][0] : '–') : '–', sortObj(f.byCat)[0] ? mkShort(sortObj(f.byCat)[0][1]) : '')}</div>

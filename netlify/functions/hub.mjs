@@ -75,7 +75,7 @@ const LIST_FIELDS = ["subjects", "levels", "methods", "includes", "tutors", "gra
 const KV_READ = { lhq_spend: p => can(p, "spend") || can(p, "pl"), lhq_income: p => can(p, "spend") || can(p, "pl"), lhq_budget: p => can(p, "pl"),
   lhq_sreports: p => isDirector(p) || can(p, "tutors"),
   lhq_kpi: p => isDirector(p) || can(p, "tutors"),
-  lhq_pay: p => isDirector(p) || can(p, "tpay"), lhq_asks: p => isDirector(p) || can(p, "tutors"), lhq_school: p => isDirector(p) || can(p, "students") || can(p, "tutors"), lhq_fu: p => isDirector(p) || can(p, "tutors"), lhq_fx: p => isDirector(p) || can(p, "money") };   // tutor pay: rules, placements, items, payslips (tutors get their own payslips through /api/hub/pay)   // tutor KPIs: observations, reviews (admin sees them only when the Director switches it on)   // students' daily reports: never tutors (they get averages only)
+  lhq_pay: p => isDirector(p) || can(p, "tpay"), lhq_asks: p => isDirector(p) || can(p, "tutors"), lhq_school: p => isDirector(p) || can(p, "students") || can(p, "tutors"), lhq_fu: p => isDirector(p) || can(p, "tutors"), lhq_fx: p => isDirector(p) || can(p, "money") || can(p, "money") };   // tutor pay: rules, placements, items, payslips (tutors get their own payslips through /api/hub/pay)   // tutor KPIs: observations, reviews (admin sees them only when the Director switches it on)   // students' daily reports: never tutors (they get averages only)
 const MERGED = ["lhq_spend", "lhq_income"];   // recorded on several devices at once: merged entry by entry
 /* Spending is recorded on several devices at once, so entries are merged one by one (newest wins) instead of the whole list being replaced.
    Deleting marks an entry del:true, so a device that hasn't heard about it yet can't bring it back. */
@@ -1823,6 +1823,11 @@ async function tutorPost(req, me) {
     if (!hmOk(b.s) || !hmOk(b.e) || b.s >= b.e) return fail("Check the start and end times.");
     if (cur && cur.status === "ok") return fail("LHQ already confirmed it: ask LHQ to move it.", 409);
     const [st, sub] = String(b.k).split("|"), card = d.cards.find(c => nk(c.student) === st && c.subjects.some(x => nk(x.name) === sub));
+    {   // never two make-ups at once for the same student or the same tutor
+      const all = Object.values((await store().get("kv/lhq_makeups", { type: "json" })) || {}).filter(m => m && m.id !== id && m.status !== "no" && m.d === b.d && m.s < b.e && b.s < m.e);
+      const hit = all.find(m => nk(m.st) === st) || all.find(m => nk(m.tutor) === nk(me.name));
+      if (hit) return fail(`That clashes with ${nk(hit.st) === st ? "another make-up for " + hit.st : "your make-up with " + hit.st} at ${hit.s}.`, 409);
+    }
     const v = { id, k: b.k, st: card ? card.student : st, sub: card ? card.subjects.find(x => nk(x.name) === sub).name : sub, tutor: me.name, d: b.d, s: b.s, e: b.e, why: String(b.why || "").trim().slice(0, 200), status: "asked", at: now, by: me.name };
     await writeKv("lhq_makeups", old => Object.assign({}, old || {}, { [id]: v }));
     await pushSafe(await idsOfStaff("tutors"), "confirm", { title: "Make-up to confirm", body: `${v.tutor || me.name} · ${v.st} · ${dayL(v.d)} ${v.s}`, url: "/#bookings" });

@@ -62,7 +62,7 @@ window.PERF = (function(){
     const conv = quotes.filter(q => invRef.has(UP(q.number)));
     const invs = F.invs.filter(i => inR(i.date));
     const newS = F.S.filter(s => { const i = F.invs.find(x => x.id === F.firstInv.get(s.key)); return i && inR(i.date); });
-    const active = F.S.filter(s => s.periods.some(p => (p.inv.periodStart || p.inv.date || '') <= to && (p.inv.periodEnd || '9999') >= to)).length;
+    const active = F.S.filter(s => s.periods.some(p => (p.inv.date || p.inv.periodStart || '') <= to && (p.inv.periodEnd || '9999') >= to)).length;   // the same as Home: invoiced, and the period not over
     const X = F.sess.filter(e => inR(e.d)), taught = X.filter(e => e.a === 'attended' || e.a === 'late');
     const ended = []; F.S.forEach(s => s.periods.forEach((p, i) => { const e = p.inv.periodEnd; if(e && inR(e) && e < today()) ended.push({s, renewed: i > 0, prog: INS.progOf(p.inv.level)}); }));
     const paid = invs.map(i => ({i, st: HD.invState(i), r: F.rcts.filter(r => UP(r.ref) === UP(i.number)).sort((a, c) => (a.date || '').localeCompare(c.date || ''))})).filter(x => x.st.paidUp && x.r.length);

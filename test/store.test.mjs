@@ -349,6 +349,7 @@ test("make-ups: a tutor books, LHQ confirms or declines; requisitions: the Direc
   assert.equal((await call("tutor", { action: "makeup", k: "natasha chirwa|physics", d: day(2), s: "10:00", e: "11:00" }, tok)).status, 403, "only their own students");
   assert.equal((await call("tutor", { action: "makeup", k: "thoko banda|mathematics", d: day(-5), s: "10:00", e: "11:00" }, tok)).status, 400, "not in the past");
   const m = await call("tutor", { action: "makeup", k: "thoko banda|mathematics", d: day(2), s: "10:00", e: "11:00", why: "Absent on Tuesday" }, tok);
+  assert.equal((await call("tutor", { action: "makeup", k: "thoko banda|mathematics", d: day(2), s: "10:30", e: "11:30" }, tok)).status, 409, "no two make-ups at once for one student");
   assert.equal(m.status, 200, JSON.stringify(m.j)); assert.equal(m.j.makeup.status, "asked"); assert.equal(m.j.makeup.st, "Thoko Banda");
   assert.equal((await call("makeup", { id: m.j.makeup.id, decision: "ok" }, tok)).status, 403, "a tutor can't confirm their own");
   assert.equal((await call("makeup", { id: m.j.makeup.id, decision: "no" }, DIR)).status, 400, "declining needs a reason");

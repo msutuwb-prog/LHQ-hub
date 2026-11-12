@@ -655,7 +655,7 @@ function metrics(list){
   const states = invs.map(i => ({i, st: HD.invState(i)}));
   const owing = states.filter(x => x.st.balance > 0.005), over = owing.filter(x => x.st.over);
   const active = list.filter(s => s.cur && (!s.cur.inv.periodEnd || s.cur.inv.periodEnd >= t));
-  const newM = list.filter(s => ym(s.first) === thisM).length, newL = list.filter(s => ym(s.first) === lastM).length;
+  const newM = list.filter(s => ym(s.firstInv) === thisM).length, newL = list.filter(s => ym(s.firstInv) === lastM).length;
   const ending = list.filter(s => s.cur && s.cur.inv.periodEnd && s.cur.inv.periodEnd >= t && dayDiff(t, s.cur.inv.periodEnd) <= 7);
   const renewed = list.filter(s => s.periods.length > 1 && s.periods[1].inv.periodEnd && s.periods[1].inv.periodEnd >= t && dayDiff(t, s.periods[1].inv.periodEnd) <= 7);
   const waiting = list.filter(s => s.openQuote).map(s => s.openQuote);
@@ -750,7 +750,7 @@ P.edithome = () => {
 
 /* ================= students ================= */
 let sQ = '';
-const S_F = {all:['All', () => true], active:['Active', s => s.cur && (!s.cur.inv.periodEnd || s.cur.inv.periodEnd >= today())], over:['Overdue', s => s.status.k === 'over'], ending:['Ends soon', s => s.cur && s.cur.inv.periodEnd && s.cur.inv.periodEnd >= today() && dayDiff(today(), s.cur.inv.periodEnd) <= 7], quote:['Quote sent', s => s.status.k === 'quote'], ended:['Ended', s => s.status.k === 'ended'], new:['New this month', s => (s.first || '').slice(0, 7) === today().slice(0, 7)],
+const S_F = {all:['All', () => true], active:['Active', s => s.cur && (!s.cur.inv.periodEnd || s.cur.inv.periodEnd >= today())], over:['Overdue', s => s.status.k === 'over'], ending:['Ends soon', s => s.cur && s.cur.inv.periodEnd && s.cur.inv.periodEnd >= today() && dayDiff(today(), s.cur.inv.periodEnd) <= 7], quote:['Quote sent', s => s.status.k === 'quote'], ended:['Ended', s => s.status.k === 'ended'], new:['New this month', s => (s.firstInv || '').slice(0, 7) === today().slice(0, 7)],
   current:['In a tuition period now', s => s.cur && (!s.cur.inv.periodEnd || s.cur.inv.periodEnd >= today())], missing:['Details missing', s => !s.heard || !s.district || !s.phone]};
 const S_HIDE = ['current','missing'];   // opened from Home only, so the chips stay short
 P.students = (f = 'all') => {

@@ -272,7 +272,8 @@
         if(d >= tIso) return; logs[id] = {id, ty:'g', k:x.k, st:x.st, sub:x.sub, d, tk:x.topic, rv:x.stage, tutor:it.tutor, c:Date.parse(d + 'T13:00:00Z'), at:Date.parse(d + 'T13:00:00Z')}; }); } }catch(e){ console.warn('demo SRAs', e); }
     Object.values(logs).filter(e => e && e.ty === 's' && !e.mk && (e.a === 'absent' || e.a === 'cancelled') && e.d < tIso).forEach(e => { const r = rnd(); if(r < .12) return;
       const id = 'mu' + (uid++).toString(36), lag = r < .2 ? 9 : 1 + Math.floor(rnd() * 4), at = Date.parse(e.d + 'T12:00:00Z') + lag * 864e5, d = new Date(at + 3 * 864e5).toISOString().slice(0, 10);
-      makeups[id] = {id, k:e.k, st:e.st, sub:e.sub, tutor:e.tutor, d, s:'15:00', e:'15:50', why:'', status: d < tIso ? 'ok' : 'asked', at, by:e.tutor}; });
+      const taken = h => Object.values(makeups).some(m => m.st === e.st && m.d === d && m.s === h + ':00'), h = [15, 16, 17, 14].find(x => !taken(x)) || 15;   // never two make-ups for one student at the same time
+      makeups[id] = {id, k:e.k, st:e.st, sub:e.sub, tutor:e.tutor, d, s:h + ':00', e:h + ':50', why:'', status: d < tIso ? 'ok' : 'asked', at, by:e.tutor}; });
     /* tutors' daily reports: sent on most days they taught (a few late or missing) */
     const treps = {}; const days = {}; Object.values(logs).forEach(e => { if(e && e.ty === 's' && e.tutor && e.d < iso(new Date(T))) days[e.tutor + '|' + e.d] = 1; });
     Object.keys(days).forEach(k => { const [tutor, d] = k.split('|'), r = rnd(); if(r < .08) return; const id = 'tr' + (uid++).toString(36);

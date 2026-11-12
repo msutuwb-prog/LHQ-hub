@@ -111,6 +111,7 @@
       s.address = rec.address || pick('address'); s.heard = rec.heard || ''; s.area = rec.area || pick('area'); s.district = rec.district || pick('district');
       s.school = rec.school || (D.find(d => d.type === 'card' && d.school) || {}).school || '';
       s.first = D.length ? D.map(d => d.date || '').filter(Boolean).sort()[0] : (rec.added || '');
+      s.firstInv = D.filter(d => d.type === 'invoice').map(d => d.date || '').filter(Boolean).sort()[0] || '';   // a new student: the first invoice, not the first quote
       s.periods = D.filter(d => d.type === 'invoice').map(inv => {
         const receipts = D.filter(r => r.type === 'receipt' && same(r.ref, inv.number));
         const card = D.find(c => c.type === 'card' && (same(c.ref, inv.number) || receipts.some(r => same(c.ref, r.number))));
