@@ -35,6 +35,7 @@ if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash)
 <script src="sra.js"></script>
 <script src="teach.js"></script>
 <script src="family.js"></script>
+<script src="move.js"></script>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0}
@@ -1141,10 +1142,10 @@ const SETS = [
   ['LHQ', [['people','users','People & access', () => isDir() || can('tutors')],['company','bank','Company & bank details', isDir],['payments','cash','Payments & due dates', isDir],['hours','clock','Opening hours', isDir],['tutorinfo','users','Tutors\' contacts', () => isDir() || can('tutors') || can('msgs')]]],
   ['Documents', [['numbering','hash','Numbering', () => can('numbering')],['messages','msg','Messages', () => can('msgs')],['lists','list','Lists', () => can('msgs')]]],
   ['Enrolment & sending', [['enrol','link','Student checklist', () => staffRole()],['sending','wa','Email & WhatsApp', () => staffRole()]]],
-  ['Data', [['records.html','layout','Shared records', () => isDir()],['backup','box','Backup & restore', () => can('backup')],['deleted','bin','Recently deleted', () => can('restore')],['demo','restore','Demo data (preview)', () => isDir() && PREVIEW]]],
+  ['Data', [['records.html','layout','Shared records', () => isDir()],['backup','box','Backup & restore', () => can('backup')],['move','box','Move pilot data', () => isDir()],['deleted','bin','Recently deleted', () => can('restore')],['demo','restore','Demo data (preview)', () => isDir() && PREVIEW]]],
 ];
 const setVis = ids => SETS.flatMap(([, items]) => items).filter(x => ids.includes(x[0]) && (!x[3] || x[3]()));
-const DETAILS = ['company','payments','hours','numbering','messages','sending','tutorinfo','enrol'], DATA = ['records.html','backup','deleted','demo'];
+const DETAILS = ['company','payments','hours','numbering','messages','sending','tutorinfo','enrol'], DATA = ['records.html','backup','move','deleted','demo'];
 /* Lean: 5 places. Things set once sit inside LHQ details; shared records, backups and the bin inside Data */
 const LEAN_SETS = () => [['Account', [['account','user','My account'],['appearance','layout','Appearance']]],
   ['LHQ', setVis(['people']).concat(setVis(DETAILS).length ? [['details','bank','LHQ details']] : [], setVis(['lists']))],
@@ -1381,6 +1382,7 @@ S.sending = () => `<h2 class="sec-h">Email & WhatsApp</h2><p class="sec-p">Sendi
   <div class="card pad"><p class="svc" id="svcEmail"><i></i><span>Email: checking…</span></p><p class="svc" id="svcWa"><i></i><span>WhatsApp: checking…</span></p>
   </div>`;
 
+S.move = () => window.MOVE ? MOVE.page() : '';
 S.backup = () => { const last = store.get('lhq_lastBackup', 0);
   return `<h2 class="sec-h">Backup & restore</h2><p class="sec-p">Everything is stored online in LHQ Hub. A backup is an extra copy as one file: keep it in Google Drive or send it to yourself.</p>
   <div class="card pad"><dl class="kv"><dt>Last backup</dt><dd>${last ? ago(last) : 'Never'}</dd><dt>Documents</dt><dd>${saved.length}</dd>${window.lhqStorageUse ? `<dt>This device</dt><dd>${(lhqStorageUse() / 1048576).toFixed(1)} MB used of about 5 MB</dd>` : ''}</dl>
@@ -1577,6 +1579,7 @@ function bind(){
   if($('svcEmail')) checkServices();
   if($('codeSave')) $('codeSave').onclick = () => { localStorage.setItem('lhq_code', JSON.stringify($('accessCode').value.trim())); checkServices(); toast('Access code saved on this device'); };
   if($('bkGo')) $('bkGo').onclick = doBackup;
+  if(window.MOVE && (document.querySelector('[data-mvs]') || $('mvAGo') || $('mvDGo') || $('mvCGo') || $('mvBGo'))) MOVE.bind();
   if($('demoGo')) $('demoGo').onclick = async () => {
     if(!confirm('Replace everything in this preview with demo data?')) return;
     $('demoGo').disabled = true; $('demoGo').textContent = 'Loading…';
