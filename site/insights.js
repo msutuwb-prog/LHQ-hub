@@ -283,7 +283,7 @@ window.INS = (function(){
     $('lostGo').onclick = () => {
       const lost = {reason: document.querySelector('#lostR .on').dataset.r, note: $('lostN').value.trim(), at: Date.now(), by: me().name};
       if(kind === 'q'){ const all = store.get('lhq_saved', []), q = all.find(d => d.id === id); if(q){ q.lost = lost; q.savedAt = Date.now(); store.set('lhq_saved', all); } }
-      else { const recs = HD.studentRecords(); recs[id] = Object.assign(recs[id] || {name: id}, {lost}); store.set('lhq_students', recs); }
+      else { const recs = HD.studentRecords(); recs[id] = Object.assign(recs[id] || {name: id}, {lost, at: Date.now()}); store.set('lhq_students', recs); }
       closeSheet(); toast('Marked as lost'); render();
     };
   }

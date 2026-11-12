@@ -77,9 +77,12 @@
       put('rep', ok, bad, R.sort((x, y) => (x.mk === 'ok') - (y.mk === 'ok'))); }
     /* SRAs given on their day, and marked within 2 days of coming back */
     { let ok = 0, bad = 0; const R = [];
-      const its = S.items(ctx.cards, t).filter(it => nk(it.tutor) === tn);
+      /* the SRA list doesn't depend on the range: built once per tutor and reused for every week (Home stays quick) */
+      const memo = ctx._sra || Object.defineProperty(ctx, '_sra', {value: new Map(), enumerable: false})._sra;
+      if(!memo.has(tn)){ const its0 = S.items(ctx.cards, t).filter(it => nk(it.tutor) === tn); memo.set(tn, {its: its0, list: G.SRA && its0.length ? G.SRA.build(its0, E, t) : []}); }
+      const its = memo.get(tn).its;
       /* given on or before its do-on day counts (handed out early, or at the session before); one handed in counts as given */
-      if(G.SRA && its.length) G.SRA.build(its, E, t).filter(x => x.stage > 0 && x.doOn >= r.a && x.doOn <= e && !['after','pack','home'].includes(x.status)).forEach(x => {
+      if(G.SRA && its.length) memo.get(tn).list.filter(x => x.stage > 0 && x.doOn >= r.a && x.doOn <= e && !['after','pack','home'].includes(x.status)).forEach(x => {
         const nm = `${x.topic} ${x.label} · ${x.st}`, g = x.given ? x.given.d : '', back = x.handed && x.handed.h !== 'm';
         if(!g && !back && x.doOn >= t) return;
         if(back && !g || g && g <= x.doOn){ ok++; R.push(row('ok', nm, g ? 'given ' + dl(g) : 'handed in', '', x.doOn)); }
@@ -150,7 +153,8 @@
   function status(ctx, tutor){
     const c = conf(ctx.set), t = ctx.t, f4 = figures(ctx, tutor, {type: 'w4', a: add(t, -27), b: t});
     const below = CORE.filter(([id]) => f4[id].v != null && f4[id].v < c.tg[id]).map(x => x[0]);
-    const run = {}; CORE.forEach(([id]) => { let n = 0; for(let w = 0; w < 8; w++){ const f = figures(ctx, tutor, {type: 'wk', a: add(t, -7 * w - 6), b: add(t, -7 * w)})[id]; if(f.v != null && f.v < c.tg[id]) n++; else if(f.n || w > 0) break; } run[id] = n; });
+    const run = {}, wk = [], W = w => wk[w] || (wk[w] = figures(ctx, tutor, {type: 'wk', a: add(t, -7 * w - 6), b: add(t, -7 * w)}));   // each week worked out once
+    CORE.forEach(([id]) => { let n = 0; for(let w = 0; w < 8; w++){ const f = W(w)[id]; if(f.v != null && f.v < c.tg[id]) n++; else if(f.n || w > 0) break; } run[id] = n; });
     const longRun = CORE.filter(([id]) => run[id] >= c.run).map(x => x[0]);
     const n = CORE.filter(([id]) => f4[id].n > 0).length;
     const lvl = !n ? 'none' : longRun.length || below.length >= c.many ? 'short' : below.length ? 'slip' : 'ok';

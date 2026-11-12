@@ -97,7 +97,7 @@
 
   /* students: details kept once (lhq_students), filled in from their documents where missing */
   const DETAIL = ['name','level','school','parent','phone','email','address','area','district','heard'];
-  function studentRecords(){ return store.get('lhq_students', {}); }
+  function studentRecords(){ const r = Object.assign({}, store.get('lhq_students', {})); Object.keys(r).forEach(k => { if(!r[k] || r[k].del) delete r[k]; }); return r; }
   function students(){
     const recs = studentRecords(), map = new Map();
     saved.forEach(d => { const key = sk(d.student || d.name); if(!key) return; if(!map.has(key)) map.set(key, {key, docs:[]}); map.get(key).docs.push(d); });
@@ -146,7 +146,8 @@
     DETAIL.forEach(f => { if(f in fields) cur[f] = String(fields[f] || '').trim(); });
     if(!cur.added) cur.added = today();
     let newKey = key;
-    if(cur.name && sk(cur.name) !== key){ newKey = sk(cur.name); delete recs[key]; }
+    cur.at = Date.now();   // the newer edit wins when two devices save student details
+    if(cur.name && sk(cur.name) !== key){ newKey = sk(cur.name); recs[key] = {del: 1, at: cur.at}; }
     recs[newKey] = cur; store.set('lhq_students', recs);
     return newKey;
   }

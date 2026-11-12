@@ -181,7 +181,7 @@ test("students: the Hub's record goes to the students table; a rename moves it; 
   await call("sync", { kv: { lhq_students: { "thoko banda": { name: "Thoko Banda", level: "Year 11 · IGCSE", phone: "0991 000 111" }, "natasha chirwa": { name: "Natasha Chirwa" } } } }, DIR);
   const t = await one("SELECT name, level, info->'hub'->>'phone' AS phone FROM students WHERE key = 'thoko banda'");
   assert.deepEqual(t, { name: "Thoko Banda", level: "Year 11 · IGCSE", phone: "0991 000 111" });
-  await call("sync", { kv: { lhq_students: { "thoko phiri": { name: "Thoko Phiri", level: "Year 11 · IGCSE", phone: "0991 000 111" }, "natasha chirwa": { name: "Natasha Chirwa" } } } }, DIR);
+  await call("sync", { kv: { lhq_students: { "thoko banda": { del: 1, at: Date.now() }, "thoko phiri": { name: "Thoko Phiri", level: "Year 11 · IGCSE", phone: "0991 000 111", at: Date.now() }, "natasha chirwa": { name: "Natasha Chirwa" } } } }, DIR);   // a rename: the old key marked gone
   const st = await call("state", null, DIR, "GET");
   assert.deepEqual(Object.keys(st.j.kv.lhq_students).sort(), ["natasha chirwa", "thoko phiri"], "the old key is gone from the Hub's list");
   assert.ok(await one("SELECT 1 FROM students WHERE key = 'thoko banda'"), "but the student row stays for the shared records");
@@ -706,3 +706,24 @@ test("student daily report: averages, the 4-week rule and LHQ's flags", async ()
 });
 
 test.after(async () => { await pool.end(); });
+
+test("student details from two devices: the newer edit wins, a stale copy can't undo it", () => {
+  const old = { a: { name: "A", phone: "1", at: 10 }, b: { name: "B", phone: "2", at: 10 } };
+  const m1 = hubMod.mergeRecs(old, { a: { name: "A", phone: "9", at: 20 }, b: old.b });
+  const m2 = hubMod.mergeRecs(m1, { a: { name: "A", phone: "1", at: 10 }, b: { name: "B", phone: "8", at: 21 } });   // the second device had the old copy of a
+  assert.equal(m2.a.phone, "9"); assert.equal(m2.b.phone, "8");
+  assert.ok(!("a" in hubMod.mergeRecs(m2, { a: { del: 1, at: 30 } })), "a rename removes the old key");
+  assert.ok("b" in hubMod.mergeRecs(m2, {}), "a record left out is kept");
+});
+
+test("big replies go gzipped when the phone accepts it, plain otherwise", async () => {
+  const zlib = await import("node:zlib");
+  const r = await hub(new Request("http://x/api/hub/state", { headers: { authorization: "Bearer " + DIR, "accept-encoding": "gzip, br" } }));
+  assert.equal(r.status, 200);
+  const raw = Buffer.from(await r.arrayBuffer());
+  const j = JSON.parse(r.headers.get("content-encoding") === "gzip" ? zlib.gunzipSync(raw).toString() : raw.toString());
+  assert.ok(Array.isArray(j.docs));
+  if (raw.length > 8192 || r.headers.get("content-encoding")) assert.equal(r.headers.get("content-encoding"), "gzip");
+  const p = await hub(new Request("http://x/api/hub/state", { headers: { authorization: "Bearer " + DIR } }));
+  assert.equal(p.headers.get("content-encoding"), null); assert.ok(Array.isArray((await p.json()).docs));
+});

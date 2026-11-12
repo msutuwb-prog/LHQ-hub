@@ -25,6 +25,7 @@ import * as A from "../lib/auth.mjs";
 import { pgStore, moveFromBlobs as copyBlobs, copyToBlobs } from "../lib/pgstore.mjs";
 import { one, q, tx, newId } from "../lib/db.mjs";
 import vm from "node:vm";
+import zlib from "node:zlib";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -335,6 +336,16 @@ async function checkSync(me, upserts, deletes, kv) {
   }
   return null;
 }
+/* student details from two devices: record by record, the newer edit wins; a record left out is kept (a stale copy can't undo
+   someone else's change); {del: 1} removes one (a rename) */
+export function mergeRecs(old, v) {
+  const out = Object.assign({}, old || {});
+  for (const [id, r] of Object.entries(v || {})) {
+    if (!r || typeof r !== "object") continue;
+    if (!out[id] || (r.at || 0) >= (out[id].at || 0)) { if (r.del) delete out[id]; else out[id] = r; }
+  }
+  return out;
+}
 function logEntry(old, d, me, now) {
   const log = (old && old.log) || [];
   const add = e => { const last = log[log.length - 1]; if (last && last.a === e.a && last.by === e.by && e.a === "edited" && now - last.at < 30 * 60000) last.at = now; else log.push(e); };
@@ -399,6 +410,7 @@ async function writeDocs(me, upserts, deletes = [], kvIn = []) {
       if (MERGED.includes(k)) { const m = mergeSpend(old, v, me); merged[k] = m; await s.setJSON("kv/" + k, m); }
       else if (k === "lhq_logs" || k === "lhq_treps") { const m = mergeLogs(old, v); merged[k] = m; await s.setJSON("kv/" + k, m); }
       else if (k === "lhq_classes") { const m = mergeSpend(old, v, me); merged[k] = m; await s.setJSON("kv/" + k, m); }
+      else if (k === "lhq_students") { const m = mergeRecs(old, v); merged[k] = m; await s.setJSON("kv/" + k, m); }
       else await s.setJSON("kv/" + k, v);
       (idx.kvr = idx.kvr || {})[k] = (idx.rev || 0) + 1;
     }
@@ -1866,7 +1878,17 @@ export async function staffFrom(req, context) {
   return me && staff(me) ? me : null;
 }
 
-export default async (req, context) => {
+/* big replies (the Director's first download is about 2 MB) go gzipped when the phone accepts it: about a tenth of the data */
+async function squeeze(req, r) {
+  try {
+    if (!r || r.headers.get("content-encoding") || !/\bgzip\b/.test(req.headers.get("accept-encoding") || "") || !/json/.test(r.headers.get("content-type") || "")) return r;
+    const buf = Buffer.from(await r.clone().arrayBuffer()); if (buf.length < 8192) return r;
+    const h = new Headers(r.headers); h.set("content-encoding", "gzip"); h.append("vary", "Accept-Encoding"); h.delete("content-length");
+    return new Response(zlib.gzipSync(buf), { status: r.status, headers: h });
+  } catch { return r; }
+}
+export default async (req, context) => squeeze(req, await handle(req, context));
+async function handle(req, context) {
   site = (context && context.deploy && context.deploy.context) || "production"; siteName = whichSite(req, context);
   if (!secret()) return fail("LHQ Hub isn't set up yet: add LHQ_SECRET in Netlify's environment variables.", 500);
   storeOnDb = await usesDbStore();
@@ -1926,7 +1948,7 @@ export default async (req, context) => {
     console.error(e);
     return fail("Something went wrong on the server. Try again.", 500);
   }
-};
+}
 
 export const config = { path: "/api/hub/*" };
 

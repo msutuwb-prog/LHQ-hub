@@ -9,9 +9,10 @@
   const DAYC = ['Su','Mo','Tu','We','Th','Fr','Sa'];
   const iso = dt => dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
   const parse = s => { const [y, m, d] = String(s).split('-').map(Number); return new Date(y, m - 1, d); };
-  const add = (s, n) => { const d = parse(s); d.setDate(d.getDate() + n); return iso(d); };
+  const ADD = new Map(), DOW = new Map();   // the same few hundred dates come up again and again: worked out once
+  const add = (s, n) => { const k = s + '|' + n; let v = ADD.get(k); if(v === undefined){ const d = parse(s); d.setDate(d.getDate() + n); v = iso(d); if(ADD.size > 50000) ADD.clear(); ADD.set(k, v); } return v; };
   const addMonth = s => { const d = parse(s), day = d.getDate(); d.setDate(1); d.setMonth(d.getMonth() + 1); d.setDate(Math.min(day, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate())); return iso(d); };
-  const dow = s => DAYC[parse(s).getDay()];
+  const dow = s => { let v = DOW.get(s); if(v === undefined){ v = DAYC[parse(s).getDay()]; DOW.set(s, v); } return v; };
   const label = n => (STAGES[n] || {}).l || 'Review ' + n;
 
   /* is this a session day for the item? (its days, inside its tuition period) */
