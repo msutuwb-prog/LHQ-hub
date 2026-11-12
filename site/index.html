@@ -19,6 +19,7 @@ if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash)
 <link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="hub.css">
 <script src="theme.js"></script>
+<script src="motion.js"></script>
 <script src="picker.js" defer></script>
 <script src="pako.min.js"></script>
 <script src="store.js"></script>
@@ -432,7 +433,7 @@ const ic = (n, s = 20, w = 1.8) => `<svg viewBox="0 0 24 24" width="${s}" height
 const inits = n => String(n||'?').split(/\s+/).filter(Boolean).slice(0,2).map(x => x[0]).join('').toUpperCase();
 function toast(m){ const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 3200); }
 window.hubToast = toast;
-function openSheet(html){ document.documentElement.classList.remove('lean-open'); $('sheet').innerHTML = html; $('sheet').hidden = false; $('shbg').hidden = false; $('sheet').querySelectorAll('[data-close]').forEach(b => b.onclick = closeSheet); const f = $('sheet').querySelector('input'); if(f && innerWidth > 700) setTimeout(() => f.focus(), 50); }
+function openSheet(html){ document.documentElement.classList.remove('lean-open'); const was = $('sheet').hidden; $('sheet').innerHTML = html; $('sheet').hidden = false; $('shbg').hidden = false; $('sheet').querySelectorAll('[data-close]').forEach(b => b.onclick = closeSheet); const f = $('sheet').querySelector('input'); if(f && innerWidth > 700) setTimeout(() => f.focus(), 50); if(was && window.MOTION) MOTION.sheet(); }
 function closeSheet(){ $('sheet').hidden = true; $('shbg').hidden = true; if(/^#(new|makeups)/.test(location.hash)) history.replaceState(null, '', '#home'); }
 $('shbg').onclick = closeSheet;
 document.addEventListener('keydown', e => { if(e.key === 'Escape' && !$('sheet').hidden) closeSheet(); });
@@ -507,6 +508,7 @@ function render(){
   if(!['new','makeups'].includes(route.page)) LHQNav.visit(pageLabel());
   bind();
   fillAsk();
+  if(window.MOTION) MOTION.after();
   if(route.page === 'new') newSheet(route.args[0]);
   if(route.page === 'makeups') makeupSheet(route.args[0]);
   if(route.page === 'tutors' && route.args[0] === 'none' && $('none')) $('none').scrollIntoView();
@@ -1590,6 +1592,7 @@ S.appearance = () => { const L = LHQNav.layout(), th = lhqTheme.choice(), tx = l
   <div class="card pad"><div class="cap">Theme</div>${seg('data-thm', th, [['light','Light'],['dark','Dark'],['auto','Auto']])}
     <div class="cap">Colour</div><div class="ap-sw">${[['navy','Navy','#073763','#f4b223'],['teal','Teal','#0f766e','#2dd4bf'],['purple','Purple','#6d28d9','#c4b5fd'],['forest','Forest','#166534','#4ade80'],['rose','Rose','#be123c','#fda4af'],['sunset','Sunset','#c2410c','#fdba74']].map(([v, l, a, b]) => `<button type="button" class="${lhqTheme.col() === v ? 'on' : ''}" data-apcol="${v}"><i style="background:${lhqTheme.get() === 'dark' ? b : a}"></i><small>${l}</small></button>`).join('')}</div>
     <div class="cap">Text size</div>${seg('data-txt', tx, [['s','Standard'],['l','Large'],['xl','Larger']])}
+    <div class="cap">Motion</div>${seg('data-motion', window.MOTION ? MOTION.get() : 'off', [['on','On'],['off','Off']])}<p class="note" style="margin:-8px 0 14px">Figures count up and bars fill the first time a page opens each day. Off: everything shows at once.</p>
     <div class="x-ph"><div class="cap">Menu</div>${seg('data-layout', L, [['bottom','Bottom bar'],['side','Sidebar']])}</div></div>
   <div class="h2">Everywhere you sign in</div>
   ${me().role === 'parent' ? '' : `<div class="card pad"><div class="cap">What you see</div>${seg('data-view', LEAN() ? 'lean' : 'full', [['lean', me().role === 'student' && LEAN() && Object.keys(me().feat || {}).length ? `Lean · ${Object.keys(me().feat).length} added` : 'Lean'],['full','Full']])}
@@ -1935,6 +1938,7 @@ function bind(){
   // account
   on('[data-thm]', el => { lhqTheme.set(el.dataset.thm); render(); });
   on('[data-txt]', el => { lhqTheme.setText(el.dataset.txt); render(); });
+  on('[data-motion]', el => { if(window.MOTION) MOTION.set(el.dataset.motion); render(); });
   on('[data-apcol]', el => { lhqTheme.setCol(el.dataset.apcol); render(); });
   const saveNav = async nav => { const s0 = hub.session(); if(s0 && s0.me){ s0.me.nav = nav; localStorage.setItem('lhq_session', JSON.stringify(s0)); } render();
     try{ await hub.api('people', {method:'POST', body: JSON.stringify({action:'nav', nav})}); }catch(e){ toast('Saved on this device'); } };
