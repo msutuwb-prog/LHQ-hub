@@ -595,7 +595,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
       <label id="nameRow"><span>Parent / guardian name</span><input id="f_name" placeholder="e.g. Mr Mathandalizwe" autocomplete="off"></label>
       <div class="grid-student">
         <label><span>Student name</span><input id="f_student" placeholder="e.g. Thando Mathandalizwe" autocomplete="off" list="studentNames"><datalist id="studentNames"></datalist></label>
-        <div class="fld"><span class="lbl">Year &amp; level</span><button type="button" class="picker-btn" data-pickfield="level" id="btnLevel" aria-haspopup="listbox" aria-expanded="false"><span class="pb-dot"></span><span class="pb-text"></span><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>
+        <div class="fld"><span class="lbl">Year and level</span><button type="button" class="picker-btn" data-pickfield="level" id="btnLevel" aria-haspopup="listbox" aria-expanded="false"><span class="pb-dot"></span><span class="pb-text"></span><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>
       </div>
       <div class="grid2" id="contactRow">
         <label class="lm"><span>Email</span><input id="f_email" type="email" inputmode="email" autocomplete="off" placeholder="parent@example.com"></label>
@@ -713,7 +713,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
       <details id="listSetup">
         <summary>Lists</summary>
         <label><span>Subjects, one per line</span><textarea id="s_subjects" rows="8"></textarea></label>
-        <label><span>Year &amp; level, one per line</span><textarea id="s_levels" rows="6"></textarea></label>
+        <label><span>Year and level, one per line</span><textarea id="s_levels" rows="6"></textarea></label>
         <label><span>Payment methods, one per line</span><textarea id="s_methods" rows="4"></textarea></label>
         <label><span>Every LHQ enrolment includes, one per line</span><textarea id="s_includes" rows="6"></textarea></label>
         <label><span>Tutors, one per line</span><textarea id="s_tutors" rows="6"></textarea></label>
@@ -1563,7 +1563,9 @@ function checkKnown(){
   if(show) F('knownText').textContent = `${k.student} is in Saved (${k.number}). Fill in ${[k.name, k.level].filter(Boolean).join(', ') || 'their details'}${k.email||k.phone ? ' and contact details' : ''}?`;
 }
 function fillStudentList(){
-  const names = [...new Set(saved.filter(s=>s.student).map(s=>s.student.trim()))].sort();
+  /* students on documents and students added on the Students page (no document yet), so a new student's name is picked, not retyped */
+  const recs = (window.HD && HD.studentRecords) ? Object.values(HD.studentRecords()).map(r=>r && r.name).filter(Boolean) : [];
+  const names = [...new Set(saved.filter(s=>s.student).map(s=>s.student.trim()).concat(recs.map(n=>String(n).trim())))].sort();
   F('studentNames').innerHTML = names.map(n=>`<option value="${esc(n)}">`).join('');
 }
 F('btnKnownFill').onclick = ()=>{
@@ -1841,7 +1843,18 @@ F('savedList').addEventListener('click', e=>{
   }
   if(b.dataset.del){ if(!confirm('Delete this saved document?')) return; saved=saved.filter(x=>x.id!==b.dataset.del); store.set('lhq_saved',saved); renderSaved(); }
 });
-F('btnSave').onclick = ()=> doc.type === 'card' && window.SCHED ? cardClashCheck(saveAndView) : saveAndView();
+/* A card that names no student, subject, tutor or day can't reach a tutor's list or a calendar: say so before saving */
+function cardGaps(){
+  if(doc.type !== 'card') return '';
+  const g = [], S = doc.subjects || [];
+  if(!String(doc.student || '').trim()) g.push('Student name');
+  if(!S.length) g.push('A subject');
+  S.forEach((x, i) => { const n = String(x.name || '').trim() || `Subject ${i + 1}`;
+    const m = []; if(!String(x.name || '').trim()) m.push('name'); if(!String(x.tutor || '').trim()) m.push('tutor'); if(!(x.days || []).length) m.push('days');
+    if(m.length) g.push(`${n}: ${m.join(', ')}`); });
+  return g.length ? `Still missing:\n· ${g.join('\n· ')}\n\nThe tutor won't see this card and nothing goes on the calendar until it's filled in. Save anyway?` : '';
+}
+F('btnSave').onclick = ()=>{ const gap = cardGaps(); if(gap && !confirm(gap)) return; doc.type === 'card' && window.SCHED ? cardClashCheck(saveAndView) : saveAndView(); };
 /* Before a tuition card is saved: does any line clash with the tutor's other students, the student's other subjects, or
    times the tutor can't teach? If so, say so (with free times that suit both) and let LHQ change it or save anyway. */
 function cardClashCheck(go){

@@ -129,7 +129,8 @@ window.TUT = (function(){
     const by = new Map();
     data.cards.slice().sort((a, b) => (a.periodStart || a.date || '').localeCompare(b.periodStart || b.date || '')).forEach(c => (c.subjects || []).forEach(x => {
       const k = nk(c.student) + '|' + nk(x.name), was = by.get(k);
-      let topics = []; try{ if(window.cardTopicNames) topics = cardTopicNames(cardFixPicks(JSON.parse(JSON.stringify(x)))); }catch(e){}
+      let topics = []; try{ if(window.cardTopicNames){ const xx = cardFixPicks(JSON.parse(JSON.stringify(x))); topics = cardTopicNames(xx);
+        if(!topics.length && xx.list){ xx.mode = 'full'; topics = cardTopicNames(xx); } } }catch(e){}   // a card with a syllabus but no topics picked yet: the tutor gets the whole syllabus to choose from
       const periods = (was ? was.periods : []).concat(c.periodStart && c.periodEnd ? [{a: c.periodStart, b: c.periodEnd, days: x.days || []}] : []);
       by.set(k, {k, st: c.student, sub: x.name, lv: c.level, days: x.days || [], times: x.times || {}, start: x.start || '', end: x.end || '', where: c.where || '',
         a: was ? was.a : (c.periodStart || ''), b: c.periodEnd || '', pa: c.periodStart || '', cap: parseFloat(x.sessions) || 0, card: c, x, topics: topics.length ? topics : (was ? was.topics : []), periods});
@@ -178,7 +179,8 @@ window.TUT = (function(){
       else if(k === 'eds'){ const t = root.querySelector('[data-arsl]'), l = (t ? t.value : '').split('\n').map(x => x.trim()).filter(Boolean);
         try{ await hub.api('tutor', {method: 'POST', body: JSON.stringify({action: 'obj', sub: a.osub, tk: a.otk, l})}); const o = OBJ(); o.L = o.L || {}; const key = SCHED.nk(a.osub) + '|' + SCHED.nk(a.otk); if(l.length) o.L[key] = {sub: a.osub, tk: a.otk, l}; else delete o.L[key]; if(data){ data.obj = o; write(CK, data); } a.edObj = false; a.om = null; toast('Objectives saved'); }catch(e){ toast(e.message); return; } }
       else if(k === 'na') a.na = !a.na; else if(k === 'p') a.ars = Math.min(mx, a.ars == null ? .5 : +a.ars + .5); else a.ars = Math.max(0, a.ars == null ? 0 : +a.ars - .5); again(); });
-    const o = root.querySelector('[data-arso]'); if(o) o.onchange = () => { const v = parseInt(o.value, 10); a.ao = v > 0 ? String(Math.min(v, 40)) : ''; if(a.ars != null && +a.ao > 0) a.ars = Math.min(+a.ars, +a.ao); again(); }; };
+    const o = root.querySelector('[data-arso]'); if(o) o.oninput = () => { const v = parseInt(o.value, 10); a.ao = v > 0 ? String(Math.min(v, 40)) : ''; if(a.ars != null && +a.ao > 0) a.ars = Math.min(+a.ars, +a.ao);   /* no redraw while typing: a redraw on blur ate the next tap (+ or Save) */
+      const w = o.parentNode, bs = w ? w.querySelectorAll('b') : []; if(bs[0]) bs[0].textContent = half(a.ars); if(bs[1]) bs[1].textContent = a.ars != null && +a.ao > 0 ? pct(a.ars, a.ao) : ''; }; };
   const arsOk = a => a.na || (a.ars != null && +a.ao > 0 && +a.ars <= +a.ao);
   const arsTo = (e, a) => { delete e.ars; delete e.ao; delete e.na; delete e.om; if(a.na) e.na = 1; else { const L = omSync(a); e.ars = +a.ars; e.ao = +a.ao; if(L) e.om = Object.assign({}, a.om); } return e; };
   const taught = a => a !== 'absent' && a !== 'cancelled';
