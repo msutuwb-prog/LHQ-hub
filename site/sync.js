@@ -328,8 +328,7 @@
   const errBox = (e, locked) => e ? `<div class="hub-errb" role="alert">${esc(e)}${locked ? `<a class="hub-wa" target="_blank" rel="noopener" href="https://wa.me/${LHQ_WA}?text=${encodeURIComponent("Hello LHQ, my LHQ Hub account is locked. Please send me a setup code.")}">Message LHQ on WhatsApp</a>` : ''}</div>` : '';
   /* students and parents use their own phones: "Keep me signed in" starts ticked for them (the last account on this device,
      or the person a setup code is for). Staff start unticked: 12 hours, for shared computers. Untick on a shared phone. */
-  const FAM = r => ['student', 'parent'].includes(r);
-  let keepMe = (() => { try{ return FAM(localStorage.getItem('lhq_lastRole')); }catch(e){ return false; } })(), keepTouched = false;
+  let keepMe = true, keepTouched = false;   // everyone stays signed in for 30 days unless they untick (shared phone)
   function wire(box, handlers){
     box.querySelectorAll('[data-eye]').forEach(b => b.onclick = () => { const i = box.querySelector('#' + b.dataset.eye); i.type = i.type === 'password' ? 'text' : 'password'; b.setAttribute('aria-label', i.type === 'password' ? 'Show password' : 'Hide password'); });
     const k = box.querySelector('#hubKeep'); if(k) k.onclick = () => { keepTouched = true; keepMe = !keepMe; k.classList.toggle('on', keepMe); k.setAttribute('aria-checked', keepMe); k.querySelector('.bx').textContent = keepMe ? '✓' : ''; };
@@ -377,7 +376,6 @@
   const RULES = (pw, pw2, p) => { const first = String(p.name || '').split(' ')[0].toLowerCase(), u = String(p.username || '').split('.')[0];
     return [[pw.length >= 8, 'At least 8 characters'], [/[0-9\W_]/.test(pw), 'A number or a symbol'], [!!pw && ![first, u].some(n => n.length > 2 && pw.toLowerCase().includes(n)), 'Not your name'], [!!pw && pw === pw2, 'Both match']]; };
   function pwChoose(ticket, person, why, err){
-    if(!keepTouched && person && person.role) keepMe = FAM(person.role);
     const box = overlay(), ini = String(person.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2);
     const title = why === 'pin' ? 'Choose a password' : why === 'first' ? 'Choose your password' : 'Choose a new password';
     const sub = why === 'pin' ? 'PINs are being replaced. After this your PIN stops working.' : why === 'first' ? 'This is the last step.' : 'Your old password stops working, and other devices are signed out.';
