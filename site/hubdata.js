@@ -96,7 +96,7 @@
   const byDate = (a, b) => (b.date||'').localeCompare(a.date||'') || (b.savedAt||0) - (a.savedAt||0);
 
   /* students: details kept once (lhq_students), filled in from their documents where missing */
-  const DETAIL = ['name','level','school','parent','phone','email','address','area','district','heard'];
+  const DETAIL = ['name','level','school','dob','parent','phone','email','address','area','district','heard'];
   function studentRecords(){ const r = Object.assign({}, store.get('lhq_students', {})); Object.keys(r).forEach(k => { if(!r[k] || r[k].del) delete r[k]; }); return r; }
   function students(){
     const recs = studentRecords(), map = new Map();
@@ -108,7 +108,7 @@
       s.name = rec.name || (D.find(d => d.student) || D[0] || {}).student || (D[0] || {}).name || s.key;
       s.parent = rec.parent || (D.find(d => d.name && d.name !== s.name) || {}).name || '';
       s.level = rec.level || pick('level'); s.phone = rec.phone || pick('phone'); s.email = rec.email || pick('email');
-      s.address = rec.address || pick('address'); s.heard = rec.heard || ''; s.area = rec.area || pick('area'); s.district = rec.district || pick('district');
+      s.address = rec.address || pick('address'); s.heard = rec.heard || ''; s.dob = rec.dob || ''; s.area = rec.area || pick('area'); s.district = rec.district || pick('district');
       s.school = rec.school || (D.find(d => d.type === 'card' && d.school) || {}).school || '';
       s.first = D.length ? D.map(d => d.date || '').filter(Boolean).sort()[0] : (rec.added || '');
       s.firstInv = D.filter(d => d.type === 'invoice').map(d => d.date || '').filter(Boolean).sort()[0] || '';   // a new student: the first invoice, not the first quote

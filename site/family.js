@@ -160,7 +160,7 @@ window.FAM = (function(){
     if(window.FUP) FUP.famL(k).filter(f => !f.a && !(f.act === 'take' && f.th) && (f.by === t || f.by === HD.addDays(t, 1) || f.by < t)).forEach(f => need.push(`<button type="button" class="it" data-ffu="${esc(f.id)}"><span class="f-mk ${f.by < t ? 'rd' : 'am'}">!</span><span class="t"><b>${({retest: 'Retest', reteach: 'Reteach', take: 'Take-home sheets'})[f.act]} ${f.by === t ? 'today' : f.by < t ? 'was due ' + day(f.by) : 'tomorrow'}: ${esc(f.tk)}</b><small>${esc(sub(f.sub))}${f.foc ? ' · focus: ' + esc(f.foc) : ''}</small></span><span class="chev">›</span></button>`));
     const pay = isParent() ? owedLine() : '';
     return `<div class="ph"><div class="tt"><h1>Hi ${esc(firstN(me().name))}</h1><p>${isParent() && kids().length === 1 ? esc(firstN(k.name)) + ' · ' : ''}${day(t)}</p></div>${isParent() ? '' : '<div class="acts"><button class="ib" type="button" data-ffeat aria-label="Your Hub">✎</button></div>'}</div>${kidChips()}
-      ${need.length ? `<div class="h2">Needs you <em>${need.length}</em></div><div class="card" style="border-left:3px solid var(--gold)">${need.join('')}</div>` : ''}
+      ${window.PROF ? PROF.famTodo(k, isParent() ? 'parent' : 'student') : ''}${need.length ? `<div class="h2">Needs you <em>${need.length}</em></div><div class="card" style="border-left:3px solid var(--gold)">${need.join('')}</div>` : ''}
       <div class="h2">Today</div><div class="card">${today.map(sesTell).join('') || '<p class="empty">No sessions today.</p>'}</div>${window.SX && has('cards') ? SX.homeCards(k) : ''}${!full() && !nAdded() ? moreAsk() : ''}
       ${k.changes.length ? `<div class="h2">Changes</div><div class="card">${k.changes.slice(0, 3).map(c => `<div class="it"><span class="f-mk bl">i</span><span class="t"><b>${esc(sub(c.sub))} → ${DAYN[c.to.day]} ${esc(c.to.s)}</b><small>was ${DAYN[c.from.day]} ${esc(c.from.s)}</small></span></div>`).join('')}</div>` : ''}
       ${packCard(k, true)}<div class="h2">Sessions</div><div class="card">${k.subjects.map(sesRow).join('') || '<p class="empty">No tuition this period.</p>'}</div>${pay}`;
@@ -272,6 +272,7 @@ window.FAM = (function(){
   function more(){
     return `<div class="ph"><div class="tt"><h1>More</h1></div></div><div class="card">
       <a class="it" href="#settings"><span class="t"><b>My account</b></span><span class="chev">›</span></a>
+      ${window.PROF ? `<a class="it" href="#me/profile"><span class="t"><b>${isParent() ? 'Details LHQ needs' : 'My profile'}</b></span><span class="chev">›</span></a>` : ''}
       <a class="it" href="#me/exams"><span class="t"><b>${isParent() ? 'Exams' : 'My exams'}</b></span><span class="chev">›</span></a>
       ${has('habits') ? `<a class="it" href="#me/habits"><span class="t"><b>Habits</b></span><span class="chev">›</span></a>` : ''}
       ${isParent() ? '' : `${has('focus') ? `<a class="it" href="#me/focus"><span class="t"><b>Focus</b></span><span class="chev">›</span></a>` : ''}
@@ -327,6 +328,7 @@ window.FAM = (function(){
     if(sub0 === 'more') return more();
     if(sub0 === 'exams'){ const k = kid(); if(!k) return emptyNoKids(); return kidChips() + EXUI.myExams(choices(k), crumb('#me/progress', isParent() ? 'Sessions' : 'Progress'), !isParent()); }
     if(sub0 === 'report') return report();
+    if(sub0 === 'profile' && window.PROF){ const k = kid(); if(!k) return emptyNoKids(); return kidChips() + PROF.famPage(k, isParent() ? 'parent' : 'student', `<a class="crumb" href="#me/more">‹ More</a>`); }
     if(window.SX){ const k = kid(); if(k){
       if(sub0 === 'habits') return kidChips() + SX.habits(k);
       if(window.SPLAN && ['day','week','year','blk','snooze'].includes(sub0)) return SPLAN.page(k, sub0, a1, route.args[2], route.args[3]);
@@ -479,5 +481,5 @@ window.FAM = (function(){
       <div style="display:flex;gap:8px;margin-top:8px"><button class="btn" style="flex:1" data-fcallink>Copy the link</button><button class="btn" style="flex:1" data-fcalnew>New link</button></div>
       <p class="note" style="margin-top:10px">One way: LHQ Hub → your calendar. Google updates it every few hours. Google: Other calendars › From URL. iPhone: Settings › Calendar › Accounts › Add Subscribed Calendar. Keep it private; New link stops the old one.</p>`;
   }
-  return {page, bind, bell, refresh: fetchData, mineCtx, steps, comingOf, sub, sesTell, full, has, FEAT, searchGroups};
+  return {kidOf: key => kids().find(k => k.key === key) || null, saveCache: () => write(CK, data), page, bind, bell, refresh: fetchData, mineCtx, steps, comingOf, sub, sesTell, full, has, FEAT, searchGroups};
 })();

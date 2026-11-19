@@ -1395,7 +1395,7 @@ const PLUS = '<span class="ic"><svg viewBox="0 0 24 24" width="14" height="14" f
 function pickCtx(){
   if(pk.field && pk.field.startsWith('cs:')){
     const c = cardFieldCfg(pk.field);
-    return { list:c.list(), cur:c.get()||'', other:false, title:c.title, noun:c.noun, allowOther:false, clear:c.clear, noUse:pk.field.endsWith(':list') };
+    return { list:c.list(), cur:c.get()||'', other:false, title:c.title, noun:c.noun, allowOther:false, clear:c.clear, noUse:pk.field.endsWith(':list'), sub:c.sub };
   }
   if(pk.field==='school'){
     const q = F('pkSearch').value.trim();
@@ -1426,7 +1426,7 @@ function buildPickList(){
   pk.opts.forEach((o,n)=>{
     if(o.kind!=='subj' && !sepDone && matches.length){ html += '<li class="pk-sep" role="presentation"></li>'; sepDone = true; }
     const attrs = `class="pk-opt${o.kind!=='subj'?' pk-special':''}${n===pk.active?' active':''}" role="option" id="pko${n}" data-n="${n}" aria-selected="${!!o.selected}"`;
-    if(o.kind==='subj') html += `<li ${attrs}><span>${esc(o.value)}${c.sub && c.sub(o.value) ? `<small class="pk-area">${esc(c.sub(o.value))}</small>` : ''}</span>${CHECK}</li>`;
+    if(o.kind==='subj') html += `<li ${attrs}><span>${esc(o.value)}${c.sub && c.sub(o.value) ? `<small class="pk-area" style="display:block;font-weight:600;color:${/^!/.test(c.sub(o.value)) ? 'var(--am,#7a5400)' : 'var(--muted)'}">${esc(c.sub(o.value))}</small>` : ''}</span>${CHECK}</li>`;
     else if(o.kind==='use') html += `<li ${attrs}>${PLUS}<span>Use “${esc(o.value)}”<small>${c.clear!==undefined ? 'Typed in, not added to your list' : `For this ${WORD[doc.type].toLowerCase()} only`}</small></span></li>`;
     else if(o.kind==='clear') html += `<li ${attrs}><span class="ic">–</span><span>${esc(c.clear)}</span>${CHECK}</li>`;
     else html += `<li ${attrs}>${PENCIL}<span>Other subject<small>Type in a subject that isn't listed</small></span>${CHECK}</li>`;

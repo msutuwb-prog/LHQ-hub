@@ -64,7 +64,7 @@ async function usesDbStore() {
 /* compare two values whatever order their keys come in (the database keeps keys in its own order) */
 const canon = v => JSON.stringify(v, (k, x) => x && typeof x === "object" && !Array.isArray(x) ? Object.keys(x).sort().reduce((o, key) => (o[key] = x[key], o), {}) : x);
 
-const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes", "lhq_treps", "lhq_avail", "lhq_cardack", "lhq_makeups", "lhq_reqs", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams", "lhq_kpi", "lhq_pay", "lhq_asks", "lhq_school", "lhq_fu", "lhq_obj", "lhq_fx"];
+const KV_KEYS = ["lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes", "lhq_treps", "lhq_avail", "lhq_cardack", "lhq_makeups", "lhq_reqs", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams", "lhq_kpi", "lhq_pay", "lhq_asks", "lhq_school", "lhq_fu", "lhq_obj", "lhq_fx", "lhq_prof"];
 
 /* ---------- roles and permissions ---------- */
 const PERMS = ["quotes", "receipts", "cards", "delete", "restore", "students", "money", "tpay", "tutors", "msgs", "numbering", "backup", "classes", "moveclass", "spend", "pl"];
@@ -75,6 +75,7 @@ const LIST_FIELDS = ["subjects", "levels", "methods", "includes", "tutors", "gra
 /* Business: who may read each part. Spending goes to whoever records it or sees profit and loss; budgets with profit and loss. */
 const KV_READ = { lhq_spend: p => can(p, "spend") || can(p, "pl"), lhq_income: p => can(p, "spend") || can(p, "pl"), lhq_budget: p => can(p, "pl"),
   lhq_sreports: p => isDirector(p) || can(p, "tutors"),
+  lhq_prof: p => isDirector(p) || can(p, "students") || can(p, "tutors"),   // profiles hold health notes and pay: LHQ only
   lhq_kpi: p => isDirector(p) || can(p, "tutors"),
   lhq_pay: p => isDirector(p) || can(p, "tpay"), lhq_asks: p => isDirector(p) || can(p, "tutors"), lhq_school: p => isDirector(p) || can(p, "students") || can(p, "tutors"), lhq_fu: p => isDirector(p) || can(p, "tutors"), lhq_fx: p => isDirector(p) || can(p, "money") || can(p, "money") };   // tutor pay: rules, placements, items, payslips (tutors get their own payslips through /api/hub/pay)   // tutor KPIs: observations, reviews (admin sees them only when the Director switches it on)   // students' daily reports: never tutors (they get averages only)
 const MERGED = ["lhq_spend", "lhq_income"];   // recorded on several devices at once: merged entry by entry
@@ -328,6 +329,10 @@ async function checkSync(me, upserts, deletes, kv) {
       if (changedKeys(old, v).length && !can(me, "tutors")) return "You don't have permission to change tutors' times.";
     } else if (k === "lhq_budget") {
       if (changedKeys(old, v).length) return "Only the Director can set budgets.";
+    } else if (k === "lhq_prof") {
+      const ch = Object.keys(v || {}).filter(id => canon(v[id]) !== canon((old || {})[id]));
+      if (ch.some(id => id.startsWith("s:")) && !can(me, "students")) return "You don't have permission to change student profiles.";
+      if (ch.some(id => !id.startsWith("s:")) && !can(me, "tutors")) return "You don't have permission to change tutor profiles.";
     } else if (k === "lhq_students") {
       const ch = changedKeys(old, v);
       const onlyNew = ch.every(key => !(key in old));
@@ -338,6 +343,18 @@ async function checkSync(me, upserts, deletes, kv) {
 }
 /* student details from two devices: record by record, the newer edit wins; a record left out is kept (a stale copy can't undo
    someone else's change); {del: 1} removes one (a rename) */
+/* profiles (students "s:<key>", tutors and staff "p:<name>"): section by section, the newer edit wins; a profile or section
+   left out is kept, so a family's or tutor's own save and LHQ's edit on another device never undo each other */
+export function mergeProf(old, v) {
+  const out = Object.assign({}, old || {});
+  for (const [id, P] of Object.entries(v || {})) {
+    if (!P || typeof P !== "object") continue;
+    const cur = Object.assign({}, out[id] || {});
+    for (const [sec, x] of Object.entries(P)) { if (!x || typeof x !== "object") continue; if (!cur[sec] || (x.at || 0) >= (cur[sec].at || 0)) cur[sec] = x; }
+    out[id] = cur;
+  }
+  return out;
+}
 export function mergeRecs(old, v) {
   const out = Object.assign({}, old || {});
   for (const [id, r] of Object.entries(v || {})) {
@@ -411,6 +428,7 @@ async function writeDocs(me, upserts, deletes = [], kvIn = []) {
       else if (k === "lhq_logs" || k === "lhq_treps") { const m = mergeLogs(old, v); merged[k] = m; await s.setJSON("kv/" + k, m); }
       else if (k === "lhq_classes") { const m = mergeSpend(old, v, me); merged[k] = m; await s.setJSON("kv/" + k, m); }
       else if (k === "lhq_students") { const m = mergeRecs(old, v); merged[k] = m; await s.setJSON("kv/" + k, m); }
+      else if (k === "lhq_prof") { const m = mergeProf(old, v); merged[k] = m; await s.setJSON("kv/" + k, m); }
       else await s.setJSON("kv/" + k, v);
       (idx.kvr = idx.kvr || {})[k] = (idx.rev || 0) + 1;
     }
@@ -798,7 +816,9 @@ async function familyData(me, opt = {}) {
 async function familyGet(me) {
   if (!["student", "parent"].includes(me.role)) return fail("This part is for students and parents.", 403);
   const co = ((await store().get("kv/lhq_calopt", { type: "json" })) || {})[me.id] || {};
-  return json(Object.assign({ me: pub(me), today: mwToday(), now: Date.now(), cal: { link: calPath(me.id, co.v), inc: Object.assign({}, CAL_DEF, co.inc || {}) } }, await familyData(me)));
+  const fd = await familyData(me), PR = (await store().get("kv/lhq_prof", { type: "json" })) || {}, SR = (await store().get("kv/lhq_students", { type: "json" })) || {};
+  (fd.kids || []).forEach(k => { k.prof = Object.assign({}, PR["s:" + k.key] || {}); k.dob = ((SR[k.key] || {}).dob) || ""; });
+  return json(Object.assign({ me: pub(me), today: mwToday(), now: Date.now(), cal: { link: calPath(me.id, co.v), inc: Object.assign({}, CAL_DEF, co.inc || {}) } }, fd));
 }
 async function familyPost(req, me) {
   if (!["student", "parent"].includes(me.role)) return fail("This part is for students and parents.", 403);
@@ -1676,7 +1696,11 @@ async function tutorExtras(me, d) {
   const kset = (await store().get("kv/lhq_settings", { type: "json" })) || {};
   const sx = await studentTime([...new Set([...d.keys].map(k => k.split("|")[0]))], new Set(d.cards.flatMap(c => (c.subjects || []).filter(x => nk(x.tutor) === mk).map(x => nk(c.student) + "|" + nk(x.name)))), !!kset.tsee);
   const fuAll = (await store().get("kv/lhq_fu", { type: "json" })) || {};
-  return { obj: { on: !!((kset.obj || {}).on), subs: ((kset.obj || {}).subs) || [], L: (await store().get("kv/lhq_obj", { type: "json" })) || {} }, fu: Object.values(fuAll).filter(f => f && !f.x && d.keys.has(f.k)), sx, tsee: !!kset.tsee, asks: Object.values(((await store().get("kv/lhq_asks", { type: "json" })) || {})).filter(a => a && nk(a.tutor) === mk && !a.done), avail: (av || {})[mk] || [], acks, gone, ackFrom: ack._from, calLink: calPath(me.id, (((await store().get("kv/lhq_calopt", { type: "json" })) || {})[me.id] || {}).v), makeups, reqs, clashes: await tutorClashes(me), sradone, says, notices, exam, kpiOn: !!((kset.kpi || {}).tutors) };
+  const PR = (await store().get("kv/lhq_prof", { type: "json" })) || {}, SR = (await store().get("kv/lhq_students", { type: "json" })) || {}, sprof = {};
+  [...new Set([...d.keys].map(k => k.split("|")[0]))].forEach(st => { const P = PR["s:" + st] || {}, R = SR[st] || {};
+    sprof[st] = { dob: R.dob || "", phone: R.phone || "", parent: R.parent || "", health: P.health || null, learn: P.learn || null, about: P.about ? { goals: P.about.goals || "" } : null, collect: P.collect || null, emerg: P.emerg || null }; });
+  const prof = PR["p:" + mk] || {};
+  return { prof, sprof, obj: { on: !!((kset.obj || {}).on), subs: ((kset.obj || {}).subs) || [], L: (await store().get("kv/lhq_obj", { type: "json" })) || {} }, fu: Object.values(fuAll).filter(f => f && !f.x && d.keys.has(f.k)), sx, tsee: !!kset.tsee, asks: Object.values(((await store().get("kv/lhq_asks", { type: "json" })) || {})).filter(a => a && nk(a.tutor) === mk && !a.done), avail: (av || {})[mk] || [], acks, gone, ackFrom: ack._from, calLink: calPath(me.id, (((await store().get("kv/lhq_calopt", { type: "json" })) || {})[me.id] || {}).v), makeups, reqs, clashes: await tutorClashes(me), sradone, says, notices, exam, kpiOn: !!((kset.kpi || {}).tutors) };
 }
 async function tutorPost(req, me) {
   if (!isTutor(me)) return fail("This part is for tutors.", 403);
@@ -1940,6 +1964,9 @@ async function handle(req, context) {
     if (req.method === "POST" && path === "asks") return await asksPost(req, me);
     if (req.method === "POST" && path === "school") return await schoolPost(req, me);
     if (req.method === "GET" && path === "family") return await familyGet(me);
+    if (req.method === "POST" && path === "prof") return await profPost(req, me);
+    if (req.method === "GET" && path === "bdays") return await bdaysGet(me);
+    if (req.method === "POST" && path === "wish") return await wishPost(req, me);
     if (req.method === "GET" && path === "stuview") return await stuView(new URL(req.url).searchParams.get("k") || "", me);
     if (req.method === "POST" && path === "family") return await familyPost(req, me);
     if (req.method === "POST" && path === "confirmer") return await setConfirmer(req, me);
@@ -2111,4 +2138,84 @@ export async function pushTick(context, at = Date.now()) {
   }
   if (sent.length) await writeKv("lhq_pushlog", old => { const o = {}; Object.entries(old || {}).forEach(([k, v]) => { if (k.slice(0, 10) >= new Date(at - 7 * 864e5).toISOString().slice(0, 10)) o[k] = v; }); sent.forEach(k => o[k] = 1); return o; });
   return { hour: h, sent };
+}
+
+
+/* ================= profiles and birthdays =================
+   lhq_prof  {"s:<student key>": {about, learn, exams, avail, collect, health, photo, emerg, family, bday},
+              "p:<person name>": {det, subs, avail, place, quals, about, weak, bday}}   each section {…, at, by}
+   lhq_wish  {"<date>|<id>": [{by, role, t, at}]}   (server only: read through /bdays)
+   A student's date of birth is on their student record (lhq_students .dob); a person's on their profile (det.dob). */
+const PROF_SEC = {
+  student: { about: ["goals", "interests", "note"], learn: ["best", "hard", "note"], exams: ["note"], avail: ["times", "note"], bday: ["off"] },
+  parent: { collect: ["mode", "who", "note"], health: ["t"], photo: ["v"], emerg: ["n", "p"], family: ["g2", "g2p", "g2e", "pays", "reports"], avail: ["times", "note"] },
+  self: { det: ["dob", "phone", "email", "area", "en", "ep"], about: ["bio"], quals: ["L"], weak: ["L"], avail: ["term", "hol", "max", "how", "areas"], bday: ["off"] } };
+function profClean(sec, fields, x) {
+  const o = {}; (fields || []).forEach(f => { const v = (x || {})[f];
+    if (Array.isArray(v)) o[f] = v.slice(0, 80).map(y => typeof y === "object" && y ? { t: txt0(y.t, 120), ok: y.ok ? 1 : 0 } : txt0(y, 120)).filter(y => typeof y === "object" ? y.t : y);
+    else if (typeof v === "number" || typeof v === "boolean") o[f] = typeof v === "boolean" ? (v ? 1 : 0) : Math.max(0, Math.min(999, Math.round(v)));
+    else if (v != null) o[f] = txt0(v, 600); });
+  if (o.dob && !/^\d{4}-\d{2}-\d{2}$/.test(o.dob)) delete o.dob;
+  return o;
+}
+async function profPost(req, me) {
+  const b = await req.json().catch(() => ({})), now = Date.now(), sec = String(b.sec || "");
+  let id, F;
+  if (me.role === "student" || me.role === "parent") {
+    const kids = await familyOf(me), kid = kids.find(k => k.key === nk(b.k)) || (kids.length === 1 ? kids[0] : null);
+    if (!kid) return fail("Which student?", 403);
+    F = PROF_SEC[me.role][sec]; id = "s:" + kid.key;
+    if (!F) return fail(me.role === "student" ? "Your parent or LHQ fills that in." : "Tiwonge or LHQ fills that in.".replace("Tiwonge", kid.name.split(" ")[0]), 403);
+  } else {
+    F = PROF_SEC.self[sec]; id = "p:" + nk(me.name);
+    if (!F) return fail("LHQ sets that part.", 403);
+  }
+  const clean = profClean(sec, F, b.x); let x = null;
+  await writeKv("lhq_prof", old => { const o = Object.assign({}, old), P = Object.assign({}, o[id]), was = P[sec] || {};
+    /* a section is updated, not replaced: fields not sent stay; a qualification LHQ has checked stays checked (a tutor can't tick their own) */
+    if (sec === "quals" && Array.isArray(clean.L)) clean.L = clean.L.map(q => ({ t: q.t || q, ok: (was.L || []).some(w => w && w.ok && nk(w.t) === nk(q.t || q)) ? 1 : 0 }));
+    x = Object.assign({}, was, clean, { at: now, by: me.name }); P[sec] = x; o[id] = P; return o; });
+  return json({ ok: true, x });
+}
+const ageOn = (dob, d) => { const a = +d.slice(0, 4) - +dob.slice(0, 4); return d.slice(5) < dob.slice(5) ? a - 1 : a; };
+/* the day a birthday falls on in a year (29 Feb on 28 Feb when it isn't a leap year) */
+const bdayIn = (dob, y) => { let md = dob.slice(5); if (md === "02-29" && !(y % 4 === 0 && (y % 100 !== 0 || y % 400 === 0))) md = "02-28"; return y + "-" + md; };
+async function bdayList(me) {
+  const set = (await store().get("kv/lhq_settings", { type: "json" })) || {}, opt = Object.assign({ strip: 1, wish: 1, stu: 0 }, set.bday || {});
+  const PR = (await store().get("kv/lhq_prof", { type: "json" })) || {}, SR = (await store().get("kv/lhq_students", { type: "json" })) || {};
+  const ppl = (await getPeople()).filter(p => p.active !== false), role = me.role;
+  const all = [];
+  Object.entries(SR).forEach(([key, r]) => { if (!r || r.del || !/^\d{4}-\d{2}-\d{2}$/.test(r.dob || "")) return; const P = PR["s:" + key] || {};
+    if (!(P.bday && P.bday.off)) all.push({ id: "s:" + key, key, name: r.name || key, kind: "student", dob: r.dob }); });
+  ppl.filter(p => ["director", "admin", "tutor"].includes(p.role) || p.tutor).forEach(p => { const P = PR["p:" + nk(p.name)] || {}, dob = (P.det || {}).dob || "";
+    if (/^\d{4}-\d{2}-\d{2}$/.test(dob) && !(P.bday && P.bday.off)) all.push({ id: "p:" + p.id, key: nk(p.name), name: p.name, kind: p.role === "tutor" || (p.tutor && p.role !== "director") ? "tutor" : "staff", dob }); });
+  let see = () => false, ages = () => false, rel = () => "", mineId = "";
+  if (role === "director" || role === "admin") { see = () => true; ages = () => true; mineId = "p:" + me.id; }
+  else if (isTutor(me)) {
+    const d = await tutorData(me), stus = new Set([...d.keys].map(k => k.split("|")[0]));
+    see = x => x.kind !== "student" || stus.has(x.key); ages = x => x.kind === "student"; rel = x => x.kind === "student" ? "your student" : ""; mineId = "p:" + me.id;
+  } else if (role === "student") {
+    const kids = await familyOf(me), kk = kids[0] ? kids[0].key : "", cards = (await readAll("doc/")).filter(c => c && !c.del && c.type === "card" && nk(c.student) === kk);
+    const tut = new Set(cards.flatMap(c => (c.subjects || []).map(x => nk(x.tutor)).filter(Boolean)));
+    see = x => x.kind === "staff" || (x.kind === "tutor" && tut.has(x.key)) || (x.kind === "student" && (x.key === kk || opt.stu)); rel = x => x.kind === "tutor" && tut.has(x.key) ? "your tutor" : ""; mineId = kk ? "s:" + kk : "";
+  }
+  const t = mwToday(), y = +t.slice(0, 4), W = (await store().get("kv/lhq_wish", { type: "json" })) || {};
+  const week = [];
+  all.filter(x => see(x) || x.id === mineId).forEach(x => { for (const yy of [y, y + 1]) { const on = bdayIn(x.dob, yy), dd = Math.round((Date.parse(on) - Date.parse(t)) / 864e5);
+    if (dd >= 0 && dd <= 7) { week.push({ id: x.id, name: x.name, kind: x.kind, on, in: dd, rel: rel(x), age: ages(x) ? ageOn(x.dob, on) : null, wishes: (W[on + "|" + x.id] || []).length, me: x.id === mineId }); break; } } });
+  week.sort((a, b) => a.in - b.in || a.name.localeCompare(b.name));
+  const mine = mineId && week.find(x => x.me && x.in === 0) ? (W[t + "|" + mineId] || []).map(w => ({ by: w.by, role: w.role, t: w.t, at: w.at })) : null;
+  return { today: t, opt, week: role === "parent" ? [] : week.filter(x => !x.me || x.in === 0), mine, canWish: !!opt.wish && (staff(me) || isTutor(me)) };
+}
+async function bdaysGet(me) { return json(Object.assign({ ok: true }, await bdayList(me))); }
+async function wishPost(req, me) {
+  if (!(staff(me) || isTutor(me))) return fail("Only LHQ staff and tutors send wishes.", 403);
+  const b = await req.json().catch(() => ({})), L = await bdayList(me);
+  if (!L.opt.wish) return fail("Wishes are switched off.", 403);
+  const x = L.week.find(w => w.id === String(b.id || "") && w.in === 0); if (!x) return fail("It isn't their birthday today.");
+  const t = txt0(b.t, 200); if (!t) return fail("Write a wish.");
+  const role = staff(me) ? (me.role === "director" ? "Director" : "LHQ") : "tutor";
+  await writeKv("lhq_wish", old => { const o = Object.assign({}, old), k = L.today + "|" + x.id, A = (o[k] || []).filter(w => w.by !== me.name); A.push({ by: me.name, role, t, at: Date.now() }); o[k] = A.slice(-60);
+    Object.keys(o).forEach(kk => { if (kk.slice(0, 10) < new Date(Date.now() - 60 * 864e5).toISOString().slice(0, 10)) delete o[kk]; }); return o; });
+  return json({ ok: true });
 }

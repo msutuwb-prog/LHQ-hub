@@ -143,7 +143,7 @@ function cardFieldCfg(key){
         if(nk!==s.list){ s.list = nk; s.picks = {}; s.details = {}; s.openCh=''; } }},
     tf: {title:'Assessments', noun:'option', list:()=>['Weekly','Every 2 weeks'], get:()=>s.tf || 'Weekly', set:set('tf')},
     tier: {title:'Paper', noun:'option', clear:'Not set', list:()=>['Extended','Core'], get:()=>s.tier, set:set('tier')},
-    tutor: {title:'Tutor', noun:'tutor', clear:'To be confirmed', list:()=>{ /* the Tutors list in Settings, plus everyone who teaches and can sign in */ const L = lines(settings.tutors), P = (window.HD ? HD.people() : []).filter(p=>p.tutor && p.active !== false).map(p=>p.name); P.forEach(n=>{ if(!L.some(x=>x.toLowerCase()===n.toLowerCase())) L.push(n); }); return L; }, get:()=>s.tutor, set:set('tutor')},
+    tutor: {title:'Tutor', noun:'tutor', clear:'To be confirmed', sub: v => cardTutorFit(v, s).t, list:()=>{ /* the Tutors list in Settings, plus everyone who teaches and can sign in */ const L = lines(settings.tutors), P = (window.HD ? HD.people() : []).filter(p=>p.tutor && p.active !== false).map(p=>p.name); P.forEach(n=>{ if(!L.some(x=>x.toLowerCase()===n.toLowerCase())) L.push(n); }); return L.map((n, i) => [n, i]).sort((a, b) => cardTutorFit(b[0], s).r - cardTutorFit(a[0], s).r || a[1] - b[1]).map(x => x[0]); }, get:()=>s.tutor, set:set('tutor')},
     mins: {title:'Session length', noun:'length', clear:'Not set', list:()=>lines(settings.sessionLengths), get:()=>s.mins, set:set('mins')},
     grade: {title:'Current grade', noun:'grade', clear:'No grade', list:()=>lines(settings.grades), get:()=>s.grade, set:set('grade')},
     basis: {title:'Grade based on', noun:'option', clear:'Not given', list:()=>lines(settings.gradeBasis), get:()=>s.basis, set:set('basis')},
@@ -653,4 +653,22 @@ async function cardSendTutorLink(savedList, tutor){
   const url = 'https://wa.me/' + (ph.length >= 11 ? ph : '') + '?text=' + encodeURIComponent(cardTutorMessage(tutor, link, howTo));
   cardMarkTutorSent(tutor);
   const w = window.open(url, '_blank'); if(!w) location.href = url;
+}
+
+/* the tutor picker: from each tutor's profile, do they teach this subject at this level, and are they free on these days?
+   Tutors who teach it and are free come first. A tutor with no profile yet is listed as before. */
+function cardTutorFit(name, s){
+  let A = {}; try{ A = (window.HD && HD.store ? HD.store.get('lhq_prof', {}) : JSON.parse(localStorage.getItem('lhq_prof') || '{}')) || {}; }catch(e){}
+  const k = x => String(x || '').trim().toLowerCase().replace(/\s+/g, ' '), P = A['p:' + k(name)] || {};
+  if(!P.subs || !(P.subs.L || []).length || !s.name) return {t:'', r:1};
+  const LV = ['Checkpoint','IGCSE','AS','A Level','IB','IELTS','SAT'], lvl = LV.find(l => new RegExp('\\b' + l.replace(' ', '\\s*') + '\\b', 'i').test(doc.level || ''));
+  const m = P.subs.L.find(x => k(x.n) === k(s.name)), teaches = !!m && (!lvl || !(m.lv || []).length || m.lv.includes(lvl));
+  if(!teaches) return {t:`! Doesn't list ${lvl ? lvl + ' ' : ''}${s.name}`, r:0};
+  const av = P.avail, DI = {Mo:0,Tu:1,We:2,Th:3,Fr:4,Sa:5,Su:6}, DN = ['Mondays','Tuesdays','Wednesdays','Thursdays','Fridays','Saturdays','Sundays'];
+  if(av && (av.term || []).length && (s.days || []).length && /^\d{1,2}:\d{2}/.test(s.start || '')){
+    const h = +s.start.split(':')[0], blk = [8,10,12,14,16,18].filter(x => x <= h).pop(), off = s.days.filter(d => !(av.term || []).includes(DI[d] + '-' + blk));
+    if(off.length) return {t:`! Not available on ${off.map(d => DN[DI[d]]).join(', ')} at ${s.start}`, r:1};
+    return {t:`✓ Teaches ${lvl ? lvl + ' ' : ''}${s.name} · free then`, r:3};
+  }
+  return {t:`✓ Teaches ${lvl ? lvl + ' ' : ''}${s.name}`, r:2};
 }

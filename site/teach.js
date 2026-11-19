@@ -95,7 +95,7 @@ window.TUT = (function(){
     if(loading) return loading;
     loading = (async () => {
       await flush();
-      try{ const j = await hub.api('tutor'); data = {cards: j.cards || [], entries: j.entries || [], classes: j.classes || [], reports: j.reports || [], avail: j.avail || [], acks: j.acks || {}, gone: j.gone || [], ackFrom: j.ackFrom || 0, calLink: j.calLink || '', makeups: j.makeups || [], reqs: j.reqs || {}, clashes: j.clashes || [], says: j.says || null, sradone: j.sradone || {}, notices: j.notices || [], exam: j.exam || null, kpiOn: !!j.kpiOn, sx: j.sx || {}, tsee: !!j.tsee, asks: j.asks || [], obj: j.obj || {on: false, subs: [], L: {}}, fu: j.fu || [], at: Date.now()}; write(CK, data); err = ''; }
+      try{ const j = await hub.api('tutor'); data = {prof: j.prof || {}, sprof: j.sprof || {}, cards: j.cards || [], entries: j.entries || [], classes: j.classes || [], reports: j.reports || [], avail: j.avail || [], acks: j.acks || {}, gone: j.gone || [], ackFrom: j.ackFrom || 0, calLink: j.calLink || '', makeups: j.makeups || [], reqs: j.reqs || {}, clashes: j.clashes || [], says: j.says || null, sradone: j.sradone || {}, notices: j.notices || [], exam: j.exam || null, kpiOn: !!j.kpiOn, sx: j.sx || {}, tsee: !!j.tsee, asks: j.asks || [], obj: j.obj || {on: false, subs: [], L: {}}, fu: j.fu || [], at: Date.now()}; write(CK, data); err = ''; }
       catch(e){ err = navigator.onLine ? e.message : 'offline'; }
       loading = null; if(!form) render();
     })();
@@ -496,6 +496,7 @@ window.TUT = (function(){
     if(sub === 'sra') return sraPage(a1 || 'today');
     if(sub === 'fu') return fuPage();
     if(sub === 'report') return reportPage();
+    if(sub === 'profile' && window.PROF) return PROF.tutorMine(data.prof || (data.prof = {}), backHome());
     if(sub === 'classes') return classesPage();
     if(sub === 'class') return classPage(a1);
     return home();
@@ -565,10 +566,10 @@ window.TUT = (function(){
       (ed ? '<p class="note" style="margin:-6px 0 12px">Move, remove or add cards.</p>'
         : rep ? `<a class="t-banner ok" href="#teach/report"><span><b>Today's report is in</b>Sent at ${hm(rep.sent)}. You can still log; changes show as edited.</span></a>`
         : `<a class="t-banner" href="#teach/report"><span><b>Daily report due before you leave</b>Reminder between 16:00 and 17:00${G.length ? ` · ${G.length} thing${G.length > 1 ? 's' : ''} still to log` : ''}</span></a>`) +
-      (ed ? '' : answersBlock() + toldBlock() + slipBlock() + noticesBlock() + clashesBlock() + comingBlock()) + cardsBlock() + (ed ? '' : saysBlock() + reqsBlock() + `
+      (ed ? '' : (window.PROF ? PROF.tutorTodo(data.prof) : '') + answersBlock() + toldBlock() + slipBlock() + noticesBlock() + clashesBlock() + comingBlock()) + cardsBlock() + (ed ? '' : saysBlock() + reqsBlock() + `
       <div class="h2">Logged today <em>${L.length}</em></div>${timeline(L)}
       ${G.length ? `<div class="h2">Still to log <em>${G.length}</em></div>${gapCard(G)}` : ''}
-      <div class="card">${[['#teach/cal','clock','Calendar','Your week from your tuition cards · clashes · times you can\'t teach'],['#teach/students','users','My students','Sessions had and remaining, make-ups'],['#teach/sra','restore','SRA tracker','Give, collect and print · next 7 days · by student'],['#exams','list','Exam timetable','Every Cambridge paper and its date'],...(data && data.kpiOn ? [['#teach/perf','rep','My performance','Your KPIs · Week and Month']] : []),['#teach/pay','cash','My pay','Payslips to check and sign'],['#teach/classes','users','Classes',`${(data.classes || []).length} official class${(data.classes || []).length === 1 ? '' : 'es'}`]].concat(tutorRole() ? [] : [['#teach/report','list','Daily report', rep ? 'Sent today' : 'Due before you leave']]).map(([h, i, b, s]) => `<a class="it" href="${h}"><span class="ico">${ic(i,18)}</span><span class="t"><b>${b}</b><small>${s}</small></span><span class="chev">${ic('chev',16,2)}</span></a>`).join('')}</div>`);
+      <div class="card">${[['#teach/cal','clock','Calendar','Your week from your tuition cards · clashes · times you can\'t teach'],['#teach/students','users','My students','Sessions had and remaining, make-ups'],['#teach/sra','restore','SRA tracker','Give, collect and print · next 7 days · by student'],['#exams','list','Exam timetable','Every Cambridge paper and its date'],...(data && data.kpiOn ? [['#teach/perf','rep','My performance','Your KPIs · Week and Month']] : []),['#teach/pay','cash','My pay','Payslips to check and sign'],['#teach/profile','user','My profile','Details, availability, qualifications'],['#teach/classes','users','Classes',`${(data.classes || []).length} official class${(data.classes || []).length === 1 ? '' : 'es'}`]].concat(tutorRole() ? [] : [['#teach/report','list','Daily report', rep ? 'Sent today' : 'Due before you leave']]).map(([h, i, b, s]) => `<a class="it" href="${h}"><span class="ico">${ic(i,18)}</span><span class="t"><b>${b}</b><small>${s}</small></span><span class="chev">${ic('chev',16,2)}</span></a>`).join('')}</div>`);
   }
 
   /* students and a student's page */
@@ -614,7 +615,7 @@ window.TUT = (function(){
     const box = (x, i) => ed ? `<div class="t-sec ed"><div class="t-secctl"><b>${SECS[x]}</b><button type="button" data-tsmv="${i}|-1" ${i ? '' : 'disabled'} aria-label="Move up">↑</button><button type="button" data-tsmv="${i}|1" ${i < on.length - 1 ? '' : 'disabled'} aria-label="Move down">↓</button><button type="button" class="rm" data-tsrm="${x}" aria-label="Remove ${SECS[x]}">×</button></div>${SEC[x]()}</div>` : `<div class="t-sec">${SEC[x]()}</div>`;
     const off = Object.keys(SECS).filter(x => !on.includes(x));
     const acts = ed ? `<div class="acts"><button class="btn n" type="button" data-tedit="">Done</button></div>` : `<div class="acts"><button class="btn" type="button" data-tedit="tstudent" title="Edit sections" aria-label="Edit sections">${PEN()}</button>${logBtn(k)}</div>`;
-    return back('#teach/students', 'My students') + head(esc(it.st), `${esc(it.sub)}${it.lv ? ' · ' + esc(it.lv) : ''}`, acts) + (ed ? '<p class="note" style="margin:-6px 0 12px">Applies to every student.</p>' : '') + on.map(box).join('') +
+    return back('#teach/students', 'My students') + head(esc(it.st), `${esc(it.sub)}${it.lv ? ' · ' + esc(it.lv) : ''}`, acts) + (ed ? '<p class="note" style="margin:-6px 0 12px">Applies to every student.</p>' : (window.PROF ? PROF.tutorKnow((data.sprof || {})[stuOf(k)], it.st) : '')) + on.map(box).join('') +
       (ed && off.length ? `<div class="h2">Add a section <em>${off.length}</em></div><div class="card">${off.map(x => `<div class="it"><span class="t"><b>${SECS[x]}</b></span><button class="btn sm" type="button" data-tsadd="${x}">${ic('plus',14,2.4)} Add</button></div>`).join('')}</div>` : '');
   }
 
@@ -1195,5 +1196,5 @@ window.TUT = (function(){
       {g: 'Classes', items: (data.classes || []).map(c => ({t: c.name, s: `${c.sub} · ${(c.stu || []).length} students`, href: '#teach/classes'}))},
       {g: 'Make-ups', items: (data.makeups || []).map(m => ({t: `Make-up · ${short(m.st)}`, s: `${m.sub} · ${nice(m.d)} ${m.s || ''} · ${m.status === 'ok' ? 'confirmed' : m.status === 'no' ? 'declined' : 'waiting'}`, href: '#teach/makeups'}))}];
   }
-  return {page, bind, bell, isTutor, refresh: fetchData, items, sras, sessions, gaps, pendingWa, dayLogs, searchGroups};
+  return {prof: () => data ? (data.prof || (data.prof = {})) : null, page, bind, bell, isTutor, refresh: fetchData, items, sras, sessions, gaps, pendingWa, dayLogs, searchGroups};
 })();
