@@ -10,7 +10,9 @@ window.TPAYUI = (function(){
   const ym = d => d.slice(0, 7), addM = (m, n) => { const d = new Date(Date.UTC(+m.slice(0, 4), +m.slice(5) - 1 + n, 1)); return d.toISOString().slice(0, 7); };
   const enc = encodeURIComponent, dec = s => { try{ return decodeURIComponent(s); }catch(e){ return s; } };
   let last = {};   // what the sheets show
-  const post = async body => { try{ const r = await hub.api('pay', {method: 'POST', body: JSON.stringify(body)}); if(window.hub && hub.pull) await hub.pull(); return r; }catch(e){ toast(e.message || 'Couldn\'t save'); return null; } };
+  const post = async body => { let r; try{ r = await hub.api('pay', {method: 'POST', body: JSON.stringify(body)}); }catch(e){ toast(e.message || 'Couldn\'t save'); return null; }
+    try{ if(window.hub && hub.pull && !(window.TUT && TUT.isTutor && TUT.isTutor())) await hub.pull(); }catch(e){}   /* tutors have no documents to pull; a failed refresh never undoes a save */
+    return r; };
   const ST = {draft: ['', 'Draft'], confirmed: ['bl', 'Confirmed · to sign'], signed: ['ok', 'Signed']};
   const mark = st => `<span class="tp-mk ${ST[st][0]}">${st === 'signed' ? '✓' : ''}</span>`;
   const CSS = `.tp-mk{width:28px;height:28px;border-radius:50%;border:2px solid var(--line);flex:none;display:grid;place-items:center;font-weight:900;font-size:13px;color:#fff}.tp-mk.ok{background:var(--ok);border-color:var(--ok)}.tp-mk.bl{border-color:var(--accent)}.tp-mk.am{border-color:var(--am);background:var(--am-bg);color:var(--am)}

@@ -24,7 +24,7 @@ window.FAM = (function(){
   const FEAT = [['cards','Home cards','SRAs this week, topics dropping, countdowns'],['focus','Focus timer','Rounds of 25 or 50 min, minutes recorded'],['plan','Plan my day','Day, My week and Year views, study blocks'],['habits','Habits','Effort against the period before'],['review','Review and reflection','Week, month, term; two lines a week']];
   const has = f => full() || !!((((((window.hub && hub.session && hub.session()) || {}).me) || {}).feat) || {})[f];
   const nAdded = () => FEAT.filter(([f]) => has(f)).length;
-  let data = read(CK, null), loading = null, err = '', kidI = +(read('lhq_family_kid', 0)) || 0;
+  let data = read(CK, null), loading = null, err = '', opened = false, kidI = +(read('lhq_family_kid', 0)) || 0;
 
   if(!document.getElementById('famCss')){ const st = document.createElement('style'); st.id = 'famCss'; st.textContent = `
 .f-ok,.f-no{flex:none;width:40px;height:40px;border-radius:50%;border:1px solid var(--line);background:var(--surface);font-weight:900;font-size:16px;display:grid;place-items:center;padding:0;cursor:pointer}
@@ -318,7 +318,7 @@ window.FAM = (function(){
   }
 
   function page(sub0, a1, a2){
-    if(!data || Date.now() - (data.at || 0) > 60000) fetchData();
+    if(!data || !opened || Date.now() - (data.at || 0) > 60000){ opened = true; fetchData(); }   /* always fresh when the app opens */
     if(!data) return emptyNoKids();
     if(sub0 === 'practice') return a1 === 'pack' ? takeHome() : practice();
     if(sub0 === 'calendar') return calendar(a1);

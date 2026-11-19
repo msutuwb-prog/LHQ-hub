@@ -1273,7 +1273,7 @@ P.activity = () => {
   const logged = R.filter(x => x.action === 'log.add').reduce((a, x) => a + (+((x.summary.match(/^Logged (\d+) session/) || [])[1] || 0)), 0);
   const marks = R.filter(x => x.action === 'sra.mark'), nM = marks.reduce((a, x) => a + (+(x.data || {}).n || 1), 0), nA = marks.reduce((a, x) => a + (+(x.data || {}).ars || 0), 0);
   const nLog = R.filter(x => x.action === 'log.add').reduce((a, x) => a + (+((x.data || {}).n) || +((x.summary.match(/^Logged (\d+) session/) || [])[1] || 0) || (/^Logged a session/.test(x.summary) ? 1 : 0)), 0);
-  const figs = [['Money', 'cash', cnt(x => x.area === 'money' && /recorded/.test(x.action)), 'recorded', 'money'], ['Documents', 'quote', cnt(x => x.area === 'documents' && !/delete/.test(x.action)), 'new or changed', 'documents'], ['Logged', 'clock', nLog, 'sessions', 'teaching'], ['SRAs marked', 'list', nM, `${nA} with the ARS`, 'teaching'], ['Confirmed', 'check', cnt(x => x.action === 'session.confirm'), 'sessions', 'sessions'], ['Disputes', 'alert', cnt(x => x.action === 'session.dispute'), 'raised', 'sessions'], ['Accounts', 'users', cnt(x => x.action === 'person.add'), 'new', 'people']]
+  const figs = [['Spending', 'cash', cnt(x => x.area === 'money' && /recorded/.test(x.action)), 'recorded', 'money'], ['Documents', 'quote', cnt(x => x.area === 'documents' && !/delete/.test(x.action)), 'new or changed', 'documents'], ['Logged', 'clock', nLog, 'sessions', 'teaching'], ['SRAs marked', 'list', nM, `${nA} with the ARS`, 'teaching'], ['Confirmed', 'check', cnt(x => x.action === 'session.confirm'), 'sessions', 'sessions'], ['Disputes', 'alert', cnt(x => x.action === 'session.dispute'), 'raised', 'sessions'], ['Accounts', 'users', cnt(x => x.action === 'person.add'), 'new', 'people']]
     .concat(areas.includes('pay') ? [['Payslips', 'cash', cnt(x => x.action === 'payslip.confirm'), `${cnt(x => x.action === 'payslip.sign')} signed`, 'pay']] : []);
   const tile = ([l, i, n, sub, a]) => `<button type="button" class="mc${one === a ? ' on' : ''}" data-actf="${a}"><span class="l">${ic(i, 15, 2)}${l}</span><span class="v">${n}<span class="mca">›</span></span><span class="s">${esc(sub)}</span></button>`;
   const PP = actPeoplePanel(false), G0 = actPeople(), nAct = Object.values(G0).reduce((a, g) => a + g.act.length, 0), nQ = Object.values(G0).reduce((a, g) => a + g.quiet.length, 0);
@@ -1645,7 +1645,6 @@ const PERMS = [
   ['Business', [['spend','Record spending','Add spending and see the spending list. They can change only what they recorded.'],['pl','See profit and loss and budgets','Money in against spending, profit, budgets, and the Profit card on Home']]],
   ['People', [['tutors','Add tutors, students and parents, give them setup codes, switch them off']]],
   ['Settings', [['msgs','Messages and lists'],['numbering','Numbering'],['backup','Backup and restore']]],
-  ['Tutors · arrives with step 2', [['classes','See every tutor\'s classes'],['moveclass','Move classes between tutors']]],
 ];
 const DIRECTOR_ONLY = ['Company and bank details (the account parents pay into)','Payments and due dates','Add or remove admins, and remove any account','Change anyone\'s permissions'];
 function personPage(id){

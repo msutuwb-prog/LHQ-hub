@@ -117,6 +117,7 @@
     put(BASE, base); put(KVHASH, hashes); put(REV, st.rev); put(EPOCH, st.epoch || '');
   }
   async function pull(opts){
+    if(!((session() || {}).me || {}).admin) return {};   // tutors, students and parents hold no LHQ documents: nothing to pull
     if(get(DIRTY, false) && get(REV, null) != null){ await push(); if(get(DIRTY, false)) throw new Error('offline'); }
     const known = get(REV, null);
     const st = await api(known != null && get(EPOCH, null) != null ? `state?since=${encodeURIComponent(known)}&epoch=${encodeURIComponent(get(EPOCH, ''))}` : 'state');
@@ -299,6 +300,9 @@
     };
   }
   async function signedIn(j){
+    let prev = ''; try{ prev = localStorage.getItem('lhq_lastId') || ''; }catch(e){}
+    if(prev && prev !== j.me.id){ [BASE, KVHASH, REV, DIRTY, EPOCH, DOCS, ...KV].forEach(k => rawDel(k)); clearPersonal(); }   // someone else used this device before: start clean
+    try{ localStorage.setItem('lhq_lastId', j.me.id || ''); }catch(e){}
     put(SESSION, {token:j.token, me:j.me, keep:!!j.keep, expires:j.expires || null});
     try{ localStorage.setItem('lhq_lastRole', j.me.role || ''); }catch(e){}
     if(j.me.role === 'bdo'){ location.href = 'account.html'; return; }
@@ -459,10 +463,17 @@
     bd.querySelector('#hubMyPin').onclick = myPinDlg;
     bd.querySelector('#hubSignOut').onclick = signOut;
   }
+  /* everything of the person's on this device (names, students, their tutor or family data, searches); only how the app looks stays */
+  function clearPersonal(){
+    const KEEP = ['lhq_theme', 'lhq_text', 'lhq_lastRole', 'lhq_sounds', 'lhq_motion', 'lhq_layout', 'lhq_col', 'lhq_fx'];
+    try{ Object.keys(localStorage).filter(k => k.startsWith('lhq_') && !KEEP.includes(k)).forEach(k => localStorage.removeItem(k)); }catch(e){}
+  }
   function signOut(){
-    if(get(DIRTY, false) && !confirm('Some changes haven\'t uploaded yet. Sign out anyway? They will be lost.')) return;
+    const queued = (() => { try{ return (JSON.parse(localStorage.getItem('lhq_teach_q') || '[]') || []).length; }catch(e){ return 0; } })();
+    if((get(DIRTY, false) || queued) && !confirm('Some changes haven\'t uploaded yet. Sign out anyway? They will be lost.')) return;
     try{ const s = session(); if(s && s.token && (s.me || {}).auth === 'password') fetch(API + 'account', {method:'POST', keepalive:true, headers:{'content-type':'application/json', authorization:'Bearer ' + s.token}, body:JSON.stringify({action:'signout'})}).catch(() => {}); }catch(e){}   // this device leaves "Signed in on"
     [SESSION, BASE, KVHASH, REV, DIRTY, EPOCH, DOCS, 'lhq_draft', ...KV].forEach(k => rawDel(k));
+    clearPersonal();
     location.reload();
   }
   function myPinDlg(){

@@ -11,7 +11,7 @@ window.TUT = (function(){
   const uid = () => 'e' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
   const read = (k, d) => { try{ const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; }catch(e){ return d; } };
   const write = (k, v) => { try{ localStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
-  let data = read(CK, null), loading = null, libs = null, err = '';
+  let data = read(CK, null), loading = null, libs = null, err = '', opened = false;
 
   /* ---------- the look: ticks and circles instead of pills ---------- */
   if(!document.getElementById('tutCss')){ const st = document.createElement('style'); st.id = 'tutCss'; st.textContent = `
@@ -478,7 +478,7 @@ window.TUT = (function(){
     if(!data){ fetchData(); return head(homeName(), 'Getting your students…') + (err ? `<p class="empty">${err === 'offline' ? 'Offline · your students load when you are online.' : esc(err)}</p>` : ''); }
     data.reports = data.reports || [];
     if(!window.cardTopicNames) ensureLibs().then(() => { if(!form) render(); });
-    if(Date.now() - (data.at || 0) > 60000 && !form) fetchData();
+    if((!opened || Date.now() - (data.at || 0) > 60000) && !form){ opened = true; fetchData(); }   /* always fresh when the app opens */
     if(sub !== 'log') form = null; if(sub !== 'wa') wform = null; if(sub !== 'marks') mform = null; if(sub !== 'report') rform = null;
     if(!['', undefined, 'student'].includes(sub)) editing = null;
     if(sub === 'cal') return calPage(a1, a2);
