@@ -232,7 +232,7 @@ window.PROF = (function(){
   const qualText = q => q && q.at ? lst([(q.L || []).map(x => x.t + (x.ok ? ' ✓' : '')).join(' · '), q.chk ? `checks ${CHK.filter(([k]) => q.chk[k]).length} of ${CHK.length} done` : '']) : '';
   function tutorMine(P, back){
     selfP = P = P || {}; const nb = P.det && P.det.dob ? nextBday(P.det.dob) : null, L = (k, t, s, ed = true) => ed ? `<button type="button" class="it" data-psec="self|${k}|self"><span class="t"><b>${t}</b><small>${s}</small></span>${st(done(P, k === 'bio' ? 'about' : k))}<span class="chev">✎</span></button>` : `<div class="it"><span class="t"><b>${t}</b><small>${s}</small></span></div>`;
-    return `${back}<div class="ph"><div class="tt"><h1>My profile</h1><p>LHQ sees everything here</p></div></div>${tutorTodo(P)}
+    return `${back}<div class="ph"><div class="tt"><h1>My profile</h1><p>LHQ sees everything here</p></div></div>
       <div class="card">${L('det', 'Details', done(P, 'det') ? e(lst([P.det.phone, P.det.area, P.det.en ? 'emergency contact ✓' : '', nb ? 'birthday ' + dayMon(nb.on) : ''])) : notAdded())}
       ${L('bio', 'About me', done(P, 'about') ? e((P.about.bio || '').slice(0, 80)) : notAdded())}
       ${L('avail', 'Availability', e(availText(P.avail)) || notAdded('LHQ sets it; you can change it'))}
@@ -379,10 +379,10 @@ window.PROF = (function(){
 .pf-st{width:20px;height:20px;border-radius:50%;display:inline-grid;place-items:center;font-size:11px;font-weight:900;flex:none;margin-left:6px}.pf-st.ok{background:var(--ok);color:#fff}.pf-st.am{background:var(--gold);color:#14213d}.pf-st.no{border:2px solid var(--muted)}
 .pf-todo{border-left:3px solid var(--gold)}.pf-todo .it{padding-left:0;padding-right:0}.pf-todo .it .pf-st{margin:0 6px 0 0}.pf-row{display:flex;justify-content:space-between;align-items:center;gap:10px}
 .pf-bar{display:flex;gap:6px;margin:8px 0 4px}.pf-bar i{flex:1;height:5px;border-radius:3px;background:var(--line2)}.pf-bar i.y{background:var(--accent)}
-.pf-hd{display:flex;gap:12px;align-items:center;margin:6px 0 12px}.pf-hd h1{margin:0}.pf-hd p{margin:2px 0 0;color:var(--muted);font-size:13.5px}.pf-hd .av{width:56px;height:56px;font-size:20px}
+.pf-hd{display:flex;gap:12px;align-items:center;margin:6px 0 12px}.pf-hd h1{margin:0;font-size:23px;font-weight:800;color:var(--brand)}.pf-hd p{margin:2px 0 0;color:var(--muted);font-size:13.5px}.pf-hd .av{width:56px;height:56px;font-size:20px}
 .pf-strip{display:flex;gap:8px;align-items:center;background:var(--am-bg,#fdf3d9);border:1px solid rgba(244,178,35,.45);border-radius:12px;padding:8px 12px;font-size:13.5px;font-weight:700;margin:0 0 12px}
-.pf-strip .t{flex:1;min-width:0}.pf-strip button{border:0;background:none;color:var(--muted);font-weight:800;cursor:pointer;white-space:nowrap;padding:4px 6px}
-.pf-hero{background:var(--accent);color:var(--onaccent);border-radius:18px;padding:16px;margin-bottom:12px;text-align:center}.pf-hero .c{font-size:34px}.pf-hero b{display:block;font-size:20px;margin-top:4px}.pf-hero small{opacity:.85}
+.pf-strip .t{flex:1;min-width:0}.pf-strip button{border:0;background:none;color:var(--muted);font-weight:800;cursor:pointer;white-space:nowrap;padding:4px 8px;min-height:36px;min-width:36px}
+.pf-hero{background:var(--accent);color:var(--onaccent);border-radius:18px;padding:16px;margin-bottom:12px;text-align:center}.pf-hero .c{font-size:34px}.pf-hero b{display:block;font-size:20px;margin-top:4px;color:inherit}.pf-hero small{opacity:.85;color:inherit}
 .av.sm{width:34px;height:34px;font-size:12px;flex:none}
 .pf-tk{width:22px;height:22px;border-radius:7px;border:2px solid var(--line);display:inline-grid;place-items:center;flex:none;font-size:12px;font-weight:900;color:transparent}
 [data-pfsub].on .pf-tk{background:var(--accent);border-color:var(--accent);color:var(--onaccent)}
