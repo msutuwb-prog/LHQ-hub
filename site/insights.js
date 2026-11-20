@@ -12,7 +12,7 @@
 window.INS = (function(){
   const ym = iso => String(iso || '').slice(0, 7);
   const B = () => window.BIZ;
-  const DIMS = [['prog','Programme'],['sub','Subject'],['level','Year & level'],['tutor','Tutor'],['school','School'],['area','Area'],['district','District'],['mode','Online / in person'],['newRet','New or returning'],['source','How they heard']];
+  const DIMS = [['prog','Programme'],['sub','Subject'],['level','Year and level'],['tutor','Tutor'],['school','School'],['area','Area'],['district','District'],['mode','Online / in person'],['newRet','New or returning'],['source','How they heard']];
   const DIM = Object.fromEntries(DIMS);
   const LOST_REASONS = ['Price','Timing / not now','Chose another tutor or centre','No response','Moved away','Other'];
   const COLORS = ['var(--inc)','#f4b223','#1a74b0','#2c7a4b','#a85a14','#7a3f8f','#9aa3b2'];
@@ -48,12 +48,12 @@ window.INS = (function(){
     rcts.forEach(r => {
       const amt = num(r.received); if(!amt) return;
       const inv = invByNo.get(UP(r.ref)), k = sk((inv || r).student || (inv || r).name), info = stuInfo(k);
-      if(!inv){ rows.push(Object.assign({date: r.date, amt, sub: 'No invoice', level: r.level || 'Not set', prog: progOf(r.level), tutor: 'Not known', mode: 'Not set', newRet: 'Returning', stu: k}, info)); return; }
+      if(!inv){ rows.push(Object.assign({rid: r.id, date: r.date, amt, sub: 'No invoice', level: r.level || 'Not set', prog: progOf(r.level), tutor: 'Not known', mode: 'Not set', newRet: 'Returning', stu: k}, info)); return; }
       const card = cardByInv.get(inv.id), items = (inv.items || []).map(it => ({it, v: num(it.sessions) * num(it.cost)})).filter(x => x.v > 0), tot = sum(items, x => x.v);
       const newRet = firstInv.get(k) === inv.id ? 'New' : 'Returning';
       (items.length ? items : [{it: {desc: 'Tuition'}, v: 1}]).forEach(({it, v}) => {
         const subj = (card && (card.subjects || []).find(x => sk(x.name) === sk(it.desc))) || null;
-        rows.push(Object.assign({date: r.date, amt: amt * (tot ? v / tot : 1), sub: it.desc || 'Tuition', level: inv.level || 'Not set', prog: progOf(inv.level),
+        rows.push(Object.assign({rid: r.id, date: r.date, amt: amt * (tot ? v / tot : 1), sub: it.desc || 'Tuition', level: inv.level || 'Not set', prog: progOf(inv.level),
           tutor: subj && subj.tutor ? subj.tutor : card ? 'No tutor yet' : 'No card yet', mode: modeOf(card && card.where), newRet, stu: k}, info));
       });
     });
@@ -80,11 +80,14 @@ window.INS = (function(){
   function lineChart(labels, series, o = {}){
     const W = 720, H = o.h || 230, pl = 52, pr = 10, pt = 14, pb = 28, n = labels.length;
     const all = series.flatMap(s => s.vals), max = Math.max(1, ...all), min = Math.min(0, ...all);
-    const nice = v => { const p = Math.pow(10, Math.floor(Math.log10(Math.max(1, v)))); return Math.ceil(v / p) * p; }, top = nice(max), bot = min < 0 ? -nice(-min) : 0;
+    /* axis steps of 1, 2, 2.5 or 5 × 10ⁿ, in dollars when MK / $ is on (a money chart: no fmt given) */
+    const usd = !o.fmt && window.FX && FX.active() && (FX.now() || {}).rate, f = usd ? 1 / usd : 1;
+    const stepOf = v => { const p = Math.pow(10, Math.floor(Math.log10(Math.max(1e-9, v)))), m = v / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 2.5 ? 2.5 : m <= 5 ? 5 : 10) * p; };
+    const step = stepOf(Math.max((max - min) * f / 4, f < 1 ? 1 : 1)) / f, top = Math.ceil(max / step) * step, bot = Math.floor(min / step) * step, nT = Math.max(1, Math.round((top - bot) / step));
     const x = i => pl + (n <= 1 ? (W - pl - pr) / 2 : (W - pl - pr) * i / (n - 1)), y = v => pt + (H - pt - pb) * (1 - (v - bot) / (top - bot || 1));
-    const fmt = o.fmt || (v => Math.abs(v) >= 1e6 ? (v / 1e6).toFixed(Math.abs(v) >= 1e7 ? 0 : 1) + 'M' : Math.abs(v) >= 1e3 ? Math.round(v / 1e3) + 'k' : Math.round(v));
+    const fmt = o.fmt || (usd ? (v => FX.usdShort(v)) : null) || (v => Math.abs(v) >= 1e6 ? (v / 1e6).toFixed(Math.abs(v) >= 1e7 ? 0 : 1) + 'M' : Math.abs(v) >= 1e3 ? Math.round(v / 1e3) + 'k' : Math.round(v));
     let g = '';
-    for(let k = 0; k <= 4; k++){ const v = bot + (top - bot) * k / 4; g += `<line x1="${pl}" x2="${W - pr}" y1="${y(v)}" y2="${y(v)}" style="stroke:var(--line2)"/><text x="${pl - 6}" y="${y(v) + 4}" text-anchor="end" font-size="10.5" style="fill:var(--muted)">${fmt(v)}</text>`; }
+    for(let k = 0; k <= nT; k++){ const v = bot + step * k; g += `<line x1="${pl}" x2="${W - pr}" y1="${y(v)}" y2="${y(v)}" style="stroke:var(--line2)"/><text x="${pl - 6}" y="${y(v) + 4}" text-anchor="end" font-size="10.5" style="fill:var(--muted)">${fmt(v)}</text>`; }
     if(o.bars){
       const bw = Math.max(4, (W - pl - pr) / n * .6 / series.length);
       series.forEach((s, si) => s.vals.forEach((v, i) => { const cx = pl + (W - pl - pr) * (i + .5) / n - bw * series.length / 2 + si * bw;
@@ -207,12 +210,12 @@ window.INS = (function(){
       ${kpi('Declining', String(dec.length), dec.length ? esc(dec.slice(0, 2).map(x => x.k).join(', ')) : `${grow} growing`)}</div>
     <div class="chips" style="margin-bottom:10px">${DIMS.map(([k, l]) => `<button class="chip ${dim === k ? 'on' : ''}" data-insdim="${k}">${l}</button>`).join('')}</div>
     <div class="card pad"><div class="cap bz-cap">Tuition by ${DIM[dim].toLowerCase()} · ${b.periodLabel(period)} <b>${mk(total)}</b></div>${shareRows(list, total)}
-      <p class="note">A payment is split across the subjects on its invoice in proportion to their amounts. "Not recorded" means the student's details don't have it yet.</p></div>
+      <p class="note">A payment is split across its invoice's subjects by amount.</p></div>
     <div class="card pad"><div class="cap">Last 12 months by ${DIM[dim].toLowerCase()}</div>${trendChart(dim, endOf(period))}</div>
     <div class="h2">Other money in <em>${mk(f.other + f.capital)}</em></div>
     ${D.length ? `<div class="card pad" style="border-color:var(--gold)"><div class="cap">Repeating money in to confirm</div>${D.map(d => `<div class="it"><span class="t"><b>${esc(d.last.cat)}${d.last.from ? ' · ' + esc(d.last.from) : ''}</b><small>${nice(d.date)} · last time ${mk(num(d.last.amount))}</small></span><button class="btn sm n" data-inok="${d.sid}|${d.date}">Received ${mkShort(num(d.last.amount))}</button></div>`).join('')}</div>` : ''}
     <div class="card">${other.map(e => `<${b.mayEdit(e) ? `button class="it" data-inedit="${e.id}"` : 'div class="it"'}><span class="t"><b>${esc(e.cat)}${e.from ? ' · ' + esc(e.from) : ''}</b><small>${[nice(e.date), e.what, e.method, e.by ? 'by ' + first(e.by) : ''].filter(Boolean).map(esc).join(' · ')}</small></span>${b.NOT_INCOME.includes(e.cat) ? '<span class="tag gr">not income</span>' : ''}${e.rep === 'm' ? '<span class="tag bl">Monthly</span>' : ''}<b class="bz-amt">${mk(num(e.amount))}</b></${b.mayEdit(e) ? 'button' : 'div'}>`).join('') || `<p class="empty">Nothing recorded for ${b.periodLabel(period)}. Use "+ Money in" for rent from a tenant, a loan, a grant …</p>`}</div>
-    ${loans.length ? `<div class="h2">Loans</div><div class="card pad">${loans.map(x => `<div class="bz-bud" style="border-top:0"><div class="h"><b>${esc(x.lender)}</b><span>${mkShort(x.repaid)} repaid of ${mkShort(x.borrowed)} · <b>${mkShort(x.left)} left</b></span></div><div class="track"><i style="width:${pc(x.repaid, x.borrowed)}%;background:var(--ok)"></i></div></div>`).join('')}<p class="note">Repayments are spending in the "Loan repayment" category, paid to the lender's name. Loans never count as revenue or profit.</p></div>` : ''}
+    ${loans.length ? `<div class="h2">Loans</div><div class="card pad">${loans.map(x => `<div class="bz-bud" style="border-top:0"><div class="h"><b>${esc(x.lender)}</b><span>${mkShort(x.repaid)} repaid of ${mkShort(x.borrowed)} · <b>${mkShort(x.left)} left</b></span></div><div class="track"><i style="width:${pc(x.repaid, x.borrowed)}%;background:var(--ok)"></i></div></div>`).join('')}<p class="note">Not revenue or profit. Repayments go under Loan repayment.</p></div>` : ''}
     ${docsLink('receipt', period, F.rcts.filter(r => ms.includes(ym(r.date))).length, 'receipt')}`;
   }
   /* the documents behind a page's numbers: the last layer, at the bottom */
@@ -283,7 +286,7 @@ window.INS = (function(){
     $('lostGo').onclick = () => {
       const lost = {reason: document.querySelector('#lostR .on').dataset.r, note: $('lostN').value.trim(), at: Date.now(), by: me().name};
       if(kind === 'q'){ const all = store.get('lhq_saved', []), q = all.find(d => d.id === id); if(q){ q.lost = lost; q.savedAt = Date.now(); store.set('lhq_saved', all); } }
-      else { const recs = HD.studentRecords(); recs[id] = Object.assign(recs[id] || {name: id}, {lost}); store.set('lhq_students', recs); }
+      else { const recs = HD.studentRecords(); recs[id] = Object.assign(recs[id] || {name: id}, {lost, at: Date.now()}); store.set('lhq_students', recs); }
       closeSheet(); toast('Marked as lost'); render();
     };
   }
@@ -309,7 +312,7 @@ window.INS = (function(){
     const row = x => { const s = F.byStu.get(x.key) || {}, msg = `Hello ${x.inv.name || ''}, a gentle reminder from LHQ Learning Solutions that ${mk(x.now)} (${x.kind.toLowerCase()}) ${x.late > 0 ? 'was due on' : 'is due on'} ${nice(x.due)} for ${x.inv.student || 'your child'} (invoice ${x.inv.number}). Thank you.`;
       return `<div class="it"><span class="t"><a href="doc.html#d=${x.inv.id}" style="text-decoration:none;color:inherit"><b>${esc(x.inv.student || x.inv.name)} · ${esc(x.inv.number)}</b><small>${esc(x.kind)} ${mk(x.now)} · ${x.late > 0 ? `<span style="font-weight:800;color:${x.late > 30 ? 'var(--rd)' : 'var(--am)'}">${x.late} day${x.late === 1 ? '' : 's'} late</span>` : `due ${nice(x.due)}`}${x.later ? ` · then ${mk(x.later)} later` : ''}${s.parent ? ' · ' + esc(s.parent) : ''}</small></a></span>
         <div class="acts"><a class="btn sm g" target="_blank" rel="noopener" href="${waLink(s.phone || x.inv.phone, msg)}">${ic('wa',14)} Remind</a>${can('receipts') ? `<a class="btn sm" href="doc.html#conv=receipt:${x.inv.id}">Payment</a>` : ''}</div></div>`; };
-    return `<div class="kpis">${kpi('Owed to LHQ', mkShort(total), `${L.length} invoice${L.length === 1 ? '' : 's'} not fully paid`)}${kpi('Late now', mkShort(sum(late, x => x.now)), `${late.length} famil${late.length === 1 ? 'y' : 'ies'}`)}
+    return `<div class="kpis">${kpi('Owed to LHQ', mkShort(total), `${L.length} invoice${L.length === 1 ? '' : 's'} not fully paid`)}${(() => { const ov = L.filter(x => x.st.over), gr = late.filter(x => !x.st.over); return kpi('Overdue', mkShort(sum(ov, x => x.now)), `${ov.length} famil${ov.length === 1 ? 'y' : 'ies'}${gr.length ? ` · ${mkShort(sum(gr, x => x.now))} in grace` : ''}`); })()}
       ${kpi('Due in 7 days', mkShort(sum(soon, x => x.now)), `${soon.length} payment${soon.length === 1 ? '' : 's'}`)}${kpi('Due in 30 days', mkShort(sum(month, x => x.now) + 0), later ? `+ ${mkShort(later)} second instalments after that` : 'expected in')}</div>
     <div class="grid2"><div class="card pad"><div class="cap">How late</div>${shareRows(B.map(k => ({k, v: byB[k] || 0, col: COL[k], extra: `${L.filter(x => bucket(x) === k).length} invoice${L.filter(x => bucket(x) === k).length === 1 ? '' : 's'}`})), sum(Object.values(byB)))}
       <p class="note">Late counts from the due date of the instalment or invoice; the grace period is ${num(HD.settings.graceDays) || 0} days.</p></div>
@@ -370,7 +373,8 @@ window.INS = (function(){
     const active = F.S.filter(s => s.cur && (!s.cur.inv.periodEnd || s.cur.inv.periodEnd >= ms[ms.length - 1] + '-01')).length;
     const M = lastMonths(endOf(period), 12);
     return `<div class="kpis">
-      ${kpi('Spending' + (live ? ' so far' : ''), mkShort(f.exp), `${arrow(chg(f.exp, p.exp), -1)} vs ${b.periodLabel(pp)}${part}`)}
+      ${(() => { const d0 = today().slice(8), pExp = live ? sum(p.list.filter(e => !b.NOT_COST.includes(e.cat) && String(e.date || '').slice(8) <= d0), e => window.FX ? FX.adj(num(e.amount), e.date) : num(e.amount)) : p.exp;   /* a month still going: against the same days of the month before, like Money in */
+        return kpi('Spending' + (live ? ' so far' : ''), mkShort(f.exp), `${arrow(chg(f.exp, pExp), -1)} vs ${live ? `1–${+d0} ` : ''}${b.periodLabel(pp)}${part} (${mkShort(pExp)})`); })()}
       ${kpi('Spending ÷ money in', f.revenue ? pc(f.exp, f.revenue) + '%' : '–', 'of every kwacha that came in')}
       ${kpi('Cost per student', active ? mkShort(f.exp / active) : '–', `${active} students in a period`)}
       ${fc || kpi('Biggest category', cats.length ? esc(sortObj(f.byCat)[0] ? sortObj(f.byCat)[0][0] : '–') : '–', sortObj(f.byCat)[0] ? mkShort(sortObj(f.byCat)[0][1]) : '')}</div>
@@ -414,7 +418,7 @@ window.INS = (function(){
     <div class="card pad"><div class="cap">Paid channels · ${b.periodLabel(period)}</div>${R.paid.sort((a, c) => c.ret - a.ret || c.n - a.n).map(line).join('') || '<p class="empty" style="margin:0">Record marketing spending with a channel, and students\' "how they heard", to see this.</p>'}</div>
     <div class="card pad"><div class="cap">Word of mouth</div>${R.free.map(line).join('') || '<p class="empty" style="margin:0">No new students from friends or siblings in this period.</p>'}</div>
     ${R.nochan ? `<div class="card pad"><div class="cap">Marketing spending with no channel</div><p class="note" style="margin:0">${mk(R.nochan.spend)} of marketing spending in this period doesn't say which channel it was for, so it can't be matched to students. Tap it in Spending to add the channel.</p></div>` : ''}
-    ${R.none ? `<div class="card pad"><div class="cap">Not recorded</div>${line(R.none)}<p class="note">New students without "how they heard". It's now required for new students, so this shrinks over time.</p></div>` : ''}
+    ${R.none ? `<div class="card pad"><div class="cap">Not recorded</div>${line(R.none)}<p class="note">Students without "how they heard" (now required).</p></div>` : ''}
     <p class="note">Return = what the new students from a channel have paid so far ÷ what the channel cost in this period. "Renew" = of all students from that channel whose period has ended, how many continued.</p>`;
   }
 
@@ -435,6 +439,7 @@ window.INS = (function(){
     else if(c.m === 'enrol') items = F.S.map(s => { const i = F.invs.find(x => x.id === F.firstInv.get(s.key)); if(!i) return null; return {m: ym(i.date), k: c.s === 'prog' ? progOf(i.level) : c.s === 'level' ? (i.level || 'Not set') : (s[c.s === 'source' ? 'heard' : c.s] || 'Not recorded'), v: 1}; }).filter(Boolean);
     else if(c.m === 'active') items = M.flatMap(m => F.S.filter(s => s.periods.some(p => (p.inv.periodStart || p.inv.date || '') <= m + '-31' && (p.inv.periodEnd || '9999') >= m + '-01')).map(s => ({m, k: c.s === 'prog' ? progOf(s.level) : c.s === 'level' ? (s.level || 'Not set') : c.s === 'mode' ? modeOf(s.cur && s.cur.card && s.cur.card.where) : (s[c.s] || 'Not recorded'), v: 1})));
     else if(c.m === 'sess') items = F.sess.filter(e => e.a === 'attended' || e.a === 'late').map(e => ({m: ym(e.d), k: e[c.s] || 'All', v: 1}));
+    if(['in', 'spend'].includes(c.m) && window.FX && FX.active()) items = items.map(x => Object.assign({}, x, {v: FX.adj(x.v, x.m + '-15')}));   // MK / $: each month at its own rate
     items = items.filter(x => M.includes(x.m));
     const allKeys = sortObj(groupSum(items, x => x.k, x => x.v)).map(x => x[0]);
     const keys = c.inc && c.inc.length ? allKeys.filter(k => c.inc.includes(k)) : allKeys.slice(0, 6);
@@ -456,7 +461,7 @@ window.INS = (function(){
       <div class="f"><span style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:5px">Saved views</span><div class="acts">${saves.map((s, i) => `<button class="chip" data-chload="${i}">${esc(s.name)}</button>`).join('')}<button class="chip" id="chSave">+ Save this view</button>${window.PC ? '<button class="chip" id="chPin">Pin as a card on Business</button>' : ''}</div></div></div>
       ${D.allKeys.length > 1 && splits.length ? `<div class="cap">Include <small style="text-transform:none;letter-spacing:0;font-weight:600">(none ticked = the top 6)</small></div><div class="chips">${D.allKeys.slice(0, 24).map(k => `<button class="chip ${(c.inc || []).includes(k) ? 'on' : ''}" data-chinc="${esc(k)}">${esc(k)}</button>`).join('')}</div>` : ''}</div>
     <div class="card pad">${D.series.length ? lineChart(D.labels, D.series, {bars: c.over !== 'm' || D.labels.length <= 6, fmt: money ? undefined : v => Math.round(v), fmtTip: money ? undefined : v => Math.round(v * 10) / 10, label: meas[0]}) : '<p class="empty">Nothing to show for this choice.</p>'}
-      ${D.series.length ? `<div class="bz-scroll"><table class="bz-mt"><tr><th></th>${D.labels.map(l => `<th>${esc(l)}</th>`).join('')}<th>Total</th></tr>${D.series.map(s => `<tr><td><i style="display:inline-block;width:9px;height:9px;border-radius:3px;background:${s.col};margin-right:6px"></i>${esc(s.name)}</td>${s.vals.map(v => `<td>${money ? mkShort(v).replace('MKW ', '') : Math.round(v * 10) / 10}</td>`).join('')}<td><b>${money ? mkShort(sum(s.vals)).replace('MKW ', '') : Math.round(sum(s.vals))}</b></td></tr>`).join('')}</table></div>` : ''}</div>`;
+      ${D.series.length ? `<div class="bz-scroll"><table class="bz-mt"><tr><th></th>${D.labels.map(l => `<th>${esc(l)}</th>`).join('')}<th>Total</th></tr>${D.series.map(s => `<tr><td><i style="display:inline-block;width:9px;height:9px;border-radius:3px;background:${s.col};margin-right:6px"></i>${esc(s.name)}</td>${s.vals.map(v => `<td>${money ? mkShort(v).replace('MWK ', '') : Math.round(v * 10) / 10}</td>`).join('')}<td><b>${money ? mkShort(sum(s.vals)).replace('MWK ', '') : Math.round(sum(s.vals))}</b></td></tr>`).join('')}</table></div>` : ''}</div>`;
   }
 
   /* ---------- Pots: money in split by percentage ---------- */
@@ -465,7 +470,7 @@ window.INS = (function(){
   function pots(period){
     if(!can('pl')) return '';
     const b = B(), P = potsCfg(), ms = b.months(period), f = b.figures(ms);
-    if(!P || !P.list || !P.list.length) return `<div class="h2">Allocations</div><div class="card pad"><p class="note" style="margin:0 0 10px">Allocations split every kwacha that comes in by percentage: for example 40% for tutor pay and salaries, 15% for rent, 7% set aside for tax, 5% profit. Each spending category draws from an allocation, so you see what's left in each, and how much to move into real accounts each month.</p>${isDir() ? '<button class="btn n" data-pots>Set up allocations</button>' : '<p class="empty" style="margin:0">The Director sets them up.</p>'}</div>`;
+    if(!P || !P.list || !P.list.length) return `<div class="h2">Allocations</div><div class="card pad"><p class="note" style="margin:0 0 10px">Split money in by percentage (e.g. tutor pay 40%, rent 15%, tax 7%). Each category draws from one, so you see what's left and what to move each month.</p>${isDir() ? '<button class="btn n" data-pots>Set up allocations</button>' : '<p class="empty" style="margin:0">The Director sets them up.</p>'}</div>`;
     const income = ms2 => b.figures(ms2).revenue;
     const since = P.from || ms[0], allMs = []; for(let m = since; m <= b.thisMonth(); m = b.addMonth(m, 1)) allMs.push(m);
     const inAll = income(allMs), spentIn = (pot, M) => sum(pot.cats || [], c => b.figures(M).byCat[c] || 0);
@@ -522,7 +527,7 @@ window.INS = (function(){
   /* ---------- routing and taps ---------- */
   function view(tab, period, cat){
     if(tab === 'overview') return overview(period);
-    if(tab === 'money') return money(period);
+    if(tab === 'money') return window.MIN ? MIN.view(period) : money(period);
     if(tab === 'pipeline') return pipeline(period);
     if(tab === 'owed') return owed();
     if(tab === 'sessions') return sessions(period);

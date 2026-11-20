@@ -5,8 +5,8 @@
   'use strict';
   const API = '/api/hub/';
   const DOCS = 'lhq_saved';
-  const KV = ['lhq_settings','lhq_templates','lhq_counters','lhq_repEdits','lhq_logs','lhq_tlinks','lhq_students','lhq_spend','lhq_budget','lhq_income','lhq_classes','lhq_avail','lhq_cardack','lhq_treps','lhq_makeups','lhq_reqs','lhq_clashes','lhq_moves','lhq_confirmer','lhq_sradone'];
-  const PRIVATE = ['lhq_spend','lhq_budget','lhq_income'];   // only sent to people allowed to see them; removed here when that changes
+  const KV = ['lhq_settings','lhq_templates','lhq_counters','lhq_repEdits','lhq_logs','lhq_tlinks','lhq_students','lhq_spend','lhq_budget','lhq_income','lhq_classes','lhq_avail','lhq_cardack','lhq_treps','lhq_makeups','lhq_reqs','lhq_clashes','lhq_moves','lhq_confirmer','lhq_sradone','lhq_sreports','lhq_notices','lhq_targets','lhq_myexams','lhq_kpi','lhq_pay','lhq_asks','lhq_school','lhq_fu','lhq_obj','lhq_fx','lhq_prof'];
+  const PRIVATE = ['lhq_spend','lhq_budget','lhq_income','lhq_prof'];   // only sent to people allowed to see them; removed here when that changes
   const SESSION = 'lhq_session', BASE = 'lhq_syncBase', KVHASH = 'lhq_syncKv', REV = 'lhq_syncRev', DIRTY = 'lhq_syncDirty', EPOCH = 'lhq_syncEpoch';
   const ls = window.localStorage;
   const rawSet = ls.setItem.bind(ls), rawGet = ls.getItem.bind(ls), rawDel = ls.removeItem.bind(ls);
@@ -117,6 +117,7 @@
     put(BASE, base); put(KVHASH, hashes); put(REV, st.rev); put(EPOCH, st.epoch || '');
   }
   async function pull(opts){
+    if(!((session() || {}).me || {}).admin) return {};   // tutors, students and parents hold no LHQ documents: nothing to pull
     if(get(DIRTY, false) && get(REV, null) != null){ await push(); if(get(DIRTY, false)) throw new Error('offline'); }
     const known = get(REV, null);
     const st = await api(known != null && get(EPOCH, null) != null ? `state?since=${encodeURIComponent(known)}&epoch=${encodeURIComponent(get(EPOCH, ''))}` : 'state');
@@ -299,7 +300,11 @@
     };
   }
   async function signedIn(j){
+    let prev = ''; try{ prev = localStorage.getItem('lhq_lastId') || ''; }catch(e){}
+    if(prev && prev !== j.me.id){ [BASE, KVHASH, REV, DIRTY, EPOCH, DOCS, ...KV].forEach(k => rawDel(k)); clearPersonal(); }   // someone else used this device before: start clean
+    try{ localStorage.setItem('lhq_lastId', j.me.id || ''); }catch(e){}
     put(SESSION, {token:j.token, me:j.me, keep:!!j.keep, expires:j.expires || null});
+    try{ localStorage.setItem('lhq_lastRole', j.me.role || ''); }catch(e){}
     if(j.me.role === 'bdo'){ location.href = 'account.html'; return; }
     if(['student','parent'].includes(j.me.role)){ document.getElementById('hubOv')?.remove(); mountAccount(); location.hash = '#me'; if(window.hubReady) window.hubReady(); return; }   // their own part: never LHQ's documents
     const box = overlay(); box.innerHTML = `<img class="lhq-logo" src="${LOGO()}" alt="LHQ"><h2>Welcome, ${esc(j.me.name.split(' ')[0])}</h2><p class="s">Getting LHQ's documents…</p>`;
@@ -321,10 +326,12 @@
   const pwIn = (id, label, ac) => `<label class="hub-l">${label}<span class="hub-pw"><input class="hub-in" id="${id}" type="password" autocomplete="${ac}"><button type="button" class="hub-eye" data-eye="${id}" aria-label="Show password">${EYE}</button></span></label>`;
   const tick = (id, on, b, sm) => `<button type="button" class="hub-tick${on ? ' on' : ''}" id="${id}" role="checkbox" aria-checked="${!!on}"><span class="bx">${on ? '✓' : ''}</span><span><b>${b}</b><small>${sm}</small></span></button>`;
   const errBox = (e, locked) => e ? `<div class="hub-errb" role="alert">${esc(e)}${locked ? `<a class="hub-wa" target="_blank" rel="noopener" href="https://wa.me/${LHQ_WA}?text=${encodeURIComponent("Hello LHQ, my LHQ Hub account is locked. Please send me a setup code.")}">Message LHQ on WhatsApp</a>` : ''}</div>` : '';
-  let keepMe = false;
+  /* students and parents use their own phones: "Keep me signed in" starts ticked for them (the last account on this device,
+     or the person a setup code is for). Staff start unticked: 12 hours, for shared computers. Untick on a shared phone. */
+  let keepMe = true, keepTouched = false;   // everyone stays signed in for 30 days unless they untick (shared phone)
   function wire(box, handlers){
     box.querySelectorAll('[data-eye]').forEach(b => b.onclick = () => { const i = box.querySelector('#' + b.dataset.eye); i.type = i.type === 'password' ? 'text' : 'password'; b.setAttribute('aria-label', i.type === 'password' ? 'Show password' : 'Hide password'); });
-    const k = box.querySelector('#hubKeep'); if(k) k.onclick = () => { keepMe = !keepMe; k.classList.toggle('on', keepMe); k.setAttribute('aria-checked', keepMe); k.querySelector('.bx').textContent = keepMe ? '✓' : ''; };
+    const k = box.querySelector('#hubKeep'); if(k) k.onclick = () => { keepTouched = true; keepMe = !keepMe; k.classList.toggle('on', keepMe); k.setAttribute('aria-checked', keepMe); k.querySelector('.bx').textContent = keepMe ? '✓' : ''; };
     box.querySelectorAll('[data-k]').forEach(b => b.onclick = () => handlers[b.dataset.k] && handlers[b.dataset.k]());
     box.querySelectorAll('input').forEach(i => i.addEventListener('keydown', e => { if(e.key === 'Enter'){ const g = box.querySelector('.hub-go'); if(g) g.click(); } }));
     const f = box.querySelector('input'); if(f && !f.value) setTimeout(() => f.focus(), 50);
@@ -340,7 +347,7 @@
     box.innerHTML = head('Sign in to LHQ Hub', esc(msg || 'Students, parents and staff all sign in here.')) + errBox(err, locked) +
       `<label class="hub-l">Name, username or email<input class="hub-in" id="hubId" autocomplete="username" autocapitalize="off" spellcheck="false" placeholder="e.g. Linga Phiri" value="${esc(id || '')}"></label>
       ${pwIn('hubPw', 'Password', 'current-password')}
-      ${tick('hubKeep', keepMe, 'Keep me signed in on this device', 'For 30 days. Leave it off on a shared or family phone: you are signed out after 12 hours.')}
+      ${tick('hubKeep', keepMe, 'Keep me signed in on this device', '30 days. Untick on a shared phone.')}
       <button class="hub-go" data-k="go">Sign in</button>
       <button type="button" class="hub-link" data-k="forgot">Forgot password?</button><button type="button" class="hub-link" data-k="code">First time here? I have a setup code</button>
       <p class="hub-foot">Staff: the first time, sign in with your username and your old PIN.</p>`;
@@ -375,7 +382,7 @@
     box.innerHTML = backL() + head(title, sub) + `<div class="hub-person"><span class="av">${esc(ini)}</span><span><b>${esc(person.name)}</b><small>username <b>${esc(person.username || '')}</b></small></span></div>` + errBox(err) +
       `${pwIn('hubP1', 'Password', 'new-password')}${pwIn('hubP2', 'Type it again', 'new-password')}<ul class="hub-rules" id="hubRules"></ul>
       ${why !== 'reset' ? `<label class="hub-l">Email <small>(optional · you can sign in with it too)</small><input class="hub-in" id="hubEm" type="email" autocomplete="email" value="${esc(person.email || '')}"></label>` : ''}
-      ${tick('hubKeep', keepMe, 'Keep me signed in on this device', 'For 30 days')}
+      ${tick('hubKeep', keepMe, 'Keep me signed in on this device', '30 days. Untick on a shared phone.')}
       <button class="hub-go" data-k="go">Save and sign in</button>`;
     const upd = () => { const a = box.querySelector('#hubP1').value, b = box.querySelector('#hubP2').value; box.querySelector('#hubRules').innerHTML = RULES(a, b, person).map(([ok, t]) => `<li class="${ok ? 'ok' : ''}"><span class="c">${ok ? '✓' : ''}</span>${t}</li>`).join(''); };
     box.querySelectorAll('#hubP1,#hubP2').forEach(i => i.oninput = upd); upd();
@@ -391,7 +398,7 @@
   }
   function pwForgot(){
     const box = overlay(), msg = 'Hello LHQ, I\'ve forgotten my LHQ Hub password. Please send me a setup code.';
-    box.innerHTML = backL('Sign in') + head('Forgot your password?', 'For your safety only LHQ Admin can reset a password. They give you a setup code, and you choose a new password with it.') +
+    box.innerHTML = backL('Sign in') + head('Forgot your password?', 'Ask LHQ for a setup code, then choose a new password.') +
       `<a class="hub-go hub-wa2" target="_blank" rel="noopener" href="https://wa.me/${LHQ_WA}?text=${encodeURIComponent(msg)}">Ask LHQ on WhatsApp</a>
       <a class="hub-btn2" href="tel:+${LHQ_WA}">Call +265 992 525 250</a>
       <button type="button" class="hub-link" data-k="code">I have a setup code</button><button type="button" class="hub-link" data-k="dir">I'm the Director</button>`;
@@ -454,10 +461,17 @@
     bd.querySelector('#hubMyPin').onclick = myPinDlg;
     bd.querySelector('#hubSignOut').onclick = signOut;
   }
+  /* everything of the person's on this device (names, students, their tutor or family data, searches); only how the app looks stays */
+  function clearPersonal(){
+    const KEEP = ['lhq_theme', 'lhq_text', 'lhq_lastRole', 'lhq_sounds', 'lhq_motion', 'lhq_layout', 'lhq_col', 'lhq_fx'];
+    try{ Object.keys(localStorage).filter(k => k.startsWith('lhq_') && !KEEP.includes(k)).forEach(k => localStorage.removeItem(k)); }catch(e){}
+  }
   function signOut(){
-    if(get(DIRTY, false) && !confirm('Some changes haven\'t uploaded yet. Sign out anyway? They will be lost.')) return;
+    const queued = (() => { try{ return (JSON.parse(localStorage.getItem('lhq_teach_q') || '[]') || []).length; }catch(e){ return 0; } })();
+    if((get(DIRTY, false) || queued) && !confirm('Some changes haven\'t uploaded yet. Sign out anyway? They will be lost.')) return;
     try{ const s = session(); if(s && s.token && (s.me || {}).auth === 'password') fetch(API + 'account', {method:'POST', keepalive:true, headers:{'content-type':'application/json', authorization:'Bearer ' + s.token}, body:JSON.stringify({action:'signout'})}).catch(() => {}); }catch(e){}   // this device leaves "Signed in on"
     [SESSION, BASE, KVHASH, REV, DIRTY, EPOCH, DOCS, 'lhq_draft', ...KV].forEach(k => rawDel(k));
+    clearPersonal();
     location.reload();
   }
   function myPinDlg(){
@@ -515,7 +529,8 @@
   const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
   window.addEventListener('DOMContentLoaded', () => {
     if(location.protocol === 'file:') return;           // opened as a file: works on this device only, as before
-    setInterval(check, 60000);
+    // check in every 2 minutes, only while the Hub is on screen (a tab left in the background costs nothing); and at once on coming back
+    setInterval(() => { if(document.visibilityState === 'visible') check(); }, 120000);
     document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') check(); });
     window.addEventListener('online', () => { if(!session()) return; status('saving'); schedulePush(1000); setTimeout(() => { if(get(DIRTY, false)) push(); }, 5000); });
     window.addEventListener('offline', () => { if(session()) status('offline'); });

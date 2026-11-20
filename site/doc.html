@@ -21,6 +21,7 @@
 <script src="store.js"></script>
 <script src="sync.js"></script>
 <script src="defaults.js"></script>
+<script src="payplan.js"></script>
 <script src="hubdata.js"></script>
 <script src="schedule.js"></script>
 <script src="nav.js"></script>
@@ -594,7 +595,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
       <label id="nameRow"><span>Parent / guardian name</span><input id="f_name" placeholder="e.g. Mr Mathandalizwe" autocomplete="off"></label>
       <div class="grid-student">
         <label><span>Student name</span><input id="f_student" placeholder="e.g. Thando Mathandalizwe" autocomplete="off" list="studentNames"><datalist id="studentNames"></datalist></label>
-        <div class="fld"><span class="lbl">Year &amp; level</span><button type="button" class="picker-btn" data-pickfield="level" id="btnLevel" aria-haspopup="listbox" aria-expanded="false"><span class="pb-dot"></span><span class="pb-text"></span><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>
+        <div class="fld"><span class="lbl">Year and level</span><button type="button" class="picker-btn" data-pickfield="level" id="btnLevel" aria-haspopup="listbox" aria-expanded="false"><span class="pb-dot"></span><span class="pb-text"></span><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>
       </div>
       <div class="grid2" id="contactRow">
         <label class="lm"><span>Email</span><input id="f_email" type="email" inputmode="email" autocomplete="off" placeholder="parent@example.com"></label>
@@ -639,15 +640,21 @@ body[data-mode=view] .dp-aside{grid-area:aside}
         <span class="lbl">Discount</span>
         <div class="disc-row">
           <div class="seg mini" id="discSeg" role="group" aria-label="Discount type">
-            <button type="button" data-d="pct" class="on">%</button><button type="button" data-d="amt">MKW</button>
+            <button type="button" data-d="pct" class="on">%</button><button type="button" data-d="amt">MWK</button>
           </div>
           <input id="f_discValue" inputmode="decimal" placeholder="0" aria-label="Discount amount">
           <input id="f_discReason" placeholder="Reason, e.g. Sibling" aria-label="Discount reason (prints on the document)">
         </div>
       </div>
+      <div class="fld" id="ttRow" style="margin-top:14px;margin-bottom:0"><span class="lbl">Tuition</span>
+        <div class="seg" id="ttSeg" role="group" aria-label="Tuition" style="max-width:420px;margin-bottom:10px">
+          <button type="button" data-t="term">Term to term</button><button type="button" data-t="fast">Fast track</button><button type="button" data-t="hol">Holiday</button>
+        </div>
+        <div id="ftkRow" hidden><select class="in" id="f_ftk" aria-label="Fast track intake" style="max-width:420px"></select><p class="hint" id="ftkHint" style="margin:4px 0 0"></p></div>
+      </div>
       <div class="fld lm" id="planRow" style="margin-top:14px;margin-bottom:0"><span class="lbl">Payment</span>
-        <div class="seg seg2" id="planSeg" role="group" aria-label="Payment" style="max-width:380px;margin-bottom:10px">
-          <button type="button" data-p="" class="on">Pay in full</button><button type="button" data-p="half">50/50 plan</button>
+        <div class="seg seg2" id="planSeg" role="group" aria-label="Payment" style="max-width:420px;margin-bottom:10px">
+          <button type="button" data-p="" class="on">Pay in full</button><button type="button" data-p="half">50/50 plan</button><button type="button" data-p="set" hidden>Intake dates</button>
         </div>
         <div class="grid2" id="planDates" hidden>
           <div class="fld"><span class="lbl">1st 50% due by</span><button type="button" class="date-btn" data-cal="plan1" id="btnPlan1" aria-haspopup="dialog" aria-expanded="false"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span></span></button></div>
@@ -656,12 +663,12 @@ body[data-mode=view] .dp-aside{grid-area:aside}
         <p class="hint" id="planHint" hidden style="margin:-4px 0 0"></p>
       </div>
       <label class="chk lm" id="instLineRow" hidden><input type="checkbox" id="f_instLine" checked> Offer two instalments (50 / 50) on this quote</label>
-      <label class="lm" id="paidRow" style="margin-top:12px"><span>Amount already paid (MKW)</span><input id="f_paid" inputmode="decimal" placeholder="0"></label>
+      <label class="lm" id="paidRow" style="margin-top:12px"><span>Amount already paid (MWK)</span><input id="f_paid" inputmode="decimal" placeholder="0"></label>
       <div class="sums" id="sums"></div>
     </div>
 
     <div class="panel lm" id="incPanel">
-      <h2>Every LHQ Enrollment Includes</h2>
+      <h2>Every LHQ enrolment includes</h2>
       <div class="inc-chips" id="incChips" role="group" aria-label="Items to include"></div>
       <p class="hint" id="incHint"></p>
     </div>
@@ -670,8 +677,8 @@ body[data-mode=view] .dp-aside{grid-area:aside}
       <h2>Payment received</h2>
       <div class="pay-pick" id="payPick" role="group" aria-label="How much was paid"></div>
       <div class="grid2">
-        <label><span>Amount received (MKW)</span><input id="f_received" inputmode="decimal" placeholder="0"></label>
-        <label class="lm"><span>Paid before this (MKW)</span><input id="f_prevPaid" inputmode="decimal" placeholder="0"></label>
+        <label><span>Amount received (MWK)</span><input id="f_received" inputmode="decimal" placeholder="0"></label>
+        <label class="lm"><span>Paid before this (MWK)</span><input id="f_prevPaid" inputmode="decimal" placeholder="0"></label>
       </div>
       <div class="grid2">
         <div class="fld"><span class="lbl">Payment method</span><button type="button" class="picker-btn" data-pickfield="method" id="btnMethod" aria-haspopup="listbox" aria-expanded="false"><span class="pb-dot"></span><span class="pb-text"></span><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>
@@ -706,9 +713,9 @@ body[data-mode=view] .dp-aside{grid-area:aside}
       <details id="listSetup">
         <summary>Lists</summary>
         <label><span>Subjects, one per line</span><textarea id="s_subjects" rows="8"></textarea></label>
-        <label><span>Year &amp; level, one per line</span><textarea id="s_levels" rows="6"></textarea></label>
+        <label><span>Year and level, one per line</span><textarea id="s_levels" rows="6"></textarea></label>
         <label><span>Payment methods, one per line</span><textarea id="s_methods" rows="4"></textarea></label>
-        <label><span>Every LHQ Enrollment Includes, one per line</span><textarea id="s_includes" rows="6"></textarea></label>
+        <label><span>Every LHQ enrolment includes, one per line</span><textarea id="s_includes" rows="6"></textarea></label>
         <label><span>Tutors, one per line</span><textarea id="s_tutors" rows="6"></textarea></label>
         <label><span>Grades, one per line</span><textarea id="s_grades" rows="5"></textarea></label>
         <label><span>Grade based on, one per line</span><textarea id="s_gradeBasis" rows="6"></textarea></label>
@@ -716,7 +723,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
       </details>
       <details id="clSetup">
         <summary>Student topic checklist</summary>
-        <p class="hint" style="margin:0 0 10px">Send students this link. They choose their subjects and topics and send it to 0992 525 250 on WhatsApp or to learnhqes@gmail.com. Open the link in their message on this device and a new tuition card fills in with their choices.</p>
+        <p class="hint" style="margin:0 0 10px">Students pick their subjects and topics and send it back. Open their link here and a tuition card fills in.</p>
         <input id="clLink" readonly aria-label="Checklist link">
         <div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:8px">
           <button class="small" id="btnClCopy">Copy link</button>
@@ -726,7 +733,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
       </details>
       <details id="numSetup">
         <summary>Numbering</summary>
-        <p class="hint" style="margin:0 0 10px">Numbers fill in automatically. Set where each series continues from, for example if LHQ has already issued invoices up to 57, set the next invoice to 58.</p>
+        <p class="hint" style="margin:0 0 10px">Set the next number in each series, e.g. 58 if the last invoice was 57.</p>
         <div class="num-grid">
           <label><span>Next quote</span><input id="n_quote" inputmode="numeric" autocomplete="off"><small id="np_quote"></small></label>
           <label><span>Next invoice</span><input id="n_invoice" inputmode="numeric" autocomplete="off"><small id="np_invoice"></small></label>
@@ -748,7 +755,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
           <label><span>PoP phone number</span><input id="s_popphone"></label>
           <label><span>Mobile banking number</span><input id="s_mobile"></label>
         </div>
-        <label><span>Default cost per session (MKW)</span><input id="s_rate" inputmode="decimal"></label>
+        <label><span>Default cost per session (MWK)</span><input id="s_rate" inputmode="decimal"></label>
         <div class="grid2">
           <label><span>Quotes valid for (days)</span><input id="s_validDays" inputmode="numeric"></label>
           <label><span>Invoices due after (days, 0 = same day)</span><input id="s_dueDays" inputmode="numeric"></label>
@@ -758,7 +765,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
       </details>
       <details id="backupSetup">
         <summary>Backup &amp; restore</summary>
-        <p class="hint" style="margin:0 0 8px">Everything is stored online in LHQ Hub and shared between your devices. A backup is an extra copy: one file with all your quotes, invoices, receipts, tuition cards, numbering, lists and messages. Keep it in Google Drive or send it to yourself on WhatsApp.</p>
+        <p class="hint" style="margin:0 0 8px">Everything is stored online. A backup is one extra file of it all: keep it in Google Drive.</p>
         <p class="svc" id="bkStatus"><span class="dot"></span><span></span></p>
         <p class="svc" id="bkPersist"><span class="dot"></span><span></span></p>
         <div style="display:flex;flex-wrap:wrap;gap:8px">
@@ -772,7 +779,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
         <p class="svc" id="svcEmail"><span class="dot"></span><span>Email: checking…</span></p>
         <p class="svc" id="svcWa"><span class="dot"></span><span>WhatsApp: checking…</span></p>
         <label><span>Access code</span><input id="s_code" type="password" autocomplete="off" placeholder="The code set in Netlify"></label>
-        <p class="hint">Enter the access code once on each phone, tablet or computer. It stays on this device and stops strangers from using the app to send messages from LHQ's accounts.</p>
+        <p class="hint">Enter the access code once on each phone, tablet or computer. It stays on this device and stops strangers from using LHQ Hub to send messages from LHQ's accounts.</p>
         <button class="small" id="btnCheckSvc" style="margin-top:8px">Check connection</button>
       </details>
     </div>
@@ -845,7 +852,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
     <div class="dlg-body">
       <div class="cs-tutors">
         <div class="cs-sec">Send to tutors</div>
-        <p class="hint" style="margin:2px 0 6px">Each tutor gets one link with all their students: the full card for each, plus where they log sessions for reports. Send it again when you add a student or change a card.</p>
+        <p class="hint" style="margin:2px 0 6px">One link per tutor with all their students. Send it again after a change.</p>
         <div id="csTutors"></div>
         <label class="cs-howto"><input type="checkbox" id="csHowTo"> Include the how-to text <small>Added automatically the first time a tutor gets a link</small></label>
       </div>
@@ -926,7 +933,7 @@ const F = id => document.getElementById(id);
 let settings = withDefaults(store.get('lhq_settings', {}));
 // one-off: invoices are now due on the day they're issued unless changed in settings
 if(!store.get('lhq_mig_due0', false)){ if(String(settings.dueDays)==='7'){ settings.dueDays = '0'; store.set('lhq_settings', settings); } store.set('lhq_mig_due0', true); }
-let templates = Object.assign({}, DEFAULT_TEMPLATES, store.get('lhq_templates', {}));
+let templates = Object.assign({}, DEFAULT_TEMPLATES, Object.fromEntries(Object.entries(store.get('lhq_templates', {}) || {}).map(([k, v]) => [k, typeof v === 'string' ? v.replace(/\bMKW\b/g, 'MWK') : v])));
 let saved = store.get('lhq_saved', []);
 const lines = v => String(v||'').split('\n').map(s=>s.trim()).filter(Boolean);
 const subjectList = () => lines(settings.subjects);
@@ -992,7 +999,7 @@ function periodText(d = doc){
 const DOC_FIELDS = { id:null, type:'quote', number:'', date:'', dueDate:'', ref:'', name:'', student:'', level:'', address:'', email:'', phone:'',
   forWhat:'', periodStart:'', periodEnd:'', period:'', items:[], discType:'pct', discValue:'', discReason:'',
   paid:'', received:'', prevPaid:'', method:'Bank transfer', payRef:'', receivedBy:'',
-  school:'', exam:'', where:'', cardNote:'', subjects:[], intake:'', checklistId:'', incOff:[], plan:'', plan1:'', plan2:'', noInstLine:false };
+  school:'', exam:'', where:'', cardNote:'', subjects:[], intake:'', checklistId:'', incOff:[], plan:'', plan1:'', plan2:'', planD:[], tt:'', ftk:'', noInstLine:false };
 const normalize = d => Object.assign(JSON.parse(JSON.stringify(DOC_FIELDS)), d || {});
 function defaultDue(type, from){
   if(type==='quote') return addDays(from, num(settings.validDays) || 30);
@@ -1057,41 +1064,40 @@ if(!doc.date) doc.date = todayISO();
    Coordinates in points, taken from the original PDF (612 x 792 pt). */
 /* ---------- payment plan: 50% at the start, 50% half-way through the tuition period ---------- */
 function planInfo(d = doc){
-  if(d.plan!=='half' || d.type==='card' || d.type==='quote') return null;   // quotes are always in full
-  const t = totals(d), a1 = Math.round(t.total*50)/100, a2 = Math.round((t.total - a1)*100)/100;
-  const start = d.periodStart || d.date || todayISO();
-  const date1 = d.plan1 || start;
-  // the 2nd instalment is due on the first day of the second half, counted in whole weeks (4 weeks -> start of week 3)
-  let mid = addDays(date1, 14);
-  if(d.periodStart && d.periodEnd){
-    const days = dayDiff(d.periodStart, d.periodEnd) + 1, weeks = Math.round(days / 7);
-    mid = weeks >= 2 ? addDays(d.periodStart, Math.floor(weeks / 2) * 7) : addDays(d.periodStart, Math.floor(days / 2));
-  }
-  const date2 = d.plan2 || mid;
+  if((d.plan!=='half' && d.plan!=='set') || d.type==='card' || d.type==='quote') return null;   // quotes are always in full
+  const t = totals(d), rows = PAYPLAN.rows(d, t.total, todayISO()); if(!rows) return null;
   const paid = d.type==='invoice' ? t.paid : d.type==='receipt' ? t.prevPaid + t.received : 0;
-  const rows = [{n:1, label:'1st instalment (50%)', short:'1st instalment', amt:a1, due:date1, paid: paid >= a1 - 0.005},
-                {n:2, label:'2nd instalment (50%)', short:'2nd instalment', amt:a2, due:date2, paid: paid >= t.total - 0.005}];
-  const next = rows.find(r=>!r.paid) || null;
-  // what is still owed on the next instalment (part payments count towards it)
-  if(next) next.left = Math.round((next.n===1 ? a1 - paid : t.total - Math.max(paid, a1))*100)/100;
+  const next = PAYPLAN.mark(rows, paid) || null;
   return {rows, next, paid, total:t.total};
+}
+/* tuition type, and a fast track intake's payment dates (Settings › Payments & due dates) */
+const fastIntakes = () => ((settings.payDates || {}).fast || []).filter(x => x && (x.dates || []).filter(Boolean).length);
+function fillTT(){
+  const inv = doc.type==='invoice';
+  F('ttRow').hidden = !(inv || doc.type==='quote');
+  document.querySelectorAll('#ttSeg button').forEach(b=>b.classList.toggle('on', b.dataset.t===(doc.tt||'')));
+  const L = fastIntakes(), sel = F('f_ftk');
+  F('ftkRow').hidden = !(inv && doc.tt==='fast');
+  sel.innerHTML = '<option value="">Choose the intake…</option>' + L.map(x=>`<option value="${esc(x.id)}" ${doc.ftk===x.id?'selected':''}>${esc(x.name)} · ${x.dates.filter(Boolean).length} payments</option>`).join('');
+  F('ftkHint').textContent = L.length ? '' : 'Add intakes in Settings › Payments & due dates.';
+  document.querySelector('#planSeg [data-p="set"]').hidden = !(doc.plan==='set');
 }
 /* Receipts: quick amounts (the instalment due, the whole balance, or another amount) and what the amount means */
 function drawPayPick(t){
   const before = Math.max(0, Math.round((t.total - t.prevPaid) * 100) / 100);
   const Pb = planInfo(Object.assign({}, doc, {received:'0'})), next = Pb && Pb.next;
   const opts = [];
-  if(next && next.left > 0.005 && Math.abs(next.left - before) > 0.005) opts.push([next.left, `${next.short} · MKW ${money(next.left)}`]);
-  if(before > 0.005) opts.push([before, next && Math.abs(next.left - before) < 0.005 ? `${next.short} (the rest) · MKW ${money(before)}` : `Full balance · MKW ${money(before)}`]);
+  if(next && next.left > 0.005 && Math.abs(next.left - before) > 0.005) opts.push([next.left, `${next.short} · MWK ${money(next.left)}`]);
+  if(before > 0.005) opts.push([before, next && Math.abs(next.left - before) < 0.005 ? `${next.short} (the rest) · MWK ${money(before)}` : `Full balance · MWK ${money(before)}`]);
   const r = num(doc.received), on = opts.find(o => Math.abs(o[0] - r) < 0.005);
   F('payPick').innerHTML = opts.map(([v, l]) => `<button type="button" data-amt="${v}" class="${on && on[0] === v ? 'on' : ''}">${esc(l)}</button>`).join('') + `<button type="button" data-amt="" class="${on ? '' : 'on'}">Other amount</button>`;
   let note = '', cls = '';
   if(r > 0.005){
-    if(r > before + 0.005){ note = `MKW ${money(r - before)} more than is owed. It is kept as credit and counted on ${doc.student || 'the student'}'s next invoice.`; cls = 'warn'; }
+    if(r > before + 0.005){ note = `MWK ${money(r - before)} more than is owed. It is kept as credit and counted on ${doc.student || 'the student'}'s next invoice.`; cls = 'warn'; }
     else if(Math.abs(r - before) < 0.005){ note = 'Pays the invoice in full.'; cls = 'ok'; }
-    else if(next && r < next.left - 0.005) { note = `MKW ${money(next.left - r)} is still owed on the ${next.short.toLowerCase()} (due ${niceDate(next.due)}).`; cls = 'warn'; }
-    else if(next && next.n === 1 && r > next.left + 0.005) { note = `Covers the 1st instalment and MKW ${money(r - next.left)} of the 2nd. MKW ${money(before - r)} is still owed.`; }
-    else { note = `MKW ${money(before - r)} is still owed after this payment.`; cls = before - r > 0.005 ? 'warn' : ''; }
+    else if(next && r < next.left - 0.005) { note = `MWK ${money(next.left - r)} is still owed on the ${next.short.toLowerCase()} (due ${niceDate(next.due)}).`; cls = 'warn'; }
+    else if(next && next.n === 1 && r > next.left + 0.005) { note = `Covers the 1st instalment and MWK ${money(r - next.left)} of the 2nd. MWK ${money(before - r)} is still owed.`; }
+    else { note = `MWK ${money(before - r)} is still owed after this payment.`; cls = before - r > 0.005 ? 'warn' : ''; }
   }
   F('payNote').textContent = note; F('payNote').className = 'hint pay-note ' + cls;
 }
@@ -1113,7 +1119,7 @@ function applyCredit(d){
   if(d.type !== 'invoice' || d.id) return '';
   const c = creditFor(studentKey(d.student || d.name)); if(c.amt <= 0.005) return '';
   d.creditUsed = String(c.amt); d.paid = String(num(d.paid) + c.amt);
-  return ` MKW ${money(c.amt)} credit from ${c.from.join(', ')} is counted as already paid.`;
+  return ` MWK ${money(c.amt)} credit from ${c.from.join(', ')} is counted as already paid.`;
 }
 /* "Every LHQ Enrollment Includes": all items by default; doc.incOff holds the ones removed from this document */
 const graceDays = () => Math.max(0, Math.round(num(settings.graceDays)));
@@ -1121,7 +1127,7 @@ const graceDays = () => Math.max(0, Math.round(num(settings.graceDays)));
 function nextLine(P, html){
   if(!P || !P.next) return '';
   const g = graceDays(), r = P.next, b = x => html ? `<b>${x}</b>` : x;
-  let line = b(`Next payment: MKW ${money0(r.left)} (${r.short}) is due by ${niceDate(r.due)}.`);
+  let line = b(`Next payment: MWK ${money0(r.left)} (${r.short}) is due by ${niceDate(r.due)}.`);
   if(r.n===2) line += g ? ` If it is not received by ${niceDate(addDays(r.due, g))} (${g}-day grace period), sessions are paused until payment is confirmed. Paused sessions are made up once payment is received.`
     : ' If it is not received by then, sessions are paused until payment is confirmed. Paused sessions are made up once payment is received.';
   else if(graceLine(P)) line += (html ? '</span></div><div class="li"><span>•</span><span>' : '\n') + graceLine(P);
@@ -1177,13 +1183,13 @@ function renderDoc(){
   let box = '';
   if(T==='quote'){
     const inst = !doc.noInstLine && t.total > 0;
-    box = `<div class="lg-due"><span class="cap">Total for the period</span><b>MKW ${m0(t.total)}</b><span>${inst ? `or 2 instalments of ${m0(Math.round(t.total*50)/100)}` : doc.items.length ? `${doc.items.reduce((a, x) => a + num(x.sessions), 0)} sessions · ${doc.items.length} subject${doc.items.length === 1 ? '' : 's'}` : ''}</span></div>`;
+    box = `<div class="lg-due"><span class="cap">Total for the period</span><b>MWK ${m0(t.total)}</b><span>${inst ? `or 2 instalments of ${m0(Math.round(t.total*50)/100)}` : doc.items.length ? `${doc.items.reduce((a, x) => a + num(x.sessions), 0)} sessions · ${doc.items.length} subject${doc.items.length === 1 ? '' : 's'}` : ''}</span></div>`;
   } else if(T==='invoice'){
-    if(t.total > 0 && t.balance <= 0.005) box = `<div class="lg-due ok"><span class="cap">Paid in full</span><b>MKW ${m0(t.total)}</b><span>Thank you</span></div>`;
-    else box = `<div class="lg-due"><span class="cap">Balance due</span><b>MKW ${m0(Math.max(0, t.balance))}</b><span>${P && P.next ? `by ${esc(wkDate(P.next.due))} · ${P.next.short}` : doc.dueDate ? `by ${esc(wkDate(doc.dueDate))}` : ''}</span></div>`;
+    if(t.total > 0 && t.balance <= 0.005) box = `<div class="lg-due ok"><span class="cap">Paid in full</span><b>MWK ${m0(t.total)}</b><span>Thank you</span></div>`;
+    else box = `<div class="lg-due"><span class="cap">Balance due</span><b>MWK ${m0(Math.max(0, t.balance))}</b><span>${P && P.next ? `by ${esc(wkDate(P.next.due))} · ${P.next.short}` : doc.dueDate ? `by ${esc(wkDate(doc.dueDate))}` : ''}</span></div>`;
   } else {
     const full = t.total > 0 && t.balance <= 0.005;
-    box = `<div class="lg-due ok"><span class="cap">Received</span><b>MKW ${m0(t.received)}</b><span>${full ? 'Paid in full · nothing owed' : t.total > 0 ? `MKW ${m0(Math.max(0, t.balance))} still owed` : ''}</span></div>`;
+    box = `<div class="lg-due ok"><span class="cap">Received</span><b>MWK ${m0(t.received)}</b><span>${full ? 'Paid in full · nothing owed' : t.total > 0 ? `MWK ${m0(Math.max(0, t.balance))} still owed` : ''}</span></div>`;
   }
   h += `<div class="lg-two"><div><span class="cap">${{quote:'Prepared for', invoice:'Billed to', receipt:'Received from'}[T]}</span><p><b>${esc(doc.name || '')}</b>${who ? '<br>' + who : ''}</p>
     ${T==='receipt' ? `<p class="lg-pd">${[doc.method ? `<b>${esc(doc.method)}</b>` : '', doc.payRef ? `Ref ${esc(doc.payRef)}` : '', `Received ${esc(niceDate(doc.date))}`].filter(Boolean).join(' · ')}</p>` : ''}</div>${box}</div>`;
@@ -1199,8 +1205,8 @@ function renderDoc(){
       ${doc.items.map(it => `<tr><td>${esc(it.desc)}</td>${days ? `<td class="r">${esc(it.days)}</td>` : ''}<td class="r">${esc(it.sessions)}</td><td class="r">${m0(num(it.cost))}</td><td class="r">${m0(num(it.sessions)*num(it.cost))}</td></tr>`).join('')}</table>`;
     const rows = [];
     if(hasDisc){ rows.push(['Subtotal', m0(t.subtotal)]); rows.push([esc(discountLabel()), '−' + m0(t.discount)]); }
-    if(T==='quote') rows.push(['Total (MKW)', m0(t.total), 1]);
-    else { rows.push(['Total', m0(t.total)]); rows.push(['Paid', m0(t.paid)]); rows.push(['Balance due (MKW)', m0(Math.max(0, t.balance)), 1]); }
+    if(T==='quote') rows.push(['Total (MWK)', m0(t.total), 1]);
+    else { rows.push(['Total', m0(t.total)]); rows.push(['Paid', m0(t.paid)]); rows.push(['Balance due (MWK)', m0(Math.max(0, t.balance)), 1]); }
     h += `<table class="lg-tot">${rows.map(([l, v, b]) => `<tr${b ? ' class="b"' : ''}><td>${l}</td><td class="r">${v}</td></tr>`).join('')}</table>`;
   }
 
@@ -1209,8 +1215,8 @@ function renderDoc(){
     const start = doc.periodStart || doc.dueDate;
     const Q = !doc.noInstLine && t.total > 0 ? planInfo(Object.assign({}, doc, {type:'invoice', plan:'half', paid:'0', plan1:'', plan2:''})) : null;
     h += `<div class="lg-sec"><span class="cap">${Q ? 'Choose how to pay' : 'How to accept'}</span><div class="lg-ch${Q ? '' : ' one'}">
-      <div class="rec"><span class="tag">ONE PAYMENT</span><b>Pay in full</b>MKW ${m0(t.total)}${start ? ` before ${esc(niceDate(start))}` : ''}</div>
-      ${Q ? `<div><span class="tag bl">50 / 50</span><b>Two instalments</b>MKW ${m0(Q.rows[0].amt)} before ${esc(niceDate(Q.rows[0].due))}<br>MKW ${m0(Q.rows[1].amt)} by ${esc(niceDate(Q.rows[1].due))}</div>` : ''}</div>
+      <div class="rec"><span class="tag">ONE PAYMENT</span><b>Pay in full</b>MWK ${m0(t.total)}${start ? ` before ${esc(niceDate(start))}` : ''}</div>
+      ${Q ? `<div><span class="tag bl">50 / 50</span><b>Two instalments</b>MWK ${m0(Q.rows[0].amt)} before ${esc(niceDate(Q.rows[0].due))}<br>MWK ${m0(Q.rows[1].amt)} by ${esc(niceDate(Q.rows[1].due))}</div>` : ''}</div>
       <p class="lg-note">${doc.dueDate ? `This quote is valid until ${esc(niceDate(doc.dueDate))}. ` : ''}To accept, make the payment and send proof of payment to ${esc(S.popphone)} or ${esc(S.email)}. A receipt and the tuition card follow.</p></div>`;
   } else if(T==='invoice'){
     if(P) h += `<div class="lg-sec"><span class="cap">Payment plan · 50% at the start, 50% half-way through the tuition period</span><table class="lg-plan">${P.rows.map(r => `<tr><td>${r.short} · ${esc(wkDate(r.due))}</td><td class="r">${m0(r.amt)}</td><td class="r ${r.paid ? 'ok' : P.next === r ? 'due' : ''}">${r.paid ? 'Paid' : P.next === r ? 'Next due' : 'Due'}</td></tr>`).join('')}</table></div>`;
@@ -1249,10 +1255,12 @@ function fillPlan(){
   F('planDates').hidden = !P; F('planHint').hidden = !P;
   F('planRow').hidden = doc.type!=='invoice';
   F('instLineRow').hidden = doc.type!=='quote'; F('f_instLine').checked = !doc.noInstLine;
+  fillTT();
   if(!P) return;
+  if(doc.plan==='set'){ F('planDates').hidden = true; F('planHint').textContent = P.rows.map(r=>`MWK ${money(r.amt)} by ${niceDate(r.due)}`).join(' · ') + '. From the intake\'s dates.'; return; }
   setBtnText(F('btnPlan1'), wkDate(P.rows[0].due), 'Choose');
   setBtnText(F('btnPlan2'), wkDate(P.rows[1].due), 'Choose');
-  F('planHint').textContent = `MKW ${money(P.rows[0].amt)} + MKW ${money(P.rows[1].amt)}. ${doc.plan2 ? '' : 'The 2nd date is half-way through the tuition period. '}Tap a date to change it.`;
+  F('planHint').textContent = `MWK ${money(P.rows[0].amt)} + MWK ${money(P.rows[1].amt)}. ${doc.plan2 ? '' : 'The 2nd date is half-way through the tuition period. '}Tap a date to change it.`;
 }
 function fillDates(){
   setBtnText(F('btnDate'), wkDate(doc.date), 'Choose a date');
@@ -1325,22 +1333,22 @@ function renderItems(){
 
 function update(){
   const t = totals(), T = doc.type;
-  doc.items.forEach((it,i)=>{ const c=F('amt'+i); if(c) c.textContent = 'MKW ' + money(num(it.sessions)*num(it.cost)); });
+  doc.items.forEach((it,i)=>{ const c=F('amt'+i); if(c) c.textContent = 'MWK ' + money(num(it.sessions)*num(it.cost)); });
   const rows = [];
   if(T==='receipt'){
-    rows.push(['Invoice total', 'MKW ' + money(t.total)]);
+    rows.push(['Invoice total', 'MWK ' + money(t.total)]);
     if(t.discount) rows.push([discountLabel() + ' included', '', 'dr']);
-    rows.push(['Paid before this', 'MKW ' + money(t.prevPaid)]);
-    rows.push(['Paid', 'MKW ' + money(t.received)]);
-    rows.push(['Balance remaining', 'MKW ' + money(Math.max(0, t.balance)), 'big']);
+    rows.push(['Paid before this', 'MWK ' + money(t.prevPaid)]);
+    rows.push(['Paid', 'MWK ' + money(t.received)]);
+    rows.push(['Balance remaining', 'MWK ' + money(Math.max(0, t.balance)), 'big']);
   } else {
-    if(t.discount){ rows.push(['Subtotal', 'MKW ' + money(t.subtotal)]); rows.push([discountLabel(), '-MKW ' + money(t.discount), 'dr']); }
-    if(T==='quote') rows.push(['Total', 'MKW ' + money(t.total), 'big']);
-    else { rows.push(['Total', 'MKW ' + money(t.total)]); rows.push(['Paid', 'MKW ' + money(t.paid)]); rows.push(['Balance due', 'MKW ' + money(t.balance), 'big']); }
+    if(t.discount){ rows.push(['Subtotal', 'MWK ' + money(t.subtotal)]); rows.push([discountLabel(), '-MWK ' + money(t.discount), 'dr']); }
+    if(T==='quote') rows.push(['Total', 'MWK ' + money(t.total), 'big']);
+    else { rows.push(['Total', 'MWK ' + money(t.total)]); rows.push(['Paid', 'MWK ' + money(t.paid)]); rows.push(['Balance due', 'MWK ' + money(t.balance), 'big']); }
   }
   if(T==='receipt') drawPayPick(t);
   const PP = planInfo();
-  if(PP) PP.rows.forEach(r=>rows.push([`${r.short} · due ${niceDate(r.due)}${r.paid?' · paid':''}`, 'MKW ' + money(r.amt), 'dr']));
+  if(PP) PP.rows.forEach(r=>rows.push([`${r.short} · due ${niceDate(r.due)}${r.paid?' · paid':''}`, 'MWK ' + money(r.amt), 'dr']));
   if(mode === 'edit') drawHead();
   F('sums').innerHTML = rows.map(([a,b,c])=>`<div class="row ${c||''}"><span>${esc(a)}</span><span>${esc(b)}</span></div>`).join('');
   renderDoc();
@@ -1387,7 +1395,7 @@ const PLUS = '<span class="ic"><svg viewBox="0 0 24 24" width="14" height="14" f
 function pickCtx(){
   if(pk.field && pk.field.startsWith('cs:')){
     const c = cardFieldCfg(pk.field);
-    return { list:c.list(), cur:c.get()||'', other:false, title:c.title, noun:c.noun, allowOther:false, clear:c.clear, noUse:pk.field.endsWith(':list') };
+    return { list:c.list(), cur:c.get()||'', other:false, title:c.title, noun:c.noun, allowOther:false, clear:c.clear, noUse:pk.field.endsWith(':list'), sub:c.sub };
   }
   if(pk.field==='school'){
     const q = F('pkSearch').value.trim();
@@ -1397,7 +1405,7 @@ function pickCtx(){
   }
   if(pk.field){
     const list = pk.field==='level' ? levelList() : methodList(), cur = doc[pk.field] || '';
-    return { list, cur, other:false, title: pk.field==='level' ? 'Year & level' : 'Payment method',
+    return { list, cur, other:false, title: pk.field==='level' ? 'Year and level' : 'Payment method',
       noun: pk.field==='level' ? 'level' : 'method', allowOther:false };
   }
   const it = doc.items[pk.i], list = subjectList(), other = isCustom(it);
@@ -1418,7 +1426,7 @@ function buildPickList(){
   pk.opts.forEach((o,n)=>{
     if(o.kind!=='subj' && !sepDone && matches.length){ html += '<li class="pk-sep" role="presentation"></li>'; sepDone = true; }
     const attrs = `class="pk-opt${o.kind!=='subj'?' pk-special':''}${n===pk.active?' active':''}" role="option" id="pko${n}" data-n="${n}" aria-selected="${!!o.selected}"`;
-    if(o.kind==='subj') html += `<li ${attrs}><span>${esc(o.value)}${c.sub && c.sub(o.value) ? `<small class="pk-area">${esc(c.sub(o.value))}</small>` : ''}</span>${CHECK}</li>`;
+    if(o.kind==='subj') html += `<li ${attrs}><span>${esc(o.value)}${c.sub && c.sub(o.value) ? `<small class="pk-area" style="display:block;font-weight:600;color:${/^!/.test(c.sub(o.value)) ? 'var(--am,#7a5400)' : 'var(--muted)'}">${esc(c.sub(o.value))}</small>` : ''}</span>${CHECK}</li>`;
     else if(o.kind==='use') html += `<li ${attrs}>${PLUS}<span>Use “${esc(o.value)}”<small>${c.clear!==undefined ? 'Typed in, not added to your list' : `For this ${WORD[doc.type].toLowerCase()} only`}</small></span></li>`;
     else if(o.kind==='clear') html += `<li ${attrs}><span class="ic">–</span><span>${esc(c.clear)}</span>${CHECK}</li>`;
     else html += `<li ${attrs}>${PENCIL}<span>Other subject<small>Type in a subject that isn't listed</small></span>${CHECK}</li>`;
@@ -1524,6 +1532,11 @@ window.addEventListener('scroll', e=>{ if(!F('picker').hidden && !isSheet() && !
 
 F('f_instLine').addEventListener('change', e=>{ doc.noInstLine = !e.target.checked; update(); });
 document.querySelectorAll('#planSeg button').forEach(b=>b.addEventListener('click', ()=>{ doc.plan = b.dataset.p; fillPlan(); update(); }));
+document.querySelectorAll('#ttSeg button').forEach(b=>b.addEventListener('click', ()=>{ doc.tt = doc.tt===b.dataset.t ? '' : b.dataset.t;
+  if(doc.tt!=='fast' && doc.plan==='set'){ doc.plan = ''; doc.planD = []; doc.ftk = ''; }
+  if(doc.tt==='hol' && doc.periodStart && doc.type==='invoice' && !doc.plan) doc.dueDate = doc.periodStart;   // holiday tuition: paid before the first session
+  fillPlan(); fillDates(); update(); }));
+F('f_ftk').addEventListener('change', ()=>{ const x = fastIntakes().find(y=>y.id===F('f_ftk').value); doc.ftk = x ? x.id : ''; if(x){ doc.plan = 'set'; doc.planD = x.dates.filter(Boolean).slice(); } else if(doc.plan==='set'){ doc.plan = ''; doc.planD = []; } fillPlan(); update(); });
 F('incChips').addEventListener('click', e=>{
   const b = e.target.closest('[data-inc]'); if(!b) return;
   const x = b.dataset.inc, off = (doc.incOff || []).slice();
@@ -1550,7 +1563,9 @@ function checkKnown(){
   if(show) F('knownText').textContent = `${k.student} is in Saved (${k.number}). Fill in ${[k.name, k.level].filter(Boolean).join(', ') || 'their details'}${k.email||k.phone ? ' and contact details' : ''}?`;
 }
 function fillStudentList(){
-  const names = [...new Set(saved.filter(s=>s.student).map(s=>s.student.trim()))].sort();
+  /* students on documents and students added on the Students page (no document yet), so a new student's name is picked, not retyped */
+  const recs = (window.HD && HD.studentRecords) ? Object.values(HD.studentRecords()).map(r=>r && r.name).filter(Boolean) : [];
+  const names = [...new Set(saved.filter(s=>s.student).map(s=>s.student.trim()).concat(recs.map(n=>String(n).trim())))].sort();
   F('studentNames').innerHTML = names.map(n=>`<option value="${esc(n)}">`).join('');
 }
 F('btnKnownFill').onclick = ()=>{
@@ -1741,24 +1756,24 @@ F('btnResetTemplates').onclick = ()=>{ templates = Object.assign({},DEFAULT_TEMP
 
 function summaryText(){
   const t = totals(), T = doc.type, out = [];
-  if(t.discount){ out.push(`Subtotal: MKW ${money(t.subtotal)}`); out.push(`${discountLabel()}: -MKW ${money(t.discount)}`); }
-  if(T==='quote'){ out.push(`Total: MKW ${money(t.total)}`); if(doc.dueDate) out.push(`This quote is valid until ${niceDate(doc.dueDate)}.`); }
-  else if(T==='invoice'){ out.push(`Total: MKW ${money(t.total)}`); if(t.paid) out.push(`Paid: MKW ${money(t.paid)}`); out.push(`Balance due: MKW ${money(t.balance)}${doc.dueDate && !planInfo()?` (due by ${niceDate(doc.dueDate)})`:''}`); }
-  else { out.push(`Invoice total: MKW ${money(t.total)}`); out.push(`This payment: MKW ${money(t.received)}`); out.push(`Balance remaining: MKW ${money(Math.max(0,t.balance))}`); }
+  if(t.discount){ out.push(`Subtotal: MWK ${money(t.subtotal)}`); out.push(`${discountLabel()}: -MWK ${money(t.discount)}`); }
+  if(T==='quote'){ out.push(`Total: MWK ${money(t.total)}`); if(doc.dueDate) out.push(`This quote is valid until ${niceDate(doc.dueDate)}.`); }
+  else if(T==='invoice'){ out.push(`Total: MWK ${money(t.total)}`); if(t.paid) out.push(`Paid: MWK ${money(t.paid)}`); out.push(`Balance due: MWK ${money(t.balance)}${doc.dueDate && !planInfo()?` (due by ${niceDate(doc.dueDate)})`:''}`); }
+  else { out.push(`Invoice total: MWK ${money(t.total)}`); out.push(`This payment: MWK ${money(t.received)}`); out.push(`Balance remaining: MWK ${money(Math.max(0,t.balance))}`); }
   const P = planInfo();
   if(P){
-    if(T==='invoice'){ P.rows.forEach(r=>out.push(`${r.label}: MKW ${money(r.amt)}, due by ${niceDate(r.due)}${r.paid?' (paid)':''}`)); if(graceLine(P)) out.push(graceLine(P)); }
+    if(T==='invoice'){ P.rows.forEach(r=>out.push(`${r.label}: MWK ${money(r.amt)}, due by ${niceDate(r.due)}${r.paid?' (paid)':''}`)); if(graceLine(P)) out.push(graceLine(P)); }
     if(T==='receipt' && P.next && t.balance > 0.005) out.push(nextLine(P, false));
   }
   return out.join('\n');
 }
 function fillTemplate(tpl){
   const t = totals(), S = settings, T = doc.type;
-  const subjects = doc.items.filter(it=>it.desc).map(it=>`• ${it.desc}: ${it.sessions} sessions × MKW ${money(num(it.cost))} = MKW ${money(num(it.sessions)*num(it.cost))}`).join('\n');
+  const subjects = doc.items.filter(it=>it.desc).map(it=>`• ${it.desc}: ${it.sessions} sessions × MWK ${money(num(it.cost))} = MWK ${money(num(it.sessions)*num(it.cost))}`).join('\n');
   const vals = { name: doc.name || 'Parent/Guardian', student: doc.student, level: doc.level,
     type: WORD[T].toLowerCase(), Type: WORD[T], number: doc.number, ref: doc.ref,
     refline: doc.ref ? ` for invoice ${doc.ref}` : '',
-    date: niceDate(doc.date), due: niceDate(doc.dueDate), for: doc.forWhat, period: periodText() || 'the agreed tuition period',
+    date: niceDate(doc.date), due: niceDate(doc.dueDate), for: doc.forWhat || (doc.student ? String(doc.student).trim().split(/\s+/)[0] + '\'s tuition' : 'tuition'), period: periodText() || 'the agreed tuition period',
     includesline: includedList().length ? `Every LHQ enrolment includes ${includedList().map(x=>x.replace('Assesments','Assessments')).join(', ').replace(/, ([^,]*)$/, ' and $1')}.` : '',
     subjects, summary: summaryText(), subtotal: money(t.subtotal), discount: money(t.discount),
     total: money(t.total), paid: money(t.paid), balance: money(Math.max(0, t.balance)),
@@ -1791,7 +1806,7 @@ function syncInvoicePaid(ref){
     .reduce((m,s)=>Math.max(m, num(s.prevPaid) + num(s.received)), 0);
   if(paid <= num(inv.paid)) return '';
   inv.paid = String(Math.round(paid*100)/100);
-  return `. Invoice ${inv.number} now shows MKW ${money(paid)} paid`;
+  return `. Invoice ${inv.number} now shows MWK ${money(paid)} paid`;
 }
 const shortDate = t => new Date(t).toLocaleDateString('en-GB',{day:'2-digit',month:'short'});
 const TAG = {quote:['QUO',''], invoice:['INV','inv'], receipt:['RCT','rct'], card:['TC','tc']};
@@ -1801,7 +1816,7 @@ function renderSaved(){
   L.innerHTML = saved.map(s=>{
     const type = s.type || 'quote', [tag, cls] = TAG[type];
     const amount = type==='card' ? esc((s.subjects||[]).map(x=>x.name).filter(Boolean).join(', ') || 'Tuition card')
-      : type==='receipt' ? `Received MKW ${money(s.receivedAmt||0)}` : `MKW ${money(s.total||0)}`;
+      : type==='receipt' ? `Received MWK ${money(s.receivedAmt||0)}` : `MWK ${money(s.total||0)}`;
     const next = type==='quote' ? 'invoice' : type==='invoice' ? 'receipt' : null;
     const toCard = type==='invoice' || type==='receipt';
     return `
@@ -1828,7 +1843,19 @@ F('savedList').addEventListener('click', e=>{
   }
   if(b.dataset.del){ if(!confirm('Delete this saved document?')) return; saved=saved.filter(x=>x.id!==b.dataset.del); store.set('lhq_saved',saved); renderSaved(); }
 });
-F('btnSave').onclick = ()=> doc.type === 'card' && window.SCHED ? cardClashCheck(saveAndView) : saveAndView();
+/* A card that names no student, subject, tutor or day can't reach a tutor's list or a calendar: say so before saving */
+function cardGaps(){
+  if(doc.type !== 'card') return '';
+  const g = [], S = doc.subjects || [];
+  if(!String(doc.student || '').trim()) g.push('Student name');
+  if(!S.length) g.push('A subject');
+  S.forEach((x, i) => { const n = String(x.name || '').trim() || `Subject ${i + 1}`;
+    const m = []; if(!String(x.name || '').trim()) m.push('name'); if(!String(x.tutor || '').trim()) m.push('tutor'); if(!(x.days || []).length) m.push('days');
+    if(m.length) g.push(`${n}: ${m.join(', ')}`); });
+  return g.length ? `Still missing:\n· ${g.join('\n· ')}\n\nThe tutor won't see this card and nothing goes on the calendar until it's filled in. Save anyway?` : '';
+}
+F('btnSave').onclick = ()=>{ if(!String(doc.student || '').trim()){ toast('Add the student\'s name first'); F('f_student').focus(); return; }
+  const gap = cardGaps(); if(gap && !confirm(gap)) return; doc.type === 'card' && window.SCHED ? cardClashCheck(saveAndView) : saveAndView(); };
 /* Before a tuition card is saved: does any line clash with the tutor's other students, the student's other subjects, or
    times the tutor can't teach? If so, say so (with free times that suit both) and let LHQ change it or save anyway. */
 function cardClashCheck(go){
@@ -1955,11 +1982,11 @@ function updateSendStatus(){
 /* The wording LHQ submits to Meta for approval (see README). Used for the preview
    until the app can read the live templates from Meta. */
 const WA_TEMPLATE_FALLBACK = {
-  body: 'Hello {{1}}, thank you for choosing LHQ Learning Solutions. Please find attached your tutoring {{2}} ({{3}}) for {{4}}.\n\nTotal: MKW {{5}}\nBalance due: MKW {{6}}\n\nKindly send proof of payment to 0992 525 250 or learnhqes@gmail.com. A receipt will be issued once payment is confirmed.',
+  body: 'Hello {{1}}, thank you for choosing LHQ Learning Solutions. Please find attached your tutoring {{2}} ({{3}}) for {{4}}.\n\nTotal: MWK {{5}}\nBalance due: MWK {{6}}\n\nKindly send proof of payment to 0992 525 250 or learnhqes@gmail.com. A receipt will be issued once payment is confirmed.',
   footer: 'LHQ Learning Solutions · +265 992 525 250'
 };
 const WA_RECEIPT_FALLBACK = {
-  body: 'Hello {{1}}, thank you for your payment of MKW {{2}} for {{3}}. Please find attached your receipt ({{4}}).\n\nBalance remaining: MKW {{5}}\n\nPlease keep this receipt for your records.',
+  body: 'Hello {{1}}, thank you for your payment of MWK {{2}} for {{3}}. Please find attached your receipt ({{4}}).\n\nBalance remaining: MWK {{5}}\n\nPlease keep this receipt for your records.',
   footer: 'LHQ Learning Solutions · +265 992 525 250'
 };
 /* Values for the approved template's numbered placeholders, in order */
@@ -2074,6 +2101,14 @@ F('btnSendNow').onclick = async ()=>{
   }
 };
 
+/* Sent through the phone's own WhatsApp or email app: the Hub can't see the send, so opening it counts as sent
+   (same record as a direct send, so "Not sent" and its reminders clear). */
+function markHandSent(isEmail, to){
+  if(!doc) return;
+  if(isEmail){ doc.sentAt = Date.now(); doc.sentTo = to || doc.sentTo || ''; }
+  else { doc.waSentAt = Date.now(); doc.waSentTo = to || doc.waSentTo || ''; }
+  saveDoc(true);
+}
 F('btnShare').onclick = async ()=>{
   /* WhatsApp keeps either the file or the text when both are shared together, so on WhatsApp the message is
      copied first and only the PDF is shared: paste the message as the PDF's caption. Email apps take both. */
@@ -2086,6 +2121,7 @@ F('btnShare').onclick = async ()=>{
     const data = wa ? {files:[file]} : {files:[file], text, title:F('m_subject').value};
     if(copied) toast('Message copied. In WhatsApp, paste it as the caption, then send.');
     await navigator.share(data);
+    markHandSent(!wa, wa ? F('m_wa').value.trim() : F('m_to').value.trim());
     if(!copied) toast('Shared');
   }catch(err){ if(err && err.name!=='AbortError') toast('Sharing didn\'t work here. Use the Open button instead.'); }
 };
@@ -2096,12 +2132,14 @@ F('btnOpenApp').onclick = async ()=>{
     if(!to){ toast('Add the parent\'s email address first'); F('m_to').focus(); return; }
     try{ triggerDownload(await makePdfBlob(), fileName()); }catch(e){}
     const url = `mailto:${encodeURIComponent(to)}?subject=${encodeURIComponent(F('m_subject').value)}&body=${encodeURIComponent(body)}`;
+    markHandSent(true, to);
     setTimeout(()=>{ window.location.href = url; }, 700);
   } else {
     const n = waNumber(F('m_wa').value);
     if(n.length < 10){ toast('Add a WhatsApp number, e.g. 0991 234 567'); F('m_wa').focus(); return; }
     try{ triggerDownload(await makePdfBlob(), fileName()); }catch(e){}
     const url = `https://wa.me/${n}?text=${encodeURIComponent(body)}`;
+    markHandSent(false, F('m_wa').value.trim());
     const w = window.open(url, '_blank'); if(!w) window.location.href = url;
   }
 };
@@ -2139,7 +2177,7 @@ window.hubToast = toast;
 window.hubApply = ()=>{
   saved = store.get('lhq_saved', []);
   settings = withDefaults(store.get('lhq_settings', {}));
-  templates = Object.assign({}, DEFAULT_TEMPLATES, store.get('lhq_templates', {}));
+  templates = Object.assign({}, DEFAULT_TEMPLATES, Object.fromEntries(Object.entries(store.get('lhq_templates', {}) || {}).map(([k, v]) => [k, typeof v === 'string' ? v.replace(/\bMKW\b/g, 'MWK') : v])));
   const open = doc.id && saved.find(s=>s.id===doc.id);
   if(open && open.savedAt > (doc.savedAt||0) && open.updatedBy){ toast(`${open.number} was updated by ${open.updatedBy}. Open it again to see the changes.`); }
   renderSaved(); fillStudentList(); fillBackup(); fillNumbering(); fillSettings(); fillTemplates();
@@ -2201,16 +2239,22 @@ function route(){
   let msg = '', m = 'edit';
   if(get('d')){
     const s = saved.find(x=>x.id===get('d'));
+    if(!s && !route.tried && window.hub && hub.pull){ route.tried = true; hub.pull().then(route, route); return; }   // not on this device yet: fetch once, then look again
     if(!s){ document.body.dataset.mode = 'missing'; F('dpTitle').textContent = 'Not found'; F('dpSub').textContent = 'This document isn\'t here. It may have been deleted, or it hasn\'t reached this device yet.'; return; }
     if(!(doc.id === s.id && mode === 'edit' && get('edit'))) doc = normalize(JSON.parse(JSON.stringify(s)));
     m = get('edit') && mayEdit(s.type) ? 'edit' : 'view';
   } else if(get('new')){
     const type = TYPES.includes(get('new')) ? get('new') : 'quote';
     doc = blankDoc(type);
-    if(get('student')) fillFromStudent(doc, studentKey(get('student')));
+    if(get('student')){
+      const key = studentKey(get('student')); fillFromStudent(doc, key);
+      /* this device hasn't caught up yet: fetch, then fill in the student's details (unless someone has started typing) */
+      if(!doc.student && window.hub && hub.pull) hub.pull().then(()=>{ HD.load(); saved = store.get('lhq_saved', []); if(doc.id || doc.student || doc.name) return; fillFromStudent(doc, key); fillForm(); update(); }).catch(()=>{});
+    }
     msg = `New ${WORD[type].toLowerCase()} ${doc.number}` + (doc.student ? ` for ${doc.student}` : '');
   } else if(get('conv') || get('dup')){
     const [type, id] = get('dup') ? [null, get('dup')] : get('conv').split(':'), s = saved.find(x=>x.id===id);
+    if(!s && !route.tried && window.hub && hub.pull){ route.tried = true; hub.pull().then(route, route); return; }
     if(!s){ toast('That document isn\'t on this device yet'); location.replace('index.html#docs'); return; }
     doc = convertDoc(s, type || s.type || 'quote');
     if(get('dup')){ doc.ref = s.ref || ''; msg = `Copy of ${s.number}: ${WORD[doc.type].toLowerCase()} ${doc.number}. Change what you need, then Save.`; }
@@ -2302,7 +2346,7 @@ function drawAside(){
     if(!st.paidUp && H.can('receipts')) nx.push(`<a class="dp-b g full" href="doc.html#conv=receipt:${ch.inv.id}">${st.plan && st.firstPaid ? 'Receive 2nd instalment' : 'Record a payment'} · ${H.mk(st.balance)}</a>`);
     if(!ch.card && H.can('cards')) nx.push(`<a class="dp-b ${st.paidUp || st.firstPaid ? 'n' : ''} full" href="${cardHref(ch.inv)}">Make tuition card${lastCard ? ' (same tutors as last time)' : ''}</a>`);
     const end = ch.inv.periodEnd;
-    if(t === 'invoice' && ch.card && H.can('quotes') && (!end || H.dayDiff(H.today(), end) <= 14)) nx.push(`<a class="dp-b n full" href="doc.html#renew=${ch.inv.id}">Renew for the next period</a><p class="dp-note">Makes the next invoice with the same subjects. The card after it copies days, times and tutors.</p>`);
+    if(t === 'invoice' && ch.card && H.can('quotes') && (!end || H.dayDiff(H.today(), end) <= 14)) nx.push(`<a class="dp-b n full" href="doc.html#renew=${ch.inv.id}">Renew for the next period</a><p class="dp-note">Next invoice, same subjects; the card copies days, times and tutors.</p>`);
   }
   if(t === 'card' && H.can('cards')) nx.push(`<button class="dp-b n full" onclick="openCardShare()">${svg('<path d="M4 12l16-8-6 17-3-7-7-2z"/>',16)} Send to tutors</button>`);
   F('dpNext').innerHTML = nx.length ? `<div class="dp-box"><div class="dp-cap">Next step</div>${nx.join('')}</div>` : '';
@@ -2405,7 +2449,7 @@ function fillBackup(){
 async function askPersist(){
   let on = false;
   try{ if(navigator.storage && navigator.storage.persist){ on = await navigator.storage.persisted() || await navigator.storage.persist(); } }catch(e){}
-  setSvc('bkPersist', on ? 'ok' : 'warn', on ? 'Storage: protected from automatic clean-up by the browser' : 'Storage: not protected from automatic clean-up. Install the app to your home screen to help, and keep backing up.');
+  setSvc('bkPersist', on ? 'ok' : 'warn', on ? 'Storage: protected from automatic clean-up by the browser' : 'Storage: not protected from automatic clean-up. Install LHQ Hub to your home screen to help, and keep backing up.');
 }
 let pendingRestore = null;
 function readRestore(file){

@@ -60,18 +60,19 @@ window.BIZ = (function(){
     return addMonth(p, k);
   }
   const lastYear = p => isY(p) ? shift(p, -1) : isQ(p) ? shift(p, -4) : addMonth(p, -12);
+  const amt = (v, d) => window.FX ? FX.adj(num(v), d) : num(v);   // MK / $: a dated amount at its own month's rate
   function figures(ms){
     const rcts = saved.filter(d => d.type === 'receipt' && ms.includes(ym(d.date)));
-    const inc = rcts.reduce((a, r) => a + num(r.received), 0);
-    const invoiced = saved.filter(d => d.type === 'invoice' && ms.includes(ym(d.date))).reduce((a, i) => a + HD.total(i), 0);
+    const inc = rcts.reduce((a, r) => a + amt(r.received, r.date), 0);
+    const invoiced = saved.filter(d => d.type === 'invoice' && ms.includes(ym(d.date))).reduce((a, i) => a + amt(HD.total(i), i.date), 0);
     const all = spendLive().filter(e => inPeriod(e, ms)), sp = all.filter(e => !NOT_COST.includes(e.cat)), byCat = {};
-    sp.forEach(e => byCat[e.cat] = (byCat[e.cat] || 0) + num(e.amount));
-    const exp = sp.reduce((a, e) => a + num(e.amount), 0), oneoff = ONEOFF.reduce((a, c) => a + (byCat[c] || 0), 0);
+    sp.forEach(e => byCat[e.cat] = (byCat[e.cat] || 0) + amt(e.amount, e.date));
+    const exp = sp.reduce((a, e) => a + amt(e.amount, e.date), 0), oneoff = ONEOFF.reduce((a, c) => a + (byCat[c] || 0), 0);
     const ins = incomeLive().filter(e => inPeriod(e, ms)), byType = {};
-    ins.forEach(e => byType[e.cat] = (byType[e.cat] || 0) + num(e.amount));
-    const other = ins.filter(e => !NOT_INCOME.includes(e.cat)).reduce((a, e) => a + num(e.amount), 0);
-    const capital = ins.filter(e => NOT_INCOME.includes(e.cat)).reduce((a, e) => a + num(e.amount), 0);
-    const repaid = all.filter(e => NOT_COST.includes(e.cat)).reduce((a, e) => a + num(e.amount), 0);
+    ins.forEach(e => byType[e.cat] = (byType[e.cat] || 0) + amt(e.amount, e.date));
+    const other = ins.filter(e => !NOT_INCOME.includes(e.cat)).reduce((a, e) => a + amt(e.amount, e.date), 0);
+    const capital = ins.filter(e => NOT_INCOME.includes(e.cat)).reduce((a, e) => a + amt(e.amount, e.date), 0);
+    const repaid = all.filter(e => NOT_COST.includes(e.cat)).reduce((a, e) => a + amt(e.amount, e.date), 0);
     const refunds = byCat['Refunds'] || 0;
     return {inc, other, revenue: inc + other, invoiced, exp, oneoff, byCat, byType, capital, repaid, refunds, profit: inc + other - exp, n: sp.length, list: all, income: ins};
   }
@@ -111,11 +112,12 @@ window.BIZ = (function(){
   function chart(fy, period){
     const ms = fyMonths(fy), cur = thisMonth(), F = ms.map(m => m <= cur ? figures([m]) : null);
     const max = Math.max(1, ...F.filter(Boolean).map(f => Math.max(f.inc, f.exp)));
-    const step = max > 20e6 ? 10e6 : max > 8e6 ? 5e6 : max > 2e6 ? 1e6 : 5e5, top = Math.ceil(max / step) * step;
+    const fxR = window.FX && FX.active() ? FX.now().rate : 0, niceU = v => { const p = Math.pow(10, Math.floor(Math.log10(v))); return [1, 2, 2.5, 5, 10].map(x => x * p).find(x => x >= v); };   // in dollars: round dollar steps
+    const step = fxR ? niceU(max / fxR / 4) * fxR : max > 20e6 ? 10e6 : max > 8e6 ? 5e6 : max > 2e6 ? 1e6 : 5e5, top = Math.ceil(max / step - 1e-9) * step;
     const W = 720, H = 220, pl = 46, pr = 8, pt = 12, pb = 26, cw = (W - pl - pr) / 12, bw = cw * .3;
     const x = i => pl + cw * i + cw / 2, y = v => pt + (H - pt - pb) * (1 - v / top);
     let g = '';
-    for(let v = 0; v <= top; v += step) g += `<line x1="${pl}" x2="${W - pr}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line2)"/><text x="${pl - 6}" y="${y(v) + 4}" text-anchor="end" font-size="10.5" fill="var(--muted)">${v >= 1e6 ? (v / 1e6) + 'M' : v ? (v / 1e3) + 'k' : 0}</text>`;
+    for(let v = 0; v <= top; v += step) g += `<line x1="${pl}" x2="${W - pr}" y1="${y(v)}" y2="${y(v)}" stroke="var(--line2)"/><text x="${pl - 6}" y="${y(v) + 4}" text-anchor="end" font-size="10.5" fill="var(--muted)">${window.FX && FX.active() ? FX.usdShort(v) : v >= 1e6 ? (v / 1e6) + 'M' : v ? (v / 1e3) + 'k' : 0}</text>`;
     ms.forEach((m, i) => {
       const f = F[i], sel = period === m;
       if(sel) g += `<rect x="${x(i) - cw / 2 + 2}" y="${pt - 4}" width="${cw - 4}" height="${H - pt - pb + 4}" rx="6" fill="var(--hover)"/>`;
@@ -159,12 +161,12 @@ window.BIZ = (function(){
       ${toRec ? `<tr class="sub"><td>Repeating costs not yet confirmed <a href="#biz/spending/${period}">confirm</a></td><td>−${mk(toRec)}</td></tr>` : ''}</table>
       ${f.capital || f.repaid ? `<div class="cap" style="margin-top:14px">Not counted in profit</div><table class="bz-pl">${Object.entries(f.byType).filter(([t]) => NOT_INCOME.includes(t)).map(([t, v]) => `<tr class="sub"><td>${esc(t)}</td><td>${mk(v)}</td></tr>`).join('')}${f.repaid ? `<tr class="sub"><td>Loan repayments</td><td>−${mk(f.repaid)}</td></tr>` : ''}</table>` : ''}
       ${live ? '<p class="note">This period is still going: costs paid at month end (such as salaries and tutor pay) are not all in yet, so profit looks higher than it will be.</p>' : ''}
-      <p class="note">Salaries here are what was recorded in Spending. Tutor pay from session logs arrives with the tutor part.</p></div>
+      <p class="note">From Spending. Tutor pay from logs comes with Tutor pay.</p></div>
     ${!isM(period) ? monthTable(months(period)) : ''}`;
   }
   function monthTable(ms){
     return `<div class="card pad"><div class="cap">Month by month</div><div class="bz-scroll"><table class="bz-mt"><tr><th></th>${ms.map(m => `<th><a href="#biz/pl/${m}">${monShort(m)}</a></th>`).join('')}</tr>
-      ${[['Money in', f => f.revenue], ['Spending', f => -f.exp], ['Profit', f => f.profit]].map(([l, fn]) => `<tr class="${l === 'Profit' ? 'tot' : ''}"><td>${l}</td>${ms.map(m => { const v = fn(figures([m])); return `<td>${v < 0 ? '−' : ''}${(Math.abs(v) / 1e6).toFixed(1)}M</td>`; }).join('')}</tr>`).join('')}</table></div></div>`;
+      ${[['Money in', f => f.revenue], ['Spending', f => -f.exp], ['Profit', f => f.profit]].map(([l, fn]) => `<tr class="${l === 'Profit' ? 'tot' : ''}"><td>${l}</td>${ms.map(m => { const v = fn(figures([m])); return `<td>${window.FX && FX.active() ? FX.usdShort(v) : `${v < 0 ? '−' : ''}${(Math.abs(v) / 1e6).toFixed(1)}M`}</td>`; }).join('')}</tr>`).join('')}</table></div></div>`;
   }
 
   /* ---------- spending ---------- */
@@ -177,9 +179,9 @@ window.BIZ = (function(){
     return `${D.length ? `<div class="card pad" style="border-color:var(--gold)"><div class="cap">Repeating costs to confirm</div>
         ${D.map(d => `<div class="it bz-due"><span class="t"><b>${esc(String(d.last.what || d.last.cat).replace(new RegExp('\\b' + MONL[+d.last.date.slice(5, 7) - 1] + '\\b', 'g'), MONL[+d.date.slice(5, 7) - 1]))}</b><small>${nice(d.date)} · ${esc(d.last.cat)} · last time ${mk(num(d.last.amount))}</small></span>
           <div class="acts"><button class="btn sm n" data-bzok="${d.sid}|${d.date}">Paid ${mkShort(num(d.last.amount))}</button><button class="btn sm" data-bzchg="${d.sid}|${d.date}">Other amount</button><button class="btn sm" data-bzskip="${d.sid}|${d.date}">Skip</button></div></div>`).join('')}
-        <p class="note">Rent, internet and salaries set to repeat come back here each month. Confirm when they are paid.</p></div>` : ''}
+        <p class="note">Repeating costs come back monthly. Confirm when paid.</p></div>` : ''}
       ${catF ? '' : '<button class="btn sm flt-btn" data-flt style="margin:0 0 10px">Filter</button>'}<div class="chips ${catF ? '' : 'flt'}"><a class="chip ${catF ? '' : 'on'}" href="#biz/spending/${period}">All <i>${f.list.length}</i></a>${present.map(c => `<a class="chip ${catF === c ? 'on' : ''}" href="#biz/spending/${period}/${encodeURIComponent(c)}">${esc(c)}</a>`).join('')}</div>
-      <div class="card">${list.map(e => `<${mayEdit(e) ? `button class="it" data-bzedit="${e.id}"` : 'div class="it"'}><span class="t"><b>${esc(e.what || e.cat)}</b><small>${[nice(e.date), e.cat, e.to, e.method, e.by ? 'by ' + first(e.by) : ''].filter(Boolean).map(esc).join(' · ')}</small></span>${e.rep === 'm' ? '<span class="tag bl">Monthly</span>' : ''}<b class="bz-amt">${mk(num(e.amount))}</b></${mayEdit(e) ? 'button' : 'div'}>`).join('') || `<p class="empty">No spending recorded for ${periodLabel(period)}${catF ? ' in ' + esc(catF) : ''}.</p>`}</div>
+      <div class="card">${list.map(e => `<${mayEdit(e) ? `button class="it" data-bzedit="${e.id}"` : 'div class="it"'}><span class="t"><b>${esc(e.what || e.cat)}</b><small>${[nice(e.date), e.cat, e.to, e.method, e.usd ? `paid $${e.usd} at ${(+e.fx).toFixed(2)}` : '', e.by ? 'by ' + first(e.by) : ''].filter(Boolean).map(esc).join(' · ')}</small></span>${e.rep === 'm' ? '<span class="tag bl">Monthly</span>' : ''}<b class="bz-amt">${mk(num(e.amount), e.date)}</b></${mayEdit(e) ? 'button' : 'div'}>`).join('') || `<p class="empty">No spending recorded for ${periodLabel(period)}${catF ? ' in ' + esc(catF) : ''}.</p>`}</div>
       ${present.length ? `<div class="card pad"><div class="cap bz-cap">By category <b>${mk(f.exp)}</b></div>${Object.entries(f.byCat).sort((a, b) => b[1] - a[1]).map(([c, v]) => `<div class="bz-hb"><span>${esc(c)}</span><span class="tr"><i style="width:${v / max * 100}%"></i></span><b>${mkShort(v)}</b></div>`).join('')}</div>` : ''}
       <button class="btn sm" data-bzcsv="${period}">${ic('box',15)} Download as a spreadsheet (CSV)</button>`;
   }
@@ -204,6 +206,8 @@ window.BIZ = (function(){
   function page(tab, period, cat){
     const T = SEC();
     if(!T.length) return `<div class="ph"><div class="tt"><h1>Business</h1></div></div><p class="empty">The Director hasn't given you access to Business.</p>`;
+    const miK = tab === 'money' && window.MIN && MIN.ok(period) ? period : '';   // Money in also takes a day, week, term or half-year
+    if(miK) period = MIN.std(miK);
     if(!period || !(isM(period) || isQ(period) || isY(period))){ if(tab === 'charts' && period) cat = period; period = thisMonth(); }
     const fy = isY(period) ? +period.slice(2) : fyOf(isQ(period) ? qMonths(period)[0] : period);
     const acts = `<div class="acts">${can('spend') ? `<button class="btn" data-bzin>${ic('plus',16,2.4)} Money in</button><button class="btn n" data-bznew>${ic('plus',16,2.4)} Spending</button>` : ''}</div>`;
@@ -219,10 +223,10 @@ window.BIZ = (function(){
     if(tab === 'charts' && /^p\d+$/.test(cat || '') && window.PC){ const it = PC.chosen('biz')[+cat.slice(1)]; if(it && it.c) INS.setChart(it.c); }
     const name = SEC_NAME[tab] || (T.find(x => x[0] === tab) || [])[1] || 'Business';
     const body = tab === 'pl' ? plView(period) : tab === 'budgets' ? budgetView(period) : tab === 'allocations' ? (window.INS ? INS.pots(period) : '') : tab === 'spending' ? (window.INS ? INS.spendTop(period) : '') + spendingView(period, cat)
-      : window.INS ? INS.view(tab, period, cat) : '';
+      : tab === 'money' && window.MIN ? MIN.view(miK || period) : window.INS ? INS.view(tab, period, cat) : '';
     return `${crumb('#biz/home/' + period, 'Business', 'biz/' + (tab === 'cat' ? 'cat' : tab))}
-      <div class="ph"><div class="tt"><h1>${esc(name)}</h1><p>${tab === 'owed' ? 'As of today' : tab === 'charts' ? 'Build a chart from any of the figures' : periodLabel(period)}</p></div>${['spending','cat','money'].includes(tab) ? acts : ''}</div>
-      ${['charts','owed','allocations'].includes(tab) ? '' : periodBar(tab, period, tab === 'cat' ? cat : '')}
+      <div class="ph"><div class="tt"><h1>${esc(name)}</h1><p>${tab === 'owed' ? 'As of today' : tab === 'charts' ? 'Build a chart from any of the figures' : tab === 'money' && window.MIN ? esc(MIN.label(miK || period)) : periodLabel(period)}</p></div>${['spending','cat','money'].includes(tab) ? (tab === 'money' && window.PC && window.MIN ? acts.replace('<div class="acts">', '<div class="acts">' + PC.pencil('money')) : acts) : ''}</div>
+      ${['charts','owed','allocations'].includes(tab) ? '' : tab === 'money' && window.MIN ? MIN.bar(miK || period) : periodBar(tab, period, tab === 'cat' ? cat : '')}
       ${body}`;
   }
 
@@ -233,13 +237,13 @@ window.BIZ = (function(){
       <p class="sp lm">Money that isn't a tuition payment (those come from receipts). ${isNew ? 'Any date works.' : `Recorded by ${esc(e.by || '')}.`}</p>
       <label class="f"><span>Type</span></label><div class="chips" id="inTypes">${INCOME_TYPES.map(c => `<button class="chip ${e.cat === c ? 'on' : ''}" data-c="${esc(c)}">${esc(c)}</button>`).join('')}</div>
       <p class="note" id="inNote" style="margin:-6px 0 12px"></p>
-      <div class="r2"><label class="f"><span>Amount (MKW)</span><input class="in" id="inAmt" inputmode="numeric" value="${e.amount ? Number(e.amount).toLocaleString('en-US') : ''}" placeholder="0"></label><label class="f"><span>Date</span><input class="in" id="inDate" type="date" value="${esc(e.date)}"></label></div>
+      <div class="r2"><label class="f"><span>Amount (MWK)</span><input class="in" id="inAmt" inputmode="numeric" value="${e.amount ? Number(e.amount).toLocaleString('en-US') : ''}" placeholder="0"></label><label class="f"><span>Date</span><input class="in" id="inDate" type="date" value="${esc(e.date)}"></label></div>
       <label class="f"><span id="inFromL">From</span><input class="in" id="inFrom" value="${esc(e.from || '')}" placeholder="e.g. the tenant's name, the bank" autocomplete="off" list="inFroms"><datalist id="inFroms">${[...new Set(incomeAll().map(x => x.from).filter(Boolean))].map(x => `<option value="${esc(x)}">`).join('')}</datalist></label>
       <label class="f lm"><span>Note (optional)</span><input class="in" id="inWhat" value="${esc(e.what || '')}" placeholder="e.g. Shop rent for November" autocomplete="off"></label>
       <div class="r2 lm"><label class="f"><span>Paid by</span><select class="in" id="inMethod"><option value="">Choose</option>${methods().map(m => `<option ${e.method === m ? 'selected' : ''}>${esc(m)}</option>`).join('')}</select></label>
         <label class="f"><span>Repeats</span><select class="in" id="inRep"><option value="">Once</option><option value="m" ${e.rep === 'm' ? 'selected' : ''}>Every month</option></select></label></div>
       <button class="lean-more" type="button" data-leanmore>+ More</button><button class="btn n full" id="inSave">Save</button>${isNew ? '' : `<button class="btn rd full" id="inDel">${ic('bin',16)} Delete</button>`}`);
-    const note = c => { $('inNote').textContent = c === 'Loan received' ? 'Borrowed money: shown in cash and allocations, never as revenue or profit. Record repayments under Spending › Loan repayment, paid to the same lender.' : c === 'Owner investment' ? 'Money put in by the owner: not revenue or profit.' : ''; $('inFromL').textContent = c === 'Loan received' ? 'Lender' : 'From'; };
+    const note = c => { $('inNote').textContent = c === 'Loan received' ? 'Not revenue or profit. Record repayments under Loan repayment.' : c === 'Owner investment' ? 'Money put in by the owner: not revenue or profit.' : ''; $('inFromL').textContent = c === 'Loan received' ? 'Lender' : 'From'; };
     document.querySelectorAll('#inTypes .chip').forEach(b => b.onclick = () => { document.querySelectorAll('#inTypes .chip').forEach(x => x.classList.toggle('on', x === b)); note(b.dataset.c); });
     note(e.cat);
     $('inAmt').oninput = ev => { const d = ev.target.value.replace(/[^\d]/g, ''); ev.target.value = d ? Number(d).toLocaleString('en-US') : ''; };
@@ -276,7 +280,7 @@ window.BIZ = (function(){
       <label class="f"><span>Category</span></label><div class="chips" id="bzCats">${[...C, ...(e.cat && !C.includes(e.cat) ? [e.cat] : [])].map(c => `<button class="chip ${e.cat === c ? 'on' : ''}" data-c="${esc(c)}">${esc(c)}</button>`).join('')}<button class="chip" id="bzCatNew" type="button">+ New category</button></div>
       <div class="addrow" id="bzCatAdd" hidden style="margin:-6px 0 12px"><input class="in" id="bzCatName" placeholder="Name of the new category" autocomplete="off"><button class="btn sm" id="bzCatGo" type="button">Add</button></div>
       <label class="f" id="bzChanF" ${e.cat === 'Marketing' ? '' : 'hidden'}><span>Marketing channel <small style="font-weight:500">(matched with how new families heard about LHQ)</small></span><select class="in" id="bzChan"><option value="">Choose</option>${channels().map(x => `<option ${e.chan === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
-      <div class="r2"><label class="f"><span>Amount (MKW)</span><input class="in" id="bzAmt" inputmode="numeric" value="${e.amount ? Number(e.amount).toLocaleString('en-US') : ''}" placeholder="0"></label><label class="f"><span>Date</span><input class="in" id="bzDate" type="date" value="${esc(e.date)}"></label></div>
+      <div class="r2"><label class="f"><span>Amount <span class="seg sm" id="bzCur" style="margin-left:6px;vertical-align:1px">${[['mwk','MWK'],['usd','USD']].map(([v, l]) => `<button type="button" class="${(e.usd ? 'usd' : 'mwk') === v ? 'on' : ''}" data-cur="${v}" style="padding:2px 8px;font-size:11.5px">${l}</button>`).join('')}</span></span><input class="in" id="bzAmt" inputmode="decimal" value="${e.usd ? e.usd : e.amount ? Number(e.amount).toLocaleString('en-US') : ''}" placeholder="0"><small class="note" id="bzConv" style="display:block;margin-top:4px"></small></label><label class="f"><span>Date</span><input class="in" id="bzDate" type="date" value="${esc(e.date)}"></label></div>
       <label class="f"><span>What for</span><input class="in" id="bzWhat" value="${esc(e.what)}" placeholder="e.g. Printing SRA sheets" autocomplete="off"></label>
       <label class="f lm"><span>Paid to (optional)</span><input class="in" id="bzTo" value="${esc(e.to || '')}" placeholder="e.g. ESCOM, landlord, printer" autocomplete="off" list="bzPayees"><datalist id="bzPayees">${payees().map(x => `<option value="${esc(x)}">`).join('')}</datalist></label>
       <div class="r2 lm"><label class="f"><span>Paid by</span><select class="in" id="bzMethod"><option value="">Choose</option>${methods().map(m => `<option ${e.method === m ? 'selected' : ''}>${esc(m)}</option>`).join('')}</select></label>
@@ -291,14 +295,23 @@ window.BIZ = (function(){
       pickCat(b); $('bzCatAdd').hidden = true; $('bzCatName').value = ''; };
     $('bzCatName').onkeydown = ev => { if(ev.key === 'Enter'){ ev.preventDefault(); $('bzCatGo').click(); } };
     $('bzWhat').addEventListener('change', () => { if(!$('bzChanF').hidden && !$('bzChan').value) $('bzChan').value = guessChannel($('bzWhat').value); });
-    $('bzAmt').oninput = ev => { const d = ev.target.value.replace(/[^\d]/g, ''); ev.target.value = d ? Number(d).toLocaleString('en-US') : ''; };
+    /* paid in dollars: the kwacha is worked out at that day's bank rate, so the books stay in kwacha and match the bank */
+    let cur = e.usd ? 'usd' : 'mwk';
+    const dayRate = () => window.FX ? FX.rateDay($('bzDate').value || today()) : null;
+    const conv = () => { const el = $('bzConv'); if(!el) return; if(cur !== 'usd'){ el.textContent = ''; return; } const r = dayRate(), u = parseFloat(String($('bzAmt').value).replace(/,/g, '')) || 0;
+      el.textContent = r ? `= MWK ${Math.round(u * r).toLocaleString('en-US')} at ${r.toFixed(2)} (bank rate, ${nice($('bzDate').value || today())})` : 'No bank rate yet: enter it in kwacha'; };
+    document.querySelectorAll('#bzCur [data-cur]').forEach(b => b.onclick = () => { cur = b.dataset.cur; document.querySelectorAll('#bzCur [data-cur]').forEach(x => x.classList.toggle('on', x === b)); $('bzAmt').value = ''; conv(); $('bzAmt').focus(); });
+    $('bzAmt').oninput = ev => { if(cur === 'usd'){ ev.target.value = ev.target.value.replace(/[^\d.]/g, ''); conv(); return; } const d = ev.target.value.replace(/[^\d]/g, ''); ev.target.value = d ? Number(d).toLocaleString('en-US') : ''; };
+    $('bzDate').addEventListener('change', conv); conv();
     document.querySelectorAll('#sheet [data-close]').forEach(b => b.onclick = closeSheet);
     $('bzSave').onclick = () => {
-      const c = (document.querySelector('#bzCats .chip.on') || {}).dataset, amt = num($('bzAmt').value);
+      const c = (document.querySelector('#bzCats .chip.on') || {}).dataset, usdV = cur === 'usd' ? parseFloat(String($('bzAmt').value).replace(/,/g, '')) || 0 : 0, rt = usdV ? dayRate() : null, amt = usdV ? (rt ? Math.round(usdV * rt) : 0) : num($('bzAmt').value);
+      if(usdV && !rt){ toast('No bank rate yet: enter it in kwacha'); return; }
       if(!c){ toast('Choose a category'); return; }
       if(!amt){ toast('Enter the amount'); $('bzAmt').focus(); return; }
       if(!$('bzDate').value){ toast('Choose the date'); return; }
       Object.assign(e, {cat:c.c, amount:amt, date:$('bzDate').value, what:$('bzWhat').value.trim(), to:$('bzTo').value.trim(), method:$('bzMethod').value, rep:$('bzRep').value});
+      if(usdV){ e.usd = usdV; e.fx = rt; } else { delete e.usd; delete e.fx; }
       if(c.c === 'Marketing') e.chan = $('bzChan').value || guessChannel(e.what); else delete e.chan;
       if(!cats().some(x => x.toLowerCase() === c.c.toLowerCase())){   // a new category joins the list for everyone
         const st = Object.assign({}, store.get('lhq_settings', {})); st.spendCats = [...cats(), c.c].join('\n'); store.set('lhq_settings', st); }
@@ -310,13 +323,13 @@ window.BIZ = (function(){
   function csv(period){
     const ms = months(period), rows = spendLive().filter(e => inPeriod(e, ms)).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
     const q = v => `"${String(v ?? '').replace(/"/g, '""')}"`;
-    const text = [['Date','Category','What for','Paid to','Paid by','Amount (MKW)','Recorded by'].map(q).join(','), ...rows.map(e => [e.date, e.cat, e.what, e.to, e.method, num(e.amount), e.by].map(q).join(','))].join('\r\n');
+    const text = [['Date','Category','What for','Paid to','Paid by','Amount (MWK)','Amount (USD)','Rate (MWK per USD)','Paid in','Recorded by'].map(q).join(','), ...rows.map(e => { const r = e.fx || (window.FX ? FX.rateOn(e.date) : null); return [e.date, e.cat, e.what, e.to, e.method, num(e.amount), e.usd || (r ? (num(e.amount) / r).toFixed(2) : ''), r ? r.toFixed(2) : '', e.usd ? 'USD' : 'MWK', e.by].map(q).join(','); })].join('\r\n');
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob(['﻿' + text], {type:'text/csv'}));
     a.download = `LHQ-spending_${periodLabel(period).replace(/[^A-Za-z0-9–-]+/g, '-')}.csv`; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 5000);
   }
   function budgetSheet(){
     const B = budget(), C = cats();
-    openSheet(`<div class="hx"><h3>Monthly budgets</h3><button class="ib" data-close>✕</button></div><p class="sp">How much each category should cost in a month. Leave one-off categories empty if you don't plan for them.</p>
+    openSheet(`<div class="hx"><h3>Monthly budgets</h3><button class="ib" data-close>✕</button></div><p class="sp">Monthly budget per category. Leave one-offs empty.</p>
       ${C.map(c => `<label class="f bz-bf"><span>${esc(c)}</span><input class="in" data-bud="${esc(c)}" inputmode="numeric" value="${B[c] ? Number(B[c]).toLocaleString('en-US') : ''}" placeholder="0"></label>`).join('')}
       <p class="note" id="bzBudTot"></p><button class="btn n full" id="bzBudSave">Save budgets</button>`);
     const tot = () => { let t = 0; document.querySelectorAll('[data-bud]').forEach(i => t += num(i.value)); $('bzBudTot').textContent = `Total ${mk(t)} a month · ${mk(t * 12)} a year`; };
@@ -331,8 +344,9 @@ window.BIZ = (function(){
     on('[data-inedit]', el => { const e = (store.get('lhq_income', {}) || {})[el.dataset.inedit]; if(e) incomeSheet(Object.assign({}, e)); });
     on('[data-inok]', el => { const [sid, date] = el.dataset.inok.split('|'), d = due('lhq_income').find(x => x.sid === sid && x.date === date); if(!d) return;
       const L = d.last, e = {id:uid(), sid, date, cat:L.cat, amount:L.amount, from:L.from || '', what:L.what || '', method:L.method || '', rep:'m', at:Date.now(), by:me().name};
-      const all = store.get('lhq_income', {}) || {}; all[e.id] = e; store.set('lhq_income', all); toast(`Recorded: ${mk(num(e.amount))} · ${e.cat}`); render(); });
+      const all = store.get('lhq_income', {}) || {}; all[e.id] = e; store.set('lhq_income', all); toast(`Recorded: ${mk(num(e.amount), e.date)} · ${e.cat}`); render(); });
     if(window.INS) INS.bind();
+    if(window.MIN) MIN.bind();
     on('[data-bzedit]', el => { const e = (store.get('lhq_spend', {}) || {})[el.dataset.bzedit]; if(e) sheet(Object.assign({}, e)); });
     on('[data-bzp]', el => { location.hash = '#biz/' + el.dataset.bzp; });
     on('[data-bzcsv]', el => csv(el.dataset.bzcsv));
@@ -340,7 +354,7 @@ window.BIZ = (function(){
     const copyOf = (sid, date, extra) => { const d = due().find(x => x.sid === sid && x.date === date); if(!d) return null; const L = d.last;
       const from = MONL[+L.date.slice(5, 7) - 1], to = MONL[+date.slice(5, 7) - 1];
       return Object.assign({id:uid(), sid, date, cat:L.cat, amount:L.amount, what:String(L.what || '').replace(new RegExp('\\b' + from + '\\b', 'g'), to), to:L.to || '', method:L.method || '', rep:'m'}, extra || {}); };
-    on('[data-bzok]', el => { const [sid, date] = el.dataset.bzok.split('|'), e = copyOf(sid, date); if(!e) return; saveEntry(e); toast(`Recorded: ${mk(num(e.amount))} for ${e.cat}`); render(); });
+    on('[data-bzok]', el => { const [sid, date] = el.dataset.bzok.split('|'), e = copyOf(sid, date); if(!e) return; saveEntry(e); toast(`Recorded: ${mk(num(e.amount), e.date)} for ${e.cat}`); render(); });
     on('[data-bzchg]', el => { const [sid, date] = el.dataset.bzchg.split('|'), e = copyOf(sid, date); if(e) sheet(null, e); });
     on('[data-bzskip]', el => { const [sid, date] = el.dataset.bzskip.split('|'), e = copyOf(sid, date, {skip:true, amount:0}); if(!e) return; saveEntry(e); toast('Skipped for this month. It comes back next month.'); render(); });
   }

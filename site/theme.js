@@ -8,11 +8,16 @@
   const get = () => choice() === 'auto' ? (mq && mq.matches ? 'dark' : 'light') : choice();
   function set(v){ try{ localStorage.setItem(KEY, v); }catch(e){} apply(get()); window.dispatchEvent(new CustomEvent('lhqtheme', {detail:get()})); }
   if(mq) (mq.addEventListener ? mq.addEventListener('change', () => { if(choice() === 'auto') apply(get()); }) : mq.addListener(() => { if(choice() === 'auto') apply(get()); }));
-  /* text size on this device: standard or large */
+  /* text size on this device: standard, large or larger */
   const TKEY = 'lhq_text';
-  const text = () => { try{ return localStorage.getItem(TKEY) === 'l' ? 'l' : 's'; }catch(e){ return 's'; } };
-  function setText(v){ try{ localStorage.setItem(TKEY, v); }catch(e){} document.documentElement.classList.toggle('tx-l', v === 'l'); }
-  document.documentElement.classList.toggle('tx-l', text() === 'l');
+  const text = () => { try{ const v = localStorage.getItem(TKEY); return v === 'l' || v === 'xl' ? v : 's'; }catch(e){ return 's'; } };
+  function setText(v){ try{ localStorage.setItem(TKEY, v); }catch(e){} document.documentElement.classList.toggle('tx-l', v === 'l'); document.documentElement.classList.toggle('tx-xl', v === 'xl'); }
+  document.documentElement.classList.toggle('tx-l', text() === 'l'); document.documentElement.classList.toggle('tx-xl', text() === 'xl');
+  /* colour theme on this device: changes the accent only (buttons, selected tabs, the bar, the timer ring, chart lines) */
+  const CKEY = 'lhq_col', COLS = ['navy', 'teal', 'purple', 'forest', 'rose', 'sunset'];
+  const col = () => { try{ const v = localStorage.getItem(CKEY); return COLS.includes(v) ? v : 'navy'; }catch(e){ return 'navy'; } };
+  function setCol(v){ try{ localStorage.setItem(CKEY, v); }catch(e){} if(v === 'navy') delete document.documentElement.dataset.col; else document.documentElement.dataset.col = v; }
+  if(col() !== 'navy') document.documentElement.dataset.col = col();
   const logo = () => document.documentElement.dataset.theme === 'dark' ? 'logo-white.png' : 'logo.png';
   function apply(t){
     document.documentElement.dataset.theme = t;
@@ -32,8 +37,8 @@
     document.addEventListener('click', e => { if(e.target.closest && e.target.closest('.theme-btn')) toggle(); });
   });
   /* another tab changed it */
-  window.addEventListener('storage', e => { if(e.key === KEY) apply(get()); if(e.key === TKEY) setText(text()); });
-  window.lhqTheme = {get, choice, set, toggle, apply, logo, text, setText};
+  window.addEventListener('storage', e => { if(e.key === KEY) apply(get()); if(e.key === TKEY) setText(text()); if(e.key === CKEY) setCol(col()); });
+  window.lhqTheme = {get, choice, set, toggle, apply, logo, text, setText, col, setCol, COLS};
   /* The PDF and image maker is large, so pages load first and fetch it a moment later
      (or straight away when PDF, Print or Share is tapped). */
   let pdfP = null;

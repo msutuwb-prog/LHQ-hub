@@ -141,9 +141,9 @@ function cardFieldCfg(key){
       set:v=>{ const lv = cardLevelSet(doc.level); const nk = v ? (cardAllListKeys(lv).find(k=>cardListLabel(k, lv)===v) || '') : '';
         s.noList = !nk;
         if(nk!==s.list){ s.list = nk; s.picks = {}; s.details = {}; s.openCh=''; } }},
-    tf: {title:'Topical assessments', noun:'option', list:()=>['Weekly','Every 2 weeks'], get:()=>s.tf || 'Weekly', set:set('tf')},
+    tf: {title:'Assessments', noun:'option', list:()=>['Weekly','Every 2 weeks'], get:()=>s.tf || 'Weekly', set:set('tf')},
     tier: {title:'Paper', noun:'option', clear:'Not set', list:()=>['Extended','Core'], get:()=>s.tier, set:set('tier')},
-    tutor: {title:'Tutor', noun:'tutor', clear:'To be confirmed', list:()=>{ /* the Tutors list in Settings, plus everyone who teaches and can sign in */ const L = lines(settings.tutors), P = (window.HD ? HD.people() : []).filter(p=>p.tutor && p.active !== false).map(p=>p.name); P.forEach(n=>{ if(!L.some(x=>x.toLowerCase()===n.toLowerCase())) L.push(n); }); return L; }, get:()=>s.tutor, set:set('tutor')},
+    tutor: {title:'Tutor', noun:'tutor', clear:'To be confirmed', sub: v => cardTutorFit(v, s).t, list:()=>{ /* the Tutors list in Settings, plus everyone who teaches and can sign in */ const L = lines(settings.tutors), P = (window.HD ? HD.people() : []).filter(p=>p.tutor && p.active !== false).map(p=>p.name); P.forEach(n=>{ if(!L.some(x=>x.toLowerCase()===n.toLowerCase())) L.push(n); }); return L.map((n, i) => [n, i]).sort((a, b) => cardTutorFit(b[0], s).r - cardTutorFit(a[0], s).r || a[1] - b[1]).map(x => x[0]); }, get:()=>s.tutor, set:set('tutor')},
     mins: {title:'Session length', noun:'length', clear:'Not set', list:()=>lines(settings.sessionLengths), get:()=>s.mins, set:set('mins')},
     grade: {title:'Current grade', noun:'grade', clear:'No grade', list:()=>lines(settings.grades), get:()=>s.grade, set:set('grade')},
     basis: {title:'Grade based on', noun:'option', clear:'Not given', list:()=>lines(settings.gradeBasis), get:()=>s.basis, set:set('basis')},
@@ -197,7 +197,7 @@ function renderCardEditor(){
   const subs = doc.subjects || [];
   if(cardOpen >= subs.length) cardOpen = subs.length - 1;
   const lv = cardLevelSet(doc.level);
-  F('cardLevelNote').textContent = lv ? `Topic lists: ${lv}` : (doc.level ? 'No syllabus lists for this Year & level. Choose a topic list for each subject, or add your own topics.' : 'Choose Year & level above, or choose a topic list for each subject.');
+  F('cardLevelNote').textContent = lv ? `Topic lists: ${lv}` : (doc.level ? 'No topic list for this Year. Pick one per subject or add your own.' : 'Choose Year and level above, or choose a topic list for each subject.');
   subs.forEach(s=>{ if(!s.list && !s.noList && s.mode!=='full' && !cardPicked(s)) s.list = cardGuessList(doc.level, s.name); });
   F('cardSubs').innerHTML = subs.map((s, i)=>{
     const [col] = CARD_COLORS[i % CARD_COLORS.length], open = i===cardOpen;
@@ -223,7 +223,7 @@ function renderCardEditor(){
           <label><span>Sessions</span><input data-k="sessions" value="${esc(s.sessions)}" inputmode="numeric"></label>
           <div class="fld"><span class="lbl">Session length</span>${cardPickBtn(`cs:${i}:mins`, s.mins, 'Choose')}</div>
         </div>
-        <div class="fld"><span class="lbl">Topical assessments</span>${cardPickBtn(`cs:${i}:tf`, s.tf || 'Weekly', 'Weekly')}</div>
+        <div class="fld"><span class="lbl">Assessments</span>${cardPickBtn(`cs:${i}:tf`, s.tf || 'Weekly', 'Weekly')}</div>
         <div class="cs-times">
           <label><span>Start time (optional)</span><input type="time" data-k="start" value="${esc(s.start)}"></label>
           <span class="cs-dash">–</span>
@@ -233,7 +233,7 @@ function renderCardEditor(){
           return `<div class="cs-pdrow"><b>${CARD_DAYNAME[d]}</b><input type="time" data-dk="${d}" data-de="s" value="${esc(o.s||'')}" aria-label="${CARD_DAYNAME[d]} start"><span>–</span><input type="time" data-dk="${d}" data-de="e" value="${esc(o.e||'')}" aria-label="${CARD_DAYNAME[d]} end"></div>`; }).join('')}
           <button type="button" class="small" data-act="samedays">Same time every day</button></div>`
           : `<button type="button" class="small" data-act="perday" style="margin:0 0 10px">Different times on some days</button>`) : ''}
-        <p class="hint" style="margin:-4px 0 12px">Leave the times blank if the timetable isn't ready. The card shows "time to be confirmed", and you can reshare it later.</p>
+        <p class="hint" style="margin:-4px 0 12px">No timetable yet? Leave times blank: the card shows "TBC".</p>
         ${set ? `<div class="fld"><span class="lbl">What to cover</span><div class="seg seg2" role="group" aria-label="What to cover">
           <button type="button" data-act="mode" data-m="selected" class="${s.mode!=='full'?'on':''}">Selected topics</button>
           <button type="button" data-act="mode" data-m="full" class="${s.mode==='full'?'on':''}">Full course</button></div></div>` : ''}
@@ -456,10 +456,11 @@ function renderCardShare(){
       const subs = doc.subjects.filter(x=>x.tutor===t).map(x=>x.name).join(', ');
       const n = new Set(cardRosterSubjects(others.concat([doc])).filter(x=>x.tutor===t).map(x=>cardNormName(x.student))).size;
       const ct = cardTutorContact(t);
+      if(cardHasAccount(t)) return `<div class="cs-trow"><span><b>${esc(t)}</b><small>${esc(subs)} · ${n} student${n===1?'':'s'} in total</small><small>In LHQ Hub: the card shows on their Home when you save it</small></span></div>`;
       return `<div class="cs-trow"><span><b>${esc(t)}</b><small>${esc(subs)} · ${n} student${n===1?'':'s'} in total</small><small>${esc(cardTutorSentText(t))}</small>${!ct.phone && !ct.email ? '<small class="warn">No WhatsApp number or email yet · <a href="index.html#set/tutorinfo">add</a></small>' : ''}</span>
         <span class="cs-tb"><button type="button" class="small wa" data-tutor="${esc(t)}">${ct.phone ? 'WhatsApp' : 'Send link'}</button>${ct.email ? `<button type="button" class="small" data-temail="${esc(t)}">Email</button>` : ''}</span></div>`; }).join('')
     : '<p class="hint" style="margin:0">Choose a tutor for each subject on the card to send them their link.</p>';
-  const em = tutors.filter(t => cardTutorContact(t).email);
+  const em = tutors.filter(t => cardTutorContact(t).email && !cardHasAccount(t));
   if(em.length > 1) F('csTutors').innerHTML += `<button type="button" class="small" data-temail="*" style="margin-top:8px">Email all ${em.length} tutors their link and card</button>`;
 }
 async function cardShareFile(kind, save){
@@ -487,7 +488,7 @@ function initCard(){
   F('csSave').onclick = ()=>cardShareFile('png', true);
   F('csTutors').onclick = async e=>{
     const m = e.target.closest('[data-temail]');
-    if(m){ saveDoc(true); const all = m.dataset.temail === '*', list = all ? [...new Set((doc.subjects||[]).map(x=>x.tutor).filter(t=>t && cardTutorContact(t).email))] : [m.dataset.temail];
+    if(m){ saveDoc(true); const all = m.dataset.temail === '*', list = all ? [...new Set((doc.subjects||[]).map(x=>x.tutor).filter(t=>t && cardTutorContact(t).email && !cardHasAccount(t)))] : [m.dataset.temail];
       m.disabled = true; const done = [], failed = [];
       for(const t of list){ toast(`Emailing ${t}…`); try{ await cardEmailTutor(saved, t); done.push(t); }catch(err){ failed.push(t + ': ' + err.message); } }
       m.disabled = false; renderCardShare();
@@ -610,6 +611,9 @@ function cardTutorPayload(savedList, tutor){
 async function cardTutorLink(savedList, tutor){
   return new URL('t', location.href).href + '#' + await lhqEncode(cardTutorPayload(savedList, tutor));
 }
+/* a tutor with an LHQ Hub account sees their cards there (Got it, or Can't make this time; LHQ is told after a day unseen), so the link is only for a tutor without one */
+function cardHasAccount(t){ try{ const st = (window.HD && HD.store) || (typeof store !== 'undefined' ? store : null), L = (st && st.get('lhq_people', [])) || [], n = String(t || '').trim().toLowerCase().replace(/\s+/g, ' ');
+  return L.some(p => p && p.active !== false && (p.role === 'tutor' || p.tutor) && String(p.name || '').trim().toLowerCase().replace(/\s+/g, ' ') === n); }catch(e){ return false; } }
 /* which tutors have already had a link (so the how-to text goes only the first time) */
 function cardTlinks(){ try{ return JSON.parse(localStorage.getItem('lhq_tlinks')||'{}') || {}; }catch(e){ return {}; } }
 function cardMarkTutorSent(tutor){ const o = cardTlinks(); o[tutor] = Date.now(); try{ localStorage.setItem('lhq_tlinks', JSON.stringify(o)); }catch(e){} }
@@ -649,4 +653,22 @@ async function cardSendTutorLink(savedList, tutor){
   const url = 'https://wa.me/' + (ph.length >= 11 ? ph : '') + '?text=' + encodeURIComponent(cardTutorMessage(tutor, link, howTo));
   cardMarkTutorSent(tutor);
   const w = window.open(url, '_blank'); if(!w) location.href = url;
+}
+
+/* the tutor picker: from each tutor's profile, do they teach this subject at this level, and are they free on these days?
+   Tutors who teach it and are free come first. A tutor with no profile yet is listed as before. */
+function cardTutorFit(name, s){
+  let A = {}; try{ A = (window.HD && HD.store ? HD.store.get('lhq_prof', {}) : JSON.parse(localStorage.getItem('lhq_prof') || '{}')) || {}; }catch(e){}
+  const k = x => String(x || '').trim().toLowerCase().replace(/\s+/g, ' '), P = A['p:' + k(name)] || {};
+  if(!P.subs || !(P.subs.L || []).length || !s.name) return {t:'', r:1};
+  const LV = ['Checkpoint','IGCSE','AS','A Level','IB','IELTS','SAT'], lvl = LV.find(l => new RegExp('\\b' + l.replace(' ', '\\s*') + '\\b', 'i').test(doc.level || ''));
+  const m = P.subs.L.find(x => k(x.n) === k(s.name)), teaches = !!m && (!lvl || !(m.lv || []).length || m.lv.includes(lvl));
+  if(!teaches) return {t:`! Doesn't list ${lvl ? lvl + ' ' : ''}${s.name}`, r:0};
+  const av = P.avail, DI = {Mo:0,Tu:1,We:2,Th:3,Fr:4,Sa:5,Su:6}, DN = ['Mondays','Tuesdays','Wednesdays','Thursdays','Fridays','Saturdays','Sundays'];
+  if(av && (av.term || []).length && (s.days || []).length && /^\d{1,2}:\d{2}/.test(s.start || '')){
+    const h = +s.start.split(':')[0], blk = [8,10,12,14,16,18].filter(x => x <= h).pop(), off = s.days.filter(d => !(av.term || []).includes(DI[d] + '-' + blk));
+    if(off.length) return {t:`! Not available on ${off.map(d => DN[DI[d]]).join(', ')} at ${s.start}`, r:1};
+    return {t:`✓ Teaches ${lvl ? lvl + ' ' : ''}${s.name} · free then`, r:3};
+  }
+  return {t:`✓ Teaches ${lvl ? lvl + ' ' : ''}${s.name}`, r:2};
 }

@@ -136,11 +136,14 @@
       lost: T.reduce((m, e) => m + (e.cf && e.cf.s === 'settled' ? +e.cf.lost || 0 : 0), 0), entries: E};
   }
   /* every student and subject on the current cards (the newest card for each), for the session counts */
-  function items(cards, t){
-    const by = new Map();
-    current(cards).filter(c => c.periodEnd >= addDays(t, -14)).sort((p, q) => p.periodStart.localeCompare(q.periodStart)).forEach(c => (c.subjects || []).forEach(x => {
+  /* keep = how long after a period ends its item stays (14 days for the counts; longer for take-home packs).
+     Each item also carries every period of that student + subject (periods), so a break between periods can be seen. */
+  function items(cards, t, keep = 14){
+    const by = new Map(), per = new Map(), C = current(cards).sort((p, q) => p.periodStart.localeCompare(q.periodStart));
+    C.forEach(c => (c.subjects || []).forEach(x => { if(!x.name) return; const k = nk(c.student) + '|' + nk(x.name); if(!per.has(k)) per.set(k, []); per.get(k).push({a: c.periodStart, b: c.periodEnd, days: x.days || []}); }));
+    C.filter(c => c.periodEnd >= addDays(t, -keep)).forEach(c => (c.subjects || []).forEach(x => {
       if(!x.name) return; const k = nk(c.student) + '|' + nk(x.name);
-      by.set(k, {k, st: c.student, sub: x.name, tutor: x.tutor || '', days: x.days || [], pa: c.periodStart, b: c.periodEnd, cap: parseFloat(x.sessions) || 0, card: c.id, number: c.number, x});
+      by.set(k, {k, st: c.student, sub: x.name, tutor: x.tutor || '', days: x.days || [], pa: c.periodStart, b: c.periodEnd, cap: parseFloat(x.sessions) || 0, card: c.id, number: c.number, x, periods: per.get(k)});
     }));
     return [...by.values()];
   }
