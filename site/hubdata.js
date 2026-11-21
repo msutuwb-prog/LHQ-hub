@@ -22,7 +22,7 @@
     if(m < 1) return 'just now'; if(m < 60) return `${m} min ago`; const h = Math.round(m / 60); if(h < 24) return `${h} h ago`;
     const d = Math.round(h / 24); return d === 1 ? 'yesterday' : d < 30 ? `${d} days ago` : nice(isoOf(new Date(t)));
   }
-  const first = s => String(s || '').trim().split(/\s+/)[0];
+  const first = s => window.lhqFirst ? lhqFirst(s) : String(s || '').trim().split(/\s+/)[0];
   const sk = v => String(v || '').trim().toLowerCase().replace(/\s+/g, ' ');
   const same = (a, b) => a && b && String(a).trim().toUpperCase() === String(b).trim().toUpperCase();
   const WORD = {quote:'Quote', invoice:'Invoice', receipt:'Receipt', card:'Tuition card'};

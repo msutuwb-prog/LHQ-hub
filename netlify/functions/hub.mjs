@@ -680,7 +680,8 @@ async function noticePost(b, me, kids, now) {
    The student confirms their sessions (✓ or ✕); where LHQ switches it on for a child, the parent does instead.
    "Not right" goes to the tutor first (Accept, or Keep mine with a note), back to the student, and only then to LHQ. */
 const CF_MS = 48 * 3600e3;
-const firstName = n => String(n || "").trim().split(/\s+/)[0];
+const TITLE = /^(mr|mrs|ms|miss|mx|dr|prof|rev|madam|madame|sir|pastor|fr|sr|hon)\.?$/i;
+const firstName = n => { const w = String(n || "").trim().split(/\s+/).filter(Boolean); return !w.length ? "" : TITLE.test(w[0]) && w[1] ? w[0].replace(/\.$/, "") + " " + w[w.length - 1] : w[0]; };   // "Mr Nalivati" stays whole
 const cfState = (e, now = Date.now()) => !e || e.x || e.ty !== "s" || e.a === "absent" || e.a === "cancelled" ? null : e.cf && e.cf.s ? e.cf.s : now - (e.c || e.at || 0) >= CF_MS ? "auto" : "waiting";
 async function familyOf(me) {
   if (!dbMode()) return [];
@@ -818,7 +819,7 @@ async function familyGet(me) {
   const co = ((await store().get("kv/lhq_calopt", { type: "json" })) || {})[me.id] || {};
   const fd = await familyData(me), PR = (await store().get("kv/lhq_prof", { type: "json" })) || {}, SR = (await store().get("kv/lhq_students", { type: "json" })) || {};
   (fd.kids || []).forEach(k => { k.prof = Object.assign({}, PR["s:" + k.key] || {}); k.dob = ((SR[k.key] || {}).dob) || ""; });
-  return json(Object.assign({ me: pub(me), today: mwToday(), now: Date.now(), cal: { link: calPath(me.id, co.v), inc: Object.assign({}, CAL_DEF, co.inc || {}) } }, fd));
+  return json(Object.assign({ me: pub(me), mine: (PR["p:" + nk(me.name)] || {}).me || {}, today: mwToday(), now: Date.now(), cal: { link: calPath(me.id, co.v), inc: Object.assign({}, CAL_DEF, co.inc || {}) } }, fd));
 }
 async function familyPost(req, me) {
   if (!["student", "parent"].includes(me.role)) return fail("This part is for students and parents.", 403);
@@ -1595,7 +1596,7 @@ async function calFeed(path) {
   } else if (p.role === "student" || p.role === "parent") {
     const fd = await familyData(p), K = fd.kids || [], plan = p.role === "student" ? ((await store().get("kv/lhq_plan", { type: "json" })) || {}) : {};
     for (const k of K) {
-      const who = p.role === "parent" ? k.name.split(" ")[0] + " · " : "";
+      const who = p.role === "parent" ? firstName(k.name) + " · " : "";
       ses(S.sessions(cards, A, Z, { student: k.name }), e => who + e.sub + (e.tutor ? " · " + e.tutor : ""));
       (k.makeups || []).filter(x => x.d >= A && x.d <= Z && S.mins(x.s) != null).forEach(x => timed("mu-" + (x.id || x.d + x.s), x.d, S.mins(x.s), S.mins(x.e), `${who}Make-up · ${x.sub}`, "LHQ"));
       if (inc.sra && p.role === "student") { const by = {}; (k.sras || []).filter(x => x.doOn >= mwToday() && x.doOn <= Z).forEach(x => { (by[x.doOn] = by[x.doOn] || []).push(x); });
@@ -1966,6 +1967,8 @@ async function handle(req, context) {
     if (req.method === "POST" && path === "school") return await schoolPost(req, me);
     if (req.method === "GET" && path === "family") return await familyGet(me);
     if (req.method === "POST" && path === "prof") return await profPost(req, me);
+    if (req.method === "POST" && path === "pic") return await picPost(req, me);
+    if (req.method === "GET" && path === "pics") return await picsGet(req, me);
     if (req.method === "GET" && path === "bdays") return await bdaysGet(me);
     if (req.method === "POST" && path === "wish") return await wishPost(req, me);
     if (req.method === "POST" && path === "flagdone") return await flagDone(req, me);
@@ -2160,10 +2163,42 @@ function profClean(sec, fields, x) {
   if (o.dob && !/^\d{4}-\d{2}-\d{2}$/.test(o.dob)) delete o.dob;
   return o;
 }
+/* profile pictures: small JPEGs (the phone shrinks them first), kept apart from the profiles so lists stay light.
+   Who: "p:<name>" a person (themselves, or LHQ), "s:<student>" a student (the student, their parent, or LHQ). */
+const PIC_MAX = 60000;
+async function picMay(me, id, write) {
+  const [kind, key] = [id.slice(0, 2), nk(id.slice(2))]; if (!key || !["p:", "s:"].includes(kind)) return false;
+  if (kind === "p:" && key === nk(me.name)) return true;
+  if (isDirector(me)) return true;
+  if (kind === "s:") {
+    if (can(me, "students")) return true;
+    if (me.role === "student" || me.role === "parent") return (await familyOf(me)).some(k => k.key === key);
+    if (!write && isTutor(me)) { const d = await tutorData(me).catch(() => null); return !!(d && [...d.keys].some(k => k.split("|")[0] === key)); }
+    return false;
+  }
+  if (write) return can(me, "tutors");
+  const p = (await getPeople()).find(x => nk(x.name) === key);   // staff and tutors' pictures are seen by everyone signed in; anyone else's only by LHQ
+  return !!p && (staff(p) || isTutor(p) || can(me, "tutors"));
+}
+async function picPost(req, me) {
+  const b = await req.json().catch(() => ({})), id = String(b.id || ""), d = String(b.d || "");
+  if (!(await picMay(me, id, true))) return fail("You can't change that picture.", 403);
+  if (d && (!/^data:image\/jpeg;base64,[A-Za-z0-9+/=]+$/.test(d) || d.length > PIC_MAX)) return fail("That picture is too large. Try another one.");
+  const at = Date.now();
+  if (d) await store().setJSON("pic/" + id, { d, at, by: me.name }); else await store().delete("pic/" + id).catch(() => {});
+  await writeKv("lhq_prof", old => { const o = Object.assign({}, old), P = Object.assign({}, o[id]); P.pic = d ? { at, by: me.name } : null; o[id] = P; return o; });
+  return json({ ok: true, at: d ? at : 0 });
+}
+async function picsGet(req, me) {
+  const ids = String(new URL(req.url).searchParams.get("ids") || "").split(",").map(x => x.trim()).filter(Boolean).slice(0, 40), out = {};
+  for (const id of ids) { if (!(await picMay(me, id, false))) continue; const r = await store().get("pic/" + id, { type: "json" }).catch(() => null); if (r && r.d) out[id] = { d: r.d, at: r.at }; }
+  return json({ pics: out });
+}
 async function profPost(req, me) {
   const b = await req.json().catch(() => ({})), now = Date.now(), sec = String(b.sec || "");
   let id, F;
-  if (me.role === "student" || me.role === "parent") {
+  if (sec === "me") { F = ["pref"]; id = "p:" + nk(me.name); }   // the name someone goes by: their own view only, any role
+  else if (me.role === "student" || me.role === "parent") {
     const kids = await familyOf(me), kid = kids.find(k => k.key === nk(b.k)) || (kids.length === 1 ? kids[0] : null);
     if (!kid) return fail("Which student?", 403);
     F = PROF_SEC[me.role][sec]; id = "s:" + kid.key;

@@ -29,7 +29,7 @@ window.STV = (function(){
     const habs = (who === 'tutor' ? SX.HAB.filter(([id]) => id !== 'rep') : SX.HAB).map(([id, l]) => { const a = A[id], b = B[id], p = id === 'ass' ? null : pc(a), q = id === 'ass' ? null : pc(b), d = p != null && q != null ? p - q : null;
       return `<button class="sx-hb" data-stvh="${id}"><span>${l}<small>${id === 'ass' ? `${a.n} sat` : a.n ? `${a.k} of ${a.n}` : 'none yet'}</small></span><b>${id === 'ass' ? a.n : p == null ? '–' : p + '%'}</b><span class="${d == null || d === 0 ? '' : d > 0 ? 'u' : 'd'}">${d == null || d === 0 ? '=' : (d > 0 ? '▲ ' : '▼ ') + Math.abs(d)}</span></button>`; }).join('');
     const own = k.own === 'off' ? '<div class="card pad"><b>Focus and study</b><p class="note" style="margin:0">Off · Settings › Teaching</p></div>'
-      : k.own === 'hidden' ? `<div class="card pad"><b>Focus and study</b><p class="note" style="margin:0">${esc((k.name || '').split(' ')[0])} keeps these private</p></div>`
+      : k.own === 'hidden' ? `<div class="card pad"><b>Focus and study</b><p class="note" style="margin:0">${esc(lhqFirst(k.name || ''))} keeps these private</p></div>`
       : `<div class="mcs" style="grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px">${uses(k, 'focus') || W.focus ? tile('ftime', 'Focus this week', SX.hmin(W.focus), 'finished rounds') : tile('lean|focus', 'Focus this week', '–', 'Not using Focus')}${uses(k, 'plan') || W.study ? `<div class="mc"><span class="l">Study planned</span><span class="v">${SX.hmin(W.study)}</span><span class="s">this week · total only</span></div>` : tile('lean|plan', 'Study planned', '–', 'Not using Plan my day')}</div>`;
     LAST = {key, k, A, r};
     return `<div class="stv"><div class="h2" style="display:flex;justify-content:space-between;align-items:center">Effort <span class="seg">${[['w','Week'],['w4','4 weeks'],['term','Term']].map(([v, l]) => `<button class="${hp === v ? 'on' : ''}" data-stvp="${v}">${l}</button>`).join('')}</span></div>
@@ -38,7 +38,7 @@ window.STV = (function(){
       ${F.length ? `<div class="card"><button type="button" class="it" style="width:100%" data-stvd="fu"><span class="t"><b>Follow-ups</b><small>${fo} open · ${fw} worked</small></span><span class="chev">›</span></button></div>` : ''}
       ${who !== 'tutor' && (P.length || SR.length) ? `<div class="h2">Exams</div><div class="mcs" style="grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px">${P.length ? tile('pace', 'On pace', `${onP} of ${P.length}`, P.filter(o => o.i.pace.diff < 0).map(o => esc(o.x.sub)).join(', ') || 'all subjects') : ''}${SR.length ? tile('school', 'School results', SR.length, sOpen ? `${sOpen} for LHQ to check` : 'all checked') : ''}</div>` : ''}
       ${who === 'tutor' ? '' : `<div class="h2">Their own time</div>${own}`}
-      <p class="note">${k.account ? `${esc((k.name || '').split(' ')[0])} uses ${viewL(k)}. ` : 'No student account yet. '}The same figures in Lean or Full. Their reflection stays theirs.</p></div>`;
+      <p class="note">${k.account ? `${esc(lhqFirst(k.name || ''))} uses ${viewL(k)}. ` : 'No student account yet. '}The same figures in Lean or Full. Their reflection stays theirs.</p></div>`;
   }
   let LAST = null;
   function bind(){
@@ -47,7 +47,7 @@ window.STV = (function(){
     document.querySelectorAll('[data-stvh]').forEach(b => b.onclick = () => { const id = b.dataset.stvh, a = LAST.A[id], l = SX.HAB.find(x => x[0] === id)[1];
       SX.sheet(`${l}${id === 'ass' ? ` · ${a.n}` : a.n ? ` · ${a.k} of ${a.n}` : ''}`, LAST.r.l, '', a.rows.slice().reverse().map(x => SX.row(esc(x[0]), x[1], esc(x[2]), x[3])).join('')); });
     document.querySelectorAll('[data-stvd]').forEach(b => b.onclick = () => { const d = b.dataset.stvd;
-      if(d.startsWith('lean|')){ const f = d.split('|')[1]; SX.sheet(f === 'focus' ? 'Focus' : 'Study planned', `${esc((k.name || '').split(' ')[0])} isn't using this`, `${esc((k.name || '').split(' ')[0])} uses ${viewL(k)}. It counts from the day ${f === 'focus' ? 'the Focus timer' : 'Plan my day'} is added (the pencil on Home).`, ''); return; }
+      if(d.startsWith('lean|')){ const f = d.split('|')[1]; SX.sheet(f === 'focus' ? 'Focus' : 'Study planned', `${esc(lhqFirst(k.name || ''))} isn't using this`, `${esc(lhqFirst(k.name || ''))} uses ${viewL(k)}. It counts from the day ${f === 'focus' ? 'the Focus timer' : 'Plan my day'} is added (the pencil on Home).`, ''); return; }
       if(d === 'fu'){ openSheet(`<div class="hx"><h3>Follow-ups</h3><button class="ib" data-close>✕</button></div>${FUP.famCard(k)}`); FUP.famBind(k); return; }
       if(d === 'school'){ SX.sheet(`School results · ${(k.school || []).length}`, 'Added by the student · LHQ checks', '', (k.school || []).slice().sort((a, b) => (b.at || 0) - (a.at || 0)).map(x => SX.row(esc(`${x.term || ''} · ${x.sub || ''}`), x.ok ? 'LHQ checked' : 'LHQ checks', esc(x.pc != null && x.pc !== '' ? x.pc + '%' : x.gr || ''), x.ok ? '' : 'y')).join('')); return; }
       SX.drill(d, k); });

@@ -95,7 +95,7 @@ window.TUT = (function(){
     if(loading) return loading;
     loading = (async () => {
       await flush();
-      try{ const j = await hub.api('tutor'); data = {prof: j.prof || {}, sprof: j.sprof || {}, cards: j.cards || [], entries: j.entries || [], classes: j.classes || [], reports: j.reports || [], avail: j.avail || [], acks: j.acks || {}, gone: j.gone || [], ackFrom: j.ackFrom || 0, calLink: j.calLink || '', makeups: j.makeups || [], reqs: j.reqs || {}, clashes: j.clashes || [], says: j.says || null, sradone: j.sradone || {}, notices: j.notices || [], exam: j.exam || null, kpiOn: !!j.kpiOn, sx: j.sx || {}, tsee: !!j.tsee, asks: j.asks || [], obj: j.obj || {on: false, subs: [], L: {}}, fu: j.fu || [], at: Date.now()}; write(CK, data); err = ''; }
+      try{ const j = await hub.api('tutor'); if(window.PROF) PROF.setPref(((j.prof || {}).me || {}).pref || ''); data = {prof: j.prof || {}, sprof: j.sprof || {}, cards: j.cards || [], entries: j.entries || [], classes: j.classes || [], reports: j.reports || [], avail: j.avail || [], acks: j.acks || {}, gone: j.gone || [], ackFrom: j.ackFrom || 0, calLink: j.calLink || '', makeups: j.makeups || [], reqs: j.reqs || {}, clashes: j.clashes || [], says: j.says || null, sradone: j.sradone || {}, notices: j.notices || [], exam: j.exam || null, kpiOn: !!j.kpiOn, sx: j.sx || {}, tsee: !!j.tsee, asks: j.asks || [], obj: j.obj || {on: false, subs: [], L: {}}, fu: j.fu || [], at: Date.now()}; write(CK, data); err = ''; }
       catch(e){ err = navigator.onLine ? e.message : 'offline'; }
       loading = null; if(!form) render();
     })();
@@ -155,7 +155,7 @@ window.TUT = (function(){
   const noticeOf = (k, d) => tolds().find(n => n.k === k && n.d === d) || null;
   const toldL = n => n.kind === 'late' ? `about ${n.mins} min late` : `absent · ${String(n.why || '').toLowerCase()}`;
   const itemOf = k => items().find(i => i.k === k);
-  const short = n => { const p = String(n || '').split(' '); return p[0] + (p[1] ? ' ' + p[1][0] + '.' : ''); };
+  const short = n => { const p = String(n || '').trim().split(/\s+/); if(window.lhqFirst && lhqFirst(n).includes(' ')) return lhqFirst(n); return p[0] + (p[1] ? ' ' + p[1][0] + '.' : ''); };   // "Mr Nalivati" stays whole
   const hm = ms => { const d = new Date(ms || 0); return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0'); };
   const isoOfMs = ms => HD.isoOf(new Date(ms || 0));
   const mins = t => { const [h, m] = String(t || '').split(':').map(Number); return h * 60 + (m || 0); };

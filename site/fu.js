@@ -25,7 +25,7 @@ window.FUP = (function(){
   const MON = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'], WD = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
   const dl = d => { const x = new Date(d + 'T00:00:00Z'); return `${WD[x.getUTCDay()]} ${x.getUTCDate()} ${MON[x.getUTCMonth()]}`; };
   const addD = (d, n) => { const x = new Date(d + 'T00:00:00Z'); x.setUTCDate(x.getUTCDate() + n); return x.toISOString().slice(0, 10); };
-  const first = n => String(n || '').split(' ')[0];
+  const first = n => window.lhqFirst ? lhqFirst(n) : String(n || '').split(' ')[0];
   const MK = {worked: ['ok', '✓'], not: ['am', '–'], overdue: ['rd', '!'], open: ['am', '!']};
   const line = (f, E, t) => { const s = state(f, E, t), a = after(f, E);
     return {s, a, sub: `${ACT[f.act]} · ${a ? f.before + '% → ' + a.pc + '%' : (s === 'overdue' ? 'overdue · ' : 'by ') + dl(f.by)}`}; };

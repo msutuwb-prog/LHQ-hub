@@ -14,7 +14,7 @@ window.FAM = (function(){
   const day = s => s ? `${WD[P(s).getDay()]} ${P(s).getDate()} ${MON[P(s).getMonth()]}` : '';
   const dshort = s => s ? `${P(s).getDate()} ${MON[P(s).getMonth()]}` : '';
   const mk = n => 'MWK ' + Math.round(+n || 0).toLocaleString('en-US');
-  const firstN = n => String(n || '').trim().split(/\s+/)[0];
+  const firstN = n => window.lhqFirst ? lhqFirst(n) : String(n || '').trim().split(/\s+/)[0];
   const DLI = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v11M7 10l5 5 5-5M5 20h14"/></svg>';
   let perSel = 'tp';
   const sub = n => String(n || '').replace(/^Mathematics$/i, 'Maths');
@@ -73,7 +73,7 @@ window.FAM = (function(){
   async function fetchData(){
     if(loading) return loading;
     loading = (async () => {
-      try{ const j = await hub.api('family'); data = Object.assign(j, {at: Date.now()}); write(CK, data); err = ''; }
+      try{ const j = await hub.api('family'); data = Object.assign(j, {at: Date.now()}); write(CK, data); err = ''; if(window.PROF) PROF.setPref((j.mine || {}).pref || ''); }
       catch(e){ err = navigator.onLine ? e.message : 'offline'; }
       loading = null; render(); if(window.lhqBellRefresh) lhqBellRefresh();
     })();
@@ -170,7 +170,7 @@ window.FAM = (function(){
       isParent() ? [] : packOf(k).filter(x => x.doOn === t && !x.done).map(x => `<a class="it" href="#me/practice/pack"><span class="f-mk am">!</span><span class="t"><b>${esc(x.topic)} R${x.stage} today</b><small>${esc(sub(x.sub))} · take-home pack</small></span><span class="chev">›</span></a>`));
     if(window.FUP) FUP.famL(k).filter(f => !f.a && !(f.act === 'take' && f.th) && (f.by === t || f.by === HD.addDays(t, 1) || f.by < t)).forEach(f => need.push(`<button type="button" class="it" data-ffu="${esc(f.id)}"><span class="f-mk ${f.by < t ? 'rd' : 'am'}">!</span><span class="t"><b>${({retest: 'Retest', reteach: 'Reteach', take: 'Take-home sheets'})[f.act]} ${f.by === t ? 'today' : f.by < t ? 'was due ' + day(f.by) : 'tomorrow'}: ${esc(f.tk)}</b><small>${esc(sub(f.sub))}${f.foc ? ' · focus: ' + esc(f.foc) : ''}</small></span><span class="chev">›</span></button>`));
     const pay = isParent() ? owedLine() : '';
-    return `<div class="ph"><div class="tt"><h1>Hi ${esc(firstN(me().name))}</h1><p>${isParent() && kids().length === 1 ? esc(firstN(k.name)) + ' · ' : ''}${day(t)}</p></div>${isParent() ? '' : `<div class="acts"><button class="ib" type="button" data-ffeat aria-label="Your Hub">${ic('edit', 18)}</button></div>`}</div>${kidChips()}
+    return `<div class="ph"><div class="tt"><h1>Hi ${esc(window.PROF ? PROF.myName() : firstN(me().name))}</h1><p>${isParent() && kids().length === 1 ? esc(firstN(k.name)) + ' · ' : ''}${day(t)}</p></div>${isParent() ? '' : `<div class="acts"><button class="ib" type="button" data-ffeat aria-label="Your Hub">${ic('edit', 18)}</button></div>`}</div>${kidChips()}
       ${need.length ? `<div class="h2">Needs you <em>${need.length}</em></div><div class="card" style="border-left:3px solid var(--gold)">${need.join('')}</div>` : ''}${window.PROF ? PROF.famTodo(k, isParent() ? 'parent' : 'student') : ''}
       <div class="h2">Today</div><div class="card">${today.map(sesTell).join('') || '<p class="empty">No sessions today.</p>'}</div>${window.SX && has('cards') ? SX.homeCards(k) : ''}${!full() && !nAdded() ? moreAsk() : ''}
       ${k.changes.length ? `<div class="h2">Changes</div><div class="card">${k.changes.slice(0, 3).map(c => `<div class="it"><span class="f-mk bl">i</span><span class="t"><b>${esc(sub(c.sub))} → ${DAYN[c.to.day]} ${esc(c.to.s)}</b><small>was ${DAYN[c.from.day]} ${esc(c.from.s)}</small></span></div>`).join('')}</div>` : ''}
@@ -296,7 +296,7 @@ window.FAM = (function(){
       <a class="it" href="#set/appearance"><span class="t"><b>Appearance</b><small>Theme, colour, text size${isParent() ? '' : ', Lean or Full'}</small></span><span class="chev">›</span></a>
       <a class="it" href="tel:+265992525250"><span class="t"><b>Contact LHQ</b><small>0992 525 250</small></span><span class="chev">›</span></a></div>`;
   }
-  const emptyNoKids = () => `<div class="ph"><div class="tt"><h1>Hi ${esc(firstN(me().name))}</h1></div></div>${!data ? `<p class="empty">${err === 'offline' ? 'Offline.' : err ? esc(err) : 'Loading…'}</p>` : '<p class="empty">Your account isn\'t linked to a student yet. Ask LHQ.</p>'}`;
+  const emptyNoKids = () => `<div class="ph"><div class="tt"><h1>Hi ${esc(window.PROF ? PROF.myName() : firstN(me().name))}</h1></div></div>${!data ? `<p class="empty">${err === 'offline' ? 'Offline.' : err ? esc(err) : 'Loading…'}</p>` : '<p class="empty">Your account isn\'t linked to a student yet. Ask LHQ.</p>'}`;
 
   /* ---------- today's report (students) ---------- */
   const RS = {};   // answers being filled in, by date

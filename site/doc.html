@@ -1570,7 +1570,7 @@ F('incChips').addEventListener('click', e=>{
 F('btnAddItem').onclick = ()=>{ const it = {desc:'',days:'1',sessions:'4',cost:settings.rate}; const v = autoSessions(it); if(v) it.sessions = v; doc.items.push(it); renderItems(); };
 
 /* "Being payment for" fills itself from the student's first name ("Annalise's Tuition") until it's typed over */
-const autoFor = name => { const f = String(name||'').trim().split(/\s+/)[0]; return f ? `${f[0].toUpperCase()+f.slice(1)}'s Tuition` : ''; };
+const autoFor = name => { const f = window.lhqFirst ? lhqFirst(name) : String(name||'').trim().split(/\s+/)[0]; return f ? `${f[0].toUpperCase()+f.slice(1)}'s Tuition` : ''; };
 /* Returning families: a student already in Saved -> offer their parent's details */
 const normName = s => String(s||'').trim().toLowerCase().replace(/\s+/g,' ');
 let knownDismissed = '';
@@ -1797,7 +1797,7 @@ function fillTemplate(tpl){
   const vals = { name: doc.name || 'Parent/Guardian', student: doc.student, level: doc.level,
     type: WORD[T].toLowerCase(), Type: WORD[T], number: doc.number, ref: doc.ref,
     refline: doc.ref ? ` for invoice ${doc.ref}` : '',
-    date: niceDate(doc.date), due: niceDate(doc.dueDate), for: doc.forWhat || (doc.student ? String(doc.student).trim().split(/\s+/)[0] + '\'s tuition' : 'tuition'), period: periodText() || 'the agreed tuition period',
+    date: niceDate(doc.date), due: niceDate(doc.dueDate), for: doc.forWhat || (doc.student ? (window.lhqFirst ? lhqFirst(doc.student) : String(doc.student).trim().split(/\s+/)[0]) + '\'s tuition' : 'tuition'), period: periodText() || 'the agreed tuition period',
     includesline: includedList().length ? `Every LHQ enrolment includes ${includedList().map(x=>x.replace('Assesments','Assessments')).join(', ').replace(/, ([^,]*)$/, ' and $1')}.` : '',
     subjects, summary: summaryText(), subtotal: money(t.subtotal), discount: money(t.discount),
     total: money(t.total), paid: money(t.paid), balance: money(Math.max(0, t.balance)),

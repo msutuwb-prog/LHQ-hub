@@ -11,7 +11,7 @@ window.FDOC = (function(){
   const lab = (l, x) => !x ? '' : /^[A-Za-z ]{2,14}:/.test(String(x).trim()) ? String(x).trim() : l + String(x).trim();
   const pcs = v => v == null ? '–' : v + '%';
   const akN = k => k === 't' ? 'w' : k === 'k' ? 'p' : (k || 'w');
-  const first = n => String(n || '').trim().split(/\s+/)[0];
+  const first = n => window.lhqFirst ? lhqFirst(n) : String(n || '').trim().split(/\s+/)[0];
   const add = (d, n) => window.PAYPLAN ? PAYPLAN.add(d, n) : d;
   const terms = k => (k.terms && k.terms.length ? k.terms : (window.MIN ? MIN.terms() : [])).filter(t => t && t[1] && t[2]).slice().sort((a, b) => a[1].localeCompare(b[1]));
 

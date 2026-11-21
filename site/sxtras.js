@@ -165,7 +165,7 @@ window.SX = (function(){
   function habits(k){
     css(); const t = T(), r = range(k, hPer, t), A = habitRows(k, r.a, r.b), B = habitRows(k, r.pa, r.pb); lastH = {A, r};
     const pc = o => o.n ? Math.round(o.k / o.n * 100) : null;
-    const name = (k.name || '').split(' ')[0];
+    const name = lhqFirst(k.name);
     return `<a class="crumb" href="#me/progress">‹ ${isParent() ? 'Sessions' : 'Progress'}</a><div class="ph"><div class="tt"><h1>Habits</h1><p>${esc(name)} · ${esc(r.l)} · against ${esc(r.pl)}</p></div></div>
       <div class="seg" style="display:flex;margin-bottom:12px">${[['w','Week'],['w4','4 weeks'],['term','Term']].map(([v, l]) => `<button style="flex:1" class="${hPer === v ? 'on' : ''}" data-sxhp="${v}">${l}</button>`).join('')}</div>
       <div class="card">${HAB.map(([id, l]) => { const a = A[id], b = B[id], p = id === 'ass' ? null : pc(a), q = id === 'ass' ? null : pc(b), dlt = p != null && q != null ? p - q : null;

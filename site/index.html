@@ -433,7 +433,7 @@ const ICP = {bell:'<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d=
  users:'<circle cx="9" cy="8" r="3.5"/><path d="M3 20c0-3.5 3-6 6-6s6 2.5 6 6"/><path d="M16 4.5a3.5 3.5 0 010 7M18 14c2 .8 3 3 3 6"/>', alert:'<path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/>', clock:'<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>', chev:'<path d="M9 6l6 6-6 6"/>', back:'<path d="M15 6l-6 6 6 6"/>', search:'<circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/>',
  edit:'<path d="M4 20h4L19 9l-4-4L4 16v4z"/>', plus:'<path d="M12 5v14M5 12h14"/>', user:'<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>', key:'<circle cx="8" cy="15" r="4"/><path d="M11 12l9-9M17 6l3 3"/>', bank:'<path d="M3 10l9-6 9 6M5 10v8M9.5 10v8M14.5 10v8M19 10v8M3 20h18"/>', cash:'<rect x="3" y="6" width="18" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/>', hash:'<path d="M9 4L7 20M17 4l-2 16M4 9h16M3 15h16"/>', msg:'<path d="M4 5h16v11H9l-5 4z"/>', list:'<path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/>', link:'<path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/>', wa:'<path d="M4 20l1.3-4A8 8 0 1112 20a8 8 0 01-4-1z"/>', box:'<path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4M12 11v10"/>', bin:'<path d="M4 7h16M6 7l1 13h10l1-13"/><path d="M10 11v6M14 11v6"/>', restore:'<path d="M4 12a8 8 0 108-8 8 8 0 00-6 2.7L4 9"/><path d="M4 4v5h5"/>', out:'<path d="M15 4h4v16h-4M10 8l-4 4 4 4M6 12h10"/>', rep:'<path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/>', copy:'<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16V4h12"/>', down:'<path d="M12 4v11M7 10l5 5 5-5M5 20h14"/>', layout:'<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M3 16h18"/>'};
 const ic = (n, s = 20, w = 1.8) => `<svg viewBox="0 0 24 24" width="${s}" height="${s}" fill="none" stroke="currentColor" stroke-width="${w}" stroke-linecap="round" stroke-linejoin="round">${ICP[n]||''}</svg>`;
-const inits = n => String(n||'?').split(/\s+/).filter(Boolean).slice(0,2).map(x => x[0]).join('').toUpperCase();
+const inits = n => window.lhqInitials ? lhqInitials(n) : String(n||'?').split(/\s+/).filter(Boolean).slice(0,2).map(x => x[0]).join('').toUpperCase();
 function toast(m){ const t = $('toast'); t.textContent = m; t.classList.add('show'); clearTimeout(t._h); t._h = setTimeout(() => t.classList.remove('show'), 3200); }
 window.hubToast = toast;
 function openSheet(html){ document.documentElement.classList.remove('lean-open'); const was = $('sheet').hidden; $('sheet').innerHTML = html; $('sheet').hidden = false; $('shbg').hidden = false; $('sheet').querySelectorAll('[data-close]').forEach(b => b.onclick = closeSheet); const f = $('sheet').querySelector('input'); if(f && innerWidth > 700) setTimeout(() => f.focus(), 50); if(was && window.MOTION) MOTION.sheet(); }
@@ -517,7 +517,7 @@ function render(){
   document.querySelectorAll('#main a.it').forEach(el => { if(!el.querySelector('.chev') && !/›\s*$/.test(el.textContent)) el.insertAdjacentHTML('beforeend', '<span class="chev">›</span>'); });
   if(window.FX) FX.after();
   if(window.MOTION) MOTION.after();
-  if(window.PROF){ PROF.after(); if(route.page === 'set' && route.args[0] === 'bdays') PROF.bindSettings(); }
+  if(window.PROF){ PROF.after(); if(route.page === 'set' && route.args[0] === 'bdays') PROF.bindSettings(); if(route.page === 'set' && route.args[0] === 'account') PROF.bindMe(); }
   if(route.page === 'new') newSheet(route.args[0]);
   if(route.page === 'makeups') makeupSheet(route.args[0]);
   if(route.page === 'tutors' && route.args[0] === 'none' && $('none')) $('none').scrollIntoView();
@@ -615,6 +615,10 @@ function attention(list){
     const RQ = reqList(), ap = RQ.filter(r => !r.dec.s), buy = RQ.filter(r => r.dec.s === 'approved');
     if(isDir() && ap.length) out.push({w:-1, s:{name:`${ap.length} requisition${ap.length === 1 ? '' : 's'} to approve`}, href:'#reqs', ico:'box', col:'--am', sub:ap.slice(0, 3).map(r => `${r.item.item} · ${r.rep.tutor}`).join(' · '), btn:['Review', '#reqs']});
     if(can('spend') && buy.length) out.push({w:-1, s:{name:`${buy.length} approved requisition${buy.length === 1 ? '' : 's'} to buy`}, href:'#reqs', ico:'box', col:'--am', sub:buy.slice(0, 3).map(r => r.item.item).join(' · '), btn:['Review', '#reqs']});
+    /* profiles still to finish (Director, and admins who look after tutors or students) */
+    if(window.PROF && PROF.unfinished && (isDir() || can('tutors') || can('students'))){ const U = PROF.unfinished();
+      if(U.T.length && (isDir() || can('tutors'))) out.push({w:1, g:'tprof', s:{name:`${U.T.length} tutor profile${U.T.length === 1 ? '' : 's'} to finish`}, href:'#tutors', ico:'user', col:'--am', sub:U.T.slice(0, 3).map(x => `${first(x.name)} · ${x.lhq.length ? 'LHQ\'s part' : 'their part'}`).join(' · ')});
+      if(U.S.length && (isDir() || can('students'))) out.push({w:1, g:'sprof', s:{name:`${U.S.length} student profile${U.S.length === 1 ? '' : 's'} with gaps`}, href:stuLink(U.S[0].key, 'details'), ico:'user', col:'--am', sub:U.S.slice(0, 3).map(x => `${first(x.name)} · ${x.n} missing`).join(' · ')}); }
     /* students a tutor flagged, until LHQ deals with them */
     flagsOf('').filter(r => !r.flag.done).forEach(r => { const nm0 = (HD.students().find(x => x.key === r.flag.st) || {name: r.flag.st}).name;
       out.push({w:-1, g:'flag', s:{name:`${nm0} · flagged by ${first(r.tutor)}`}, href:stuLink(r.flag.st), ico:'alert', col:'--rd', sub:`${flagWhy(r.flag)} · ${nice(r.d)}`, btn:['Deal with', stuLink(r.flag.st)]}); });
@@ -732,7 +736,7 @@ P.home = () => {
   const recent = saved.slice().sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0)).slice(0, 6);
   const draft = store.get('lhq_draft', null);
   const draftRow = draft && !draft.id && (draft.student || draft.name) ? `<div class="card"><a class="it" href="doc.html#draft"><span class="ico">${ic('edit')}</span><span class="t"><b>Unsaved ${esc(WORD[draft.type || 'quote'].toLowerCase())} · ${esc(draft.student || draft.name)}</b><small>Not saved yet</small></span><span class="tag am">Draft</span></a></div>` : '';
-  return `<div class="ph"><div class="tt"><h1>${greet}${me().name ? '<span class="x-ph">, ' + esc(first(me().name)) + '</span>' : ''}</h1><p>${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()]} ${d.getDate()} ${MONTHL[d.getMonth()]}</p></div>
+  return `<div class="ph"><div class="tt"><h1>${greet}${me().name ? '<span class="x-ph">, ' + esc(window.PROF ? PROF.myName() : first(me().name)) + '</span>' : ''}</h1><p>${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()]} ${d.getDate()} ${MONTHL[d.getMonth()]}</p></div>
     <div class="acts"><a class="btn" href="#edithome" title="Edit Home" aria-label="Edit Home">${ic('edit',16)}</a>${can('quotes') || can('receipts') || can('cards') ? `<a class="btn n hnew" href="#new">${ic('plus',16,2.4)} New</a>` : ''}</div></div>
   ${cards.length ? `<div class="mcs" data-n="${cards.length}">${cards.map(k => { const c = CARDS[k]; return `<div class="mc" data-go="${typeof c.href === 'function' ? c.href() : c.href}" role="link" tabindex="0" aria-label="${esc(c.t)}"><span class="l">${ic(c.ic,15,2)}${LEAN() && c.s ? c.s : c.t}</span>${c.html(m)}</div>`; }).join('')}</div>` : ''}
   ${draftRow}
@@ -1588,6 +1592,7 @@ S.data = () => `<h2 class="sec-h">Data</h2>${setList(DATA)}`;
 S.account = () => { const m = me(), L = LHQNav.layout();
   return `<h2 class="sec-h">My account</h2><p class="sec-p">Who you are and how you sign in.</p>
   <div class="card pad"><dl class="kv"><dt>Name</dt><dd>${esc(m.name || '')}</dd><dt>Role</dt><dd>${roleText(m)}</dd><dt>This device</dt><dd id="acStatus"></dd></dl></div>
+  ${window.PROF ? PROF.meCard((() => { try{ const o = JSON.parse(localStorage.getItem('lhq_pref') || 'null'); if(o && o.id === m.id) return o.n; }catch(e){} return ((store.get('lhq_prof', {}) || {})['p:' + SCHED.nk(m.name)] || {}).me ? store.get('lhq_prof', {})['p:' + SCHED.nk(m.name)].me.pref || '' : ''; })()) : ''}
   <div class="card pad"><div class="cap">LHQ Hub on this device</div>
     ${window.lhqInstalled && lhqInstalled() ? '<p class="note" style="margin:0">Installed. Works offline too.</p>'
     : `<p class="note" style="margin:0 0 10px">Opens from your home screen, also offline.</p>${window.lhqInstall ? `<button class="btn n" id="instGo">Install LHQ Hub</button>` : '<p class="note" style="margin:0"><b>iPhone or iPad:</b> Safari › Share › Add to Home Screen. <b>Android:</b> Chrome menu ⋮ › Install app (or Add to Home screen).</p>'}`}</div>
@@ -1701,11 +1706,15 @@ async function addPersonPw(){
     document.querySelectorAll('[data-apkid]').forEach(b => b.onclick = () => { const k = b.dataset.apkid; F.kids = F.kids.includes(k) ? F.kids.filter(x => x !== k) : F.kids.concat(k); draw(); });
     $('apGo').onclick = async () => {
       try{ const r = await hub.api('people', {method:'POST', body:JSON.stringify({action:'add', name:F.name, role:F.role, email:F.email, children:F.kids})});
-        store.set('lhq_people', r.people); addDraft = null; render(); codeSheet(Object.assign({name:r.name, role:r.role}, r), true);
+        store.set('lhq_people', r.people); addDraft = null;
+        /* a tutor: LHQ's part of the profile first, then the setup code (shown at the end, or on Skip) */
+        if((r.role === 'tutor' || F.tutor) && (isDir() || can('tutors')) && window.PROF){ window.lhqPendingCode = Object.assign({name:r.name, role:r.role}, r); closeSheet(); location.hash = '#tprof/' + encodeURIComponent(r.name) + '/setup'; return; }
+        render(); codeSheet(Object.assign({name:r.name, role:r.role}, r), true);
       }catch(e){ toast(e.message); } };
   };
   draw();
 }
+window.lhqCodeSheet = (r, added) => codeSheet(r, added);
 function codeSheet(r, added){
   const fr = first(r.name), until = new Date(r.expires).toLocaleDateString('en-GB', {weekday:'short', day:'numeric', month:'short'});
   const msg = `Hello ${fr}, welcome to LHQ Hub.\n\n1. Open ${location.origin}\n2. Tap "First time here? I have a setup code"\n3. Code: ${r.code} (works once, until ${until})\n\nYour username is ${r.username}.`;
@@ -1715,7 +1724,7 @@ function codeSheet(r, added){
     <div class="wa-msg">${esc(msg)}</div>
     <a class="btn n full" style="background:#1f9d55;border-color:#1f9d55;text-decoration:none" target="_blank" rel="noopener" href="https://wa.me/?text=${encodeURIComponent(msg)}">Send on WhatsApp</a>
     <button class="btn full" id="cdCopy" style="margin-top:8px">Copy the message</button>
-    ${added && r.role === 'tutor' && (isDir() || can('tutors')) ? `<a class="btn n full" style="margin-top:8px;text-decoration:none" href="#tprof/${encodeURIComponent(r.name)}/setup" data-close>Next · set up ${esc(fr)}'s profile ›</a><p class="note">Subjects and levels, availability, placement and pay. ${esc(fr)} adds the rest at first sign-in.</p>` : ''}`);
+    ${added && !r.fromSetup && r.role === 'tutor' && (isDir() || can('tutors')) ? `<a class="btn n full" style="margin-top:8px;text-decoration:none" href="#tprof/${encodeURIComponent(r.name)}/setup" data-close>Next · set up ${esc(fr)}'s profile ›</a><p class="note">Subjects and levels, availability, placement and pay. ${esc(fr)} adds the rest at first sign-in.</p>` : ''}`);
   bind(); $('cdCopy').onclick = async () => { try{ await navigator.clipboard.writeText(msg); toast('Message copied'); }catch(e){ toast('Copy didn\'t work: select the message and copy it'); } };
 }
 async function peopleCall(body, msg){

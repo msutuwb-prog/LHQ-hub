@@ -624,7 +624,7 @@ function cardTutorSentText(tutor){
   const d = new Date(t); return `Link last sent ${d.getDate()} ${['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][d.getMonth()]}`;
 }
 function cardTutorMessage(tutor, link, howTo){
-  const first = String(tutor).split(' ')[0];
+  const first = window.lhqFirst ? lhqFirst(tutor) : String(tutor).split(' ')[0];
   if(howTo==null) howTo = !cardTlinks()[tutor];
   return howTo
     ? `Hello ${first}, here is your LHQ link. It has the tuition card for each of your students. Open it on your phone and keep it. After each session, log attendance, topics and any assessment score, then send your log to LHQ at the end of the week.\n\n${link}`

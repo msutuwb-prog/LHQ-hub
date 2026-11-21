@@ -3,7 +3,7 @@
 
 const REP_FOOT = '<div class="ft"><span>LHQ Learning Solutions · 0992 525 250 · learnhqes@gmail.com</span><span>Grade: average of the weekly assessments taken at LHQ this tuition period (or every two weeks where topics are longer); monthly assessments and past papers are shown separately. LHQ scale: A* 90+, A 80–89, B 70–79, C 60–69, D 50–59. Not an official Cambridge grade. SRAs are spaced repetition reviews done at home; the ARS (Active Recall Sheet) before each one is shown for practice and is not part of any grade.</span></div>';
 const ARROW = t => t > 0 ? '<span class="up">↑</span>' : t < 0 ? '<span class="dn">↓</span>' : '<span class="fl">→</span>';
-const firstName = n => String(n||'').trim().split(/\s+/)[0] || 'The student';
+const firstName = n => (typeof window !== 'undefined' && window.lhqFirst ? lhqFirst(n) : String(n||'').trim().split(/\s+/)[0]) || 'The student';
 
 function editKey(m){ return `${norm(m.name)}|${m.a}|${m.b}|${state.freq}`; }
 function getEdits(m){ return (store.get('lhq_repEdits', {}))[editKey(m)] || {}; }

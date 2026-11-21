@@ -1,3 +1,11 @@
+/* names: "Mr Nalivati" stays "Mr Nalivati" (a title keeps the surname: "Mrs Grace Phiri" → "Mrs Phiri"); initials skip the title too.
+   lhqFirst is the short name used in greetings and lists; lhqInitials the two letters in a round avatar. */
+(function(){
+  const T = /^(mr|mrs|ms|miss|mx|dr|prof|rev|madam|madame|sir|pastor|fr|sr|hon)\.?$/i;
+  window.lhqFirst = n => { const w = String(n || '').trim().split(/\s+/).filter(Boolean); if(!w.length) return ''; return T.test(w[0]) && w[1] ? w[0].replace(/\.$/, '') + ' ' + w[w.length - 1] : w[0]; };   // "Mrs Grace Phiri" → "Mrs Phiri"
+  window.lhqInitials = n => { const w = String(n || '').trim().split(/\s+/).filter(Boolean); if(!w.length) return '?'; const r = w.length > 1 && T.test(w[0]) ? (w.length > 2 ? w.slice(1) : w) : w;   // "Mr Nalivati" → "MN"
+    return (r[0][0] + (r.length > 1 ? r[r.length - 1][0] : '')).toUpperCase(); };
+})();
 /* LHQ Hub: light / dark theme, shared by every page.
    Loads in <head> so the right colours show before the page paints. */
 (function(){
