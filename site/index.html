@@ -691,8 +691,8 @@ const CARDS = {
   sessions:{t:'Sessions this week', ic:'clock', step2:true, d:'Sessions done and still to come, from tutors\' logs'},
   sras:{t:'SRAs due', ic:'restore', step2:true, d:'Spaced repetition reviews due this week'},
   reports:{t:'Reports to send', ic:'rep', step2:true, d:'Weekly reports ready for parents'},
-  profit:{s:'Profit', t:'Profit this month', ic:'cash', need:'pl', d:'Money in less spending this month, and the margin', href:'#biz/pl', html:() => BIZ.cardProfit()},
-  spend:{s:'Spending', t:'Spending this month', ic:'box', need:'spend', d:'What has been spent this month, against the budget', href:'#biz/spending', html:() => BIZ.cardSpend()},
+  profit:{s:'Profit', t:'Profit this month', ic:'cash', need:'pl', d:'Money in less payments this month, and the margin', href:'#biz/pl', html:() => BIZ.cardProfit()},
+  spend:{s:'Payments', t:'Payments this month', ic:'box', need:'spend', d:'What has been spent this month, against the budget', href:'#biz/spending', html:() => BIZ.cardSpend()},
   tpay:{s:'Tutor pay', t:'Tutor pay this month', ic:'cash', need:'tpay', d:'Tutor pay so far this month', href:'#pay',
     html:() => { const c = TPAYUI.card(); return `${L('#pay', mkShort(c.tot), 'v')}${L('#pay', `${c.sessions} session${c.sessions === 1 ? '' : 's'} · ${c.n} tutor${c.n === 1 ? '' : 's'}`)}<div class="s">${c.conf} of ${c.n} payslips confirmed</div>`; }},
 };
@@ -966,7 +966,7 @@ function makeupSheet(id){
     <p class="sp">${esc(card.student)} · ${esc(range(card.periodStart, card.periodEnd))}. The period has ended with these sessions not made up.</p>
     ${rows.map((x, i) => `<div class="card pad" style="margin-bottom:10px"><b>${esc(x.sub)}</b> · ${x.owed} session${x.owed === 1 ? '' : 's'}<small style="display:block;color:var(--muted)">${[x.missS ? `${x.missS} student absent` : '', x.missT ? `${x.missT} tutor couldn't teach` : '', x.cf ? `${x.cf} carried in` : '', x.made ? `${x.made} made up` : ''].filter(Boolean).join(' · ')}</small>
       <div class="seg" data-mu="${i}" style="margin:10px 0 0"><button class="on" data-v="carry">Carry to next period</button><button data-v="refund">Refund ${mkShort(x.owed * rate(x.sub))}</button></div></div>`).join('')}
-    <p class="note" style="margin:0 0 12px">Carried sessions go on the next card. Refunds go to Spending.</p>
+    <p class="note" style="margin:0 0 12px">Carried sessions go on the next card. Refunds go to Payments.</p>
     <button class="btn n full" id="muGo">Save</button>`);
   document.querySelectorAll('[data-mu] button').forEach(b => b.onclick = () => b.parentElement.querySelectorAll('button').forEach(x => x.classList.toggle('on', x === b)));
   $('muGo').onclick = () => {
@@ -1273,7 +1273,7 @@ P.activity = () => {
   const logged = R.filter(x => x.action === 'log.add').reduce((a, x) => a + (+((x.summary.match(/^Logged (\d+) session/) || [])[1] || 0)), 0);
   const marks = R.filter(x => x.action === 'sra.mark'), nM = marks.reduce((a, x) => a + (+(x.data || {}).n || 1), 0), nA = marks.reduce((a, x) => a + (+(x.data || {}).ars || 0), 0);
   const nLog = R.filter(x => x.action === 'log.add').reduce((a, x) => a + (+((x.data || {}).n) || +((x.summary.match(/^Logged (\d+) session/) || [])[1] || 0) || (/^Logged a session/.test(x.summary) ? 1 : 0)), 0);
-  const figs = [['Spending', 'cash', cnt(x => x.area === 'money' && /recorded/.test(x.action)), 'recorded', 'money'], ['Documents', 'quote', cnt(x => x.area === 'documents' && !/delete/.test(x.action)), 'new or changed', 'documents'], ['Logged', 'clock', nLog, 'sessions', 'teaching'], ['SRAs marked', 'list', nM, `${nA} with the ARS`, 'teaching'], ['Confirmed', 'check', cnt(x => x.action === 'session.confirm'), 'sessions', 'sessions'], ['Disputes', 'alert', cnt(x => x.action === 'session.dispute'), 'raised', 'sessions'], ['Accounts', 'users', cnt(x => x.action === 'person.add'), 'new', 'people']]
+  const figs = [['Payments', 'cash', cnt(x => x.area === 'money' && /recorded/.test(x.action)), 'recorded', 'money'], ['Documents', 'quote', cnt(x => x.area === 'documents' && !/delete/.test(x.action)), 'new or changed', 'documents'], ['Logged', 'clock', nLog, 'sessions', 'teaching'], ['SRAs marked', 'list', nM, `${nA} with the ARS`, 'teaching'], ['Confirmed', 'check', cnt(x => x.action === 'session.confirm'), 'sessions', 'sessions'], ['Disputes', 'alert', cnt(x => x.action === 'session.dispute'), 'raised', 'sessions'], ['Accounts', 'users', cnt(x => x.action === 'person.add'), 'new', 'people']]
     .concat(areas.includes('pay') ? [['Payslips', 'cash', cnt(x => x.action === 'payslip.confirm'), `${cnt(x => x.action === 'payslip.sign')} signed`, 'pay']] : []);
   const tile = ([l, i, n, sub, a]) => `<button type="button" class="mc${one === a ? ' on' : ''}" data-actf="${a}"><span class="l">${ic(i, 15, 2)}${l}</span><span class="v">${n}<span class="mca">›</span></span><span class="s">${esc(sub)}</span></button>`;
   const PP = actPeoplePanel(false), G0 = actPeople(), nAct = Object.values(G0).reduce((a, g) => a + g.act.length, 0), nQ = Object.values(G0).reduce((a, g) => a + g.quiet.length, 0);
@@ -1354,14 +1354,14 @@ P.reqs = () => {
   const R = reqList(), ap = R.filter(r => !r.dec.s), buy = R.filter(r => r.dec.s === 'approved'), done = R.filter(r => ['bought','declined'].includes(r.dec.s)).slice(0, 20);
   const row = r => `<div class="it" style="align-items:flex-start;flex-wrap:wrap"><span class="t" style="min-width:200px"><b>${esc(r.item.item)}${r.item.qty && r.item.qty !== '1' ? ' × ' + esc(r.item.qty) : ''}</b><small>${esc(r.rep.tutor)} · asked ${nice(r.rep.d)}${r.item.by ? ' · needed by ' + nice(r.item.by) : ''}${r.item.for ? ' · for ' + esc(r.item.for.replace(/\b\w/g, c => c.toUpperCase())) : ''}${r.dec.s ? ` · ${{approved:'approved', declined:'declined', bought:'bought'}[r.dec.s]} by ${esc(r.dec.boughtBy || r.dec.by)}` : ''}${r.dec.cost ? ' · MWK ' + Number(r.dec.cost).toLocaleString('en-US') : ''}${r.dec.note ? ' · ' + esc(r.dec.note) : ''}</small></span>
     <span class="acts">${!r.dec.s && isDir() ? `<button class="btn sm n" data-rq="approve:${esc(r.key)}">Approve</button><button class="btn sm" data-rq="decline:${esc(r.key)}">Decline</button>` : r.dec.s === 'approved' && can('spend') ? `<button class="btn sm n" data-rq="bought:${esc(r.key)}">Mark bought</button>` : ''}</span></div>`;
-  return `${crumb('#home', 'Home', 'reqs')}<div class="ph"><div class="tt"><h1>Requisitions</h1><p>${isDir() ? 'You approve · bought goes to Spending' : 'The Director approves · bought goes to Spending'}</p></div></div>
+  return `${crumb('#home', 'Home', 'reqs')}<div class="ph"><div class="tt"><h1>Requisitions</h1><p>${isDir() ? 'You approve · bought goes to Payments' : 'The Director approves · bought goes to Payments'}</p></div></div>
   <div class="h2">To approve <em>${ap.length}</em></div><div class="card">${ap.map(row).join('') || '<p class="empty">Nothing waiting. ✓</p>'}</div>
   <div class="h2">Approved · to buy <em>${buy.length}</em></div><div class="card">${buy.map(row).join('') || '<p class="empty">Nothing to buy.</p>'}</div>
   ${done.length ? `<div class="h2">Done</div><div class="card">${done.map(row).join('')}</div>` : ''}`;
 };
 function reqSheet(action, key){
   const r = reqList().find(x => x.key === key); if(!r) return;
-  const send = async body => { try{ await hub.api('req', {method:'POST', body: JSON.stringify(Object.assign({action, key}, body))}); await hub.pull(); closeSheet(); render(); toast({approve:'Approved', decline:'Declined', bought:'Added to Spending'}[action]); }catch(e){ toast(e.message); } };
+  const send = async body => { try{ await hub.api('req', {method:'POST', body: JSON.stringify(Object.assign({action, key}, body))}); await hub.pull(); closeSheet(); render(); toast({approve:'Approved', decline:'Declined', bought:'Added to Payments'}[action]); }catch(e){ toast(e.message); } };
   if(action === 'approve') return send({});
   const cats = (settingsKV().spendCats || '').split('\n').map(x => x.trim()).filter(Boolean);
   openSheet(`<div class="hx"><h3>${action === 'decline' ? 'Decline' : 'Mark bought'}</h3><button class="ib" data-close>✕</button></div><p class="sp">${esc(r.item.item)}${r.item.qty && r.item.qty !== '1' ? ' × ' + esc(r.item.qty) : ''} · for ${esc(r.rep.tutor)}</p>
@@ -1403,7 +1403,7 @@ P.tutors = (show = '') => {
 window.LHQSearchScope = () => ({students:'Students', student:'Students', docs:'Documents', tutors:'People', set:'Pages'})[route.page] || '';
 const SKW = {account:'password sign in devices sign out', appearance:'theme dark light auto text size bar sidebar menu lean full', terms:'school terms holidays calendar term dates', kpi:'tutor kpis performance targets falling short slipping observation review admin tutors see', bands:'grade boundaries percent target grades a* outstanding checkpoint igcse a level', exams:'exam series timetable zone topical dates correct a paper date cambridge', notifications:'phone notifications push alerts quiet hours morning summary devices', people:'staff access accounts setup code tutors admin',
   company:'bank address logo contact', payments:'due dates instalments', hours:'opening hours times saturday sunday', numbering:'numbers prefix', messages:'whatsapp email wording templates',
-  lists:'subjects schools year levels spending categories', enrol:'checklist', sending:'whatsapp email', backup:'export download restore', move:'pilot move test site live copy accounts', deleted:'bin trash restore', demo:'sample data'};
+  lists:'subjects schools year levels payment categories', enrol:'checklist', sending:'whatsapp email', backup:'export download restore', move:'pilot move test site live copy accounts', deleted:'bin trash restore', demo:'sample data'};
 LHQSearch.provider = () => {
   const m = me(); if(!m || !m.role) return [];
   const I = n => ic(n, 16, 2), G = [];
@@ -1438,7 +1438,7 @@ LHQSearch.provider = () => {
   if(store.get('lhq_sreports', null)) pages.push({t:'What students say', k:'daily reports ratings', href:'#says', ic:I('msg')});
   G.push({g:'Pages', items: pages.concat(setPages())});
   const A = [['quote','New quote','quotes','quote'],['invoice','New invoice','quotes','invoice'],['receipt','Record a payment','receipts','receipt'],['card','New tuition card','cards','card']].filter(x => can(x[2])).map(([t, l, , i]) => ({t:l, k:'new ' + t + (t === 'receipt' ? ' receipt payment received' : ''), href:'#new/' + t, ic:I(i)}));
-  if(can('spend')) A.push({t:'Record spending', k:'expense spend money out', href:'#biz/spending', ic:I('cash')});
+  if(can('spend')) A.push({t:'Record a payment', k:'expense spend money out', href:'#biz/spending', ic:I('cash')});
   if(m.tutor) A.push({t:'Log a session', k:'teaching', href:'#teach/log', ic:I('plus')});
   G.push({g:'Actions', items: A});
   return G;
@@ -1610,7 +1610,7 @@ S.appearance = () => { const L = LHQNav.layout(), th = lhqTheme.choice(), tx = l
     <div class="x-ph"><div class="cap">Menu</div>${seg('data-layout', L, [['bottom','Bottom bar'],['side','Sidebar']])}</div></div>
   <div class="h2">Everywhere you sign in</div>
   ${me().role === 'parent' ? '' : `<div class="card pad"><div class="cap">What you see</div>${seg('data-view', LEAN() ? 'lean' : 'full', [['lean', me().role === 'student' && LEAN() && Object.keys(me().feat || {}).length ? `Lean · ${Object.keys(me().feat).length} added` : 'Lean'],['full','Full']])}
-    <p class="note" style="margin:0">${me().role === 'student' ? (LEAN() ? 'Sessions, SRAs, marks, school results. Add more with ✎ on Home.' : 'Everything: cards, Focus, Plan my day, Habits, Review.') : LEAN() ? 'Main places and fields. The rest under More.' : 'Everything in view.'}</p>
+    <p class="note" style="margin:0">${me().role === 'student' ? (LEAN() ? 'Sessions, SRAs, marks, school results. Add more with the pencil on Home.' : 'Everything: cards, Focus, Plan my day, Habits, Review.') : LEAN() ? 'Main places and fields. The rest under More.' : 'Everything in view.'}</p>
     ${me().role === 'student' && window.FAM && FAM.FEAT ? `<div class="card" style="margin:10px 0 0">${FAM.FEAT.map(([f, t0]) => `<div class="it"><span class="t"><b>${t0}</b></span><span class="f-mk ${FAM.has(f) ? 'ok' : ''}" style="width:22px;height:22px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:900;border:2px solid ${FAM.has(f) ? 'var(--ok)' : 'var(--line)'};background:${FAM.has(f) ? 'var(--ok)' : 'none'};color:#fff">${FAM.has(f) ? '✓' : ''}</span></div>`).join('')}</div><p class="note" style="margin:6px 0 0">LHQ and your tutors see your SRAs, marks and effort either way. Focus and study count once you use them.</p>` : ''}</div>`}
   ${menu}
   ${staffNav ? `<div class="card"><a class="it" href="#edithome"><span class="ico">${ic('edit', 18)}</span><span class="t"><b>Home cards</b><small>${myCards().length} on Home</small></span><span class="chev">›</span></a></div>` : ''}`;
@@ -1642,7 +1642,7 @@ const PERMS = [
   ['Documents', [['quotes','Make and edit quotes and invoices'],['receipts','Record payments (receipts)'],['cards','Make tuition cards'],['delete','Delete documents'],['restore','Restore deleted documents']]],
   ['Students', [['students','Add and edit student details']]],
   ['Money', [['money','See money totals and reports','Money cards, totals and trends. Amounts on a document stay visible to whoever makes it.'],['tpay','Tutor pay','Work out, add items and confirm payslips']]],
-  ['Business', [['spend','Record spending','Add spending and see the spending list. They can change only what they recorded.'],['pl','See profit and loss and budgets','Money in against spending, profit, budgets, and the Profit card on Home']]],
+  ['Business', [['spend','Record a payment','Add payments and see the payments list. They can change only what they recorded.'],['pl','See profit and loss and budgets','Money in against payments, profit, budgets, and the Profit card on Home']]],
   ['People', [['tutors','Add tutors, students and parents, give them setup codes, switch them off']]],
   ['Settings', [['msgs','Messages and lists'],['numbering','Numbering'],['backup','Backup and restore']]],
 ];
@@ -1756,7 +1756,7 @@ S.messages = () => { const t = templates();
   <div class="vars">${VARS.map(v => `<button data-var="${v}">${v}</button>`).join('')}</div>
   <div class="acts"><button class="btn n" id="tplSave">Save</button><button class="btn" id="tplReset">Restore the default wording</button></div></div>`; };
 
-const LISTS = [['subjects','Subjects'],['levels','Year and level'],['methods','Payment methods'],['includes','Every LHQ enrolment includes'],['tutors','Tutors on tuition cards'],['grades','Grades'],['gradeBasis','Grade based on'],['sessionLengths','Session lengths'],['spendCats','Spending categories'],['heardFrom','How families hear about LHQ (also marketing channels)'],['districts','Districts']];
+const LISTS = [['subjects','Subjects'],['levels','Year and level'],['methods','Payment methods'],['includes','Every LHQ enrolment includes'],['tutors','Tutors on tuition cards'],['grades','Grades'],['gradeBasis','Grade based on'],['sessionLengths','Session lengths'],['spendCats','Payment categories'],['heardFrom','How families hear about LHQ (also marketing channels)'],['districts','Districts']];
 S.lists = () => { const s = settingsKV();
   return `<h2 class="sec-h">Lists</h2><p class="sec-p">The choices in every dropdown. Changes save straight away.</p>
   ${LISTS.map(([k, l]) => `<div class="card pad"><div class="cap">${l}</div><div class="lchips">${lines(s[k]).map((x, i) => `<span>${esc(x)}<button data-lrm="${k}:${i}" aria-label="Remove ${esc(x)}">✕</button></span>`).join('')}</div>
@@ -1817,8 +1817,8 @@ S.demo = () => settingsKV().pilot ? `<h2 class="sec-h">Demo data</h2><p class="s
   <button class="btn" id="pilotOff">Turn the pilot off</button></div>` : `<h2 class="sec-h">Demo data</h2><p class="sec-p">Test copy only. Load six months of demo data.</p>
   <div class="card pad"><div class="cap">Pilot</div><p class="note" style="margin:0 0 12px">Turn on before real tutors and students use this test site: loading demo data and emptying it are then locked.</p><button class="btn n" id="pilotOn">Turn the pilot on</button></div>
   <div class="card pad"><div class="cap">What you get</div>
-  <p class="note" style="margin:0 0 6px">About 50 invented students from May to today (around 40 at a time): quotes, invoices, receipts and tuition cards; 50/50 plans; payments in grace and overdue; periods ending this week and renewed; ended students; quotes waiting; a card with no tutor; a sibling discount; a deleted receipt; tutors' session logs, SRAs and comments for Reports; and Business: spending from May to today with budgets, and repeating costs waiting to be confirmed.</p>
-  <p class="note" style="margin:0 0 12px">It also adds Catherine Mkwinda (Admin, who can record spending), eight tutors, and Mayamiko Goliati (switched off). Their PIN is <b>1111</b>. Your own account stays as it is.</p>
+  <p class="note" style="margin:0 0 6px">About 50 invented students from May to today (around 40 at a time): quotes, invoices, receipts and tuition cards; 50/50 plans; payments in grace and overdue; periods ending this week and renewed; ended students; quotes waiting; a card with no tutor; a sibling discount; a deleted receipt; tutors' session logs, SRAs and comments for Reports; and Business: payments from May to today with budgets, and repeating costs waiting to be confirmed.</p>
+  <p class="note" style="margin:0 0 12px">It also adds Catherine Mkwinda (Admin, who can record payments), eight tutors, and Mayamiko Goliati (switched off). Their PIN is <b>1111</b>. Your own account stays as it is.</p>
   <div class="acts"><button class="btn n" id="demoGo">Load demo data</button><button class="btn rd" id="demoClear">Empty the preview</button></div>
   <p class="note">Loading replaces everything in this preview. The live site is never touched.</p></div>`;
 async function loadScript(src){ if(document.querySelector(`script[src="${src}"]`)) return; await new Promise((ok, no) => { const s = document.createElement('script'); s.src = src; s.onload = ok; s.onerror = no; document.head.appendChild(s); }); }

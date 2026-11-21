@@ -299,11 +299,13 @@ function cardEditorEvents(){
     if(e.target.dataset.act==='newtopic' && e.key==='Enter'){ e.preventDefault(); e.target.parentElement.querySelector('[data-act="addtopic"]').click(); }
   });
   F('btnAddCardSubject').onclick = ()=>{ doc.subjects.push(cardBlankSubject('', doc.level)); cardOpen = doc.subjects.length-1; renderCardEditor(); update(); };
-  F('whereChips').addEventListener('click', e=>{ const b = e.target.closest('[data-w]'); if(!b) return; doc.where = doc.where===b.dataset.w ? '' : b.dataset.w; F('f_where').value = doc.where; fillCardFields(); update(); });
+  F('whereChips').addEventListener('click', e=>{ const b = e.target.closest('[data-w]'); if(!b) return; doc.where = doc.where===b.dataset.w ? '' : b.dataset.w; fillCardFields(); update(); });
   F('f_where').addEventListener('input', fillCardFields);
 }
 function fillCardFields(){
-  F('whereChips').querySelectorAll('button').forEach(b=>b.classList.toggle('on', b.dataset.w===doc.where));
+  const W = [...F('whereChips').querySelectorAll('button')];
+  W.forEach(b=>b.classList.toggle('on', b.dataset.w===doc.where));
+  const fw = F('f_where'); if(document.activeElement !== fw) fw.value = W.some(b => b.dataset.w === doc.where) ? '' : (doc.where || '');   // the box is for "Other" only
   F('intakeBox').hidden = !doc.intake; F('intakeText').textContent = doc.intake || '';
 }
 
@@ -387,7 +389,7 @@ function cardHTML(d, only){
     <div style="width:56px;height:3px;background:#f4b223;border-radius:2px;margin:12px 0 14px"></div>
     <div style="display:grid;grid-template-columns:1.45fr 1fr 1fr;gap:8px">
       <div style="background:#f5f7fa;border-radius:9px;padding:8px 10px">${lab('Tuition period')}<b style="font-size:13.5px">${esc(period)}</b></div>
-      <div style="background:#f5f7fa;border-radius:9px;padding:8px 10px">${lab('Where')}<b style="font-size:13.5px">${esc(d.where || 'To be confirmed')}</b></div>
+      <div style="background:#f5f7fa;border-radius:9px;padding:8px 10px">${lab('Tuition mode')}<b style="font-size:13.5px">${esc(d.where || 'To be confirmed')}</b></div>
       <div style="background:#f5f7fa;border-radius:9px;padding:8px 10px">${lab(only!=null ? 'Subject' : 'Subjects')}<b style="font-size:13.5px">${only!=null ? esc((d.subjects[only]||{}).name || '') : `${subj.length}${totalSess ? ` · ${totalSess} sessions` : ''}`}</b></div>
     </div>
   </div>
@@ -511,7 +513,7 @@ async function cardDecode(code){
   else if(kind!=='j') throw new Error('unknown format');
   return JSON.parse(new TextDecoder().decode(raw));
 }
-const CARD_WHERE = {'At LHQ':'LHQ Centre', 'Online':'Online'};
+const CARD_WHERE = {'At LHQ':'In person', 'In person':'In person', 'Online':'Online', 'Blended':'Blended', 'Home':'Home'};
 function cardFromChecklist(p){
   const d = blankDoc('card');
   d.items = []; d.student = p.n || ''; d.level = p.l || ''; d.school = p.sc || ''; d.exam = p.ex || '';

@@ -231,7 +231,7 @@ window.PROF = (function(){
   const placeText = p => p && p.at ? lst([PLACE[p.type], p.from ? 'from ' + dayMon(p.from) : '', p.inp ? 'in person ' + money(p.inp) : '', p.onl ? 'online ' + money(p.onl) : '']) : '';
   const qualText = q => q && q.at ? lst([(q.L || []).map(x => x.t + (x.ok ? ' ✓' : '')).join(' · '), q.chk ? `checks ${CHK.filter(([k]) => q.chk[k]).length} of ${CHK.length} done` : '']) : '';
   function tutorMine(P, back){
-    selfP = P = P || {}; const nb = P.det && P.det.dob ? nextBday(P.det.dob) : null, L = (k, t, s, ed = true) => ed ? `<button type="button" class="it" data-psec="self|${k}|self"><span class="t"><b>${t}</b><small>${s}</small></span>${st(done(P, k === 'bio' ? 'about' : k))}<span class="chev">✎</span></button>` : `<div class="it"><span class="t"><b>${t}</b><small>${s}</small></span></div>`;
+    selfP = P = P || {}; const nb = P.det && P.det.dob ? nextBday(P.det.dob) : null, L = (k, t, s, ed = true) => ed ? `<button type="button" class="it" data-psec="self|${k}|self"><span class="t"><b>${t}</b><small>${s}</small></span>${st(done(P, k === 'bio' ? 'about' : k))}<span class="chev">›</span></button>` : `<div class="it"><span class="t"><b>${t}</b><small>${s}</small></span></div>`;
     return `${back}<div class="ph"><div class="tt"><h1>My profile</h1><p>LHQ sees everything here</p></div></div>
       <div class="card">${L('det', 'Details', done(P, 'det') ? e(lst([P.det.phone, P.det.area, P.det.en ? 'emergency contact ✓' : '', nb ? 'birthday ' + dayMon(nb.on) : ''])) : notAdded())}
       ${L('bio', 'About me', done(P, 'about') ? e((P.about.bio || '').slice(0, 80)) : notAdded())}

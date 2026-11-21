@@ -613,13 +613,13 @@ body[data-mode=view] .dp-aside{grid-area:aside}
       <div class="intake" id="intakeBox" hidden><b>From the student's checklist</b><p id="intakeText"></p><small>Only you see this. It isn't printed on the card.</small></div>
       <div class="grid2 lm">
         <div class="fld"><span class="lbl">School (optional)</span><button type="button" class="picker-btn" data-pickfield="school" id="btnSchool" aria-haspopup="listbox" aria-expanded="false"><span class="pb-dot"></span><span class="pb-text"></span><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button></div>
-        <label><span>Exam series (optional)</span><input id="f_exam" autocomplete="off" placeholder="e.g. May/June 2027"></label>
+        <label><span>Exam series (optional)</span><select id="f_exam"></select></label>
       </div>
-      <div class="fld"><span class="lbl">Where</span>
-        <div class="chips" id="whereChips" role="group" aria-label="Where" style="flex-wrap:wrap;margin-bottom:6px">
-          <button type="button" data-w="LHQ Centre">LHQ Centre</button><button type="button" data-w="Online">Online</button><button type="button" data-w="Student's home">Student's home</button>
+      <div class="fld"><span class="lbl">Tuition mode</span>
+        <div class="chips" id="whereChips" role="group" aria-label="Tuition mode" style="flex-wrap:wrap;margin-bottom:6px">
+          <button type="button" data-w="In person">In person</button><button type="button" data-w="Online">Online</button><button type="button" data-w="Blended">Blended</button><button type="button" data-w="Home">Home</button>
         </div>
-        <input id="f_where" autocomplete="off" placeholder="Or type the place" aria-label="Where">
+        <input id="f_where" autocomplete="off" placeholder="Other: type it here" aria-label="Tuition mode, other">
       </div>
       <label class="lm"><span>Notes for all tutors (optional)</span><textarea id="f_cardNote" rows="3" placeholder="e.g. Prefers worked examples first. Has a Physics mock on 9 Nov."></textarea></label>
       <p class="hint lm">Only for tutors: the card shows no fees, payments or parent contact details.</p>
@@ -1275,8 +1275,23 @@ function fillPickButtons(){
   setBtnText(F('btnMethod'), doc.method, 'Choose');
   setBtnText(F('btnSchool'), doc.school, 'Choose');
 }
+/* exam series: the next sittings from today, Cambridge (Feb/March, May/June, Oct/Nov) and Checkpoint (April, October) */
+function examSeries(){
+  const t = new Date().toISOString().slice(0, 10), y0 = +t.slice(0, 4), cam = [], chk = [];
+  for(let y = y0; y <= y0 + 2; y++){
+    [['Feb/March', '-03-31'], ['May/June', '-06-30'], ['Oct/Nov', '-11-15']].forEach(([n, end]) => { if(y + end >= t) cam.push(`${n} ${y}`); });
+    [['April', '-05-15'], ['October', '-10-31']].forEach(([n, end]) => { if(y + end >= t) chk.push(`Checkpoint ${n} ${y}`); });
+  }
+  return {cam: cam.slice(0, 6), chk: chk.slice(0, 4)};
+}
+function fillExam(cur){
+  const E = examSeries(), all = E.cam.concat(E.chk), o = v => `<option value="${esc(v)}"${v === cur ? ' selected' : ''}>${esc(v)}</option>`;
+  F('f_exam').innerHTML = `<option value="">Not set</option>${cur && !all.includes(cur) ? o(cur) : ''}<optgroup label="IGCSE · AS & A Level">${E.cam.map(o).join('')}</optgroup><optgroup label="Checkpoint">${E.chk.map(o).join('')}</optgroup>`;
+}
 function fillForm(){
   const T = doc.type;
+  fillExam(doc.exam || '');
+  if(doc.where) doc.where = ({'LHQ Centre':'In person', 'At LHQ':'In person', "Student's home":'Home'})[doc.where] || doc.where;   // older cards' wording
   for(const [id,key] of Object.entries(fieldMap)) F(id).value = doc[key] ?? '';
   document.querySelectorAll('#typeSeg button').forEach(b=>b.classList.toggle('on', b.dataset.t===T));
   document.querySelectorAll('#discSeg button').forEach(b=>b.classList.toggle('on', b.dataset.d===(doc.discType||'pct')));

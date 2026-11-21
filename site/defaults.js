@@ -9,7 +9,7 @@ const DEFAULT_SPEND_CATS = ['Salaries','Rentals','Utilities','Communication','St
 
 /* How families hear about LHQ (students) and where marketing money goes (spending): one list, so they can be matched */
 const DEFAULT_HEARD = ['A friend or family member','Sibling at LHQ','Instagram','Facebook','TikTok','WhatsApp','Google','Their school','Study Smart Session','Flyers or posters','Radio or TV','An event','Other'];
-const FREE_CHANNELS = ['A friend or family member','Sibling at LHQ'];   // word of mouth: no spending behind it
+const FREE_CHANNELS = ['A friend or family member','Sibling at LHQ'];   // word of mouth: no payments behind it
 const DEFAULT_DISTRICTS = ['Lilongwe','Blantyre','Mzuzu','Zomba'];
 
 /* LHQ's financial year: 1 September to 31 August (the month it starts, 1–12) */

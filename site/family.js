@@ -79,6 +79,13 @@ window.FAM = (function(){
     })();
     return loading;
   }
+  /* stay current: on coming back to the app, and every minute while it's on screen (not while something is being filled in) */
+  (() => {
+    const busy = () => (typeof form !== 'undefined' && form) || document.querySelector('#sheet:not([hidden])') || (document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName));
+    const tick = min => { if(document.visibilityState !== 'visible' || !location.hash.startsWith('#me') || !data || busy()) return; if(Date.now() - (data.at || 0) > min) fetchData(); };
+    document.addEventListener('visibilitychange', () => tick(15000));
+    setInterval(() => tick(55000), 60000);
+  })();
   const me = () => (hub.session() || {}).me || {};
   const isParent = () => me().role === 'parent';
   const kids = () => (data && data.kids) || [];
@@ -105,7 +112,11 @@ window.FAM = (function(){
     return `<a class="it" href="#me/subject/${encodeURIComponent(x.k)}"><span class="f-mk ${behind ? 'am' : 'ok'}">${behind ? '!' : '✓'}</span><span class="t"><b>${esc(sub(x.sub))} <span class="f-n">${x.had}/${x.planned || '?'}</span></b>
       <span class="f-bar"><i style="width:${pct}%"></i><b style="left:${mark}%"></b></span>${x.owed ? `<small>${x.owed} owed</small>` : ''}</span><span class="chev">›</span></a>`;
   }
-  const confirmRow = e => `<div class="it"><span class="f-mk am">!</span><span class="t"><b>${esc(sub(e.sub))} · ${day(e.d).split(' ')[0]} ${esc(e.t1 || '')}</b><small>${esc(e.tutor)} · ${Math.max(1, Math.round(e.left / 36e5))} h left to check</small></span>
+  /* what the tutor logged, so it can be checked: 15:00–15:50 · 50 min · Late */
+  const mm = v => { const m = /^(\d{1,2}):(\d{2})/.exec(String(v || '')); return m ? +m[1] * 60 + +m[2] : null; };
+  const logged = e => { const a = mm(e.t1), b = mm(e.t2), n = a != null && b != null && b > a ? b - a : 0;
+    return [e.t1 && e.t2 ? `${esc(e.t1)}–${esc(e.t2)}` : esc(e.t1 || ''), n ? (n >= 60 ? `${Math.floor(n / 60)} h${n % 60 ? ' ' + n % 60 + ' min' : ''}` : n + ' min') : '', e.a && e.a !== 'attended' ? esc(e.a[0].toUpperCase() + e.a.slice(1)) : ''].filter(Boolean).join(' · '); };
+  const confirmRow = e => `<div class="it"><span class="f-mk am">!</span><span class="t"><b>${esc(sub(e.sub))} · ${day(e.d)}</b><small style="white-space:normal"><span style="font-weight:800;color:var(--ink)">${logged(e)}</span> · logged by ${esc(firstN(e.tutor))} · ${Math.max(1, Math.round(e.left / 36e5))} h left to check</small></span>
     <button class="f-ok" data-fcf="yes:${esc(e.id)}" aria-label="Yes, it happened">✓</button><button class="f-no" data-fcf="no:${esc(e.id)}" aria-label="Not right">✕</button></div>`;
   const answerRow = e => `<div class="it" style="flex-wrap:wrap"><span class="f-mk am">!</span><span class="t"><b>${esc(firstN(e.tutor))}: “${esc(e.cf.tutorNote)}”</b><small>${esc(sub(e.sub))} · ${day(e.d)} · kept ${esc(e.t1)}–${esc(e.t2)}</small></span>
     <span class="acts" style="width:100%;margin:8px 0 0 34px"><button class="btn sm n" data-frep="ok:${esc(e.id)}">OK</button><button class="btn sm" data-frep="no:${esc(e.id)}">Still not right</button></span></div>`;
@@ -159,7 +170,7 @@ window.FAM = (function(){
       isParent() ? [] : packOf(k).filter(x => x.doOn === t && !x.done).map(x => `<a class="it" href="#me/practice/pack"><span class="f-mk am">!</span><span class="t"><b>${esc(x.topic)} R${x.stage} today</b><small>${esc(sub(x.sub))} · take-home pack</small></span><span class="chev">›</span></a>`));
     if(window.FUP) FUP.famL(k).filter(f => !f.a && !(f.act === 'take' && f.th) && (f.by === t || f.by === HD.addDays(t, 1) || f.by < t)).forEach(f => need.push(`<button type="button" class="it" data-ffu="${esc(f.id)}"><span class="f-mk ${f.by < t ? 'rd' : 'am'}">!</span><span class="t"><b>${({retest: 'Retest', reteach: 'Reteach', take: 'Take-home sheets'})[f.act]} ${f.by === t ? 'today' : f.by < t ? 'was due ' + day(f.by) : 'tomorrow'}: ${esc(f.tk)}</b><small>${esc(sub(f.sub))}${f.foc ? ' · focus: ' + esc(f.foc) : ''}</small></span><span class="chev">›</span></button>`));
     const pay = isParent() ? owedLine() : '';
-    return `<div class="ph"><div class="tt"><h1>Hi ${esc(firstN(me().name))}</h1><p>${isParent() && kids().length === 1 ? esc(firstN(k.name)) + ' · ' : ''}${day(t)}</p></div>${isParent() ? '' : '<div class="acts"><button class="ib" type="button" data-ffeat aria-label="Your Hub">✎</button></div>'}</div>${kidChips()}
+    return `<div class="ph"><div class="tt"><h1>Hi ${esc(firstN(me().name))}</h1><p>${isParent() && kids().length === 1 ? esc(firstN(k.name)) + ' · ' : ''}${day(t)}</p></div>${isParent() ? '' : `<div class="acts"><button class="ib" type="button" data-ffeat aria-label="Your Hub">${ic('edit', 18)}</button></div>`}</div>${kidChips()}
       ${need.length ? `<div class="h2">Needs you <em>${need.length}</em></div><div class="card" style="border-left:3px solid var(--gold)">${need.join('')}</div>` : ''}${window.PROF ? PROF.famTodo(k, isParent() ? 'parent' : 'student') : ''}
       <div class="h2">Today</div><div class="card">${today.map(sesTell).join('') || '<p class="empty">No sessions today.</p>'}</div>${window.SX && has('cards') ? SX.homeCards(k) : ''}${!full() && !nAdded() ? moreAsk() : ''}
       ${k.changes.length ? `<div class="h2">Changes</div><div class="card">${k.changes.slice(0, 3).map(c => `<div class="it"><span class="f-mk bl">i</span><span class="t"><b>${esc(sub(c.sub))} → ${DAYN[c.to.day]} ${esc(c.to.s)}</b><small>was ${DAYN[c.from.day]} ${esc(c.from.s)}</small></span></div>`).join('')}</div>` : ''}
@@ -253,7 +264,7 @@ window.FAM = (function(){
       ${window.REV ? REV.chart(k, x.sub) : ''}
       <div class="h2">${x.times.map(t => `${DAYN[t.d]} ${t.s}`).join(' · ')}</div>
       ${xi && xi.pace ? EXUI.block(xi, '', true).replace(/^[\s\S]*?(<div class="h2">Syllabus)/, '$1') : xi && xi.papers.length ? EXUI.block(xi, '', true).replace(/^[\s\S]*?(<div class="h2">Exams)/, '$1') : ''}
-      <div class="card">${L.map(e => `<div class="it">${stMark(e)}<span class="t"><b>${day(e.d)}${e.mk ? ' · make-up' : ''}</b><small>${e.a === 'absent' || e.a === 'cancelled' ? '' : esc(e.t1) + '–' + esc(e.t2) + ' · '}${esc(stText(e))}</small></span>${k.canConfirm && e.st === 'waiting' ? `<button class="f-ok" data-fcf="yes:${esc(e.id)}">✓</button><button class="f-no" data-fcf="no:${esc(e.id)}">✕</button>` : ''}</div>`).join('') || '<p class="empty">No sessions logged yet.</p>'}</div>`;
+      <div class="card">${L.map(e => `<div class="it">${stMark(e)}<span class="t"><b>${day(e.d)}${e.mk ? ' · make-up' : ''}</b><small>${e.a === 'absent' || e.a === 'cancelled' ? '' : logged(e) + ' · '}${esc(stText(e))}</small></span>${k.canConfirm && e.st === 'waiting' ? `<button class="f-ok" data-fcf="yes:${esc(e.id)}">✓</button><button class="f-no" data-fcf="no:${esc(e.id)}">✕</button>` : ''}</div>`).join('') || '<p class="empty">No sessions logged yet.</p>'}</div>`;
   }
   function payments(){
     const t = T(), N = window.FDOC ? FDOC.nextPay(kids(), t) : null; if(!N) return '';
@@ -305,7 +316,7 @@ window.FAM = (function(){
     const E = encodeURIComponent, dots = (s, f, v) => `<div class="f-row">${[1, 2, 3, 4, 5].map(n => `<button class="${v === n ? 'on' : ''}" data-fr="${E(s)}|${f}|${n}">${n}</button>`).join('')}</div>`;
     const ses = rep.ses.map(x => { const a = st.ses[x.sub], tn = firstN(x.tutor) || 'Your tutor', cf = k.toConfirm.find(e => e.d === rep.date && e.sub === x.sub);
       return `<div class="f-rs"><div class="hd"><b>${esc(sub(x.sub))}</b><small>${esc(x.s)}–${esc(x.e)} · ${esc(tn)}</small></div>
-        ${cf ? `<div class="f-cfr"><span>Happened as logged?</span><button class="f-ok" data-fcf="yes:${esc(cf.id)}" aria-label="Yes">✓</button><button class="f-no" data-fcf="no:${esc(cf.id)}" aria-label="Not right">✕</button></div>` : ''}
+        ${cf ? `<div class="f-cfr"><span>Happened as logged? <small>${logged(cf)}</small></span><button class="f-ok" data-fcf="yes:${esc(cf.id)}" aria-label="Yes">✓</button><button class="f-no" data-fcf="no:${esc(cf.id)}" aria-label="Not right">✕</button></div>` : ''}
         <div class="f-q"><div class="f-ql">The session</div>${dots(x.sub, 'rate', a.rate)}</div>
         <div class="f-q"><div class="f-ql">${esc(tn)} was prepared</div><div class="f-row">${['Yes','Partly','No'].map(o => `<button class="${a.prep === o ? 'on' : ''}" data-fr="${E(x.sub)}|prep|${o}">${o}</button>`).join('')}</div></div>
         <div class="f-q"><div class="f-ql">How sure you are of today's topic</div>${dots(x.sub, 'conf', a.conf)}</div>
@@ -422,7 +433,7 @@ window.FAM = (function(){
     const t = T(), need = [], info = [];
     kids().forEach(k => {
       const who = kids().length > 1 ? firstN(k.name) + ' · ' : '';
-      k.toConfirm.forEach(e => need.push({t:`${who}${sub(e.sub)} · ${day(e.d).split(' ')[0]} ${e.t1}`, s:'Confirm', href:'#me'}));
+      k.toConfirm.forEach(e => need.push({t:`${who}${sub(e.sub)} · ${day(e.d).split(' ')[0]} ${e.t1}–${e.t2}`, s:'Confirm', href:'#me'}));
       k.answers.forEach(e => need.push({t:`${who}${firstN(e.tutor)} answered`, s:`${sub(e.sub)} · ${day(e.d)}`, href:'#me'}));
       if(repDue(k)) need.push({t:"Today's report", s: k.report.ses.map(x => sub(x.sub)).join(', ') + ' · 2 min', href:'#me/report'});
       if(!isParent()) k.sras.filter(x => x.due === t || x.status === 'late').forEach(x => need.push({t:`${x.topic} ${x.stage ? 'R' + x.stage : 'LD'}`, s:'Hand in ' + (x.due === t ? 'today' : 'late'), href:'#me/practice'}));

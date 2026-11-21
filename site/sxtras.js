@@ -75,7 +75,7 @@ window.SX = (function(){
       cons: `<span class="h">SRAs on their day</span><div style="display:flex;align-items:baseline;gap:8px"><span class="v">${C.n ? Math.round(C.on / C.n * 100) + '%' : '–'}</span><small>${C.on} of ${C.n} · 4 weeks</small></div>${consGrid(C)}`,
       count: (C => `<span class="h">Countdowns</span>${C.slice(0, 3).map(c => `<span style="display:flex;justify-content:space-between;gap:6px;align-items:baseline"><small style="color:var(--ink);font-weight:700;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(c.n)}</small><b style="color:var(--brand)">${c.days}<small> d</small></b></span>`).join('') || '<small>No dates yet</small>'}`)(window.SPLAN ? SPLAN.countdowns(k) : []),
       ftime: `<span class="h">Focus time</span><span class="v">${hmin(fm)}</span><small>this week${fl || fm ? ` · ${fm >= fl ? '▲' : '▼'} ${hmin(Math.abs(fm - fl))}` : ''}</small>`};
-    return `<div style="display:flex;justify-content:space-between;align-items:center;margin:16px 2px 8px"><b style="font-size:12px;letter-spacing:.06em;color:var(--muted)">YOUR CARDS</b><button class="ib" data-sxpick aria-label="Choose cards">✎</button></div>
+    return `<div style="display:flex;justify-content:space-between;align-items:center;margin:16px 2px 8px"><b style="font-size:12px;letter-spacing:.06em;color:var(--muted)">YOUR CARDS</b><button class="ib" data-sxpick aria-label="Choose cards">${ic('edit', 18)}</button></div>
       <div class="sx-pc">${CARDS.filter(c => on.includes(c[0])).map(([id]) => `<button class="${id === 'cons' ? 'wide' : ''}" data-sxd="${id}">${html[id]}</button>`).join('')}</div>`;
   }
   function drill(id, k){

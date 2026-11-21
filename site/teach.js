@@ -101,6 +101,13 @@ window.TUT = (function(){
     })();
     return loading;
   }
+  /* stay current: on coming back to the app, and every minute while it's on screen (not while something is being filled in) */
+  (() => {
+    const busy = () => (typeof form !== 'undefined' && form) || document.querySelector('#sheet:not([hidden])') || (document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName));
+    const tick = min => { if(document.visibilityState !== 'visible' || !location.hash.startsWith('#teach') || !data || busy()) return; if(Date.now() - (data.at || 0) > min) fetchData(); };
+    document.addEventListener('visibilitychange', () => tick(15000));
+    setInterval(() => tick(55000), 60000);
+  })();
   async function flush(){
     const q = read(QK, []); if(!q.length) return;
     try{
@@ -227,7 +234,7 @@ window.TUT = (function(){
       const G = E.filter(x => x.ty === 's' && (x.grp || x.id) === g), c = Math.min(...G.map(x => x.c || x.at || 0)), at = Math.max(...G.map(x => x.at || 0));
       const cls = e.cls && (data.classes || []).find(x => x.id === e.cls);
       out.push({kind:'s', id:g, c, at, ic:'S', col:'bl', b:`${cls ? cls.name : G.map(x => short(x.st)).join(', ')} · ${e.sub}`, s:[e.t1 ? `${e.t1}–${e.t2 || ''}` : '', FMTL[e.fmt] || '', G.some(x => !taught(x.a)) ? G.map(x => taught(x.a) ? '' : short(x.st) + ' ' + ATTL[x.a].toLowerCase()).filter(Boolean).join(', ') : '', (e.tp || []).map(t => t + ((e.fin || []).includes(t) ? ' (finished)' : '')).join(', '), cfText(G)].filter(Boolean).join(' · ')}); });
-    E.filter(e => e.ty === 'r' && e.v === 2 && e.d === d).forEach(e => out.push({kind:'r', id:e.id, c:e.c || e.at, at:e.at, ic:'R', col:'ok', b:`${short(e.st)} · SRA ${e.h === 'm' ? 'not handed in' : 'marks ' + (e.sc != null && e.sc !== '' ? e.sc + '/' + e.mx : '')}`, s:`${e.tk} · ${SRA.label(e.rv)}${e.man ? ' · not in the tracker' : ''}`}));
+    E.filter(e => e.ty === 'r' && e.v === 2 && e.d === d).forEach(e => out.push({kind:'r', id:e.id, c:e.c || e.at, at:e.at, ic:'R', col:'ok', b:`${short(e.st)} · SRA ${e.h === 'm' ? 'not handed in' : 'marks ' + (e.sc != null && e.sc !== '' ? e.sc + '/' + e.mx : '') + (e.na ? ' · no ARS' : +e.ao > 0 && e.ars != null && e.ars !== '' ? ` · ARS ${half(e.ars)}/${e.ao}` : '')}`, s:`${e.tk} · ${SRA.label(e.rv)}${e.man ? ' · not in the tracker' : ''}`}));
     const W = E.filter(e => e.ty === 'w' && (e.md === d || (e.d === d && !e.grp))); const ws = new Set();
     W.forEach(e => { const g = e.wid || e.id; if(ws.has(g)) return; ws.add(g); const G = W.filter(x => (x.wid || x.id) === g), done = G.some(x => x.sc != null && x.sc !== '' || x.abs);
       if(!done) return; out.push({kind:'w', id:g, c:Math.min(...G.map(x => x.mc || x.c || x.at || 0)), at:Math.max(...G.map(x => x.at || 0)), ic:'A', col:'am', b:`${G.length > 1 ? G.map(x => short(x.st)).join(', ') : short(e.st)} · weekly assessment marks`, s:`${(e.tp || []).join(', ') || e.sub} · out of ${e.mx || '?'}`}); });

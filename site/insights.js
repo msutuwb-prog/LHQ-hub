@@ -8,7 +8,7 @@
                    their amounts; the invoice gives the level, the tuition card the tutor and where, the student's
                    record the school, area, district and how they heard about LHQ.
      sessions      tutors' session logs (only what tutors have logged is counted).
-     spending      Business › Spending; other money in from Record money in. */
+     payments      Business › Payments; other money in from Record money in. */
 window.INS = (function(){
   const ym = iso => String(iso || '').slice(0, 7);
   const B = () => window.BIZ;
@@ -26,7 +26,7 @@ window.INS = (function(){
     if(/\bIB\b/i.test(l)) return 'IB'; if(/IELTS/i.test(l)) return 'IELTS'; if(/\bSAT\b/i.test(l)) return 'SAT'; if(/college/i.test(l)) return 'College';
     if(/A Level|AS Level/i.test(l) || y >= 12) return 'AS & A Level'; if(/IGCSE/i.test(l) || y === 10 || y === 11) return 'IGCSE';
     if(y >= 7 && y <= 9) return 'Lower Secondary (Years 7–9)'; if(y >= 1 && y <= 6) return 'Primary (Years 1–6)'; return 'Other'; };
-  const modeOf = w => !w ? 'Not set' : /online/i.test(w) ? 'Online' : /home/i.test(w) ? 'At home' : 'At LHQ';
+  const modeOf = w => !w ? 'Not set' : /blend/i.test(w) ? 'Blended' : /online/i.test(w) ? 'Online' : /home/i.test(w) ? 'At home' : 'At LHQ';
   const minsOf = v => { const s = String(v || ''); const n = parseFloat(s) || 1; return /min/i.test(s) ? n : n * 60; };
   const UP = s => String(s || '').trim().toUpperCase();
 
@@ -125,20 +125,20 @@ window.INS = (function(){
     const catUp = sortObj(Object.fromEntries(Object.keys(f.byCat).map(c => [c, f.byCat[c] - (prev.byCat[c] || 0)])))[0];
     return `<div class="kpis">
       ${kpi('Money in' + (live ? ' so far' : ''), mkShort(f.revenue), cmp(f.revenue, prev.revenue, ly && ly.revenue), '#biz/money/' + period)}
-      ${kpi('Spending' + (live ? ' so far' : ''), mkShort(f.exp), cmp(f.exp, prev.exp, ly && ly.exp, -1), '#biz/spending/' + period)}
+      ${kpi('Payments' + (live ? ' so far' : ''), mkShort(f.exp), cmp(f.exp, prev.exp, ly && ly.exp, -1), '#biz/spending/' + period)}
       ${kpi('Profit' + (live ? ' so far' : ''), (f.profit < 0 ? '−' : '') + mkShort(Math.abs(f.profit)), `${f.revenue ? pc(f.profit, f.revenue) + '% margin · ' : ''}${arrow(chg(f.profit, prev.profit))}`, '#biz/pl/' + period)}
       ${kpi('New students', String(R.newStu), `${R.active} in a tuition period now`, '#biz/marketing/' + period)}</div>
-    <div class="card pad"><div class="cap">Money in and spending, last 12 months</div>${lineChart(lastMonths(endOf(period), 12).map(m => b.monShort(m)), [
+    <div class="card pad"><div class="cap">Money in and payments, last 12 months</div>${lineChart(lastMonths(endOf(period), 12).map(m => b.monShort(m)), [
       {name:'Money in', col:'var(--inc)', vals: lastMonths(endOf(period), 12).map(m => b.figures([m]).revenue)},
-      {name:'Spending', col:'var(--exp)', vals: lastMonths(endOf(period), 12).map(m => b.figures([m]).exp)},
-      {name:'Profit', col:'#2c7a4b', vals: lastMonths(endOf(period), 12).map(m => b.figures([m]).profit)}], {label:'Money in, spending and profit'})}</div>
+      {name:'Payments', col:'var(--exp)', vals: lastMonths(endOf(period), 12).map(m => b.figures([m]).exp)},
+      {name:'Profit', col:'#2c7a4b', vals: lastMonths(endOf(period), 12).map(m => b.figures([m]).profit)}], {label:'Money in, payments and profit'})}</div>
     <div class="ins-grid">
       <a class="card pad ins-tile" href="#biz/money/${period}"><div class="cap">Biggest programme</div><b>${top ? esc(top[0]) : '–'}</b><span>${top ? `${mkShort(top[1])} · ${pc(top[1], f.inc)}% of tuition` : 'No payments yet'}</span></a>
       <a class="card pad ins-tile" href="#biz/money/${period}"><div class="cap">Fastest growing subject</div><b>${growing ? esc(growing[0]) : '–'}</b><span>${growing ? `▲ ${growing[1]}% vs ${prevWord(period)}` : 'Not enough to compare'}</span></a>
       <a class="card pad ins-tile" href="#biz/pipeline/${period}"><div class="cap">Quotes that became invoices</div><b>${P.quoted.n ? pc(P.conv.n, P.quoted.n) + '%' : '–'}</b><span>${P.conv.n} of ${P.quoted.n} · ${P.waiting.length} waiting now</span></a>
       <a class="card pad ins-tile" href="#biz/sessions/${period}"><div class="cap">Sessions taught</div><b>${Sx.taught}</b><span>${Math.round(Sx.hours)} hours · ${Sx.owed} make-up${Sx.owed === 1 ? '' : 's'} owed now</span></a>
       <a class="card pad ins-tile" href="#biz/marketing/${period}"><div class="cap">Best marketing channel</div><b>${R.bestChan ? esc(R.bestChan.k) : '–'}</b><span>${R.bestChan ? `${R.bestChan.ret.toFixed(1)}× its cost returned` : 'Record marketing channels to see this'}</span></a>
-      <a class="card pad ins-tile" href="#biz/cat/${period}/${encodeURIComponent(catUp ? catUp[0] : '')}"><div class="cap">Biggest spending rise</div><b>${catUp && catUp[1] > 0 ? esc(catUp[0]) : '–'}</b><span>${catUp && catUp[1] > 0 ? `+${mkShort(catUp[1])} vs ${prevWord(period)}` : 'Nothing went up'}</span></a>
+      <a class="card pad ins-tile" href="#biz/cat/${period}/${encodeURIComponent(catUp ? catUp[0] : '')}"><div class="cap">Biggest rise in payments</div><b>${catUp && catUp[1] > 0 ? esc(catUp[0]) : '–'}</b><span>${catUp && catUp[1] > 0 ? `+${mkShort(catUp[1])} vs ${prevWord(period)}` : 'Nothing went up'}</span></a>
     </div>
     <div class="h2">Students and payments</div>
     <div class="card pad"><div class="ins-facts">
@@ -343,8 +343,8 @@ window.INS = (function(){
       ${kpi('Missed', String(S.missS + S.missT), `${S.missS} student absent · ${S.missT} tutor couldn't teach`)}
       ${kpi('Make-ups owed now', String(S.owed), `worth about ${mkShort(S.owed * rate)}`)}
       ${kpi('Money lost', mkShort(f.refunds), 'refunds in this period', f.refunds ? `#biz/cat/${period}/Refunds` : '')}</div>
-    <div class="card pad"><div class="cap">Online and in person</div><div class="ins-facts">
-      ${['At LHQ', 'Online', 'At home'].map(m => `<div><small style="font-weight:800;color:var(--ink)">${m}</small><b>${byMode[m] || 0} <small>sessions</small></b><small>${Math.round(hrsMode[m] || 0)} hours<br>${modeStu[m] || 0} student${modeStu[m] === 1 ? '' : 's'} now<br>${mkShort(modeMoney[m] || 0)} paid</small></div>`).join('')}</div></div>
+    <div class="card pad"><div class="cap">Tuition mode</div><div class="ins-facts">
+      ${['At LHQ', 'Online', 'Blended', 'At home'].filter((m, i) => i !== 2 || byMode[m] || modeStu[m]).map(m => `<div><small style="font-weight:800;color:var(--ink)">${m}</small><b>${byMode[m] || 0} <small>sessions</small></b><small>${Math.round(hrsMode[m] || 0)} hours<br>${modeStu[m] || 0} student${modeStu[m] === 1 ? '' : 's'} now<br>${mkShort(modeMoney[m] || 0)} paid</small></div>`).join('')}</div></div>
     <div class="card pad"><div class="cap">Tutors · ${b.periodLabel(period)}</div>
       ${shareRows(Object.values(tut).sort((a, c) => c.h - a.h).map(x => ({k: x.k, v: x.h, extra: `${x.n} sessions · about ${(x.h / weeks).toFixed(1)} h a week${x.miss ? ` · ${x.miss} not taught` : ''}`})), 0, {fmt: v => Math.round(v) + ' h'})}</div>
     ${owedList.length ? `<div class="card pad"><div class="cap">Make-ups owed now · most first</div>${owedList.sort((a, c) => sum(c.m, x => x.owed) - sum(a.m, x => x.owed)).slice(0, insAll ? 999 : 8).map(({c, m}) => `<a class="it" href="doc.html#d=${c.id}"><span class="t"><b>${esc(c.student)}</b><small>${m.map(x => `${esc(x.sub)}: ${x.owed}${x.tutor ? ' (' + esc(first(x.tutor)) + ')' : ''}`).join(' · ')}</small></span><span class="chev">${ic('chev',16,2)}</span></a>`).join('')}${owedList.length > 8 && !insAll ? `<button class="btn sm" data-insall style="margin-top:8px">Show all ${owedList.length}</button>` : ''}</div>` : ''}
@@ -374,14 +374,14 @@ window.INS = (function(){
     const M = lastMonths(endOf(period), 12);
     return `<div class="kpis">
       ${(() => { const d0 = today().slice(8), pExp = live ? sum(p.list.filter(e => !b.NOT_COST.includes(e.cat) && String(e.date || '').slice(8) <= d0), e => window.FX ? FX.adj(num(e.amount), e.date) : num(e.amount)) : p.exp;   /* a month still going: against the same days of the month before, like Money in */
-        return kpi('Spending' + (live ? ' so far' : ''), mkShort(f.exp), `${arrow(chg(f.exp, pExp), -1)} vs ${live ? `1–${+d0} ` : ''}${b.periodLabel(pp)}${part} (${mkShort(pExp)})`); })()}
-      ${kpi('Spending ÷ money in', f.revenue ? pc(f.exp, f.revenue) + '%' : '–', 'of every kwacha that came in')}
+        return kpi('Payments' + (live ? ' so far' : ''), mkShort(f.exp), `${arrow(chg(f.exp, pExp), -1)} vs ${live ? `1–${+d0} ` : ''}${b.periodLabel(pp)}${part} (${mkShort(pExp)})`); })()}
+      ${kpi('Payments ÷ money in', f.revenue ? pc(f.exp, f.revenue) + '%' : '–', 'of every kwacha that came in')}
       ${kpi('Cost per student', active ? mkShort(f.exp / active) : '–', `${active} students in a period`)}
       ${fc || kpi('Biggest category', cats.length ? esc(sortObj(f.byCat)[0] ? sortObj(f.byCat)[0][0] : '–') : '–', sortObj(f.byCat)[0] ? mkShort(sortObj(f.byCat)[0][1]) : '')}</div>
     <div class="card pad"><div class="cap">Compared with ${b.periodLabel(pp)}${part} · biggest rises first</div>
-      ${cats.map(x => `<a class="ins-cmp" href="#biz/cat/${period}/${encodeURIComponent(x.c)}"><b>${esc(x.c)}</b><span>${mkShort(x.now)}</span><span class="fl">${mkShort(x.before)}</span><span class="${x.d > 0 ? 'dn' : x.d < 0 ? 'up' : 'fl'}">${x.d > 0 ? '▲ +' : x.d < 0 ? '▼ −' : ''}${x.d ? mkShort(Math.abs(x.d)) : 'same'}</span></a>`).join('') || '<p class="empty" style="margin:0">No spending yet.</p>'}
+      ${cats.map(x => `<a class="ins-cmp" href="#biz/cat/${period}/${encodeURIComponent(x.c)}"><b>${esc(x.c)}</b><span>${mkShort(x.now)}</span><span class="fl">${mkShort(x.before)}</span><span class="${x.d > 0 ? 'dn' : x.d < 0 ? 'up' : 'fl'}">${x.d > 0 ? '▲ +' : x.d < 0 ? '▼ −' : ''}${x.d ? mkShort(Math.abs(x.d)) : 'same'}</span></a>`).join('') || '<p class="empty" style="margin:0">No payments yet.</p>'}
       <p class="note">Tap a category to see 12 months of it.</p></div>
-    <div class="card pad"><div class="cap">Spending, last 12 months</div>${lineChart(M.map(m => b.monShort(m)), sortObj(groupSum(b.spendLive().filter(e => M.includes(ym(e.date)) && !b.NOT_COST.includes(e.cat)), e => e.cat, e => num(e.amount))).slice(0, 5).map(([c], i) => ({name: c, col: COLORS[i], vals: M.map(m => b.figures([m]).byCat[c] || 0)})), {bars: true, label: 'Top spending categories by month'})}</div>`;
+    <div class="card pad"><div class="cap">Payments, last 12 months</div>${lineChart(M.map(m => b.monShort(m)), sortObj(groupSum(b.spendLive().filter(e => M.includes(ym(e.date)) && !b.NOT_COST.includes(e.cat)), e => e.cat, e => num(e.amount))).slice(0, 5).map(([c], i) => ({name: c, col: COLORS[i], vals: M.map(m => b.figures([m]).byCat[c] || 0)})), {bars: true, label: 'Top payment categories by month'})}</div>`;
   }
   /* a spending category's own page */
   function category(period, cat){
@@ -415,16 +415,16 @@ window.INS = (function(){
     const recorded = R.newTotal ? pc(R.newTotal - (R.none ? R.none.n : 0), R.newTotal) : 100;
     return `<div class="kpis">${kpi('Marketing spend', mkShort(R.totalSpend), b.periodLabel(period), `#biz/cat/${period}/Marketing`)}${kpi('New students', String(R.newTotal), `${recorded}% say how they heard`, '#students/new')}
       ${kpi('Cost per new student', R.newTotal && R.totalSpend ? mkShort(R.totalSpend / Math.max(1, R.newTotal - sum(R.free, x => x.n))) : '–', 'paid channels')}${kpi('From word of mouth', String(sum(R.free, x => x.n)), 'friends, family, siblings · no cost')}</div>
-    <div class="card pad"><div class="cap">Paid channels · ${b.periodLabel(period)}</div>${R.paid.sort((a, c) => c.ret - a.ret || c.n - a.n).map(line).join('') || '<p class="empty" style="margin:0">Record marketing spending with a channel, and students\' "how they heard", to see this.</p>'}</div>
+    <div class="card pad"><div class="cap">Paid channels · ${b.periodLabel(period)}</div>${R.paid.sort((a, c) => c.ret - a.ret || c.n - a.n).map(line).join('') || '<p class="empty" style="margin:0">Record marketing payments with a channel, and students\' "how they heard", to see this.</p>'}</div>
     <div class="card pad"><div class="cap">Word of mouth</div>${R.free.map(line).join('') || '<p class="empty" style="margin:0">No new students from friends or siblings in this period.</p>'}</div>
-    ${R.nochan ? `<div class="card pad"><div class="cap">Marketing spending with no channel</div><p class="note" style="margin:0">${mk(R.nochan.spend)} of marketing spending in this period doesn't say which channel it was for, so it can't be matched to students. Tap it in Spending to add the channel.</p></div>` : ''}
+    ${R.nochan ? `<div class="card pad"><div class="cap">Marketing payments with no channel</div><p class="note" style="margin:0">${mk(R.nochan.spend)} of marketing payments in this period doesn't say which channel it was for, so it can't be matched to students. Tap it in Payments to add the channel.</p></div>` : ''}
     ${R.none ? `<div class="card pad"><div class="cap">Not recorded</div>${line(R.none)}<p class="note">Students without "how they heard" (now required).</p></div>` : ''}
     <p class="note">Return = what the new students from a channel have paid so far ÷ what the channel cost in this period. "Renew" = of all students from that channel whose period has ended, how many continued.</p>`;
   }
 
   /* ---------- Charts: one builder for everything ---------- */
   const CK = 'lhq_chart', CS = 'lhq_charts';
-  const MEAS = {in: ['Money in (tuition)', DIMS.map(d => d[0])], spend: ['Spending', ['cat']], profit: ['Profit', []], enrol: ['New students', ['prog','level','school','area','district','source']], active: ['Students in a period', ['prog','level','school','area','district','mode']], sess: ['Sessions taught', ['tutor','mode','sub']]};
+  const MEAS = {in: ['Money in (tuition)', DIMS.map(d => d[0])], spend: ['Payments', ['cat']], profit: ['Profit', []], enrol: ['New students', ['prog','level','school','area','district','source']], active: ['Students in a period', ['prog','level','school','area','district','mode']], sess: ['Sessions taught', ['tutor','mode','sub']]};
   const getC = () => { try{ return Object.assign({m: 'in', s: 'prog', inc: [], over: 'm', n: 12}, JSON.parse(localStorage.getItem(CK) || '{}')); }catch(e){ return {m: 'in', s: 'prog', inc: [], over: 'm', n: 12}; } };
   const setC = c => { try{ localStorage.setItem(CK, JSON.stringify(c)); }catch(e){} };
   function chartData(c){
@@ -455,7 +455,7 @@ window.INS = (function(){
     const sel = (id, opts, v) => `<select class="in" id="${id}">${opts.map(([k, l]) => `<option value="${k}" ${k === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
     return `<div class="card pad ins-cb"><div class="r3">
       <label class="f"><span>Show</span>${sel('chM', Object.entries(MEAS).map(([k, v]) => [k, v[0]]), c.m)}</label>
-      <label class="f"><span>Split by</span>${splits.length ? sel('chS', splits.map(k => [k, k === 'cat' ? 'Spending category' : DIM[k]]), c.s) : '<select class="in" disabled><option>Nothing to split</option></select>'}</label>
+      <label class="f"><span>Split by</span>${splits.length ? sel('chS', splits.map(k => [k, k === 'cat' ? 'Payment category' : DIM[k]]), c.s) : '<select class="in" disabled><option>Nothing to split</option></select>'}</label>
       <label class="f"><span>Over</span>${sel('chO', [['m','Months'],['q','Quarters'],['y','Financial years']], c.over)}</label></div>
       <div class="r2"><label class="f"><span>Period</span>${sel('chN', [[6,'Last 6 months'],[12,'Last 12 months'],[24,'Last 2 years'],[36,'Last 3 years']].map(([k, l]) => [String(k), l]), String(c.n))}</label>
       <div class="f"><span style="display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:5px">Saved views</span><div class="acts">${saves.map((s, i) => `<button class="chip" data-chload="${i}">${esc(s.name)}</button>`).join('')}<button class="chip" id="chSave">+ Save this view</button>${window.PC ? '<button class="chip" id="chPin">Pin as a card on Business</button>' : ''}</div></div></div>
@@ -478,7 +478,7 @@ window.INS = (function(){
     const rows = P.list.map(pt => { const per = f.revenue * pt.p / 100, sp = spentIn(pt, ms), bal = inAll * pt.p / 100 - spentIn(pt, allMs);
       return `<div class="bz-bud" style="border-top:1px solid var(--line2)"><div class="h"><b>${esc(pt.n)} <small style="font-weight:600;color:var(--muted)">${pt.p}%</small></b><span>${mkShort(sp)} spent of ${mkShort(per)} · <b style="color:${bal < 0 ? 'var(--rd)' : 'var(--ok)'}">${bal < 0 ? '−' : ''}${mkShort(Math.abs(bal))} left</b></span></div>
         <div class="track"><i style="width:${per ? Math.min(100, sp / per * 100) : 0}%;background:${sp > per ? 'var(--rd)' : sp > per * .8 ? 'var(--gold)' : 'var(--ok)'}"></i></div>
-        <div class="m" style="font-size:12px;color:var(--muted);margin-top:4px">${(pt.cats || []).length ? 'Pays for: ' + esc(pt.cats.join(', ')) : 'Kept aside: nothing is paid from it'}${bal < 0 ? ' · <b style="color:var(--rd)">spending is ahead of what this allocation has received</b>' : ''}</div></div>`; }).join('');
+        <div class="m" style="font-size:12px;color:var(--muted);margin-top:4px">${(pt.cats || []).length ? 'Pays for: ' + esc(pt.cats.join(', ')) : 'Kept aside: nothing is paid from it'}${bal < 0 ? ' · <b style="color:var(--rd)">payments are ahead of what this allocation has received</b>' : ''}</div></div>`; }).join('');
     const unmapped = Object.keys(f.byCat).filter(c => !P.list.some(pt => (pt.cats || []).includes(c)));
     return `<div class="h2">Allocations <em>since ${b.monthName(since)}</em></div>
     <div class="card pad"><p class="note" style="margin:0 0 6px">Money in for ${b.periodLabel(period)}: ${mk(f.revenue)}, split by percentage. "Left" counts everything since the allocations started.</p>${rows}
@@ -506,7 +506,7 @@ window.INS = (function(){
         list.forEach(x => { x.cats = x.cats.filter(y => y !== c); }); if(!el.classList.contains('on')) pt.cats.push(c); draw(); });
     };
     openSheet(`<div class="hx"><h3>Allocations</h3><button class="ib" data-close>✕</button></div>
-      <p class="sp">Each allocation gets a share of every kwacha that comes in. Tap the spending categories each allocation pays for (a category belongs to one allocation). Allocations with no categories are kept aside, like tax and profit.</p>
+      <p class="sp">Each allocation gets a share of every kwacha that comes in. Tap the payment categories each allocation pays for (a category belongs to one allocation). Allocations with no categories are kept aside, like tax and profit.</p>
       <div class="note" style="margin:0 0 10px">Last 6 months: money in ${mk(inc6)}. ${inc6 ? 'What each category actually took: ' + esc(sortObj(f6.byCat).slice(0, 6).map(([c, v]) => `${c} ${pc(v, inc6)}%`).join(', ')) + '.' : ''}</div>
       <button class="btn sm" id="potSug">Suggest percentages from the last 6 months</button>
       <div id="potRows" style="margin-top:10px"></div>

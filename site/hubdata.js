@@ -123,6 +123,8 @@
       s.openQuote = quotes.find(q => !s.cur || (q.date || '') >= (s.cur.inv.date || '')) || null;
       s.lastCard = D.find(d => d.type === 'card') || null;
       if(!s.cur) s.loneCard = s.lastCard;
+      /* the card in force: the one tied to this period's invoice, else the card running today, else the latest */
+      { const t = today(); s.card = (s.cur && s.cur.card) || D.find(d => d.type === 'card' && (d.periodStart || '') <= t && (d.periodEnd || '9999') >= t) || s.lastCard || null; }
       s.status = stuStatus(s);
       return s;
     }).sort((a, b) => a.name.localeCompare(b.name));

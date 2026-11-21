@@ -47,7 +47,7 @@ window.STV = (function(){
     document.querySelectorAll('[data-stvh]').forEach(b => b.onclick = () => { const id = b.dataset.stvh, a = LAST.A[id], l = SX.HAB.find(x => x[0] === id)[1];
       SX.sheet(`${l}${id === 'ass' ? ` · ${a.n}` : a.n ? ` · ${a.k} of ${a.n}` : ''}`, LAST.r.l, '', a.rows.slice().reverse().map(x => SX.row(esc(x[0]), x[1], esc(x[2]), x[3])).join('')); });
     document.querySelectorAll('[data-stvd]').forEach(b => b.onclick = () => { const d = b.dataset.stvd;
-      if(d.startsWith('lean|')){ const f = d.split('|')[1]; SX.sheet(f === 'focus' ? 'Focus' : 'Study planned', `${esc((k.name || '').split(' ')[0])} isn't using this`, `${esc((k.name || '').split(' ')[0])} uses ${viewL(k)}. It counts from the day ${f === 'focus' ? 'the Focus timer' : 'Plan my day'} is added (✎ on Home).`, ''); return; }
+      if(d.startsWith('lean|')){ const f = d.split('|')[1]; SX.sheet(f === 'focus' ? 'Focus' : 'Study planned', `${esc((k.name || '').split(' ')[0])} isn't using this`, `${esc((k.name || '').split(' ')[0])} uses ${viewL(k)}. It counts from the day ${f === 'focus' ? 'the Focus timer' : 'Plan my day'} is added (the pencil on Home).`, ''); return; }
       if(d === 'fu'){ openSheet(`<div class="hx"><h3>Follow-ups</h3><button class="ib" data-close>✕</button></div>${FUP.famCard(k)}`); FUP.famBind(k); return; }
       if(d === 'school'){ SX.sheet(`School results · ${(k.school || []).length}`, 'Added by the student · LHQ checks', '', (k.school || []).slice().sort((a, b) => (b.at || 0) - (a.at || 0)).map(x => SX.row(esc(`${x.term || ''} · ${x.sub || ''}`), x.ok ? 'LHQ checked' : 'LHQ checks', esc(x.pc != null && x.pc !== '' ? x.pc + '%' : x.gr || ''), x.ok ? '' : 'y')).join('')); return; }
       SX.drill(d, k); });

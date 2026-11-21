@@ -4,7 +4,7 @@
    Shown as a page at #perf, downloaded as an A4 PDF. Uses BIZ, INS and HD, and index.html's helpers. */
 window.PERF = (function(){
   const KEY = 'lhq_perf';   // + '_' + kind for the other reports
-  const SECTIONS = [['summary','One-page summary'],['trend','12-month trend'],['money','Money in, explained'],['spending','Spending'],['pl','Profit & loss'],
+  const SECTIONS = [['summary','One-page summary'],['trend','12-month trend'],['money','Money in, explained'],['spending','Payments'],['pl','Profit & loss'],
     ['pipeline','Quotes and conversion'],['sessions','Sessions and tutors'],['students','Students and renewals'],['marketing','Marketing return'],['other','Other money in and loans'],['pots','Allocations']];
   const AUD = {
     director: {n: 'Director', s: SECTIONS.map(x => x[0]), anon: false, money: true},
@@ -107,13 +107,13 @@ window.PERF = (function(){
         const d = chg(f.revenue, p.revenue); if(d != null) hi.push(`Money in was ${Ms(f.revenue)}, ${d >= 0 ? 'up' : 'down'} ${Math.abs(d)}% on the period before${l.revenue ? ` and ${f.revenue >= l.revenue ? 'up' : 'down'} ${Math.abs(chg(f.revenue, l.revenue))}% on the same dates last year` : ''}.`);
         if(f.revenue) hi.push(`Profit was ${Ms(f.profit)}, a ${pc(f.profit, f.revenue)}% margin.`);
         if(prog) hi.push(`${esc(prog[0])} brought in the most: ${Ms(prog[1])}, ${pc(prog[1], f.tuition)}% of tuition.`);
-        const up = srt(Object.fromEntries(Object.keys(f.byCat).map(k => [k, f.byCat[k] - (p.byCat[k] || 0)])))[0]; if(up && up[1] > 0) hi.push(`${esc(up[0])} spending rose the most, by ${Ms(up[1])}.`);
+        const up = srt(Object.fromEntries(Object.keys(f.byCat).map(k => [k, f.byCat[k] - (p.byCat[k] || 0)])))[0]; if(up && up[1] > 0) hi.push(`${esc(up[0])} payments rose the most, by ${Ms(up[1])}.`);
       }
       hi.push(`${f.newS.length} new student${f.newS.length === 1 ? '' : 's'} joined; ${f.active} ${f.active === 1 ? 'was' : 'were'} in a tuition period at the end.`);
       if(f.quotes.length) hi.push(`${pc(f.conv.length, f.quotes.length)}% of quotes became invoices (${f.conv.length} of ${f.quotes.length}).`);
       if(f.ended.length) hi.push(`${pc(f.renewed, f.ended.length)}% of tuition periods that ended were renewed.`);
       hi.push(`Tutors logged ${f.taught} sessions (${Math.round(f.hours)} hours); ${f.missS + f.missT} were missed.`);
-      out.push(sec('Summary', `<div class="pf-ks">${money ? kp('Money in', Ms(f.revenue), cmp(f.revenue, p.revenue, l.revenue)) + kp('Spending', Ms(f.exp), cmp(f.exp, p.exp, l.exp, -1)) + kp('Profit', Ms(f.profit), `${f.revenue ? pc(f.profit, f.revenue) + '% margin · ' : ''}${ar(chg(f.profit, p.profit))} vs before`) : ''}
+      out.push(sec('Summary', `<div class="pf-ks">${money ? kp('Money in', Ms(f.revenue), cmp(f.revenue, p.revenue, l.revenue)) + kp('Payments', Ms(f.exp), cmp(f.exp, p.exp, l.exp, -1)) + kp('Profit', Ms(f.profit), `${f.revenue ? pc(f.profit, f.revenue) + '% margin · ' : ''}${ar(chg(f.profit, p.profit))} vs before`) : ''}
         ${kp('New students', f.newS.length, cmp(f.newS.length, p.newS.length, l.newS.length))}${kp('Students in a period', f.active, `${ar(chg(f.active, p.active))} vs before`)}
         ${kp('Quotes → invoices', f.quotes.length ? pc(f.conv.length, f.quotes.length) + '%' : '–', `${f.conv.length} of ${f.quotes.length}`)}${kp('Sessions taught', f.taught, `${Math.round(f.hours)} h · ${ar(chg(f.taught, p.taught))} vs before`)}
         ${kp('Renewals', f.ended.length ? pc(f.renewed, f.ended.length) + '%' : '–', `${f.renewed} of ${f.ended.length} periods that ended`)}${money ? '' : kp('Make-ups owed now', INS.sessFigures([b.thisMonth()]).owed, '')}</div>
@@ -122,7 +122,7 @@ window.PERF = (function(){
     }
     if(has('trend')){
       const end = R.to.slice(0, 7), Ms12 = Array.from({length: 12}, (_, i) => b.addMonth(end, i - 11)), fg = Ms12.map(m => b.figures([m]));
-      const series = money ? [{name: 'Money in', col: '#073763', vals: fg.map(x => x.revenue)}, {name: 'Spending', col: '#f4b223', vals: fg.map(x => x.exp)}, {name: 'Profit', col: '#2c7a4b', vals: fg.map(x => x.profit)}]
+      const series = money ? [{name: 'Money in', col: '#073763', vals: fg.map(x => x.revenue)}, {name: 'Payments', col: '#f4b223', vals: fg.map(x => x.exp)}, {name: 'Profit', col: '#2c7a4b', vals: fg.map(x => x.profit)}]
         : [{name: 'New students', col: '#073763', vals: Ms12.map(m => figs(m + '-01', lastDay(m)).newS.length)}, {name: 'Sessions taught ÷ 10', col: '#f4b223', vals: Ms12.map(m => Math.round(figs(m + '-01', lastDay(m)).taught / 10))}];
       out.push(sec('Last 12 months', '<div class="pf-chart">' + lit(INS.lineChart(Ms12.map(m => b.monShort(m)), series, money ? {label: 'Trend'} : {fmt: v => Math.round(v), fmtTip: v => v, label: 'Trend'})).replace(/width="100%" style="min-width:520px"/, 'width="714" height="228"') + '</div>'));
     }
@@ -135,13 +135,13 @@ window.PERF = (function(){
     }
     if(has('spending') && money){
       const bud = b.budget(), mf = Math.max(1, Math.round(HD.dayDiff(R.from, R.to) / 30.4)), cats = [...new Set([...Object.keys(f.byCat), ...Object.keys(p.byCat)])].sort((a, c) => (f.byCat[c] || 0) - (f.byCat[a] || 0));
-      out.push(sec('Spending', table(['Category', 'This period', 'Before', 'Change', 'Budget'], cats.map(k => ({c: [esc(k), M(f.byCat[k] || 0), M(p.byCat[k] || 0), ar(chg(f.byCat[k] || 0, p.byCat[k] || 0), -1), num(bud[k]) ? M(num(bud[k]) * mf) : '–']})).concat([{cls: 'tot', c: ['Total', M(f.exp), M(p.exp), ar(chg(f.exp, p.exp), -1), M(sum(Object.values(bud), num) * mf)]}]),
-        {note: `Spending is ${f.revenue ? pc(f.exp, f.revenue) + '% of money in' : 'not yet covered by money in'}${f.active ? `, about ${Ms(f.exp / f.active)} per student in a period` : ''}. Budgets are the monthly budget × ${mf} month${mf === 1 ? '' : 's'}.`})));
+      out.push(sec('Payments', table(['Category', 'This period', 'Before', 'Change', 'Budget'], cats.map(k => ({c: [esc(k), M(f.byCat[k] || 0), M(p.byCat[k] || 0), ar(chg(f.byCat[k] || 0, p.byCat[k] || 0), -1), num(bud[k]) ? M(num(bud[k]) * mf) : '–']})).concat([{cls: 'tot', c: ['Total', M(f.exp), M(p.exp), ar(chg(f.exp, p.exp), -1), M(sum(Object.values(bud), num) * mf)]}]),
+        {note: `Payments are ${f.revenue ? pc(f.exp, f.revenue) + '% of money in' : 'not yet covered by money in'}${f.active ? `, about ${Ms(f.exp / f.active)} per student in a period` : ''}. Budgets are the monthly budget × ${mf} month${mf === 1 ? '' : 's'}.`})));
     }
     if(has('pl') && money){
       out.push(sec('Profit & loss', table(['', 'This period', 'Before', 'Last year'], [
         {c: ['Tuition received', M(f.tuition), M(p.tuition), M(l.tuition)]}, {c: ['Other money in', M(f.other), M(p.other), M(l.other)]}, {cls: 'sub', c: ['Money in', M(f.revenue), M(p.revenue), M(l.revenue)]},
-        {c: ['Spending', ...[f.exp, p.exp, l.exp].map(v => (v > 0.5 ? '−' : '') + M(v))]}, {cls: 'tot', c: ['Profit', (f.profit < 0 ? '−' : '') + M(Math.abs(f.profit)), (p.profit < 0 ? '−' : '') + M(Math.abs(p.profit)), (l.profit < 0 ? '−' : '') + M(Math.abs(l.profit))]},
+        {c: ['Payments', ...[f.exp, p.exp, l.exp].map(v => (v > 0.5 ? '−' : '') + M(v))]}, {cls: 'tot', c: ['Profit', (f.profit < 0 ? '−' : '') + M(Math.abs(f.profit)), (p.profit < 0 ? '−' : '') + M(Math.abs(p.profit)), (l.profit < 0 ? '−' : '') + M(Math.abs(l.profit))]},
         {c: ['Margin', f.revenue ? pc(f.profit, f.revenue) + '%' : '–', p.revenue ? pc(p.profit, p.revenue) + '%' : '–', l.revenue ? pc(l.profit, l.revenue) + '%' : '–']}],
         {note: `Invoiced in this period: ${M(f.invoiced)} on ${f.nInv} invoices. Loans and owner investment (${M(f.capital)}) and loan repayments are not counted in profit.`})));
     }
@@ -181,7 +181,7 @@ window.PERF = (function(){
     if(has('pots') && money){
       const P = ((store.get('lhq_budget', {}) || {}).pots || {}).list || [];
       if(P.length) out.push(sec('Allocations', table(['Allocation', 'Share', 'Received', 'Spent', 'Difference'], P.map(pt => { const got = f.revenue * pt.p / 100, sp = sum(pt.cats || [], k => f.byCat[k] || 0);
-        return {c: [esc(pt.n), pt.p + '%', M(got), M(sp), `<b style="color:${got - sp < 0 ? '#b42318' : '#1f7a4d'}">${got - sp < 0 ? '−' : ''}${M(Math.abs(got - sp))}</b>`]}; })), {note: 'Each allocation\'s share of money in during this period, and what its spending categories cost.'}));
+        return {c: [esc(pt.n), pt.p + '%', M(got), M(sp), `<b style="color:${got - sp < 0 ? '#b42318' : '#1f7a4d'}">${got - sp < 0 ? '−' : ''}${M(Math.abs(got - sp))}</b>`]}; })), {note: 'Each allocation\'s share of money in during this period, and what its payment categories cost.'}));
     }
     return paper('Business report', c, R, out);
   }
@@ -253,7 +253,7 @@ window.PERF = (function(){
       out.push(sec('Students and where they learn', `<div class="pf-2"><div><h3>Students by programme</h3>${bars(srt(g), studs.size, v => v)}</div><div><h3>Sessions by place</h3>${bars(srt(md), done, v => v + ' sessions')}</div></div>`));
     }
     if(has('missed')){
-      const owed = []; HD.students().forEach(s => { const cd = s.cur && s.cur.card; if(cd) HD.makeups(cd).filter(x => x.owed).forEach(x => owed.push([s.key, x])); });
+      const owed = []; HD.students().forEach(s => { const cd = s.card; if(cd) HD.makeups(cd).filter(x => x.owed).forEach(x => owed.push([s.key, x])); });
       out.push(sec('Missed sessions and make-ups', `<div class="pf-ks">${kp('Student absent', absent)}${kp("Tutor couldn't teach", cant)}${kp('Make-ups taught', made)}${kp('Make-ups owed now', sum(owed, o => o[1].owed))}</div>
         ${owed.length ? '<h3>Make-ups owed now</h3>' + table(['Student', 'Subject', 'Tutor', 'Owed'], owed.sort((a, b) => b[1].owed - a[1].owed).slice(0, 20).map(([k, x]) => ({c: [esc(name(k)), esc(x.sub), esc(x.tutor || '–'), x.owed]}))) : ''}`));
     }
@@ -283,7 +283,7 @@ window.PERF = (function(){
       const delay = S.filter(e => e.at).map(e => Math.max(0, HD.dayDiff(e.d, HD.isoOf(new Date(e.at)))));
       return {n, J, L, S, studs: new Set(J.map(j => j.s.key)).size, pl: sum(J, j => plannedIn(j.card, j.x, R.from, end)), done: S.filter(isTaught).length, cant: S.filter(e => e.a === 'cancelled').length, absent: S.filter(e => e.a === 'absent').length,
         hrs: sum(S.filter(isTaught), e => { const m = String(j0(J, e).mins || '1 hour'); return (/min/i.test(m) ? parseFloat(m) / 60 : parseFloat(m) || 1); }), delay: delay.length ? Math.round(sum(delay) / delay.length * 10) / 10 : null, late: delay.filter(d => d > 2).length,
-        tests: avg(L.filter(isTest).map(testPc)), owed: sum(HD.students(), s => { const cd = s.cur && s.cur.card; return cd ? sum(HD.makeups(cd).filter(x => lw(x.tutor) === lw(n)), x => x.owed) : 0; })}; };
+        tests: avg(L.filter(isTest).map(testPc)), owed: sum(HD.students(), s => { const cd = s.card; return cd ? sum(HD.makeups(cd).filter(x => lw(x.tutor) === lw(n)), x => x.owed) : 0; })}; };
     const j0 = (J, e) => (J.find(j => j.k === e.k.split('|')[0] + '|' + sk(e.sub)) || {x: {}}).x;
     const D = T.map(of), out = [];
     if(has('summary')){
@@ -310,7 +310,7 @@ window.PERF = (function(){
         ${D.filter(d => d.pl && !d.S.length).length ? `<p class="pf-n">No logs at all from: ${D.filter(d => d.pl && !d.S.length).map(d => esc(d.n)).join(', ')}.</p>` : ''}`));
     }
     if(has('makeups')){
-      const rows = []; HD.students().forEach(s => { const cd = s.cur && s.cur.card; if(cd) HD.makeups(cd).filter(x => x.owed && T.some(n => lw(n) === lw(x.tutor))).forEach(x => rows.push({c: [esc(x.tutor), esc(anon ? 'A student' : s.name), esc(x.sub), x.missT ? `${x.missT} tutor` : '', x.owed]})); });
+      const rows = []; HD.students().forEach(s => { const cd = s.card; if(cd) HD.makeups(cd).filter(x => x.owed && T.some(n => lw(n) === lw(x.tutor))).forEach(x => rows.push({c: [esc(x.tutor), esc(anon ? 'A student' : s.name), esc(x.sub), x.missT ? `${x.missT} tutor` : '', x.owed]})); });
       out.push(sec('Make-ups owed', rows.length ? table(['Tutor', 'Student', 'Subject', 'Not taught by tutor', 'Owed'], rows) : '<p class="pf-n">No make-up sessions owed.</p>'));
     }
     return paper(own ? `Tutor report · ${c.tutor}` : 'Tutor report', c, R, out, c.tutor && !own ? c.tutor : '');
@@ -369,7 +369,7 @@ window.PERF = (function(){
 
   /* ---------- the four reports ---------- */
   const KINDS = {
-    business: {t: 'Business report', d: 'Money in, spending, profit, pipeline and marketing.', need: 'pl', SECTIONS, AUD, build: buildBusiness},
+    business: {t: 'Business report', d: 'Money in, payments, profit, pipeline and marketing.', need: 'pl', SECTIONS, AUD, build: buildBusiness},
     tuition: {t: 'Tuition report', d: 'How teaching is going: sessions, make-ups, assessments, renewals and gaps.', need: 'pl|cards|students',
       SECTIONS: [['summary','Summary'],['delivery','Delivery by subject'],['recall','SRAs and recall'],['programmes','Students and where they learn'],['missed','Missed sessions and make-ups'],['topics','Topics covered'],['renewals','Renewals coming'],['gaps','Gaps to fix']],
       AUD: {director: {n: 'Director', s: ['summary','delivery','recall','programmes','missed','topics','renewals','gaps'], anon: false, money: false}, staff: {n: 'Staff meeting', s: ['summary','delivery','recall','missed','renewals','gaps'], anon: false, money: false}, partners: {n: 'Partners', s: ['summary','delivery','programmes','topics'], anon: true, money: false}}, build: buildTuition},

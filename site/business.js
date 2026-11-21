@@ -4,7 +4,7 @@
 
    Who sees what (the server enforces the same):
      Director          everything, and sets the budgets
-     admin + "spend"   records spending and sees the spending list (can change only what they recorded)
+     admin + "spend"   records payments and sees the payments list (can change only what they recorded)
      admin + "pl"      sees profit and loss, budgets, and the Profit card on Home
    Money in = payments received (receipts), by the date on the receipt. */
 window.BIZ = (function(){
@@ -127,7 +127,7 @@ window.BIZ = (function(){
       }
       g += `<a href="#biz/pl/${m}"><rect x="${x(i) - cw / 2}" y="0" width="${cw}" height="${H}" fill="transparent"/><text x="${x(i)}" y="${H - 8}" text-anchor="middle" font-size="10.5" fill="${f ? 'var(--ink)' : 'var(--muted)'}" font-weight="${sel ? 800 : 500}">${monShort(m)}</text></a>`;
     });
-    return `<div class="bz-scroll"><svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:540px" role="img" aria-label="Money in and spending by month, ${fyLabel(fy)}">${g}</svg></div>`;
+    return `<div class="bz-scroll"><svg viewBox="0 0 ${W} ${H}" width="100%" style="min-width:540px" role="img" aria-label="Money in and payments by month, ${fyLabel(fy)}">${g}</svg></div>`;
   }
   const kpi = (l, v, s, cls = 'fl', href) => `<${href ? `a href="${href}"` : 'div'} class="kpi"><small>${l}</small><b>${v}</b>${s ? `<span class="${cls}">${s}</span>` : ''}</${href ? 'a' : 'div'}>`;
   const docsFor = (type, period) => `#docs/${type}/${isY(period) ? 'fy-' + period.slice(2) : isQ(period) ? 'q-' + period.slice(1) : 'm-' + period}`;
@@ -146,27 +146,27 @@ window.BIZ = (function(){
     const so = live ? ' so far' : '', pShort = isM(prevP) ? monShort(prevP) : isQ(prevP) ? 'Q' + prevP.slice(-1) : 'last year';
     return `<div class="kpis">
       ${kpi('Money in' + so, mkShort(f.revenue), f.other ? `${mkShort(f.inc)} tuition · ${mkShort(f.other)} other` : `${mkShort(f.invoiced)} invoiced`, 'fl', '#biz/money/' + period)}
-      ${kpi('Spending' + so, mkShort(f.exp), toRec ? `+ ${mkShort(toRec)} repeating to confirm` : ch == null ? (f.oneoff ? `incl. ${mkShort(f.oneoff)} one-off` : (bTot ? `budget ${mkShort(bTot)}` : '')) : `${ch > 0 ? '▲' : '▼'} ${Math.abs(ch)}% vs ${pShort}`, toRec ? 'fl' : ch == null ? 'fl' : ch > 0 ? 'dn' : 'up', `#biz/spending/${period}`)}
+      ${kpi('Payments' + so, mkShort(f.exp), toRec ? `+ ${mkShort(toRec)} repeating to confirm` : ch == null ? (f.oneoff ? `incl. ${mkShort(f.oneoff)} one-off` : (bTot ? `budget ${mkShort(bTot)}` : '')) : `${ch > 0 ? '▲' : '▼'} ${Math.abs(ch)}% vs ${pShort}`, toRec ? 'fl' : ch == null ? 'fl' : ch > 0 ? 'dn' : 'up', `#biz/spending/${period}`)}
       ${kpi('Profit' + so, (f.profit < 0 ? '−' : '') + mkShort(Math.abs(f.profit)), f.revenue ? `${pct(f.profit, f.revenue)}% margin` : '', f.profit >= 0 ? 'up' : 'dn')}
       ${kpi('Owed to LHQ', mkShort(o.amt), o.overN ? `${o.overN} overdue · ${mkShort(o.overAmt)}` : 'nothing overdue', o.overN ? 'dn' : 'fl', '#biz/owed/' + period)}</div>
-    <div class="card pad"><div class="cap bz-cap">Money in and spending · ${fyLabel(fy)}<span class="bz-leg"><span><i style="background:var(--inc)"></i>Money in</span><span><i style="background:var(--exp)"></i>Spending</span></span></div>${chart(fy, isM(period) ? period : null)}<p class="note" style="margin:4px 0 0">Tap a month to see it.</p></div>
+    <div class="card pad"><div class="cap bz-cap">Money in and payments · ${fyLabel(fy)}<span class="bz-leg"><span><i style="background:var(--inc)"></i>Money in</span><span><i style="background:var(--exp)"></i>Payments</span></span></div>${chart(fy, isM(period) ? period : null)}<p class="note" style="margin:4px 0 0">Tap a month to see it.</p></div>
     <div class="card pad"><div class="cap">Profit and loss · ${periodLabel(period)}</div>
       <table class="bz-pl"><tr><td><a href="#biz/money/${period}" style="color:inherit"><b>Tuition</b></a> <small>payments received</small></td><td><b>${mk(f.inc)}</b></td></tr>
       ${otherRows.map(([t, v]) => `<tr><td><b>${esc(t)}</b></td><td><b>${mk(v)}</b></td></tr>`).join('')}
       ${otherRows.length ? `<tr class="sub2"><td>Money in</td><td>${mk(f.revenue)}</td></tr>` : ''}
-      ${rows.map(([c, v]) => `<tr class="sub"><td><a href="#biz/cat/${period}/${encodeURIComponent(c)}">${esc(c)}</a>${ONEOFF.includes(c) ? ' <span class="tag gr">one-off</span>' : ''}</td><td>−${mk(v)}</td></tr>`).join('') || '<tr class="sub"><td colspan="2" style="color:var(--muted)">No spending recorded</td></tr>'}
-      <tr class="sub2"><td>Total spending${bTot ? ` <small>budget ${mk(bTot)}</small>` : ''}</td><td>−${mk(f.exp)}</td></tr>
+      ${rows.map(([c, v]) => `<tr class="sub"><td><a href="#biz/cat/${period}/${encodeURIComponent(c)}">${esc(c)}</a>${ONEOFF.includes(c) ? ' <span class="tag gr">one-off</span>' : ''}</td><td>−${mk(v)}</td></tr>`).join('') || '<tr class="sub"><td colspan="2" style="color:var(--muted)">No payments recorded</td></tr>'}
+      <tr class="sub2"><td>Total payments${bTot ? ` <small>budget ${mk(bTot)}</small>` : ''}</td><td>−${mk(f.exp)}</td></tr>
       <tr class="tot"><td>Profit</td><td>${signed(f.profit)}</td></tr>
       ${f.oneoff ? `<tr class="sub"><td>Profit without one-off costs</td><td>${signed(f.profit + f.oneoff)}</td></tr>` : ''}
       ${toRec ? `<tr class="sub"><td>Repeating costs not yet confirmed <a href="#biz/spending/${period}">confirm</a></td><td>−${mk(toRec)}</td></tr>` : ''}</table>
       ${f.capital || f.repaid ? `<div class="cap" style="margin-top:14px">Not counted in profit</div><table class="bz-pl">${Object.entries(f.byType).filter(([t]) => NOT_INCOME.includes(t)).map(([t, v]) => `<tr class="sub"><td>${esc(t)}</td><td>${mk(v)}</td></tr>`).join('')}${f.repaid ? `<tr class="sub"><td>Loan repayments</td><td>−${mk(f.repaid)}</td></tr>` : ''}</table>` : ''}
       ${live ? '<p class="note">This period is still going: costs paid at month end (such as salaries and tutor pay) are not all in yet, so profit looks higher than it will be.</p>' : ''}
-      <p class="note">From Spending. Tutor pay from logs comes with Tutor pay.</p></div>
+      <p class="note">From Payments. Tutor pay from logs comes with Tutor pay.</p></div>
     ${!isM(period) ? monthTable(months(period)) : ''}`;
   }
   function monthTable(ms){
     return `<div class="card pad"><div class="cap">Month by month</div><div class="bz-scroll"><table class="bz-mt"><tr><th></th>${ms.map(m => `<th><a href="#biz/pl/${m}">${monShort(m)}</a></th>`).join('')}</tr>
-      ${[['Money in', f => f.revenue], ['Spending', f => -f.exp], ['Profit', f => f.profit]].map(([l, fn]) => `<tr class="${l === 'Profit' ? 'tot' : ''}"><td>${l}</td>${ms.map(m => { const v = fn(figures([m])); return `<td>${window.FX && FX.active() ? FX.usdShort(v) : `${v < 0 ? '−' : ''}${(Math.abs(v) / 1e6).toFixed(1)}M`}</td>`; }).join('')}</tr>`).join('')}</table></div></div>`;
+      ${[['Money in', f => f.revenue], ['Payments', f => -f.exp], ['Profit', f => f.profit]].map(([l, fn]) => `<tr class="${l === 'Profit' ? 'tot' : ''}"><td>${l}</td>${ms.map(m => { const v = fn(figures([m])); return `<td>${window.FX && FX.active() ? FX.usdShort(v) : `${v < 0 ? '−' : ''}${(Math.abs(v) / 1e6).toFixed(1)}M`}</td>`; }).join('')}</tr>`).join('')}</table></div></div>`;
   }
 
   /* ---------- spending ---------- */
@@ -181,7 +181,7 @@ window.BIZ = (function(){
           <div class="acts"><button class="btn sm n" data-bzok="${d.sid}|${d.date}">Paid ${mkShort(num(d.last.amount))}</button><button class="btn sm" data-bzchg="${d.sid}|${d.date}">Other amount</button><button class="btn sm" data-bzskip="${d.sid}|${d.date}">Skip</button></div></div>`).join('')}
         <p class="note">Repeating costs come back monthly. Confirm when paid.</p></div>` : ''}
       ${catF ? '' : '<button class="btn sm flt-btn" data-flt style="margin:0 0 10px">Filter</button>'}<div class="chips ${catF ? '' : 'flt'}"><a class="chip ${catF ? '' : 'on'}" href="#biz/spending/${period}">All <i>${f.list.length}</i></a>${present.map(c => `<a class="chip ${catF === c ? 'on' : ''}" href="#biz/spending/${period}/${encodeURIComponent(c)}">${esc(c)}</a>`).join('')}</div>
-      <div class="card">${list.map(e => `<${mayEdit(e) ? `button class="it" data-bzedit="${e.id}"` : 'div class="it"'}><span class="t"><b>${esc(e.what || e.cat)}</b><small>${[nice(e.date), e.cat, e.to, e.method, e.usd ? `paid $${e.usd} at ${(+e.fx).toFixed(2)}` : '', e.by ? 'by ' + first(e.by) : ''].filter(Boolean).map(esc).join(' · ')}</small></span>${e.rep === 'm' ? '<span class="tag bl">Monthly</span>' : ''}<b class="bz-amt">${mk(num(e.amount), e.date)}</b></${mayEdit(e) ? 'button' : 'div'}>`).join('') || `<p class="empty">No spending recorded for ${periodLabel(period)}${catF ? ' in ' + esc(catF) : ''}.</p>`}</div>
+      <div class="card">${list.map(e => `<${mayEdit(e) ? `button class="it" data-bzedit="${e.id}"` : 'div class="it"'}><span class="t"><b>${esc(e.what || e.cat)}</b><small>${[nice(e.date), e.cat, e.to, e.method, e.usd ? `paid $${e.usd} at ${(+e.fx).toFixed(2)}` : '', e.by ? 'by ' + first(e.by) : ''].filter(Boolean).map(esc).join(' · ')}</small></span>${e.rep === 'm' ? '<span class="tag bl">Monthly</span>' : ''}<b class="bz-amt">${mk(num(e.amount), e.date)}</b></${mayEdit(e) ? 'button' : 'div'}>`).join('') || `<p class="empty">No payments recorded for ${periodLabel(period)}${catF ? ' in ' + esc(catF) : ''}.</p>`}</div>
       ${present.length ? `<div class="card pad"><div class="cap bz-cap">By category <b>${mk(f.exp)}</b></div>${Object.entries(f.byCat).sort((a, b) => b[1] - a[1]).map(([c, v]) => `<div class="bz-hb"><span>${esc(c)}</span><span class="tr"><i style="width:${v / max * 100}%"></i></span><b>${mkShort(v)}</b></div>`).join('')}</div>` : ''}
       <button class="btn sm" data-bzcsv="${period}">${ic('box',15)} Download as a spreadsheet (CSV)</button>`;
   }
@@ -193,16 +193,16 @@ window.BIZ = (function(){
     const row = (c, s, b, link = true) => { const p = b ? s / b : 0, exact = b && Math.abs(p - 1) < .005, col = !b ? 'var(--muted)' : exact ? 'var(--ok)' : p > 1 ? 'var(--rd)' : p > .8 ? 'var(--gold)' : 'var(--ok)';
       return `<${link ? `a href="#biz/spending/${period}/${encodeURIComponent(c)}"` : 'div'} class="bz-bud"><div class="h"><b>${esc(c)}${ONEOFF.includes(c) ? ' <span class="tag gr">one-off</span>' : ''}</b><span>${mkShort(s)} of ${b ? mkShort(b) : 'no budget'}${exact ? ' <span class="tag ok">on budget</span>' : b && p > 1 ? ' <span class="tag rd">over</span>' : b && p > .8 ? ' <span class="tag am">80%+</span>' : ''}</span></div><div class="track"><i style="width:${b ? Math.min(100, p * 100) : 0}%;background:${col}"></i></div></${link ? 'a' : 'div'}>`; };
     const extra = Object.keys(f.byCat).filter(c => !C.includes(c));
-    return `<p class="note" style="margin:-4px 0 12px">${multi ? `Spending in ${ms.length} month${ms.length === 1 ? '' : 's'} against ${ms.length} month${ms.length === 1 ? '' : 's'} of budget.` : `${periodLabel(period)}: spending against the monthly budget.`} Budgets repeat every month until they are changed.</p>
+    return `<p class="note" style="margin:-4px 0 12px">${multi ? `Payments in ${ms.length} month${ms.length === 1 ? '' : 's'} against ${ms.length} month${ms.length === 1 ? '' : 's'} of budget.` : `${periodLabel(period)}: payments against the monthly budget.`} Budgets repeat every month until they are changed.</p>
     ${Object.keys(B).length ? `<div class="card pad">${[...C, ...extra].map(c => row(c, f.byCat[c] || 0, num(B[c]) * ms.length)).join('')}</div>
       <div class="card pad"><div class="cap">Total</div>${row('All spending', f.exp, tot, false)}${multi ? '' : `<p class="note">${f.exp <= tot ? `${mk(tot - f.exp)} of this month's budget is left.` : `${mk(f.exp - tot)} over this month's budget.`}</p>`}</div>`
-    : `<div class="card pad"><p class="empty" style="margin:0">No budgets yet.${isDir() ? ' Set a monthly amount for each category, then spending is measured against it here and in Profit & loss.' : ' The Director sets them.'}</p></div>`}
+    : `<div class="card pad"><p class="empty" style="margin:0">No budgets yet.${isDir() ? ' Set a monthly amount for each category, then payments are measured against it here and in Profit & loss.' : ' The Director sets them.'}</p></div>`}
     ${isDir() ? `<button class="btn" data-bzbud>${ic('edit',16)} ${Object.keys(B).length ? 'Change budgets' : 'Set budgets'}</button>` : ''}`;
   }
 
   /* ---------- the page: your cards, then each section on its own page ---------- */
-  const SEC = () => (window.PC ? PC.BIZ_SECTIONS : [['spending','Spending','spend|pl']]).filter(([, , need]) => need.split('|').some(k => can(k)));
-  const SEC_NAME = {cat: 'Spending'};
+  const SEC = () => (window.PC ? PC.BIZ_SECTIONS : [['spending','Payments','spend|pl']]).filter(([, , need]) => need.split('|').some(k => can(k)));
+  const SEC_NAME = {cat: 'Payments'};
   function page(tab, period, cat){
     const T = SEC();
     if(!T.length) return `<div class="ph"><div class="tt"><h1>Business</h1></div></div><p class="empty">The Director hasn't given you access to Business.</p>`;
@@ -210,7 +210,7 @@ window.BIZ = (function(){
     if(miK) period = MIN.std(miK);
     if(!period || !(isM(period) || isQ(period) || isY(period))){ if(tab === 'charts' && period) cat = period; period = thisMonth(); }
     const fy = isY(period) ? +period.slice(2) : fyOf(isQ(period) ? qMonths(period)[0] : period);
-    const acts = `<div class="acts">${can('spend') ? `<button class="btn" data-bzin>${ic('plus',16,2.4)} Money in</button><button class="btn n" data-bznew>${ic('plus',16,2.4)} Spending</button>` : ''}</div>`;
+    const acts = `<div class="acts">${can('spend') ? `<button class="btn" data-bzin>${ic('plus',16,2.4)} Money in</button><button class="btn n" data-bznew>${ic('plus',16,2.4)} Payment</button>` : ''}</div>`;
     if(!tab || tab === 'home'){
       return `<div class="ph"><div class="tt"><h1>Business</h1><p>Financial year ${fyLabel(fy)}${isDir() ? '' : ' · shared with you by the Director'}</p></div>${acts}</div>
         ${periodBar('home', period)}
@@ -218,7 +218,7 @@ window.BIZ = (function(){
         <div class="h2">All sections</div><div class="bz-secs">${T.map(([k, l]) => `<a href="#biz/${k}/${k === 'owed' ? '' : period}">${esc(l)}<span>›</span></a>`).join('')}</div>
         ${can('pl') ? `<p class="note" style="margin-top:14px">Reports to download or send are under <a href="#reports">Reports</a>.</p>` : ''}`;
     }
-    if(tab === 'cat' && T.some(x => x[0] === 'spending')){ /* a spending category's own page */ }
+    if(tab === 'cat' && T.some(x => x[0] === 'spending')){ /* a payment category's own page */ }
     else if(!T.some(x => x[0] === tab)) return page('home', period);
     if(tab === 'charts' && /^p\d+$/.test(cat || '') && window.PC){ const it = PC.chosen('biz')[+cat.slice(1)]; if(it && it.c) INS.setChart(it.c); }
     const name = SEC_NAME[tab] || (T.find(x => x[0] === tab) || [])[1] || 'Business';
@@ -275,8 +275,8 @@ window.BIZ = (function(){
   function sheet(e, preset){
     const isNew = !e; e = e || Object.assign({id:uid(), date:today(), cat:'', amount:'', what:'', to:'', method:'', rep:''}, preset || {});
     const C = cats();
-    openSheet(`<div class="hx"><h3>${isNew ? 'Record spending' : 'Spending'}</h3><button class="ib" data-close>✕</button></div>
-      <p class="sp lm">${isNew ? 'Any date works, so earlier spending can be added too.' : `Recorded by ${esc(e.by || '')}${e.editedBy && e.editedBy !== e.by ? `, changed by ${esc(e.editedBy)}` : ''}.`}</p>
+    openSheet(`<div class="hx"><h3>${isNew ? 'Record a payment' : 'Payment'}</h3><button class="ib" data-close>✕</button></div>
+      <p class="sp lm">${isNew ? 'Any date works, so earlier payments can be added too.' : `Recorded by ${esc(e.by || '')}${e.editedBy && e.editedBy !== e.by ? `, changed by ${esc(e.editedBy)}` : ''}.`}</p>
       <label class="f"><span>Category</span></label><div class="chips" id="bzCats">${[...C, ...(e.cat && !C.includes(e.cat) ? [e.cat] : [])].map(c => `<button class="chip ${e.cat === c ? 'on' : ''}" data-c="${esc(c)}">${esc(c)}</button>`).join('')}<button class="chip" id="bzCatNew" type="button">+ New category</button></div>
       <div class="addrow" id="bzCatAdd" hidden style="margin:-6px 0 12px"><input class="in" id="bzCatName" placeholder="Name of the new category" autocomplete="off"><button class="btn sm" id="bzCatGo" type="button">Add</button></div>
       <label class="f" id="bzChanF" ${e.cat === 'Marketing' ? '' : 'hidden'}><span>Marketing channel <small style="font-weight:500">(matched with how new families heard about LHQ)</small></span><select class="in" id="bzChan"><option value="">Choose</option>${channels().map(x => `<option ${e.chan === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
@@ -318,7 +318,7 @@ window.BIZ = (function(){
       delete e.skip; saveEntry(e); closeSheet(); toast(isNew ? `Recorded: ${mk(amt)} for ${c.c}` : 'Saved');
       const p = ym(e.date); if(route.page === 'biz' && route.args[1] !== p && !String(route.args[1] || '').startsWith('fy')) location.hash = `#biz/spending/${p}`; else render();
     };
-    if($('bzDel')) $('bzDel').onclick = () => { if(!confirm('Delete this spending?')) return; e.del = true; saveEntry(e); closeSheet(); toast('Deleted'); render(); };
+    if($('bzDel')) $('bzDel').onclick = () => { if(!confirm('Delete this payment?')) return; e.del = true; saveEntry(e); closeSheet(); toast('Deleted'); render(); };
   }
   function csv(period){
     const ms = months(period), rows = spendLive().filter(e => inPeriod(e, ms)).sort((a, b) => (a.date || '').localeCompare(b.date || ''));
