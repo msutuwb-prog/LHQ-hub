@@ -1,9 +1,9 @@
 [build]
   publish = "site"
   functions = "netlify/functions"
-  # Save credits. Live Hub (lhq-hub): builds only when the latest commit says [deploy]. Old Hub (lhqhub): only its main branch.
+  # Save credits. Live Hub (any site named lhq-hub…, e.g. lhq-hub-2): builds only when the latest commit says [deploy]. Old Hub (lhqhub): only its main branch.
   # Test copies: only when the latest commit says [preview].
-  ignore = '''M=$(git log -1 --pretty=%B); if [ "$SITE_NAME" = "lhqhub" ]; then [ "$CONTEXT" = "production" ] && exit 1 || exit 0; fi; if [ "$SITE_NAME" = "lhq-hub" ]; then echo "$M" | grep -q "\[deploy\]" && exit 1 || exit 0; fi; echo "$M" | grep -q "\[preview\]" && exit 1; exit 0'''
+  ignore = '''M=$(git log -1 --pretty=%B); if [ "$SITE_NAME" = "lhqhub" ]; then [ "$CONTEXT" = "production" ] && exit 1 || exit 0; fi; case "$SITE_NAME" in lhq-hub*) echo "$M" | grep -q "\[deploy\]" && exit 1 || exit 0;; esac; echo "$M" | grep -q "\[preview\]" && exit 1; exit 0'''
 
 [functions]
   node_bundler = "esbuild"
