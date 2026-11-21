@@ -1,6 +1,7 @@
 /* The database connection, transactions and migrations.
    On Netlify: Netlify Database (Postgres) gives the connection through @netlify/database (NETLIFY_DB_URL).
-   Anywhere else (another Postgres such as Neon directly, or the tests): set DATABASE_URL. */
+   Anywhere else (another Postgres such as Supabase or Neon directly, or the tests): set DATABASE_URL.
+   LHQ's live Hub uses Supabase (free, no hourly charge) since Netlify Database's hourly compute used up the credits. */
 import { MIGRATIONS } from "./schema.mjs";
 import crypto from "node:crypto";
 import pg from "pg";
@@ -11,12 +12,21 @@ export function _setPool(p) { plainDates(pg.types); pool = p; ready = null; pool
 /* dates and times come back as the text Postgres stores ('2026-10-30', '16:00:00'), never as JavaScript dates
    that shift with the server's time zone */
 function plainDates(types) { [1082, 1083, 1266].forEach(oid => types.setTypeParser(oid, v => v)); types.setTypeParser(1700, v => v == null ? v : Number(v)); types.setTypeParser(20, v => v == null ? v : Number(v)); }
+async function supabaseCa() {
+  try { return (await import("./supabase-ca.mjs")).default || process.env.LHQ_DB_CA || ""; } catch { return process.env.LHQ_DB_CA || ""; }
+}
 async function getPool() {
   if (pool) return pool;
   plainDates(pg.types);
   try { plainDates((await import("@neondatabase/serverless")).types); } catch {}
   const url = process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL;
   if (url && !process.env.NETLIFY_DB_URL) {
+    /* Supabase: its certificates are signed by Supabase's own authority, so the Hub checks them against that
+       (supabase-ca.mjs, a public certificate, in this folder). The sslmode in the address is taken out: it would override this. */
+    if (/\.supabase\.(com|co)\b/.test(url)) {
+      const ca = await supabaseCa(), cs = url.replace(/([?&])sslmode=[^&]*(&|$)/, (m, a, b) => b ? a : "").replace(/[?&]$/, "");
+      pool = new pg.Pool({ connectionString: cs, max: 3, ssl: ca ? { ca, rejectUnauthorized: true } : { rejectUnauthorized: true } });
+    } else
     pool = new pg.Pool({ connectionString: url, max: 3, ssl: /sslmode=require|neon\.tech/.test(url) ? { rejectUnauthorized: true } : undefined });
   } else {
     const { getDatabase } = await import("@netlify/database");
