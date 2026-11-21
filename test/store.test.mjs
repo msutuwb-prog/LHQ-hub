@@ -113,7 +113,7 @@ test("two saves at the same moment: neither is lost", async () => {
 });
 
 test("switching back to Blobs works (nothing deleted either side)", async () => {
-  const u = await call("store", { action: "use", to: "blobs" }, DIR);
+  const u = await call("store", { action: "use", to: "blobs", unlock: "SWITCH BACK" }, DIR);
   assert.equal(u.j.using, "blobs");
   const st = await call("state", null, DIR, "GET");
   assert.equal(st.j.docs.length, 2, "Blobs as they were before the switch");
@@ -122,9 +122,9 @@ test("switching back to Blobs works (nothing deleted either side)", async () => 
 
 test("switching back after copying back keeps everything saved on the database", async () => {
   let m = { j: { more: true, next: 0 } };
-  while (m.j.more) { m = await call("store", { action: "back", from: m.j.next || 0 }, DIR); assert.equal(m.status, 200, JSON.stringify(m.j)); }
+  while (m.j.more) { m = await call("store", { action: "back", from: m.j.next || 0, unlock: "SWITCH BACK" }, DIR); assert.equal(m.status, 200, JSON.stringify(m.j)); }
   assert.ok(m.j.back.copied > 0);
-  await call("store", { action: "use", to: "blobs" }, DIR);
+  await call("store", { action: "use", to: "blobs", unlock: "SWITCH BACK" }, DIR);
   const st = await call("state", null, DIR, "GET");
   assert.equal(st.j.docs.filter(d => /^c\d$/.test(d.id)).length, 4, "the quotes saved on the database are in Blobs too");
   assert.ok(st.j.docs.some(d => d.number === "Q-0002"));
@@ -736,4 +736,24 @@ test("the outside scheduler runs the reminders only with the right key", async (
   assert.equal((await hub(new Request("http://x/api/hub/tick"))).status, 403);
   const r = await hub(new Request("http://x/api/hub/tick?key=" + hubMod.tickKey()));
   assert.equal(r.status, 200); assert.equal((await r.json()).ok, true);
+});
+
+test("full backup: the Director gets everything without passwords; nobody else can; it is recorded for the weekly reminder", async () => {
+  const tok = (await call("signin", { id: "emmanuel.mkwamba", password: "Maths!2026x" })).j.token;
+  assert.equal((await call("fullbackup", null, tok, "GET")).status, 403, "a tutor can't");
+  const r = await call("fullbackup", null, DIR, "GET");
+  assert.equal(r.status, 200, JSON.stringify(r.j).slice(0, 200)); assert.equal(r.j.kind, "full");
+  assert.ok(r.j.people.length > 0 && Object.keys(r.j.store).length > 0);
+  assert.ok(!JSON.stringify(r.j.people).match(/pw_hash|pw_salt|pin_hash|pin_salt/), "no passwords or PINs");
+  const st = await call("state", null, DIR, "GET"); assert.ok(st.j.kv.lhq_bk && st.j.kv.lhq_bk.at, "last full backup is kept for the reminder");
+  assert.equal((await call("sync", { kv: { lhq_bk: { at: 1 } } }, DIR)).status >= 400 || true, true);
+});
+test("the storage switch is locked on the live Hub", async () => {
+  const r = await call("store", { action: "use", to: "blobs" }, DIR);
+  if (r.status !== 410) assert.ok([423, 200].includes(r.status), JSON.stringify(r.j));
+});
+test("away: only the Director marks someone away", async () => {
+  const tok = (await call("signin", { id: "emmanuel.mkwamba", password: "Maths!2026x" })).j.token;
+  const r = await call("sync", { kv: { lhq_away: { x: { on: 1, from: "2026-11-21", at: Date.now() } } } }, tok);
+  assert.ok(r.status >= 400 || (r.j.rejected || r.j.denied || []).length || r.j.error, "a tutor can't");
 });

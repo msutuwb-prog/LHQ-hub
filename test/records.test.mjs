@@ -276,7 +276,7 @@ test("the current Hub copies into the records, and copying again adds nothing", 
   assert.equal(inDb, logged.length - a.skipped.filter(x => x.startsWith("Log")).length, "one attendance row per session log");
   const absent = logged.filter(e => e.a === "absent").length;
   assert.ok((await q("SELECT count(*)::int n FROM makeups WHERE why LIKE '%old logs%'"))[0].n === absent, "absences became make-ups owed");
-  const may = await one("SELECT status, pin_hash FROM people WHERE id = 'b10'");
+  const may = await one("SELECT status, pin_hash FROM people WHERE id = $1", ["b" + people.findIndex(p => p.name === "Mayamiko Goliati")]);
   assert.equal(may.status, "off", "an inactive tutor stays off"); assert.ok(may.pin_hash, "PIN hash kept for the move to passwords");
   const b = await all();
   assert.equal((b.sessions || 0) + (b.students || 0) + (b.groups || 0) + (b.sras || 0), 0, "a second copy adds nothing");

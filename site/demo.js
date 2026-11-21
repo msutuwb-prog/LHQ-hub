@@ -5,13 +5,14 @@
 (function(){
   const DAY = 864e5;
   const iso = d => d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
-  const norm = x => String(x||'').trim().toLowerCase().replace(/\s+/g,' ');
+  const norm = x => String(x||'').trim().toLowerCase().replace(/\s+/g,' '), nk0 = norm;
   let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   const pick = a => a[Math.floor(rnd() * a.length)];
 
   const ADMINS = ['Wanangwa Msutu', 'Catherine Mkwinda'];
   const PEOPLE = [
-    {name:'Catherine Mkwinda', role:'admin', pin:'1111', seen:Date.now() - 2 * 3600e3, perms:['quotes','receipts','cards','delete','restore','students','tutors','msgs','classes','spend']},
+    {name:'Catherine Mkwinda', role:'admin', pin:'1111', seen:Date.now() - 2 * 3600e3, perms:['quotes','cards','delete','restore','students','tutors','msgs','classes']},
+    {name:'Benjamin Msutu', role:'admin', pin:'1111', seen:Date.now() - 3 * 3600e3, perms:['acct','receipts','money','tpay','spend','pl']},   /* the accountant, who also teaches (agreed 21 Nov) */
     {name:'Emmanuel Mkwamba', role:'tutor', pin:'1111', seen:Date.now() - DAY},
     {name:'Ungweru Kaonga', role:'tutor', pin:'1111', seen:Date.now() - 3 * DAY},
     {name:'Maureen Story', role:'tutor', pin:'1111', seen:Date.now() - 5 * 3600e3},
@@ -25,7 +26,7 @@
   /* who teaches what (two tutors per subject, so the load is shared) */
   const POOL = {'Mathematics':['Ungweru Kaonga','Chisomo Banda'],'Pure Mathematics 1':['Ungweru Kaonga','Chisomo Banda'],'English':['Catherine Mkwinda','Grace Chinyama'],'English Language':['Catherine Mkwinda','Grace Chinyama'],
     'Physics':['Emmanuel Mkwamba','Peter Mvula'],'Chemistry':['Emmanuel Mkwamba','Dalitso Phiri'],'Science':['Peter Mvula','Dalitso Phiri'],'Biology':['Maureen Story','Dalitso Phiri'],
-    'Business Studies':['Maureen Story','Joseph Nkhoma'],'Economics':['Wanangwa Msutu','Joseph Nkhoma'],'Accounting':['Joseph Nkhoma']};
+    'Business Studies':['Benjamin Msutu','Maureen Story'],'Economics':['Benjamin Msutu','Joseph Nkhoma'],'Accounting':['Joseph Nkhoma']};
   const tutorFor = (subj, i) => { const p = POOL[subj] || ['Grace Chinyama']; return p[i % p.length]; };
   /* LHQ's fee is MWK 15,000 a session for every level; what changes is how many sessions a student takes
      (days a week per subject, over a 4-week period: 5 days = 20 sessions) */
@@ -278,6 +279,11 @@
     const treps = {}; const days = {}; Object.values(logs).forEach(e => { if(e && e.ty === 's' && e.tutor && e.d < iso(new Date(T))) days[e.tutor + '|' + e.d] = 1; });
     Object.keys(days).forEach(k => { const [tutor, d] = k.split('|'), r = rnd(); if(r < .08) return; const id = 'tr' + (uid++).toString(36);
       treps[id] = {id, tutor, d, sent: Date.parse(d + 'T14:30:00Z') + (r < .14 ? 864e5 : 0), at: Date.parse(d + 'T14:30:00Z'), rate: 4, comment: '', req: []}; });
+    /* requisitions at each step: to price, priced, approved, bought, declined (agreed 21 Nov: tutor asks → accountant prices → Director approves → accountant buys) */
+    const lhq_reqs = {}, RQ = [['Whiteboard markers', '6', null], ['Printer paper (reams)', '5', {s: 'priced', each: 9000}], ['Chemistry practical kit', '1', {s: 'approved', each: 85000}], ['Graph books', '10', {s: 'declined', note: 'We have some in the office'}], ['Calculator batteries', '4', null]];
+    Object.values(treps).sort((a, b) => b.d.localeCompare(a.d)).filter(t => t.d < tIso).slice(0, RQ.length).forEach((t, i) => { const [item, qty, dec] = RQ[i]; t.req = [{item, qty}];
+      if(dec){ const q = +qty, v = Object.assign({}, dec, dec.each ? {qty: q, total: dec.each * q, supplier: 'Bookland', pricedBy: 'Benjamin Msutu', pricedAt: t.at + 3600e3} : {}, dec.s !== 'priced' ? {by: 'Wanangwa Msutu', at: t.at + 7200e3} : {});
+        if(nk0(t.tutor) === 'benjamin msutu') v.own = 1; lhq_reqs[t.id + '#0'] = v; } });
     /* students' focus rounds and a study block or two */
     const lhq_focus = {}, lhq_plan = {}, SB = ['Mathematics','Physics','Chemistry','Biology','English'];
     Object.keys(recs).forEach((k, i) => { const L = []; for(let n = 1; n <= 24; n++){ if(rnd() < .45) continue; const d = iso(new Date(T - n * DAY)); L.push({d, m: (i + n) % 3 ? 25 : 50, sub: SB[(i + n) % 5], tk: '', at: T - n * DAY}); } lhq_focus[k] = L;
@@ -297,7 +303,7 @@
       lhq_fu[id] = f; });
     /* bank rates (MWK per USD) for the MK / $ button: a slow drift over the last 12 months, no random draws */
     const lhq_fx = {days: {}, fix: {}, src: 'demo'}; for(let i = 365; i >= 0; i -= 1){ const d = iso(new Date(T - i * DAY)); lhq_fx.days[d] = Math.round((1735 + (365 - i) * 0.045 + Math.sin(i / 9) * 0.6) * 100) / 100; }
-    return {docs, trash, people:PEOPLE, kv:{lhq_fx, lhq_fu, lhq_focus, lhq_plan, lhq_treps:{e:treps}, lhq_makeups:makeups, lhq_students:recs, lhq_logs:{e:logs, imports}, lhq_counters:{quote:C.quote, invoice:C.invoice, receipt:C.receipt + 1, card:C.card}, lhq_spend:money.spend, lhq_budget:money.budget, lhq_targets:targets, lhq_pay:{
+    return {docs, trash, people:PEOPLE, kv:{lhq_fx, lhq_fu, lhq_focus, lhq_plan, lhq_treps:{e:treps}, lhq_makeups:makeups, lhq_students:recs, lhq_logs:{e:logs, imports}, lhq_counters:{quote:C.quote, invoice:C.invoice, receipt:C.receipt + 1, card:C.card}, lhq_spend:money.spend, lhq_budget:money.budget, lhq_targets:targets, lhq_reqs, lhq_pay:{rules: {trBy: {'catherine mkwinda': 15000, 'emmanuel mkwamba': 3000}},
       place: Object.fromEntries([...new Set(Object.values(POOL).flat())].map(n => [n.toLowerCase(), [{p: ['Catherine Mkwinda','Emmanuel Mkwamba'].includes(n) ? 'full' : 'part', from: '2026-01-01'}]])),
       items: {pi1: {id: 'pi1', tutor: 'Peter Mvula', m: iso(new Date(T)).slice(0, 7), kind: 'advance', amt: 30000, label: 'Advance', d: iso(new Date(T - 4 * DAY)), by: 'Wanangwa Msutu', at: T - 4 * DAY},
         pi2: {id: 'pi2', tutor: 'Emmanuel Mkwamba', m: iso(new Date(T)).slice(0, 7), kind: 'allowance', amt: 10000, label: 'Transport · exam invigilation', d: iso(new Date(T - 2 * DAY)), by: 'Wanangwa Msutu', at: T - 2 * DAY}}}}};

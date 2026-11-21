@@ -64,7 +64,7 @@ async function usesDbStore() {
 /* compare two values whatever order their keys come in (the database keeps keys in its own order) */
 const canon = v => JSON.stringify(v, (k, x) => x && typeof x === "object" && !Array.isArray(x) ? Object.keys(x).sort().reduce((o, key) => (o[key] = x[key], o), {}) : x);
 
-const KV_KEYS = ["lhq_bal", "lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes", "lhq_treps", "lhq_avail", "lhq_cardack", "lhq_makeups", "lhq_reqs", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams", "lhq_kpi", "lhq_pay", "lhq_asks", "lhq_school", "lhq_fu", "lhq_obj", "lhq_fx", "lhq_prof"];
+const KV_KEYS = ["lhq_bal", "lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes", "lhq_treps", "lhq_avail", "lhq_cardack", "lhq_makeups", "lhq_reqs", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams", "lhq_kpi", "lhq_pay", "lhq_asks", "lhq_school", "lhq_fu", "lhq_obj", "lhq_fx", "lhq_prof", "lhq_bk", "lhq_away"];
 
 /* ---------- roles and permissions ---------- */
 const PERMS = ["acct", "quotes", "receipts", "cards", "delete", "restore", "students", "money", "tpay", "tutors", "msgs", "numbering", "backup", "classes", "moveclass", "spend", "pl"];
@@ -73,7 +73,7 @@ const TYPE_PERM = { quote: "quotes", invoice: "quotes", receipt: "receipts", car
 // settings fields: lists and wording can be given to admins; everything else (bank, contact, payment rules) is the Director's
 const LIST_FIELDS = ["subjects", "levels", "methods", "includes", "tutors", "grades", "gradeBasis", "sessionLengths", "spendCats", "heardFrom", "districts"];
 /* Business: who may read each part. Spending goes to whoever records it or sees profit and loss; budgets with profit and loss. */
-const KV_READ = { lhq_bal: p => isDirector(p) || can(p, "acct") || can(p, "pl"),   // money accounts and their daily balances
+const KV_READ = { lhq_bk: p => isDirector(p), lhq_bal: p => isDirector(p) || can(p, "acct") || can(p, "pl"),   // money accounts and their daily balances
   lhq_spend: p => can(p, "spend") || can(p, "pl"), lhq_income: p => can(p, "spend") || can(p, "pl"), lhq_budget: p => can(p, "pl"),
   lhq_sreports: p => isDirector(p) || can(p, "tutors"),
   lhq_prof: p => isDirector(p) || can(p, "students") || can(p, "tutors"),   // profiles hold health notes and pay: LHQ only
@@ -324,8 +324,10 @@ async function checkSync(me, upserts, deletes, kv) {
       const ch = Object.keys(v || {}).filter(id => canon(v[id]) !== canon(old[id]) && (!old[id] || (v[id].at || 0) >= (old[id].at || 0)));
       if (ch.length && !can(me, "spend")) return "You don't have permission to record spending.";
       if (ch.some(id => old[id] && old[id].by !== me.name)) return "You can only change spending you recorded. Ask the Director to change the others.";
-    } else if (["lhq_makeups", "lhq_reqs", "lhq_treps", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams", "lhq_kpi", "lhq_pay", "lhq_asks", "lhq_school", "lhq_fu", "lhq_obj", "lhq_fx"].includes(k)) {
+    } else if (["lhq_makeups", "lhq_reqs", "lhq_treps", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams", "lhq_kpi", "lhq_pay", "lhq_asks", "lhq_school", "lhq_fu", "lhq_obj", "lhq_fx", "lhq_bk"].includes(k)) {
       if (changedKeys(old, v).length) return "Make-ups, requisitions, clashes, targets and tutors' reports change through their own buttons.";
+    } else if (k === "lhq_away") {
+      if (changedKeys(old, v).length && !isDirector(me)) return "Only the Director marks someone away.";
     } else if (k === "lhq_avail" || k === "lhq_cardack") {
       if (changedKeys(old, v).length && !can(me, "tutors")) return "You don't have permission to change tutors' times.";
     } else if (k === "lhq_budget") {
@@ -576,7 +578,7 @@ async function decideReq(req, me) {
   await writeKv("lhq_reqs", old => Object.assign({}, old || {}, { [key]: v }));
   if (b.action === "price") await pushSafe(await idsOfStaff("director"), "req", { title: `To approve · ${item.item}`, body: `${money(v.total)} · priced by ${me.name}${v.own ? " (own request)" : ""}`, url: "/#reqs" });
   if (["approve", "decline"].includes(b.action)) await pushSafe(await idsOfTutor(rep.tutor), "decided", { title: `${item.item}: ${b.action === "approve" ? "approved" : "declined"}`, body: v.note ? String(v.note).slice(0, 80) : "Requisition", url: "/#teach" });
-  await act(me, "teaching", "req." + b.action, `${{ price: "Priced", approve: "Approved", decline: "Declined", bought: "Bought" }[b.action]} ${item.item}${item.qty && item.qty !== "1" ? " × " + item.qty : ""} for ${rep.tutor}${v.note ? " · " + v.note : ""}${b.action === "bought" ? " · " + money(v.cost) : ""}`, "reqs", key);
+  await act(me, "teaching", "req." + b.action, `${{ price: "Priced", approve: "Approved", decline: "Declined", bought: "Bought" }[b.action]} ${item.item}${item.qty && item.qty !== "1" ? " × " + item.qty : ""} for ${rep.tutor}${v.note ? " · " + v.note : ""}${b.action === "bought" ? " · " + money(v.cost) : ""}${["price", "bought"].includes(b.action) ? await covering(me) : ""}`, "reqs", key);
   return json({ ok: true, req: v });
 }
 
@@ -1060,7 +1062,7 @@ async function payPost(req, me) {
       const own = P.nk(tutor) === P.nk(me.name), dir = isDirector(me) && !own;
       await writeKv("lhq_pay", old => { const o = Object.assign({}, old); o.slips = Object.assign({}, o.slips, { [key]: Object.assign({ st: dir ? "confirmed" : "prepared", snap, by: me.name, at: now, pBy: me.name, pAt: now }, own ? { own: true } : {}, dir ? { aBy: me.name, aAt: now } : {}) }); return o; });
       if (dir) {
-        await act(me, "pay", "payslip.confirm", `${tutor} · ${monthL(m)} payslip approved · MWK ${x.total.toLocaleString("en-US")}`, "pay", key);
+        await act(me, "pay", "payslip.confirm", `${tutor} · ${monthL(m)} payslip prepared and approved · MWK ${x.total.toLocaleString("en-US")}${await covering(me)}`, "pay", key);
         await pushSafe(await idsOfTutor(tutor), "pay", { title: `Payslip · ${x.label}`, body: `MWK ${x.total.toLocaleString("en-US")} · check it and tick Received`, url: "/#teach/pay" });
       } else {
         await act(me, "pay", "payslip.prepare", `${tutor} · ${monthL(m)} payslip prepared · MWK ${x.total.toLocaleString("en-US")}${own ? " · own payslip" : ""}`, "pay", key);
@@ -1224,6 +1226,20 @@ async function confirmSession(req, me) {
 }
 
 /* Moving the Hub into the database (Director only): see where things are, copy, check, then switch (and back, if ever needed) */
+/* Full backup (Director): everything the Hub keeps, in one file — documents, lists, money, logs, pay, balances, profiles and pictures,
+   people without their passwords, and the activity record. Enough to rebuild the Hub on another service. */
+async function fullBackup(me) {
+  if (!isDirector(me)) return fail("Only the Director can make a full backup.", 403);
+  const s = store(), keys = (await s.list()).blobs.map(b => b.key).filter(k => !/^(lock|tmp)\//.test(k)), data = {};
+  for (let i = 0; i < keys.length; i += 25) await Promise.all(keys.slice(i, i + 25).map(async k => { const v = await s.get(k, { type: "json" }).catch(() => null); data[k] = v != null ? v : await s.get(k).catch(() => null); }));
+  const people = (await getPeople()).map(p => { const o = {}; Object.keys(p).forEach(k => { if (!/salt|hash|pin|token|secret|code|^pv$|fails|locked/i.test(k)) o[k] = p[k]; }); return o; });
+  let activity = [];
+  if (dbMode()) { try { activity = await q("SELECT * FROM activity ORDER BY created_at"); } catch (e) { activity = []; } }
+  const at = Date.now();
+  await writeKv("lhq_bk", old => Object.assign({}, old, { at, by: me.name, n: keys.length }));
+  await act(me, "settings", "backup.full", `Full backup downloaded · ${keys.length} records`, "backup", null);
+  return json({ app: "LHQ Hub", kind: "full", version: 3, exportedAt: new Date(at).toISOString(), by: me.name, counts: { records: keys.length, people: people.length, activity: activity.length }, store: data, people, activity });
+}
 async function countKeys(s) {
   const L = (await s.list()).blobs.map(b => b.key), c = p => L.filter(k => k.startsWith(p)).length;
   return { all: L.length, docs: c("doc/"), history: c("hist/"), deleted: c("trash/"), lists: c("kv/"), index: L.includes("index") };
@@ -1248,6 +1264,7 @@ async function hubStore(req, me) {
     const r = await copyBlobs(blobs(), { replace: !!b.replace, from: Math.max(0, +b.from || 0) });
     return json(r.more ? { moved: r, more: true, next: r.next } : Object.assign({ moved: r }, await status()));
   }
+  if (!isPreview() && storeOnDb && b.unlock !== "SWITCH BACK" && (b.action === "back" || (b.action === "use" && b.to !== "db") || (b.action === "move" && b.replace))) return fail("The live Hub stays on the database. This switch is locked.", 423);
   if (b.action === "back") {   // before switching back: copy the database into the old storage, so nothing saved since is lost
     const r = await copyToBlobs(blobs(), { from: Math.max(0, +b.from || 0) });
     return json(r.more ? { back: r, more: true, next: r.next } : Object.assign({ back: r }, await status()));
@@ -1997,6 +2014,7 @@ async function handle(req, context) {
     const me = await whoIs(req);
     if (!me) return fail("Please sign in again.", 401);
     if (req.method === "GET" && path === "state") return await state(req, me);
+    if (req.method === "GET" && path === "fullbackup") return await fullBackup(me);
     if (req.method === "GET" && path === "rev") return await rev(req, me);
     if (req.method === "GET" && path === "tutor") return await tutorGet(me);
     if (req.method === "POST" && path === "tutor") return await tutorPost(req, me);
@@ -2089,6 +2107,7 @@ const pushSafe = (...a) => pushTo(...a).catch(e => console.error("push failed", 
 async function peopleWhere(f) { return (await getPeople()).filter(p => p && p.active !== false && f(p)); }
 const idsOfTutor = async name => (await peopleWhere(p => isTutor(p) && nk(p.name) === nk(name))).map(p => p.id);
 const idsOfStaff = async perm => (await peopleWhere(p => staff(p) && (perm === "director" ? isDirector(p) : can(p, perm || "tutors")))).map(p => p.id);
+async function covering(me) { return isDirector(me) && (await peopleWhere(p => staff(p) && !isDirector(p) && (p.perms || []).includes("acct"))).length ? " · Director covering" : ""; }
 async function moneyIds() { return [...new Set([...(await peopleWhere(p => staff(p) && !isDirector(p) && (p.perms || []).includes("acct"))).map(p => p.id), ...(await idsOfStaff("director"))])]; }
 async function idsOfFamily(stKey, who = "both") {
   if (!dbMode()) return [];

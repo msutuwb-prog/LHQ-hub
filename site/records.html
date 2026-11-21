@@ -28,7 +28,7 @@ h1{font-size:26px;margin:8px 0 2px;color:var(--brand)}.sub{color:var(--muted);ma
 </head>
 <body><main>
 <a class="crumb" href="index.html#settings">‹ Settings</a>
-<h1>Shared records</h1><p class="sub">The one set of records every account will work from. Director only.</p>
+<h1>Shared records</h1><p class="sub">Where the Hub keeps everything, and what's in it. Director only.</p>
 <div class="card"><div class="cap">Status</div><div id="status">Checking…</div></div>
 <div class="card" id="oneCard" style="display:none"><div class="cap">One system: where the Hub keeps everything</div>
   <p class="note" style="margin:0 0 10px">Documents, history, the deleted bin, lists, money and tutors' logs move from the old storage into this database. Copy first and check the totals match; then switch. Switching back is always possible, and nothing is deleted from the old storage.</p>
@@ -55,6 +55,9 @@ const api = async (path, opt = {}) => { const r = await fetch('/api/v2/' + path,
 const hubApi = async (body) => { const r = await fetch('/api/hub/store', {method:'POST', headers:{'content-type':'application/json', authorization:'Bearer ' + token()}, body:JSON.stringify(body)}); const j = await r.json().catch(() => ({})); return {ok:r.ok, status:r.status, j}; };
 const money = n => 'MWK ' + Math.round(n || 0).toLocaleString('en-US');
 function oneShow(j){
+  const locked = window.LIVE && j.using === 'db';
+  ['oneCopy', 'oneUse', 'oneBack'].forEach(id => { const b = $(id); if(b) b.style.display = locked ? 'none' : ''; });
+  if(locked && !$('oneLock')) $('oneStatus').insertAdjacentHTML('afterend', '<p class="note" id="oneLock" style="margin:10px 0 0">🔒 Locked. The live Hub stays on this database; the switch is off so it can\'t be flipped by accident.</p>');
   const T = j.totals || {blobs:{}, db:{}}, types = [...new Set(Object.keys(T.blobs).concat(Object.keys(T.db)))].sort();
   $('oneStatus').innerHTML = `<div class="row"><span>The Hub uses</span><b>${j.using === 'db' ? st('ok', 'This database') : 'The old storage (Netlify Blobs)'}</b></div>
     <div class="row"><span>Old storage</span><b>${j.blobs.all} items · ${j.blobs.docs} documents</b></div>
@@ -81,7 +84,8 @@ async function load(){
   const rows = {}; let c = {j:{more:true, cursor:0}};
   while(c.j && c.j.more){ c = await api('changes?since=' + c.j.cursor); if(!c.ok) break; Object.entries(c.j.rows || {}).forEach(([t, r]) => rows[t] = (rows[t] || []).concat(r)); }
   $('counts').innerHTML = Object.entries(LABELS).map(([k, l]) => `<div><span>${l}</span> <b>${(rows[k] || []).filter(r => !r.del).length}</b></div>`).join('');
-  $('countsCard').style.display = ''; $('actions').style.display = '';
+  window.LIVE = !h.j.preview;
+  $('countsCard').style.display = ''; $('actions').style.display = window.LIVE ? 'none' : '';   /* locked on the live Hub (agreed 21 Nov): status only */
   $('demoBox').style.display = h.j.preview ? '' : 'none';
   const ppl = (rows.people || []).filter(p => !p.del), order = ['director','admin','tutor','parent','student','bdo'], RN = {director:'Director', admin:'Admin', tutor:'Tutors', parent:'Parents', student:'Students', bdo:'BDO'};
   $('asList').innerHTML = '<div class="who">' + order.filter(r => ppl.some(p => p.role === r)).map(r => `<b>${RN[r]}</b>` + ppl.filter(p => p.role === r).sort((a, b) => a.name.localeCompare(b.name)).map(p => `<button type="button" data-p="${p.id}">${p.name}</button>`).join('')).join('') + '</div>';
