@@ -376,7 +376,7 @@
   const RULES = (pw, pw2, p) => { const first = String(p.name || '').split(' ')[0].toLowerCase(), u = String(p.username || '').split('.')[0];
     return [[pw.length >= 8, 'At least 8 characters'], [/[0-9\W_]/.test(pw), 'A number or a symbol'], [!!pw && ![first, u].some(n => n.length > 2 && pw.toLowerCase().includes(n)), 'Not your name'], [!!pw && pw === pw2, 'Both match']]; };
   function pwChoose(ticket, person, why, err){
-    const box = overlay(), ini = window.lhqInitials ? lhqInitials(person.name) : String(person.name || '?').split(' ').map(w => w[0]).join('').slice(0, 2);
+    const box = overlay(), ini = '';
     const title = why === 'pin' ? 'Choose a password' : why === 'first' ? 'Choose your password' : 'Choose a new password';
     const sub = why === 'pin' ? 'PINs are being replaced. After this your PIN stops working.' : why === 'first' ? 'This is the last step.' : 'Your old password stops working, and other devices are signed out.';
     box.innerHTML = backL() + head(title, sub) + `<div class="hub-person"><span class="av">${esc(ini)}</span><span><b>${esc(person.name)}</b><small>username <b>${esc(person.username || '')}</b></small></span></div>` + errBox(err) +
@@ -430,7 +430,7 @@
   function needPassword(){
     const s = session(), m = s && s.me; if(!m || m.auth !== 'password' || m.hasPw !== false || document.getElementById('hubOv')) return;
     const box = overlay(), person = {name:m.name, username:m.username, email:m.email};
-    box.innerHTML = head('Choose a password', 'LHQ Hub now uses passwords instead of PINs. Choose yours once; after this your PIN stops working.') + `<div class="hub-person"><span class="av">${esc(window.lhqInitials ? lhqInitials(m.name) : m.name.split(' ').map(w => w[0]).join('').slice(0, 2))}</span><span><b>${esc(m.name)}</b><small>username <b>${esc(m.username || '')}</b> · you sign in with it from now on</small></span></div>
+    box.innerHTML = head('Choose a password', 'LHQ Hub now uses passwords instead of PINs. Choose yours once; after this your PIN stops working.') + `<div class="hub-person"><span class="av"></span><span><b>${esc(m.name)}</b><small>username <b>${esc(m.username || '')}</b> · you sign in with it from now on</small></span></div>
       ${pwIn('hubP1', 'Password', 'new-password')}${pwIn('hubP2', 'Type it again', 'new-password')}<ul class="hub-rules" id="hubRules"></ul><div id="hubErr"></div><button class="hub-go" data-k="go">Save</button>`;
     const upd = () => { const a = box.querySelector('#hubP1').value, b = box.querySelector('#hubP2').value; box.querySelector('#hubRules').innerHTML = RULES(a, b, person).map(([ok, t]) => `<li class="${ok ? 'ok' : ''}"><span class="c">${ok ? '✓' : ''}</span>${t}</li>`).join(''); };
     box.querySelectorAll('#hubP1,#hubP2').forEach(i => i.oninput = upd); upd();

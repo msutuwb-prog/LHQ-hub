@@ -70,6 +70,9 @@ window.PROF = (function(){
   }
   const SETUP = ['det','subs','avail','place','quals'];
   /* a new person's setup code waits until LHQ has filled in its part of their profile (or skipped it) */
+  /* age from the date of birth, worked out each time it's shown, so it goes up by itself after every birthday */
+  function ageOf(dob){ if(!/^\d{4}-\d{2}-\d{2}$/.test(dob || '')) return null; const t = todayISO(); let a = +t.slice(0, 4) - +dob.slice(0, 4); if(t.slice(5) < dob.slice(5)) a--; return a >= 0 && a < 120 ? a : null; }
+  const ageTxt = dob => { const a = ageOf(dob); return a == null ? '' : `<small class="pf-age">Age ${a}</small>`; };
   const codeWaiting = name => !!(window.lhqPendingCode && nk(lhqPendingCode.name) === nk(name));
   function showCode(name){ if(!codeWaiting(name) || !window.lhqCodeSheet) return; const r = lhqPendingCode; window.lhqPendingCode = null; setTimeout(() => lhqCodeSheet(Object.assign({}, r, {fromSetup: 1}), true), 300); }
   function openSec(c){
@@ -171,7 +174,7 @@ window.PROF = (function(){
     const fill = [!!s.dob && !!s.phone].concat(parts.map(([k, v]) => v != null ? v : done(P, k))), n = fill.filter(Boolean).length;
     const a = k => may ? `data-psec="s:${e(s.key)}|${k}|lhq" data-pname="${e(s.name)}"` : 'disabled';
     const pid = 's:' + s.key;
-    return `<div class="pf-me">${avatar(pid, s.name, 56)}<div><b>${e(s.name)}</b>${may ? `<span class="pf-pb"><button type="button" class="btn sm" data-picadd="${e(pid)}">Photo</button>${hasPic(pid) ? `<button type="button" class="btn sm" data-picdel="${e(pid)}">Remove</button>` : ''}</span>` : ''}</div></div><div class="pf-t3"><div><span>Birthday</span><b>${nb ? dayMon(nb.on) : '–'}</b><small>${nb ? (nb.in === 0 ? `turns ${nb.age} today 🎂` : `turns ${nb.age} · in ${nb.in} day${nb.in === 1 ? '' : 's'}`) : 'add the date of birth'}</small></div>
+    return `<div class="pf-me">${avatar(pid, s.name, 56)}<div><b>${e(s.name)}</b>${ageTxt(s.dob)}${may ? `<span class="pf-pb"><button type="button" class="btn sm" data-picadd="${e(pid)}">Photo</button>${hasPic(pid) ? `<button type="button" class="btn sm" data-picdel="${e(pid)}">Remove</button>` : ''}</span>` : ''}</div></div><div class="pf-t3"><div><span>Birthday</span><b>${nb ? dayMon(nb.on) : '–'}</b><small>${nb ? (nb.in === 0 ? `turns ${nb.age} today 🎂` : `turns ${nb.age} · in ${nb.in} day${nb.in === 1 ? '' : 's'}`) : 'add the date of birth'}</small></div>
       <a href="#student/${encodeURIComponent(s.key)}/marks"><span>Targets</span><b>›</b><small>exams and marks</small></a>
       <div><span>Profile</span><b>${n}/${fill.length}</b><small>${n === fill.length ? 'complete ✓' : (fill.length - n) + ' to finish'}</small></div></div>
     <div class="card">
@@ -203,7 +206,7 @@ window.PROF = (function(){
     if(!k) return '';
     const P = k.prof || {}, L = FAMSEC[role] || [], nb = nextBday(k.dob);
     return `${back}<div class="ph"><div class="tt"><h1>${role === 'parent' ? e(firstN(k.name)) + '\'s details' : 'My profile'}</h1><p>${role === 'parent' ? 'Only LHQ and ' + e(firstN(k.name)) + '\'s tutors see these' : 'Your tutors and LHQ see these'}</p></div></div>
-      <div class="pf-me">${avatar('s:' + k.key, k.name, 56)}<div><b>${e(k.name)}</b><span class="pf-pb"><button type="button" class="btn sm" data-picadd="${e('s:' + k.key)}">Photo</button>${hasPic('s:' + k.key) ? `<button type="button" class="btn sm" data-picdel="${e('s:' + k.key)}">Remove</button>` : ''}</span></div></div>
+      <div class="pf-me">${avatar('s:' + k.key, k.name, 56)}<div><b>${e(k.name)}</b>${ageTxt(k.dob)}<span class="pf-pb"><button type="button" class="btn sm" data-picadd="${e('s:' + k.key)}">Photo</button>${hasPic('s:' + k.key) ? `<button type="button" class="btn sm" data-picdel="${e('s:' + k.key)}">Remove</button>` : ''}</span></div></div>
       <div class="card">${L.map(x => `<button type="button" class="it" data-psec="s:${e(k.key)}|${x}|fam" data-pk="${e(k.key)}"><span class="t"><b>${e((role === 'student' && SEC[x].fam) || SEC[x].t)}</b><small>${show(P, x)}</small></span>${st(done(P, x))}<span class="chev">›</span></button>`).join('')}
       ${role === 'student' ? `<a class="it" href="#me/exams"><span class="t"><b>My exams</b><small>Which series and your target grades</small></span><span class="chev">›</span></a>` : ''}</div>
       ${role === 'student' ? `<div class="h2">Birthday</div><div class="card"><button type="button" class="it" data-psec="s:${e(k.key)}|bday|fam" data-pk="${e(k.key)}"><span class="t"><b>${nb ? dayMon(nb.on) : 'Not added'}</b><small>${P.bday && P.bday.off ? 'Not announced' : nb ? 'Your tutors and LHQ see it on the day' : 'LHQ adds your date of birth'}</small></span><span class="chev">›</span></button></div>` : ''}`;
@@ -211,7 +214,7 @@ window.PROF = (function(){
 
   /* ---------- tutors: what a tutor needs to know about a student, and their own profile ---------- */
   function tutorKnow(p, name){
-    const av = `<div class="pf-me">${avatar('s:' + nk(name), name, 48)}<div><b>${e(name)}</b></div></div>`;
+    const av = `<div class="pf-me">${avatar('s:' + nk(name), name, 48)}<div><b>${e(name)}</b>${ageTxt(p && p.dob)}</div></div>`;
     if(!p) return av;
     const rows = [];
     if(p.health && p.health.t) rows.push(['Health and safety', p.health.t]);
@@ -242,7 +245,7 @@ window.PROF = (function(){
     selfP = P = P || {}; const nb = P.det && P.det.dob ? nextBday(P.det.dob) : null, L = (k, t, s, ed = true) => ed ? `<button type="button" class="it" data-psec="self|${k}|self"><span class="t"><b>${t}</b><small>${s}</small></span>${st(done(P, k === 'bio' ? 'about' : k))}<span class="chev">›</span></button>` : `<div class="it"><span class="t"><b>${t}</b><small>${s}</small></span></div>`;
     const me0 = myId(), mid = 'p:' + nk(me0.name);
     return `${back}<div class="ph"><div class="tt"><h1>My profile</h1><p>LHQ sees everything here</p></div></div>
-      <div class="pf-me">${avatar(mid, me0.name, 56)}<div><b>${e(me0.name)}</b><span class="pf-pb"><button type="button" class="btn sm" data-picadd="${e(mid)}">Photo</button>${hasPic(mid) ? `<button type="button" class="btn sm" data-picdel="${e(mid)}">Remove</button>` : ''}</span></div></div>
+      <div class="pf-me">${avatar(mid, me0.name, 56)}<div><b>${e(me0.name)}</b>${ageTxt(P.det && P.det.dob)}<span class="pf-pb"><button type="button" class="btn sm" data-picadd="${e(mid)}">Photo</button>${hasPic(mid) ? `<button type="button" class="btn sm" data-picdel="${e(mid)}">Remove</button>` : ''}</span></div></div>
       <div class="card">${L('det', 'Details', done(P, 'det') ? e(lst([P.det.phone, P.det.area, P.det.en ? 'emergency contact ✓' : '', nb ? 'birthday ' + dayMon(nb.on) : ''])) : notAdded())}
       ${L('bio', 'About me', done(P, 'about') ? e((P.about.bio || '').slice(0, 80)) : notAdded())}
       ${L('avail', 'Availability', e(availText(P.avail)) || notAdded('LHQ sets it; you can change it'))}
@@ -263,7 +266,7 @@ window.PROF = (function(){
     const a = k => may ? `data-psec="${e(id)}|${k}|lhq" data-pname="${e(name)}"` : 'disabled';
     const parts = ['det','subs','avail','place','quals','about','weak'], n = parts.filter(k => done(P, k)).length, nb = P.det && P.det.dob ? nextBday(P.det.dob) : null;
     const q = P.quals || {}, qOk = (q.L || []).length && (q.L || []).every(x => x.ok) && CHK.every(([k]) => (q.chk || {})[k]);
-    return `${crumb('#tutors', 'Tutors')}${codeWaiting(name) ? `<div class="card pad" style="border-left:3px solid var(--gold,#f4b223)"><b>Setup code ready</b><p class="note" style="margin:4px 0 10px">Fill in LHQ's part below, or get the code now.</p><button type="button" class="btn n sm" data-showcode="${e(name)}">Get the setup code</button></div>` : ''}<div class="pf-hd">${avatar(id, name, 56)}<div><h1>${e(name)}</h1><p>${e(lst([placeText(P.place) ? PLACE[P.place.type] + (P.place.from ? ' since ' + dayMon(P.place.from) : '') : '', subsText(P.subs)])) || 'Tutor'}</p>${may ? `<span class="pf-pb"><button type="button" class="btn sm" data-picadd="${e(id)}">Photo</button>${hasPic(id) ? `<button type="button" class="btn sm" data-picdel="${e(id)}">Remove</button>` : ''}</span>` : ''}</div></div>
+    return `${crumb('#tutors', 'Tutors')}${codeWaiting(name) ? `<div class="card pad" style="border-left:3px solid var(--gold,#f4b223)"><b>Setup code ready</b><p class="note" style="margin:4px 0 10px">Fill in LHQ's part below, or get the code now.</p><button type="button" class="btn n sm" data-showcode="${e(name)}">Get the setup code</button></div>` : ''}<div class="pf-hd">${avatar(id, name, 56)}<div><h1>${e(name)}</h1>${ageTxt(P.det && P.det.dob)}<p>${e(lst([placeText(P.place) ? PLACE[P.place.type] + (P.place.from ? ' since ' + dayMon(P.place.from) : '') : '', subsText(P.subs)])) || 'Tutor'}</p>${may ? `<span class="pf-pb"><button type="button" class="btn sm" data-picadd="${e(id)}">Photo</button>${hasPic(id) ? `<button type="button" class="btn sm" data-picdel="${e(id)}">Remove</button>` : ''}</span>` : ''}</div></div>
       <div class="pf-t3"><a href="#tutors/${encodeURIComponent(name)}"><span>Students</span><b>${tutorStudents(name)}</b><small>on current cards ›</small></a>
         <div><span>Birthday</span><b>${nb ? dayMon(nb.on) : '–'}</b><small>${nb ? (nb.in === 0 ? 'today 🎂' : 'in ' + nb.in + ' day' + (nb.in === 1 ? '' : 's')) : 'not added'}</small></div>
         <div><span>Profile</span><b>${n}/${parts.length}</b><small>${n === parts.length ? 'complete ✓' : parts.length - n + ' to finish'}</small></div></div>
@@ -388,7 +391,7 @@ window.PROF = (function(){
       return openSec({mode, id, sec, k: k.key, P: k.prof, name: k.name, after: () => { if(FAM.saveCache) FAM.saveCache(); rerender(); }}); }
   });
 
-  if(!document.getElementById('pfCss')){ const c = document.createElement('style'); c.id = 'pfCss'; c.textContent = '.pf-me{display:flex;gap:12px;align-items:center;margin:0 0 12px}.pf-me b{display:block;font-size:16px}.pf-pb{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}.pf-av{display:inline-grid;place-items:center;flex:none;border-radius:50%;overflow:hidden;background:var(--accent,#073763);color:var(--onaccent,#fff);font-weight:800;letter-spacing:.02em}.pf-av img{width:100%;height:100%;object-fit:cover;display:block}' + `
+  if(!document.getElementById('pfCss')){ const c = document.createElement('style'); c.id = 'pfCss'; c.textContent = '.pf-age{display:block;color:var(--muted);font-size:13px;font-weight:700;margin-top:1px}.pf-me{display:flex;gap:12px;align-items:center;margin:0 0 12px}.pf-me b{display:block;font-size:16px}.pf-pb{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}.pf-av{display:inline-grid;place-items:center;flex:none;border-radius:50%;overflow:hidden;background:var(--accent,#073763);color:var(--onaccent,#fff);font-weight:800;letter-spacing:.02em}.pf-av img{width:100%;height:100%;object-fit:cover;display:block}' + `
 .pf-t3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-bottom:12px}.pf-t3>*{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px;min-width:0;color:inherit;text-decoration:none}
 .pf-t3 span{display:block;font-size:11.5px;color:var(--muted);font-weight:700}.pf-t3 b{display:block;font-size:20px;color:var(--brand,var(--accent))}.pf-t3 small{display:block;font-size:11.5px;color:var(--muted)}
 .pf-st{width:20px;height:20px;border-radius:50%;display:inline-grid;place-items:center;font-size:11px;font-weight:900;flex:none;margin-left:6px}.pf-st.ok{background:var(--ok);color:#fff}.pf-st.am{background:var(--gold);color:#14213d}.pf-st.no{border:2px solid var(--muted)}
@@ -416,8 +419,7 @@ button.it{width:100%;text-align:left;background:none;border-left:0;border-right:
   /* a round avatar: the picture when there is one, otherwise initials; at = the picture's version when known */
   function avatar(id, name, size = 44, at){
     const P = PIC[id]; if(!P || (at && P.at && P.at < at)){ if(!P || P.at) { wantQ.add(id); clearTimeout(wantT); wantT = setTimeout(picFetch, 40); } }
-    const ini = window.lhqInitials ? lhqInitials(name) : String(name || '?')[0];
-    return `<span class="pf-av" data-pic="${e(id)}" style="width:${size}px;height:${size}px;font-size:${Math.round(size * .38)}px">${P && P.d ? `<img src="${P.d}" alt="">` : e(ini)}</span>`;
+    return `<span class="pf-av" data-pic="${e(id)}" style="width:${size}px;height:${size}px">${P && P.d ? `<img src="${P.d}" alt="">` : ''}</span>`;
   }
   /* choose a photo: shrunk on the phone to a small square JPEG before it is sent */
   function pickPic(id, done){
@@ -457,5 +459,5 @@ button.it{width:100%;text-align:left;background:none;border-left:0;border-right:
   /* profiles still to finish, for the Director's Needs attention: tutors missing LHQ's part or their own, students missing what the family adds */
   function unfinished(){ const A = all(), T = (HD.people() || []).filter(p => (p.role === 'tutor' || p.tutor) && p.status !== 'off' && p.active !== false).map(p => { const P = A['p:' + nk(p.name)] || {}; return {name: p.name, lhq: ['subs','place'].filter(k => !done(P, k)), own: TNEED.filter(k => !done(P, k))}; }).filter(x => x.lhq.length || x.own.length);
     const S = (HD.students() || []).filter(s => s.status && s.status.k !== 'ended').map(s => ({name: s.name, key: s.key, n: stuGaps(s)})).filter(x => x.n); return {T, S}; }
-  return {unfinished, studentTab, stuGaps, famTodo, famPage, tutorKnow, tutorTodo, tutorMine, tutorPage, tutorFit, after, settingsPage, bindSettings, dobText, nextBday, loadB, avatar, pickPic, dropPic, hasPic, setPref, myName, meCard, bindMe};
+  return {ageOf, unfinished, studentTab, stuGaps, famTodo, famPage, tutorKnow, tutorTodo, tutorMine, tutorPage, tutorFit, after, settingsPage, bindSettings, dobText, nextBday, loadB, avatar, pickPic, dropPic, hasPic, setPref, myName, meCard, bindMe};
 })();

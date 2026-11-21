@@ -1,10 +1,10 @@
 /* names: "Mr Nalivati" stays "Mr Nalivati" (a title keeps the surname: "Mrs Grace Phiri" → "Mrs Phiri"); initials skip the title too.
-   lhqFirst is the short name used in greetings and lists; lhqInitials the two letters in a round avatar. */
+   lhqFirst is the short name used in greetings and lists. */
 (function(){
   const T = /^(mr|mrs|ms|miss|mx|dr|prof|rev|madam|madame|sir|pastor|fr|sr|hon)\.?$/i;
   window.lhqFirst = n => { const w = String(n || '').trim().split(/\s+/).filter(Boolean); if(!w.length) return ''; return T.test(w[0]) && w[1] ? w[0].replace(/\.$/, '') + ' ' + w[w.length - 1] : w[0]; };   // "Mrs Grace Phiri" → "Mrs Phiri"
-  window.lhqInitials = n => { const w = String(n || '').trim().split(/\s+/).filter(Boolean); if(!w.length) return '?'; const r = w.length > 1 && T.test(w[0]) ? (w.length > 2 ? w.slice(1) : w) : w;   // "Mr Nalivati" → "MN"
-    return (r[0][0] + (r.length > 1 ? r[r.length - 1][0] : '')).toUpperCase(); };
+  window.lhqInitials = () => '';   // no initials anywhere: an empty avatar shows a person outline (decided 21 Nov)
+
 })();
 /* LHQ Hub: light / dark theme, shared by every page.
    Loads in <head> so the right colours show before the page paints. */
@@ -73,3 +73,6 @@
   window.lhqInstalled = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
   window.lhqPdfSoon = () => window.addEventListener('load', () => setTimeout(() => window.lhqPdf().catch(() => {}), 1200));
 })();
+
+(function(){ const svg = encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#9aa6b8" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>');
+  const st = document.createElement('style'); st.textContent = `.av:empty,.pf-av:empty{background:var(--surface2,#eef1f5) url("data:image/svg+xml,${svg}") center/58% no-repeat !important}`; document.head.appendChild(st); })();
