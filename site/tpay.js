@@ -18,7 +18,7 @@
    - Full-time: salary by days of the month in that placement; weekday after-hours sessions get overtime; each weekend day taught
      gets transport, and lunch when the hours taught that day reach the set hours; minutes lost taken off at the in-person fee. */
 (function(G){
-  const DEF = {inp: 8000, onl: 7000, cap: 350000, after: '17:00', salary: 350000, transport: 10000, lunch: 5000, lunchH: 5, overtime: 7000, lenTerm: 50, lenHol: 45, grace: 5, progs: []};
+  const DEF = {inp: 8000, onl: 7000, ginp: 14000, gonl: 12000, cap: 350000, after: '17:00', salary: 350000, transport: 10000, lunch: 5000, lunchH: 0, overtime: 7000, bankW: 4, lenTerm: 50, lenHol: 45, grace: 5, progs: [], trBy: {}};
   const nk = s => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
   const pad = n => String(n).padStart(2, '0');
   const mins = t => { const m = /^(\d{1,2}):(\d{2})/.exec(String(t || '')); return m ? +m[1] * 60 + +m[2] : null; };
@@ -56,7 +56,7 @@
       const taughtL = L.filter(x => x.a === 'attended' || x.a === 'late'), cf = L.map(x => x.cf).find(c => c && (c.s === 'disputed' || c.s === 'settled')) || null;
       const pa = p ? p.a : mins(e.t1), pb = p ? p.b : mins(e.t2), len = pa != null && pb != null && pb > pa ? pb - pa : R.lenTerm;
       const who = L.length > 1 ? (className(e.cls) || L.map(x => short(x.st)).join(', ')) : e.st;
-      return {d: e.d, L, e, who, sub: e.sub, t1: e.t1 || (p ? p.s : ''), t2: e.t2 || (p ? p.e : ''), pa, pb, len, online: e.md === 'o' || /o$/.test(e.fmt || ''), cls: e.cls || '', cname: className(e.cls),
+      return {d: e.d, L, e, who, sub: e.sub, t1: e.t1 || (p ? p.s : ''), t2: e.t2 || (p ? p.e : ''), pa, pb, len, online: e.md === 'o' || /o$/.test(e.fmt || ''), group: L.length > 1 || /^g/.test(e.fmt || '') || !!e.cls, cls: e.cls || '', cname: className(e.cls),
         taught: taughtL.length > 0, cancelled: !taughtL.length && L.some(x => x.a === 'cancelled'), cb: (L.find(x => x.cb) || {}).cb || '', cf, mk: !!e.mk};
     }).sort((x, y) => (x.d + (x.t1 || '')).localeCompare(y.d + (y.t1 || '')));
     const lostOf = s => { if(!s.taught) return {late: 0, early: 0, lost: 0};
@@ -79,16 +79,19 @@
 
     /* part-time: normal sessions up to the cap */
     if(P.length){
-      const fee = s => { const pr = prog(s); return pr ? +pr.rate : s.online ? R.onl : R.inp; };
+      const fee = s => { const pr = prog(s); return pr ? +pr.rate : s.group ? (s.online ? R.gonl : R.ginp) : s.online ? R.onl : R.inp; };
       const norm = P.filter(s => !isWkd(s) && !isAft(s)), top = P.filter(s => isWkd(s) || isAft(s));
-      const inp = norm.filter(s => !prog(s) && !s.online), onl = norm.filter(s => !prog(s) && s.online), pg = norm.filter(s => prog(s));
-      if(inp.length) add('inp', 'cap', 'In person', `${inp.length} × ${n0(R.inp)}`, inp.length * R.inp, inp.map(s => rowS(s, n0(R.inp))));
-      if(onl.length) add('onl', 'cap', 'Online', `${onl.length} × ${n0(R.onl)}`, onl.length * R.onl, onl.map(s => rowS(s, n0(R.onl))));
+      const pg = norm.filter(s => prog(s)), plain = norm.filter(s => !prog(s));
+      [['inp', 'In person · 1-to-1', s => !s.group && !s.online, R.inp], ['onl', 'Online · 1-to-1', s => !s.group && s.online, R.onl], ['ginp', 'In person · group', s => s.group && !s.online, R.ginp], ['gonl', 'Online · group', s => s.group && s.online, R.gonl]]
+        .forEach(([id, label, f, rate]) => { const L = plain.filter(f); if(L.length) add(id, 'cap', label, `${L.length} × ${n0(rate)}`, L.length * rate, L.map(s => rowS(s, n0(rate)))); });
       const byP = {}; pg.forEach(s => { const pr = prog(s); (byP[pr.name] = byP[pr.name] || {pr, L: []}).L.push(s); });
       Object.values(byP).forEach(({pr, L}) => add('prg:' + pr.name, 'cap', pr.name, `${L.length} × ${n0(pr.rate)} · programme rate`, L.length * pr.rate, L.map(s => rowS(s, n0(pr.rate)))));
       const sum = norm.reduce((x, s) => x + fee(s), 0);
+      /* the cap counts normal sessions only; sessions after it is reached are paid on top, at the same fee, on their own line (agreed 21 Nov) */
+      let run = 0; const after = []; norm.slice().sort((x, y) => (x.d + (x.t1 || '')).localeCompare(y.d + (y.t1 || ''))).forEach(s => { run += fee(s); if(run > R.cap) after.push(s); });
       add('cap', 'capline', 'Up to the cap', `${n0(Math.min(sum, R.cap))} of ${n0(R.cap)}`, sum > R.cap ? R.cap - sum : 0,
-        [{t: 'Normal sessions', s: `${norm.length} sessions`, v: n0(sum)}, {t: 'Cap', s: 'Settings › Tutor pay', v: n0(R.cap)}].concat(sum > R.cap ? [{t: 'Over the cap', s: 'not paid', v: '− ' + n0(sum - R.cap)}] : []), {sum, cap: R.cap});
+        [{t: 'Normal sessions', s: `${norm.length} sessions`, v: n0(sum)}, {t: 'Monthly cap', s: 'Settings › Tutor pay', v: n0(R.cap)}], {sum, cap: R.cap});
+      if(sum > R.cap) add('ovc', 'top', 'Overtime · after the cap', `${after.length} session${after.length === 1 ? '' : 's'} · same fee · on top`, sum - R.cap, after.map(s => rowS(s, n0(fee(s)))));
       const aft = top.filter(s => !isWkd(s)), wk = top.filter(isWkd);
       if(aft.length) add('aft', 'top', 'After hours', `${aft.length} from ${R.after} · on top`, aft.reduce((x, s) => x + fee(s), 0), aft.map(s => rowS(s, n0(fee(s)))));
       if(wk.length) add('wkd', 'top', 'Weekend', `${wk.length} × fee · on top`, wk.reduce((x, s) => x + fee(s), 0), wk.map(s => rowS(s, n0(fee(s)))));
@@ -104,11 +107,18 @@
     if(F.length){
       const ot = F.filter(s => !isWkd(s) && isAft(s));
       if(ot.length) add('ovt', 'top', 'Overtime', `${ot.length} weekday sessions from ${R.after} × ${n0(R.overtime)}`, ot.length * R.overtime, ot.map(s => rowS(s, n0(R.overtime))));
-      const days = {}; F.filter(isWkd).forEach(s => { (days[s.d] = days[s.d] || []).push(s); });
-      const D = Object.entries(days).sort(), hrs = L => L.reduce((x, s) => x + (s.pa != null && s.pb != null ? (s.pb - s.pa) : R.lenTerm), 0) / 60;
-      if(D.length) add('trn', 'top', 'Transport', `${D.length} weekend day${D.length > 1 ? 's' : ''} × ${n0(R.transport)}`, D.length * R.transport, D.map(([d, L]) => ({t: dl(d), s: `${L.length} session${L.length > 1 ? 's' : ''} · ${hrs(L).toFixed(1)} h`, v: n0(R.transport)})));
-      const LD = D.filter(([, L]) => hrs(L) >= R.lunchH);
-      if(LD.length) add('lun', 'top', 'Lunch', `${LD.length} whole day${LD.length > 1 ? 's' : ''} (${R.lunchH} h+) × ${n0(R.lunch)}`, LD.length * R.lunch, LD.map(([d, L]) => ({t: dl(d), s: `${hrs(L).toFixed(1)} h taught`, v: n0(R.lunch)})));
+      /* transport: set per tutor, for each day worked (agreed 21 Nov) */
+      const trR = +((R.trBy || {})[tn] != null ? R.trBy[tn] : R.transport) || 0, hrs = L => L.reduce((x, s) => x + (s.pa != null && s.pb != null ? (s.pb - s.pa) : R.lenTerm), 0) / 60;
+      const byDay = {}; F.filter(s => s.taught).forEach(s => { (byDay[s.d] = byDay[s.d] || []).push(s); });
+      const DW = Object.entries(byDay).sort();
+      if(DW.length && trR) add('trn', 'top', 'Transport', `${DW.length} day${DW.length > 1 ? 's' : ''} worked × ${n0(trR)}`, DW.length * trR, DW.map(([d, L]) => ({t: dl(d), s: `${L.length} session${L.length > 1 ? 's' : ''}`, v: n0(trR)})));
+      /* food: each Saturday or Sunday worked */
+      const D = DW.filter(([d]) => wd(d) === 0 || wd(d) === 6), LD = D.filter(([, L]) => hrs(L) >= (+R.lunchH || 0));
+      if(LD.length) add('lun', 'top', 'Food', `${LD.length} weekend day${LD.length > 1 ? 's' : ''} × ${n0(R.lunch)}`, LD.length * R.lunch, LD.map(([d, L]) => ({t: dl(d), s: `${hrs(L).toFixed(1)} h taught`, v: n0(R.lunch)})));
+      /* weekend hours are banked as time off, to use within the set weeks */
+      if(D.length){ const use = d => { const x = new Date(d + 'T12:00:00'); x.setDate(x.getDate() + 7 * (+R.bankW || 4)); return x.toISOString().slice(0, 10); };
+        const bh = D.reduce((x, [, L]) => x + hrs(L), 0);
+        add('bank', 'held', 'Weekend hours banked', `${bh.toFixed(1)} h · time off · use within ${+R.bankW || 4} weeks`, 0, D.map(([d, L]) => ({t: dl(d), s: `use by ${dl(use(d))}`, v: hrs(L).toFixed(1) + ' h'})), {hours: bh}); }
       const lostF = F.map(s => [s, lostOf(s)]).filter(([, l]) => l.lost);
       if(lostF.length){ const mn = lostF.reduce((x, [, l]) => x + l.lost, 0);
         add('minf', 'not', 'Minutes lost', `${mn} min · at the in-person fee`, -lostF.reduce((x, [s, l]) => x + R.inp / s.len * l.lost, 0), lostF.map(([s, l]) => rowS(s, '− ' + n0(R.inp / s.len * l.lost), `${l.lost} min`)), {mins: mn}); }
@@ -119,7 +129,7 @@
     np('can', 'Cancelled by the tutor', notPaid.filter(s => s.cancelled && (s.cb === 'tutor' || !s.cb)));
     np('canl', 'Cancelled by LHQ', notPaid.filter(s => s.cancelled && s.cb === 'lhq'));
     np('cans', 'Cancelled by the student', notPaid.filter(s => s.cancelled && s.cb === 'student'));
-    const feeOf = s => placeOf(s) === 'full' ? 0 : (prog(s) ? +prog(s).rate : s.online ? R.onl : R.inp);
+    const feeOf = s => placeOf(s) === 'full' ? 0 : (prog(s) ? +prog(s).rate : s.group ? (s.online ? R.gonl : R.ginp) : s.online ? R.onl : R.inp);
     if(held.length) add('held', 'held', 'Held', `${held.length} in dispute · paid once settled`, 0, held.map(s => rowS(s, n0(feeOf(s)), `"${(s.cf.note || '').slice(0, 60)}"`)), {owed: held.reduce((x, s) => x + feeOf(s), 0)});
     const late = (ctx.entries || []).filter(e => e && !e.x && e.ty === 's' && nk(e.tutor) === tn && e.d < a && e.cf && e.cf.s === 'settled' && e.cf.at && new Date(e.cf.at).toISOString().slice(0, 7) === m && (e.a === 'attended' || e.a === 'late'));
     const lateG = [...new Map(late.map(e => [e.grp || e.id, e])).values()];

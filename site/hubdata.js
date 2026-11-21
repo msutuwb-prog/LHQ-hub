@@ -33,7 +33,8 @@
   const isDir = () => me().role === 'director';
   const can = k => isDir() || (me().role === 'admin' && (me().perms || []).includes(k));
   const ROLE = {director:'Director', admin:'Admin', tutor:'Tutor', student:'Student', parent:'Parent', bdo:'BDO'};
-  const roleText = p => (ROLE[p.role] || (p.admin ? 'Admin' : 'Tutor')) + (p.role !== 'tutor' && p.tutor ? ' + Tutor' : '');
+  const isAcct = p => !!p && p.role === 'admin' && (p.perms || []).includes('acct');   // the accountant: an admin with the Accountant role switched on
+  const roleText = p => (isAcct(p) ? 'Accountant' : ROLE[p.role] || (p.admin ? 'Admin' : 'Tutor')) + (p.role !== 'tutor' && p.tutor ? ' + Tutor' : '');
 
   let saved = [], settings = {};
   let rIdx = null;   // receipts by the invoice number they pay, built once per load (lists with thousands of documents stay quick)
@@ -195,6 +196,6 @@
     return E.filter(e => ['waiting', 'disputed'].includes(cfState(e))).sort((a, b) => (a.d || '').localeCompare(b.d || ''));
   }
   window.HD = {store, cfState, cfLeft, sessionsToConfirm, esc, num, mk, mkShort, nice, range, ago, first, sk, same, today, addDays, dayDiff, parseISO, isoOf, MON, WORD, typeOf,
-    me, isDir, can, ROLE, roleText, load, get saved(){ return saved; }, get settings(){ return settings; }, total, invState, chainOf, docStatus, byDate,
+    me, isDir, can, ROLE, roleText, isAcct, load, get saved(){ return saved; }, get settings(){ return settings; }, total, invState, chainOf, docStatus, byDate,
     students, studentRecords, saveStudent, DETAIL, people, refreshPeople, makeups};
 })();

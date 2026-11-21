@@ -343,7 +343,7 @@ test("tutor's times: unavailable blocks, Got it / Can't make this time, taken of
   assert.equal((await hub(new Request("http://x" + link.replace(/\.[a-f0-9]{24}\./, ".000000000000000000000000.")), {})).status, 404, "a wrong signature gets nothing");
 });
 
-test("make-ups: a tutor books, LHQ confirms or declines; requisitions: the Director approves, Admin marks bought into Spending", async () => {
+test("make-ups: a tutor books, LHQ confirms or declines; requisitions: priced, the Director approves, marked bought into Payments", async () => {
   const tok = (await call("signin", { id: "emmanuel.mkwamba", password: "Maths!2026x" })).j.token;
   const day = n => new Date(Date.now() + n * 864e5).toISOString().slice(0, 10);
   assert.equal((await call("tutor", { action: "makeup", k: "natasha chirwa|physics", d: day(2), s: "10:00", e: "11:00" }, tok)).status, 403, "only their own students");
@@ -361,6 +361,9 @@ test("make-ups: a tutor books, LHQ confirms or declines; requisitions: the Direc
   const key0 = rep.j.report.id + "#0", key1 = rep.j.report.id + "#1";
   assert.equal((await call("req", { key: key0, action: "bought", cost: 45000 }, DIR)).status, 409, "approve first");
   assert.equal((await call("req", { key: key0, action: "approve" }, tok)).status, 403);
+  assert.equal((await call("req", { key: key0, action: "approve" }, DIR)).status, 400, "price it first");
+  assert.equal((await call("req", { key: key0, action: "price", each: 9000, qty: 5 }, tok)).status, 403, "a tutor can't price");
+  const pr = await call("req", { key: key0, action: "price", each: 9000, qty: 5, supplier: "Bookland" }, DIR); assert.equal(pr.j.req.s, "priced"); assert.equal(pr.j.req.total, 45000);
   assert.equal((await call("req", { key: key0, action: "approve" }, DIR)).j.req.s, "approved");
   assert.equal((await call("req", { key: key1, action: "decline" }, DIR)).status, 400, "declining needs a reason");
   await call("req", { key: key1, action: "decline", note: "We have some in the office" }, DIR);

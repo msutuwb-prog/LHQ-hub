@@ -222,6 +222,7 @@ window.BIZ = (function(){
     else if(!T.some(x => x[0] === tab)) return page('home', period);
     if(tab === 'charts' && /^p\d+$/.test(cat || '') && window.PC){ const it = PC.chosen('biz')[+cat.slice(1)]; if(it && it.c) INS.setChart(it.c); }
     const name = SEC_NAME[tab] || (T.find(x => x[0] === tab) || [])[1] || 'Business';
+    if(tab === 'balances' && window.BAL) return `${crumb('#biz/home/' + period, 'Business', 'biz/balances')}<div class="ph"><div class="tt"><h1>Balances</h1><p>Banks, mobile money and cash</p></div></div>${BAL.page()}`;
     const body = tab === 'pl' ? plView(period) : tab === 'budgets' ? budgetView(period) : tab === 'allocations' ? (window.INS ? INS.pots(period) : '') : tab === 'spending' ? (window.INS ? INS.spendTop(period) : '') + spendingView(period, cat)
       : tab === 'money' && window.MIN ? MIN.view(miK || period) : window.INS ? INS.view(tab, period, cat) : '';
     return `${crumb('#biz/home/' + period, 'Business', 'biz/' + (tab === 'cat' ? 'cat' : tab))}
@@ -285,9 +286,16 @@ window.BIZ = (function(){
       <label class="f lm"><span>Paid to (optional)</span><input class="in" id="bzTo" value="${esc(e.to || '')}" placeholder="e.g. ESCOM, landlord, printer" autocomplete="off" list="bzPayees"><datalist id="bzPayees">${payees().map(x => `<option value="${esc(x)}">`).join('')}</datalist></label>
       <div class="r2 lm"><label class="f"><span>Paid by</span><select class="in" id="bzMethod"><option value="">Choose</option>${methods().map(m => `<option ${e.method === m ? 'selected' : ''}>${esc(m)}</option>`).join('')}</select></label>
         <label class="f"><span>Repeats</span><select class="in" id="bzRep"><option value="">Once</option><option value="m" ${e.rep === 'm' ? 'selected' : ''}>Every month</option></select></label></div>
+      ${window.BAL ? `<div class="r2"><label class="f"><span>From account</span><select class="in" id="bzAcct"><option value="">Choose</option>${BAL.accounts().map(a => `<option value="${esc(a.id)}" ${BAL.accFor(e.acct, e.method) === a.id ? 'selected' : ''}>${esc(a.n)}</option>`).join('')}</select></label>
+        <label class="f"><span>Reference (optional)</span><input class="in" id="bzRef" value="${esc(e.ref || '')}" placeholder="e.g. 88231" autocomplete="off"></label></div>` : ''}
+      <div id="bzWho" ${/^(tutor pay|salary|salaries)$/i.test(e.cat || '') ? '' : 'hidden'}><div class="r2"><label class="f"><span>Who</span><select class="in" id="bzPerson"><option value="">Choose</option>${HD.people().filter(p => ['tutor','admin','director','bdo'].includes(p.role) || p.tutor).map(p => `<option ${e.person === p.name ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>
+        <label class="f"><span>For the month</span><input class="in" type="month" id="bzMonth" value="${esc(e.month || (e.date || today()).slice(0, 7))}"></label></div><p class="note" style="margin:-4px 0 10px">Links the payment to their payslip for that month.</p></div>
       <button class="lean-more" type="button" data-leanmore>+ More</button><button class="btn n full" id="bzSave">Save</button>${isNew ? '' : `<button class="btn rd full" id="bzDel">${ic('bin',16)} Delete</button>`}`);
     const pickCat = b => { document.querySelectorAll('#bzCats .chip[data-c]').forEach(x => x.classList.toggle('on', x === b)); $('bzChanF').hidden = !b || b.dataset.c !== 'Marketing'; if(b && b.dataset.c === 'Marketing' && !$('bzChan').value) $('bzChan').value = guessChannel($('bzWhat').value); };
     document.querySelectorAll('#bzCats .chip[data-c]').forEach(b => b.onclick = () => pickCat(b));
+    const whoT = () => { const c = document.querySelector('#bzCats .chip.on'); if($('bzWho')) $('bzWho').hidden = !(c && /^(tutor pay|salary|salaries)$/i.test(c.dataset.c)); };
+    document.querySelectorAll('#bzCats .chip[data-c]').forEach(b => b.addEventListener('click', whoT));
+    if($('bzAcct')) $('bzMethod').addEventListener('change', () => { if(!$('bzAcct').value || $('bzAcct').dataset.auto){ const a = BAL.accFor('', $('bzMethod').value); if(a){ $('bzAcct').value = a; $('bzAcct').dataset.auto = 1; } } });
     $('bzCatNew').onclick = () => { $('bzCatAdd').hidden = false; $('bzCatName').focus(); };
     $('bzCatGo').onclick = () => { const n = $('bzCatName').value.trim(); if(!n) return;
       let b = [...document.querySelectorAll('#bzCats .chip[data-c]')].find(x => x.dataset.c.toLowerCase() === n.toLowerCase());
@@ -311,6 +319,8 @@ window.BIZ = (function(){
       if(!amt){ toast('Enter the amount'); $('bzAmt').focus(); return; }
       if(!$('bzDate').value){ toast('Choose the date'); return; }
       Object.assign(e, {cat:c.c, amount:amt, date:$('bzDate').value, what:$('bzWhat').value.trim(), to:$('bzTo').value.trim(), method:$('bzMethod').value, rep:$('bzRep').value});
+      if($('bzAcct')){ e.acct = $('bzAcct').value || ''; e.ref = $('bzRef').value.trim(); }
+      if(/^(tutor pay|salary|salaries)$/i.test(c.c) && $('bzPerson')){ e.person = $('bzPerson').value; e.month = $('bzMonth').value; if(!e.to && e.person) e.to = e.person; } else { delete e.person; delete e.month; }
       if(usdV){ e.usd = usdV; e.fx = rt; } else { delete e.usd; delete e.fx; }
       if(c.c === 'Marketing') e.chan = $('bzChan').value || guessChannel(e.what); else delete e.chan;
       if(!cats().some(x => x.toLowerCase() === c.c.toLowerCase())){   // a new category joins the list for everyone
@@ -338,9 +348,11 @@ window.BIZ = (function(){
     $('bzBudSave').onclick = () => { const m = {}; document.querySelectorAll('[data-bud]').forEach(i => { const v = num(i.value); if(v) m[i.dataset.bud] = v; }); store.set('lhq_budget', {m, by:me().name, at:Date.now()}); closeSheet(); toast('Budgets saved'); render(); };
   }
   function bind(){
+    if(window.BAL) BAL.bind();
     const on = (sel, fn) => document.querySelectorAll(sel).forEach(el => el.onclick = ev => fn(el, ev));
     on('[data-bznew]', () => sheet());
     on('[data-bzin]', () => incomeSheet());
+    if(route.args[1] === 'new' && can('spend')){ history.replaceState(null, '', '#biz/spending'); route.args[1] = ''; sheet(); }   /* + New › Payment */
     on('[data-inedit]', el => { const e = (store.get('lhq_income', {}) || {})[el.dataset.inedit]; if(e) incomeSheet(Object.assign({}, e)); });
     on('[data-inok]', el => { const [sid, date] = el.dataset.inok.split('|'), d = due('lhq_income').find(x => x.sid === sid && x.date === date); if(!d) return;
       const L = d.last, e = {id:uid(), sid, date, cat:L.cat, amount:L.amount, from:L.from || '', what:L.what || '', method:L.method || '', rep:'m', at:Date.now(), by:me().name};

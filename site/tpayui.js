@@ -11,9 +11,9 @@ window.TPAYUI = (function(){
   const enc = encodeURIComponent, dec = s => { try{ return decodeURIComponent(s); }catch(e){ return s; } };
   let last = {};   // what the sheets show
   const post = async body => { let r; try{ r = await hub.api('pay', {method: 'POST', body: JSON.stringify(body)}); }catch(e){ toast(e.message || 'Couldn\'t save'); return null; }
-    try{ if(window.hub && hub.pull && !(window.TUT && TUT.isTutor && TUT.isTutor())) await hub.pull(); }catch(e){}   /* tutors have no documents to pull; a failed refresh never undoes a save */
+    try{ const R0 = ((window.HD && HD.me && HD.me()) || {}).role; if(window.hub && hub.pull && R0 && R0 !== 'tutor') await hub.pull(); }catch(e){}   /* tutors have no documents to pull; a failed refresh never undoes a save */
     return r; };
-  const ST = {draft: ['', 'Draft'], confirmed: ['bl', 'Confirmed · to sign'], signed: ['ok', 'Signed']};
+  const ST = {draft: ['', 'Draft'], prepared: ['am', 'Prepared · to approve'], confirmed: ['bl', 'Approved · to receive'], signed: ['ok', 'Received']};
   const mark = st => `<span class="tp-mk ${ST[st][0]}">${st === 'signed' ? '✓' : ''}</span>`;
   const CSS = `.tp-mk{width:28px;height:28px;border-radius:50%;border:2px solid var(--line);flex:none;display:grid;place-items:center;font-weight:900;font-size:13px;color:#fff}.tp-mk.ok{background:var(--ok);border-color:var(--ok)}.tp-mk.bl{border-color:var(--accent)}.tp-mk.am{border-color:var(--am);background:var(--am-bg);color:var(--am)}
 .tp-kv{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:10px}.tp-kv span{display:block;font-size:12px;color:var(--muted);font-weight:700}.tp-kv b{font-size:16px}
@@ -28,17 +28,20 @@ window.TPAYUI = (function(){
 .tp-rr{display:flex;align-items:center;gap:10px;padding:8px 14px;border-top:1px solid var(--line2)}.tp-rr:first-of-type{border-top:0}.tp-rr span{flex:1;font-size:14px}.tp-rr span small{display:block;color:var(--muted);font-size:12px}.tp-rr input{width:120px;text-align:right}`;
   let cssOn = false; const css = () => { if(cssOn) return ''; cssOn = true; const s = document.createElement('style'); s.textContent = CSS; document.head.appendChild(s); return ''; };
   const stOf = x => x.slip ? x.slip.st : 'draft';
+  const dd = t => t ? P().dl(new Date(t).toISOString().slice(0, 10)) : '';
+  const steps = sl => [['Prepared', sl.pBy || sl.by, sl.pAt || sl.at], ['Approved by the Director', sl.aBy || (sl.st !== 'prepared' && !sl.pBy ? sl.by : ''), sl.aAt || (sl.st !== 'prepared' && !sl.pBy ? sl.at : 0)], ['Received by the tutor', sl.sAt ? 'ticked' : '', sl.sAt]]
+    .map(([t, by, at]) => `<div class="it"><span class="tp-mk ${at ? 'ok' : ''}">${at ? '✓' : ''}</span><span class="t"><b>${t}</b><small>${at ? esc(by) + ' · ' + dd(at) : 'Not yet'}</small></span></div>`).join('');
 
   /* ---------- the month ---------- */
   function list(m){
     const C = ctx(), T = P().tutors(C), X = T.map(t => P().shown(C, t, m)).filter(x => x.lines.length || x.slip);
-    const tot = X.reduce((a, x) => a + x.total, 0), conf = X.filter(x => stOf(x) !== 'draft').length, sig = X.filter(x => stOf(x) === 'signed').length;
+    const tot = X.reduce((a, x) => a + x.total, 0), conf = X.filter(x => ['confirmed', 'signed'].includes(stOf(x))).length, prep = X.filter(x => stOf(x) === 'prepared').length, sig = X.filter(x => stOf(x) === 'signed').length;
     last.list = X;
     return css() + `<div class="ph"><div class="tt"><h1>Pay</h1><p>From the tutors' session logs</p></div>${isDir() ? '<div class="acts"><a class="btn" href="#set/tpay">Settings</a></div>' : ''}</div>
       <div class="tp-mn"><a href="#pay/m/${addM(m, -1)}" aria-label="Month before">‹</a><b>${P().ml(m)}</b><a href="#pay/m/${addM(m, 1)}" aria-label="Month after">›</a></div>
-      <div class="card pad"><span class="note">To pay</span><div class="tp-big" data-tpd="all">${mk(tot)}</div><div class="tp-kv"><div><span>Tutors</span><b>${X.length}</b></div><div><span>Confirmed</span><b>${conf} of ${X.length}</b></div><div><span>Signed</span><b>${sig}</b></div></div></div>
-      <div class="card">${X.map(x => `<a class="it" href="#pay/${enc(x.tutor)}/${m}">${x.held && stOf(x) === 'draft' ? '<span class="tp-mk am">!</span>' : mark(stOf(x))}<span class="t"><b>${esc(x.tutor)}</b><small>${x.place === 'full' ? 'Full-time' : x.place === 'mixed' ? 'Changed placement' : x.place === 'unset' ? 'Placement not set · part-time' : 'Part-time'} · ${x.paid} sessions · ${ST[stOf(x)][1]}${x.held ? ` · ${x.held} held` : ''}${x.slip && x.slip.q ? ' · queried' : ''}</small></span><b>${mk(x.total)}</b><span class="chev">›</span></a>`).join('') || '<p class="empty">No sessions logged this month.</p>'}</div>
-      ${X.some(x => stOf(x) === 'draft') ? '<button class="btn full" data-tpall>Confirm all drafts</button>' : ''}`;
+      <div class="card pad"><span class="note">To pay</span><div class="tp-big" data-tpd="all">${mk(tot)}</div><div class="tp-kv"><div><span>Tutors</span><b>${X.length}</b></div><div><span>Approved</span><b>${conf} of ${X.length}</b></div><div><span>To approve</span><b>${prep}</b></div><div><span>Received</span><b>${sig}</b></div></div></div>
+      <div class="card">${X.map(x => `<a class="it" href="#pay/${enc(x.tutor)}/${m}">${x.held && stOf(x) === 'draft' ? '<span class="tp-mk am">!</span>' : mark(stOf(x))}<span class="t"><b>${esc(x.tutor)}</b><small>${x.place === 'full' ? 'Full-time' : x.place === 'mixed' ? 'Changed placement' : x.place === 'unset' ? 'Placement not set · part-time' : 'Part-time'} · ${x.paid} sessions · ${ST[stOf(x)][1]}${x.held ? ` · ${x.held} held` : ''}${x.slip && x.slip.own ? ' · own payslip' : ''}${x.slip && x.slip.q ? (x.slip.q.ans ? ' · query answered' : ' · queried') : ''}</small></span><b>${mk(x.total)}</b><span class="chev">›</span></a>`).join('') || '<p class="empty">No sessions logged this month.</p>'}</div>
+      ${X.some(x => stOf(x) === 'draft') ? `<button class="btn full" data-tpall>${isDir() ? 'Approve all drafts' : 'Prepare all drafts'}</button>` : ''}${isDir() && prep ? `<button class="btn n full" data-tpallok style="margin-top:8px">Approve ${prep} prepared</button>` : ''}`;
   }
 
   /* ---------- a payslip ---------- */
@@ -46,24 +49,25 @@ window.TPAYUI = (function(){
   function slip(tutor, m){
     const C = ctx(), x = P().shown(C, tutor, m), st = stOf(x), draft = st === 'draft', R = x.R, pl = P().placeNow(C.pay, tutor, C.t);
     last.slip = x;
-    const line = l => l.grp === 'capline' ? `<div class="tp-bar"><i style="width:${l.cap ? Math.min(100, l.sum / l.cap * 100) : 0}%"></i></div><button class="tp-ln ${l.amt < 0 ? 'no' : 'sub2'}" data-tpl="${esc(l.id)}"><span>${l.amt < 0 ? 'Over the cap' : esc(l.label)}${l.amt < 0 ? `<small>${n(l.sum)} of ${n(l.cap)}</small>` : ''}</span><b>${l.amt < 0 ? mk(l.amt) : esc(l.sub)}</b></button>`
-      : `<button class="tp-ln ${l.grp === 'not' ? 'no' : l.grp === 'held' ? 'hold' : ''}" data-tpl="${esc(l.id)}"><span>${esc(l.label)}<small>${esc(l.sub)}</small></span><b>${l.grp === 'held' ? mk(l.owed || 0) : l.amt === 0 && l.grp === 'not' ? 'MWK 0' : mk(l.amt)}</b></button>`;
+    const line = l => l.grp === 'capline' ? `<div class="tp-bar"><i style="width:${l.cap ? Math.min(100, l.sum / l.cap * 100) : 0}%"></i></div><button class="tp-ln ${l.amt < 0 ? 'no' : 'sub2'}" data-tpl="${esc(l.id)}"><span>${l.amt < 0 ? 'Cap reached · the rest is overtime below' : esc(l.label)}${l.amt < 0 ? `<small>${n(l.sum)} of ${n(l.cap)}</small>` : ''}</span><b>${l.amt < 0 ? mk(l.amt) : esc(l.sub)}</b></button>`
+      : `<button class="tp-ln ${l.grp === 'not' ? 'no' : l.grp === 'held' ? 'hold' : ''}" data-tpl="${esc(l.id)}"><span>${esc(l.label)}<small>${esc(l.sub)}</small></span><b>${l.hours != null ? l.hours.toFixed(1) + ' h' : l.grp === 'held' ? mk(l.owed || 0) : l.amt === 0 && l.grp === 'not' ? 'MWK 0' : mk(l.amt)}</b></button>`;
     const body = GROUPS.map(([g, cap]) => { const L = x.lines.filter(l => l.grp === g || (g === 'cap' && l.grp === 'capline')); return L.length ? (cap ? `<div class="tp-cap">${cap}</div>` : '') + L.map(line).join('') : ''; }).join('');
     return css() + `<a class="crumb" href="#pay/m/${m}">‹ Pay</a><div class="ph"><div class="tt"><h1>${esc(tutor)}</h1><p>${x.place === 'full' ? 'Full-time' : x.place === 'mixed' ? 'Changed placement' : 'Part-time'} · ${x.label} · ${ST[st][1].toLowerCase()}</p></div><div class="acts"><button class="btn" data-tppdf>PDF</button></div></div>
-      ${x.slip && x.slip.q ? `<div class="card pad" style="border-left:3px solid var(--am)"><b>${esc(tutor.split(' ')[0])} says something's wrong</b><p class="note" style="margin:4px 0 0">"${esc(x.slip.q.note)}"</p></div>` : ''}
+      ${x.slip && x.slip.own ? `<div class="card pad" style="border-left:3px solid var(--am)"><b>Own payslip · check carefully</b><p class="note" style="margin:4px 0 0">Prepared by ${esc(x.slip.pBy || x.slip.by)} for themselves.</p></div>` : ''}
+      ${x.slip && x.slip.q ? `<div class="card pad" style="border-left:3px solid var(--am)"><b>${esc(tutor)} asked</b><p class="note" style="margin:4px 0 0">"${esc(x.slip.q.note)}"</p>${x.slip.q.ans ? `<p class="note" style="margin:6px 0 0">✓ ${esc(x.slip.q.ans.by)} answered: "${esc(x.slip.q.ans.note)}"</p>` : may() ? '<button class="btn sm" data-tpans style="margin-top:8px">Answer</button>' : ''}</div>` : ''}
       ${x.place === 'unset' && draft ? `<div class="card pad" style="border-left:3px solid var(--am)"><b>Placement not set</b><p class="note" style="margin:4px 0 0">Worked out as part-time.</p></div>` : ''}
       <div class="card">${body || '<p class="empty">No sessions logged this month.</p>'}
         ${draft && may() ? `<div class="tp-adds"><button class="btn sm" data-tpadd="allowance">+ Allowance</button>${isDir() ? '<button class="btn sm" data-tpadd="bonus">+ Bonus</button>' : ''}<button class="btn sm" data-tpadd="deduction">+ Deduction</button><button class="btn sm" data-tpadd="advance">+ Advance</button></div>` : ''}
         <div class="tp-tot" data-tpd="paid" style="cursor:pointer"><span>To pay<small style="display:block;font-weight:600;color:var(--muted);font-size:12px">${x.paid} sessions paid${x.notPaid ? ` · ${x.notPaid} not paid` : ''}${x.held ? ` · ${x.held} held` : ''}</small></span><b>${mk(x.total)}</b></div></div>
-      ${x.slip ? `<p class="note">Confirmed by ${esc(x.slip.by)} · ${P().dl(new Date(x.slip.at).toISOString().slice(0, 10))}${x.slip.sAt ? ` · signed by ${esc(tutor.split(' ')[0])} · ${P().dl(new Date(x.slip.sAt).toISOString().slice(0, 10))}` : ''}</p>` : ''}
-      ${draft && may() ? '<button class="btn n full" data-tpconf>Confirm payslip</button>' : ''}${st === 'confirmed' && isDir() ? '<button class="btn full" data-tpreopen style="margin-top:8px">Reopen</button>' : ''}
+      ${x.slip ? `<div class="card">${steps(x.slip)}</div>` : ''}
+      ${draft && may() ? `<button class="btn n full" data-tpconf>${isDir() ? 'Approve payslip' : 'Prepare · send to the Director'}</button>` : ''}${st === 'prepared' && isDir() ? '<button class="btn n full" data-tpok>Approve payslip</button>' : ''}${(st === 'confirmed' && isDir()) || (st === 'prepared' && may()) ? '<button class="btn full" data-tpreopen style="margin-top:8px">Reopen</button>' : ''}
       ${isDir() ? `<div class="h2">Placement</div><div class="card"><a class="it" data-tpplace><span class="t"><b>${pl === 'full' ? 'Full-time' : 'Part-time'}</b><small>${(((C.pay.place || {})[P().nk(tutor)] || []).map(z => `${z.p === 'full' ? 'Full-time' : 'Part-time'} from ${P().dl(z.from)}`).join(' · ')) || 'Not set'}</small></span><span class="chev">›</span></a></div>` : ''}`;
   }
   function drill(id){
     const x = last.slip; if(!x) return; const l = x.lines.find(y => y.id === id); if(!l) return;
     openSheet(`<div class="hx"><h3>${esc(l.label)}</h3><button class="ib" data-close>✕</button></div><p class="sp">${esc(l.sub)}</p>
       <div class="card">${(l.rows || []).map(r => `<div class="tp-dl"><span>${esc(r.t)}</span><b>${esc(r.v)}</b>${r.s ? `<small>${esc(r.s)}</small>` : ''}</div>`).join('') || '<p class="empty">Nothing here.</p>'}
-      <div class="tp-tot"><span>${l.grp === 'held' ? 'Owed once settled' : 'Total'}</span><b>${l.grp === 'held' ? mk(l.owed || 0) : mk(l.amt)}</b></div></div>
+      <div class="tp-tot"><span>${l.hours != null ? 'Hours banked' : l.grp === 'held' ? 'Owed once settled' : 'Total'}</span><b>${l.hours != null ? l.hours.toFixed(1) + ' h' : l.grp === 'held' ? mk(l.owed || 0) : mk(l.amt)}</b></div></div>
       ${l.item && stOf(x) === 'draft' && may() ? `<button class="btn rd full" data-tpunitem="${esc(l.item)}" style="margin-top:10px">Remove</button>` : ''}`);
     const u = document.querySelector('[data-tpunitem]'); if(u) u.onclick = async () => { if(await post({action: 'unitem', tutor: x.tutor, m: x.m, id: u.dataset.tpunitem})){ closeSheet(); toast('Removed'); render(); } };
   }
@@ -102,8 +106,8 @@ window.TPAYUI = (function(){
       <div class="fd-tot"><div><small>Sessions paid</small><b>${x.paid}</b></div><div><small>Not paid</small><b>${x.notPaid}</b></div><div class="due"><small>To pay</small><b>${mk(x.total)}</b></div></div>
       ${np.length ? `<h3>Not paid</h3><p class="fd-n" style="color:#1d2433">${np.map(l => `${esc(l.label)}: ${esc(l.sub)}`).join(' · ')}</p>` : ''}
       <h3>Sessions</h3><table class="fd-t"><tr><th>Line</th><th>Session</th><th class="r">Amount</th></tr>${x.lines.filter(l => ['cap', 'top', 'not', 'held'].includes(l.grp)).flatMap(l => (l.rows || []).filter(r => /\d{2}:\d{2}|\?–/.test(r.s || '')).map(r => `<tr><td>${esc(l.label)}</td><td>${esc(r.t)} · ${esc(r.s)}</td><td class="r">${esc(r.v)}</td></tr>`)).join('')}</table>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:26px"><div style="border-top:1px solid #1d2433;padding-top:6px;font-size:11px;color:#6b7385"><b style="display:block;color:#1d2433;font-size:12px">${x.slip ? esc(x.slip.by) : ''}</b>${x.slip ? 'Confirmed ' + P().dl(new Date(x.slip.at).toISOString().slice(0, 10)) : 'Not confirmed yet'}</div>
-        <div style="border-top:1px solid #1d2433;padding-top:6px;font-size:11px;color:#6b7385"><b style="display:block;color:#1d2433;font-size:12px">${esc(x.tutor)}</b>${x.slip && x.slip.sAt ? 'Signed in LHQ Hub ' + P().dl(new Date(x.slip.sAt).toISOString().slice(0, 10)) : 'Signature'}</div></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-top:26px"><div style="border-top:1px solid #1d2433;padding-top:6px;font-size:11px;color:#6b7385"><b style="display:block;color:#1d2433;font-size:12px">${x.slip ? esc(x.slip.aBy || x.slip.by) : ''}</b>${x.slip ? (x.slip.st === 'prepared' ? 'Prepared ' : 'Approved ') + P().dl(new Date(x.slip.aAt || x.slip.at).toISOString().slice(0, 10)) : 'Not confirmed yet'}</div>
+        <div style="border-top:1px solid #1d2433;padding-top:6px;font-size:11px;color:#6b7385"><b style="display:block;color:#1d2433;font-size:12px">${esc(x.tutor)}</b>${x.slip && x.slip.sAt ? '✓ Received · ticked in LHQ Hub ' + P().dl(new Date(x.slip.sAt).toISOString().slice(0, 10)) : 'Received · not yet ticked'}</div></div>
       <div class="fd-ft">LHQ Learning Solutions · Area 47, Sector 4, Lilongwe · worked out from the session logs in LHQ Hub</div></div>`;
   }
   async function pdf(x){ if(!window.FDOC) return; toast('Preparing the PDF…'); try{ await FDOC.pdf(paperHTML(x), `LHQ Payslip_ ${x.tutor}_ ${x.m}`); toast('PDF downloaded'); }catch(e){ console.error(e); toast('Couldn\'t make the PDF'); } }
@@ -113,43 +117,48 @@ window.TPAYUI = (function(){
     if(!isDir()) return '<p class="empty">Director only.</p>';
     const R = P().rules(store.get('lhq_pay', {})), row = (k, a, b) => `<div class="tp-rr"><span>${a}${b ? `<small>${b}</small>` : ''}</span><input class="in" data-tpr="${k}" value="${esc(R[k])}" ${k === 'after' ? 'type="time"' : 'inputmode="numeric"'}></div>`;
     return css() + `<h2 class="sec-h">Tutor pay</h2><p class="sec-p">Director only.</p>
-      <div class="h2">Part-time</div><div class="card">${row('inp', 'In person', 'per session')}${row('onl', 'Online', 'per session')}${row('cap', 'Monthly cap', 'normal sessions')}${row('after', 'After hours from', 'after-hours and weekend sessions are paid on top')}</div>
-      <div class="h2">Full-time</div><div class="card">${row('salary', 'Salary', 'a month')}${row('transport', 'Transport', 'each weekend day taught')}${row('lunch', 'Lunch', 'a long weekend day')}${row('lunchH', 'Lunch from', 'hours taught that day')}${row('overtime', 'Overtime', 'each weekday session after hours')}</div>
+      <div class="h2">Part-time <em>per session</em></div><div class="card">${row('inp', 'In person · 1-to-1', '')}${row('onl', 'Online · 1-to-1', '')}${row('ginp', 'In person · group', '')}${row('gonl', 'Online · group', '')}${row('cap', 'Monthly cap', 'normal sessions · after it, paid on top at the same fee')}${row('after', 'After hours from', 'after-hours and weekend sessions are paid on top')}</div>
+      <div class="h2">Full-time</div><div class="card">${row('salary', 'Salary', 'a month')}${row('overtime', 'Overtime', 'each weekday session after hours')}${row('lunch', 'Food', 'each Saturday or Sunday worked')}${row('bankW', 'Weekend hours', 'banked as time off · use within weeks')}${row('transport', 'Transport', 'a day worked · when a tutor has no own rate')}</div>
+      <div class="h2">Transport a day <em>each full-time tutor</em></div><div class="card">${ftList(R).map(t => `<div class="tp-rr"><span>${esc(t.name)}<small>a day worked</small></span><input class="in" data-tptr="${esc(t.k)}" value="${esc(t.v)}" inputmode="numeric" placeholder="${esc(R.transport)}"></div>`).join('') || '<p class="empty">No full-time tutors yet. Set a tutor as full-time on Tutor pay.</p>'}</div>
       <div class="h2">Sessions</div><div class="card">${row('lenTerm', 'Session length', 'term to term and programmes, minutes')}${row('lenHol', 'Holiday session length', 'minutes')}${row('grace', 'Grace', 'late start or early finish not charged, minutes')}</div>
       <div class="h2">Programme rates <em>a class whose name includes it</em></div><div class="card" id="tpProgs">${(R.progs || []).map((x, i) => `<div class="tp-rr"><input class="in" data-tpg="${i}:name" value="${esc(x.name)}" style="flex:1;width:auto;text-align:left"><input class="in" data-tpg="${i}:rate" value="${esc(x.rate)}" inputmode="numeric"></div>`).join('')}
         <a class="it" data-tpgadd><span class="t"><b style="color:var(--accent)">+ Programme rate</b></span></a></div>
       <button class="btn n" id="tpSave">Save</button>`;
   }
+  const ftList = R => { const pay = store.get('lhq_pay', {}), T = P(), t = new Date().toISOString().slice(0, 10);
+    return Object.keys(pay.place || {}).filter(k => T.placeNow(pay, k, t) === 'full').map(k => ({k, name: k.replace(/\b\w/g, c => c.toUpperCase()), v: (R.trBy || {})[k] != null ? R.trBy[k] : ''})); };
   let progDraft = null;
   function bindSettings(){
     const R = P().rules(store.get('lhq_pay', {})); progDraft = progDraft || (R.progs || []).map(x => Object.assign({}, x));
     document.querySelectorAll('[data-tpg]').forEach(el => el.oninput = () => { const [i, k] = el.dataset.tpg.split(':'); progDraft[+i][k] = el.value; });
     const ad = document.querySelector('[data-tpgadd]'); if(ad) ad.onclick = () => { progDraft.push({name: '', rate: ''}); const box = $('tpProgs'); const i = progDraft.length - 1; ad.insertAdjacentHTML('beforebegin', `<div class="tp-rr"><input class="in" data-tpg="${i}:name" placeholder="e.g. IGCSE Marathon" style="flex:1;width:auto;text-align:left"><input class="in" data-tpg="${i}:rate" inputmode="numeric" placeholder="10000"></div>`); bindSettings(); };
-    if($('tpSave')) $('tpSave').onclick = async () => { const rules = {}; document.querySelectorAll('[data-tpr]').forEach(el => { rules[el.dataset.tpr] = el.dataset.tpr === 'after' ? el.value : +el.value; }); rules.progs = progDraft.filter(x => x.name && +x.rate > 0).map(x => ({name: x.name, rate: +x.rate}));
+    if($('tpSave')) $('tpSave').onclick = async () => { const rules = {}; document.querySelectorAll('[data-tpr]').forEach(el => { rules[el.dataset.tpr] = el.dataset.tpr === 'after' ? el.value : +el.value; }); rules.trBy = Object.assign({}, R.trBy || {}); document.querySelectorAll('[data-tptr]').forEach(el => { if(el.value === '') delete rules.trBy[el.dataset.tptr]; else rules.trBy[el.dataset.tptr] = +el.value; }); rules.progs = progDraft.filter(x => x.name && +x.rate > 0).map(x => ({name: x.name, rate: +x.rate}));
       if(await post({action: 'rules', rules})){ progDraft = null; toast('Saved'); } };
   }
 
   /* ---------- the tutor's My pay ---------- */
-  let mine = null;
+  let mine = null, mineAt = 0;
+  window.addEventListener('hashchange', () => { if(/^#teach\/pay/.test(location.hash)) mine = null; });   /* fresh each time My pay is opened */
   function myPay(){
-    if(!mine){ hub.api('pay').then(r => { mine = r; render(); }).catch(e => { mine = {err: e.message}; render(); }); return '<p class="empty">Loading…</p>'; }
+    if(!mine){ mineAt = Date.now(); hub.api('pay').then(r => { mine = r; render(); }).catch(e => { mine = {err: e.message}; render(); }); return '<p class="empty">Loading…</p>'; }
     if(mine.err) return `<p class="empty">${esc(mine.err)}</p>`;
     const S = mine.slips || [], open = S.find(s => s.st === 'confirmed');
     return css() + `<a class="crumb" href="#teach">‹ Home</a><div class="ph"><div class="tt"><h1>My pay</h1><p>${mine.place === 'full' ? 'Full-time' : 'Part-time'}</p></div></div>
-      ${open ? `<div class="card pad"><span class="note">${esc(open.snap.label)} · confirmed by LHQ</span><div class="tp-big" data-tpmy="${open.m}">${mk(open.snap.total)}</div><span class="note">Check it, then sign.</span>
-        <button class="btn n full" style="margin-top:12px" data-tpmy="${open.m}">Open and sign</button><button class="btn full" style="margin-top:8px" data-tpq="${open.m}">Something's wrong</button>${open.q ? `<p class="note" style="margin-top:8px">You told LHQ: "${esc(open.q.note)}"</p>` : ''}</div>`
-        : `<div class="card pad"><span class="note">${esc(mine.now.label)} · ${S.some(x => x.m === mine.now.m && x.st === 'signed') ? 'signed' : 'LHQ confirms at month end'}</span><div class="tp-big" style="cursor:default">${mine.now.paid} sessions</div>${mine.now.notPaid ? `<span class="note">${mine.now.notPaid} not paid${mine.now.held ? ` · ${mine.now.held} held` : ''}</span>` : ''}</div>`}
-      <div class="h2">Payslips</div><div class="card">${S.map(s => `<a class="it" data-tpmy="${s.m}">${mark(s.st)}<span class="t"><b>${esc(s.snap.label)}</b><small>${s.st === 'signed' ? 'Signed ' + P().dl(new Date(s.sAt).toISOString().slice(0, 10)) : 'To sign'}</small></span><b>${mk(s.snap.total)}</b><span class="chev">›</span></a>`).join('') || '<p class="empty">No payslips yet.</p>'}</div>`;
+      ${open ? `<div class="card pad"><span class="note">${esc(open.snap.label)} · approved by LHQ</span><div class="tp-big" data-tpmy="${open.m}">${mk(open.snap.total)}</div><span class="note">Check it. When the money reaches you, tick Received.</span>
+        <button class="btn n full" style="margin-top:12px" data-tpmy="${open.m}">Open</button><button class="btn full" style="margin-top:8px" data-tpq="${open.m}">Something's wrong</button>${open.q ? `<p class="note" style="margin-top:8px">You told LHQ: "${esc(open.q.note)}"</p>${open.q.ans ? `<p class="note">✓ ${esc(open.q.ans.by)}: "${esc(open.q.ans.note)}"</p>` : ''}` : ''}</div>`
+        : `<div class="card pad"><span class="note">${esc(mine.now.label)} · ${S.some(x => x.m === mine.now.m && x.st === 'signed') ? 'received' : 'LHQ prepares it at month end'}</span><div class="tp-big" style="cursor:default">${mine.now.paid} sessions</div>${mine.now.notPaid ? `<span class="note">${mine.now.notPaid} not paid${mine.now.held ? ` · ${mine.now.held} held` : ''}</span>` : ''}</div>`}
+      <div class="h2">Payslips</div><div class="card">${S.map(s => `<a class="it" data-tpmy="${s.m}">${mark(s.st)}<span class="t"><b>${esc(s.snap.label)}</b><small>${s.st === 'signed' ? 'Received ' + P().dl(new Date(s.sAt).toISOString().slice(0, 10)) : 'To receive'}${s.q && s.q.ans ? ' · query answered' : ''}</small></span><b>${mk(s.snap.total)}</b><span class="chev">›</span></a>`).join('') || '<p class="empty">No payslips yet.</p>'}</div>`;
   }
   function myOne(m){
     const s = (mine.slips || []).find(y => y.m === m); if(!s) return; const x = Object.assign({}, s.snap, {slip: s});
     last.slip = x;
     openSheet(`<div class="hx"><h3>${esc(x.label)}</h3><button class="ib" data-close>✕</button></div>
-      <div class="card">${x.lines.map(l => `<button class="tp-ln ${l.grp === 'not' ? 'no' : l.grp === 'held' ? 'hold' : ''}" data-tpl="${esc(l.id)}"><span>${esc(l.label)}<small>${esc(l.sub)}</small></span><b>${l.grp === 'held' ? mk(l.owed || 0) : mk(l.amt)}</b></button>`).join('')}<div class="tp-tot"><span>To pay</span><b>${mk(x.total)}</b></div></div>
-      <div class="row" style="gap:8px;margin-top:10px">${s.st === 'confirmed' ? '<button class="btn n" style="flex:1" id="tpSign">Sign</button>' : '<span class="note" style="flex:1">✓ Signed</span>'}<button class="btn" id="tpPdf">PDF</button></div>`);
+      <div class="card">${x.lines.map(l => `<button class="tp-ln ${l.grp === 'not' ? 'no' : l.grp === 'held' ? 'hold' : ''}" data-tpl="${esc(l.id)}"><span>${esc(l.label)}<small>${esc(l.sub)}</small></span><b>${l.hours != null ? l.hours.toFixed(1) + ' h' : l.grp === 'held' ? mk(l.owed || 0) : mk(l.amt)}</b></button>`).join('')}<div class="tp-tot"><span>To pay</span><b>${mk(x.total)}</b></div></div>
+      ${s.q ? `<div class="card pad"><span class="note">You asked: "${esc(s.q.note)}"</span>${s.q.ans ? `<p class="note" style="margin:6px 0 0">✓ ${esc(s.q.ans.by)}: "${esc(s.q.ans.note)}"</p>` : '<p class="note" style="margin:6px 0 0">Waiting for an answer</p>'}</div>` : ''}
+      <div class="row" style="gap:8px;margin-top:10px">${s.st === 'confirmed' ? '<button class="btn n" style="flex:1" id="tpSign">✓ I\'ve received it</button>' : '<span class="note" style="flex:1">✓ Received</span>'}<button class="btn" id="tpPdf">PDF</button></div>`);
     document.querySelectorAll('#sheet [data-tpl]').forEach(b => b.onclick = () => { const l = x.lines.find(y => y.id === b.dataset.tpl); if(!l) return;
       openSheet(`<div class="hx"><h3>${esc(l.label)}</h3><button class="ib" data-close>✕</button></div><div class="card">${(l.rows || []).map(r => `<div class="tp-dl"><span>${esc(r.t)}</span><b>${esc(r.v)}</b>${r.s ? `<small>${esc(r.s)}</small>` : ''}</div>`).join('')}</div><button class="btn full" style="margin-top:10px" id="tpBack">‹ Back</button>`); $('tpBack').onclick = () => myOne(m); });
-    if($('tpSign')) $('tpSign').onclick = async () => { if(await post({action: 'sign', m})){ closeSheet(); toast('Signed'); mine = null; render(); } };
+    if($('tpSign')) $('tpSign').onclick = async () => { if(await post({action: 'sign', m})){ closeSheet(); toast('Marked received'); mine = null; render(); } };
     $('tpPdf').onclick = () => pdf(x);
   }
   function query(m){
@@ -171,10 +180,16 @@ window.TPAYUI = (function(){
     document.querySelectorAll('[data-tpadd]').forEach(b => b.onclick = () => addItem(b.dataset.tpadd));
     const pl = document.querySelector('[data-tpplace]'); if(pl) pl.onclick = () => place(last.slip.tutor);
     const pd = document.querySelector('[data-tppdf]'); if(pd) pd.onclick = () => pdf(last.slip);
-    const cf = document.querySelector('[data-tpconf]'); if(cf) cf.onclick = async () => { const x = last.slip; const r = await post({action: 'confirm', tutor: x.tutor, m: x.m}); if(r){ toast('Confirmed · sent to ' + x.tutor.split(' ')[0] + ' to sign'); render(); } };
+    const cf = document.querySelector('[data-tpconf]'); if(cf) cf.onclick = async () => { const x = last.slip; const r = await post({action: 'confirm', tutor: x.tutor, m: x.m}); if(r){ toast(r.st === 'prepared' ? 'Prepared · sent to the Director' : 'Approved · sent to ' + x.tutor); render(); } };
+    const ok = document.querySelector('[data-tpok]'); if(ok) ok.onclick = async () => { const x = last.slip; if(await post({action: 'approve', tutor: x.tutor, m: x.m})){ toast('Approved · sent to ' + x.tutor); render(); } };
+    const an = document.querySelector('[data-tpans]'); if(an) an.onclick = () => { const x = last.slip;
+      openSheet(`<div class="hx"><h3>Answer the query</h3><button class="ib" data-close>✕</button></div><p class="note">"${esc(x.slip.q.note)}"</p><label class="f"><span>Your answer</span><textarea class="in" id="tpaN" rows="3"></textarea></label><button class="btn n full" id="tpaGo">Send</button>`);
+      $('tpaGo').onclick = async () => { if(await post({action: 'answer', tutor: x.tutor, m: x.m, note: $('tpaN').value})){ closeSheet(); toast('Answer sent'); render(); } }; };
+    const aok = document.querySelector('[data-tpallok]'); if(aok) aok.onclick = async () => { const X = (last.list || []).filter(x => stOf(x) === 'prepared'); aok.disabled = true; let n = 0;
+      for(const x of X){ if(await post({action: 'approve', tutor: x.tutor, m: x.m})) n++; } toast(`${n} payslip${n === 1 ? '' : 's'} approved`); render(); };
     const ro = document.querySelector('[data-tpreopen]'); if(ro) ro.onclick = async () => { const x = last.slip; if(await post({action: 'unconfirm', tutor: x.tutor, m: x.m})){ toast('Reopened'); render(); } };
     const all = document.querySelector('[data-tpall]'); if(all) all.onclick = async () => { const X = (last.list || []).filter(x => stOf(x) === 'draft'); all.disabled = true; let n = 0;
-      for(const x of X){ if(await post({action: 'confirm', tutor: x.tutor, m: x.m})) n++; } toast(`${n} payslip${n === 1 ? '' : 's'} confirmed`); render(); };
+      for(const x of X){ if(await post({action: 'confirm', tutor: x.tutor, m: x.m})) n++; } toast(`${n} payslip${n === 1 ? '' : 's'} ${isDir() ? 'approved' : 'prepared'}`); render(); };
     document.querySelectorAll('[data-tpmy]').forEach(b => b.onclick = () => myOne(b.dataset.tpmy));
     document.querySelectorAll('[data-tpq]').forEach(b => b.onclick = () => query(b.dataset.tpq));
     if($('tpSave') || document.querySelector('[data-tpr]')) bindSettings();
@@ -182,7 +197,16 @@ window.TPAYUI = (function(){
   /* Home card: this month so far */
   function card(){
     const C = ctx(), m = ym(C.t), X = P().tutors(C).map(t => P().shown(C, t, m)).filter(x => x.lines.length || x.slip), tot = X.reduce((a, x) => a + x.total, 0);
-    return {tot, n: X.length, conf: X.filter(x => stOf(x) !== 'draft').length, sessions: X.reduce((a, x) => a + x.paid, 0)};
+    return {tot, n: X.length, conf: X.filter(x => ['confirmed', 'signed'].includes(stOf(x))).length, sessions: X.reduce((a, x) => a + x.paid, 0)};
   }
-  return {route, bind, settings, myPay, may, card, paperHTML, resetMine: () => { mine = null; }};
+  /* Home: payslips to prepare (last month, from the 25th this month too), to approve, and queries to answer */
+  function todo(){
+    const C = ctx(), m0 = ym(C.t), lm = addM(m0, -1), out = {m: lm, am: lm, label: P().ml(lm), prep: [], appr: [], q: []};
+    [lm].concat(+C.t.slice(8) >= 25 ? [m0] : []).forEach(m => P().tutors(C).forEach(t => { const x = P().shown(C, t, m); if(!(x.lines.length || x.slip)) return;
+      if(stOf(x) === 'draft' && m === lm) out.prep.push(t); }));
+    Object.entries((C.pay || {}).slips || {}).sort().forEach(([k, v]) => { if(v && v.st === 'prepared'){ out.appr.push(((v.snap && v.snap.tutor) || k.split('|')[0]) + (v.own ? ' · own' : '')); out.am = k.split('|')[1]; } });
+    Object.entries((C.pay || {}).slips || {}).forEach(([k, v]) => { if(v && v.q && !v.q.ans && v.st !== 'signed') out.q.push({tutor: (v.snap && v.snap.tutor) || k.split('|')[0], m: k.split('|')[1], note: v.q.note}); });
+    return out;
+  }
+  return {route, bind, settings, myPay, may, card, todo, paperHTML, resetMine: () => { mine = null; }};
 })();

@@ -66,7 +66,7 @@ window.PC = (function(){
       return {href:`#biz/owed`, v: H.onTime != null ? H.onTime + '%' : '–', lines:[[H.daysToPay != null ? `${H.daysToPay} days to pay on average` : 'Not enough paid yet'], H.late.length ? [`${plural(H.late.length, 'family', 'families')} often late`, '', 'warn'] : null].filter(Boolean)}; }},
     highlights: {t:'Highlights', ic:'rep', need:'pl', d:'The fastest growing subject, best channel and biggest rise in payments', f:({period}) => ({href:`#biz/overview/${period}`, v: '<span style="font-size:.7em">See what changed</span>', lines:[['Growing, declining, busiest times']]})},
   };
-  const BIZ_SECTIONS = [['overview','Highlights','pl'], ['money','Money in','pl'], ['owed','Owed to LHQ','money'], ['pipeline','Pipeline','pl'], ['sessions','Sessions','pl'], ['spending','Payments','spend|pl'],
+  const BIZ_SECTIONS = [['overview','Highlights','pl'], ['money','Money in','pl'], ['owed','Owed to LHQ','money'], ['pipeline','Pipeline','pl'], ['sessions','Sessions','pl'], ['balances','Balances','acct|pl'], ['spending','Payments','spend|pl'],
     ['budgets','Budgets','pl'], ['allocations','Allocations','pl'], ['marketing','Marketing','pl'], ['charts','Charts','pl'], ['pl','Profit & loss','pl']];
   const DEF = {
     biz: () => can('pl') ? ['money','spending','profit','owed','conv','sessions','makeups','renewal'] : can('spend') ? ['spending','confirm'].concat(can('money') ? ['owed'] : []) : can('money') ? ['owed'] : [],

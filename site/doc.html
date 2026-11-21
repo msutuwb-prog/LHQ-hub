@@ -23,6 +23,7 @@
 <script src="defaults.js"></script>
 <script src="payplan.js"></script>
 <script src="hubdata.js"></script>
+<script src="balances.js"></script>
 <script src="schedule.js"></script>
 <script src="nav.js"></script>
 <script src="topics.js"></script>
@@ -686,6 +687,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
         <label class="lm"><span>Payment reference</span><input id="f_payRef" autocomplete="off" placeholder="Bank or mobile money ref."></label>
       </div>
       <p class="hint pay-note" id="payNote"></p>
+      <label class="lm" id="acctRow" hidden><span>Into account (for Balances)</span><select id="f_acct"></select></label>
       <label class="lm"><span>Received by (prints on the receipt)</span><input id="f_receivedBy" autocomplete="off" placeholder="Staff member's name"></label>
     </div>
 
@@ -1244,7 +1246,7 @@ function renderDoc(){
 /* ================= editor ================= */
 const fieldMap = {f_number:'number', f_ref:'ref', f_name:'name', f_student:'student', f_address:'address', f_email:'email', f_phone:'phone',
   f_for:'forWhat', f_paid:'paid', f_discValue:'discValue', f_discReason:'discReason', f_received:'received', f_prevPaid:'prevPaid',
-  f_payRef:'payRef', f_receivedBy:'receivedBy', f_exam:'exam', f_where:'where', f_cardNote:'cardNote'};
+  f_payRef:'payRef', f_acct:'acct', f_receivedBy:'receivedBy', f_exam:'exam', f_where:'where', f_cardNote:'cardNote'};
 
 function setBtnText(btn, text, placeholder){
   btn.classList.toggle('empty', !text);
@@ -1292,6 +1294,8 @@ function fillExam(cur){
 function fillForm(){
   const T = doc.type;
   fillExam(doc.exam || '');
+  { const A = window.BAL && doc.type === 'receipt' && (HD.isDir() || HD.can('acct')) ? BAL.accounts() : [];   // the accountant files each payment under an account
+    F('acctRow').hidden = !A.length; F('f_acct').innerHTML = `<option value="">From the payment method</option>` + A.map(a => `<option value="${esc(a.id)}">${esc(a.n)}</option>`).join(''); }
   if(doc.where) doc.where = ({'LHQ Centre':'In person', 'At LHQ':'In person', "Student's home":'Home'})[doc.where] || doc.where;   // older cards' wording
   for(const [id,key] of Object.entries(fieldMap)) F(id).value = doc[key] ?? '';
   document.querySelectorAll('#typeSeg button').forEach(b=>b.classList.toggle('on', b.dataset.t===T));

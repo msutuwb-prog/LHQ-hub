@@ -35,6 +35,7 @@ if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash)
 <script src="nav.js"></script>
 <script src="schools.js"></script>
 <script src="business.js"></script>
+<script src="balances.js"></script>
 <script src="insights.js"></script>
 <script src="moneyin.js"></script>
 <script src="perf.js"></script>
@@ -415,6 +416,7 @@ a.ins-row:hover b{text-decoration:underline;text-underline-offset:2px}
 .wa-msg{white-space:pre-wrap;font-size:13.5px;background:var(--surface2);border:1px solid var(--line);border-radius:12px;padding:12px;margin:0 0 12px}
 .kidtick{display:flex;gap:10px;align-items:center;width:100%;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:10px 12px;margin-bottom:6px;font:inherit;text-align:left;cursor:pointer}
 .kidtick .bx{flex:none;width:20px;height:20px;border:2px solid var(--line);border-radius:6px;display:grid;place-items:center;font-size:12px;font-weight:900}.kidtick.on .bx{background:var(--accent);border-color:var(--accent);color:var(--onaccent)}
+.rq-steps{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:6px}.rq-st{font-size:12px;font-weight:700;color:var(--muted)}.rq-st.ok{color:var(--ok)}
 </style>
 <script src="testbar.js"></script>
 </head>
@@ -612,9 +614,6 @@ function attention(list){
     if(behind.length) out.push({w:-1, s:{name:`${behind.length} student${behind.length === 1 ? '' : 's'} behind on sessions`}, href:'#sessions/behind', ico:'clock', col:'--am', sub:behind.slice(0, 3).map(r => `${r.it.st} · ${r.it.sub} ${r.T.behind} behind`).join(' · '), btn:['See', '#sessions/behind']});
     const MU = Object.values(store.get('lhq_makeups', {}) || {}).filter(m => m && m.status === 'asked');
     if(MU.length) out.push({w:-1, s:{name:`${MU.length} make-up${MU.length === 1 ? '' : 's'} to confirm`}, href:'#bookings', ico:'clock', col:'--am', sub:MU.slice(0, 3).map(m => `${m.st} · ${m.sub} · ${nice(m.d)} ${m.s}`).join(' · '), btn:['Review', '#bookings']});
-    const RQ = reqList(), ap = RQ.filter(r => !r.dec.s), buy = RQ.filter(r => r.dec.s === 'approved');
-    if(isDir() && ap.length) out.push({w:-1, s:{name:`${ap.length} requisition${ap.length === 1 ? '' : 's'} to approve`}, href:'#reqs', ico:'box', col:'--am', sub:ap.slice(0, 3).map(r => `${r.item.item} · ${r.rep.tutor}`).join(' · '), btn:['Review', '#reqs']});
-    if(can('spend') && buy.length) out.push({w:-1, s:{name:`${buy.length} approved requisition${buy.length === 1 ? '' : 's'} to buy`}, href:'#reqs', ico:'box', col:'--am', sub:buy.slice(0, 3).map(r => r.item.item).join(' · '), btn:['Review', '#reqs']});
     /* profiles still to finish (Director, and admins who look after tutors or students) */
     if(window.PROF && PROF.unfinished && (isDir() || can('tutors') || can('students'))){ const U = PROF.unfinished();
       if(U.T.length && (isDir() || can('tutors'))) out.push({w:1, g:'tprof', s:{name:`${U.T.length} tutor profile${U.T.length === 1 ? '' : 's'} to finish`}, href:'#tutors', ico:'user', col:'--am', sub:U.T.slice(0, 3).map(x => `${first(x.name)} · ${x.lhq.length ? 'LHQ\'s part' : 'their part'}`).join(' · ')});
@@ -648,6 +647,21 @@ function attention(list){
         out.push({w: x.level === 'now' ? -1 : 0, g:'slip', s:{name:`${x.st} · ${x.what}`}, href:stuLink(SCHED.nk(x.st), x.kind === 'drop' || x.kind === 'fall' || x.kind === 'below' ? 'marks' : 'sessions'), ico: x.level === 'now' ? 'alert' : 'clock', col: x.level === 'now' ? '--rd' : '--am', sub:`${x.sub.replace(/^Mathematics$/, 'Maths')} · ${x.detail} · ${x.tutor || 'no tutor'}`}); }); }
     packsAll().filter(p => !p.out && p.on < t).forEach(p => out.push({w:-1, g:'pkout', s:{name:`Pack not handed over: ${p.st}`}, href:stuLink(SCHED.nk(p.st), 'marks'), ico:'box', col:'--am', sub:`${p.sub} · ${p.tutor || 'tutor'} · last session ${nice(p.on)} · ${p.sheets.length} sheets`}));
     disp.filter(e => !e.cf.step || e.cf.step === 'lhq').forEach(e => out.push({w:-2, g:'disp', s:{name:'Settle: ' + e.st}, href:'#confirm/' + encodeURIComponent(e.id), ico:'alert', col:'--rd', sub:`${e.sub} with ${e.tutor || 'tutor'} · ${nice(e.d)} · ${cfLine(e)}`, tag:['Disputed','rd']}));
+  }
+  /* money: requisitions, balances, payslips — for the accountant and the Director, whatever else they look after */
+  {
+    const RQ = reqList(), unpriced = RQ.filter(r => !r.dec.s), ap = RQ.filter(r => r.dec.s === 'priced'), buy = RQ.filter(r => r.dec.s === 'approved');
+    const hasAcct = HD.people().some(p => HD.isAcct(p) && p.status !== 'off' && p.active !== false), acctMe = !isDir() && can('acct');
+    if((acctMe || (isDir() && !hasAcct)) && unpriced.length) out.push({w:-1, s:{name:`${unpriced.length} requisition${unpriced.length === 1 ? '' : 's'} to price`}, href:'#reqs', ico:'box', col:'--am', sub:unpriced.slice(0, 3).map(r => `${r.item.item} · ${first(r.rep.tutor)}`).join(' · '), btn:['Price', '#reqs']});
+    if(isDir() && ap.length) out.push({w:-1, s:{name:`${ap.length} requisition${ap.length === 1 ? '' : 's'} to approve`}, href:'#reqs', ico:'box', col:'--am', sub:ap.slice(0, 3).map(r => `${r.item.item} · ${mk(r.dec.total || 0)}${r.dec.own ? ' · own' : ''}`).join(' · '), btn:['Review', '#reqs']});
+    if((acctMe || (can('spend') && !hasAcct)) && buy.length) out.push({w:-1, s:{name:`${buy.length} approved requisition${buy.length === 1 ? '' : 's'} to buy`}, href:'#reqs', ico:'box', col:'--am', sub:buy.slice(0, 3).map(r => r.item.item).join(' · '), btn:['Review', '#reqs']});
+    /* money: balances, payslips (accountant prepares → Director approves → tutor ticks Received) */
+    if(window.BAL && BAL.mayEnter() && (acctMe || (isDir() && !hasAcct))){ if(!BAL.enteredToday()) out.push({w:-1, s:{name:'Enter today\'s balances'}, href:'#biz/balances', ico:'cash', col:'--am', sub:BAL.accounts().map(a => a.n).join(' · '), btn:['Enter', '#biz/balances']}); }
+    if(window.BAL && BAL.mayRead()){ const G = BAL.gaps(); if(G.length) out.push({w:-2, s:{name:`${G.length} balance${G.length === 1 ? '' : 's'} not adding up`}, href:'#biz/balances', ico:'alert', col:'--rd', sub:G.map(r => `${r.x.n} ${r.gap > 0 ? '+' : '−'}${mk(Math.abs(r.gap))}`).join(' · ')}); }
+    if(window.TPAYUI && TPAYUI.todo && (isDir() || can('tpay'))){ const W = TPAYUI.todo();
+      if(W.prep.length && (acctMe || can('tpay') && !isDir() || (isDir() && !hasAcct))) out.push({w:0, s:{name:`${W.prep.length} payslip${W.prep.length === 1 ? '' : 's'} to prepare · ${W.label}`}, href:'#pay/m/' + W.m, ico:'cash', col:'--am', sub:W.prep.slice(0, 3).join(' · '), btn:['Prepare', '#pay/m/' + W.m]});
+      if(W.appr.length && isDir()) out.push({w:-1, s:{name:`${W.appr.length} payslip${W.appr.length === 1 ? '' : 's'} to approve`}, href:'#pay/m/' + W.am, ico:'cash', col:'--am', sub:W.appr.slice(0, 3).join(' · '), btn:['Review', '#pay/m/' + W.am]});
+      W.q.forEach(x => out.push({w:-1, g:'payq', s:{name:`${x.tutor} asked about their payslip`}, href:`#pay/${encodeURIComponent(x.tutor)}/${x.m}`, ico:'msg', col:'--am', sub:`“${x.note}”`, btn:['Answer', `#pay/${encodeURIComponent(x.tutor)}/${x.m}`]})); }
   }
   return out.sort((a, b) => a.w - b.w);
 }
@@ -700,10 +714,12 @@ const CARDS = {
   reports:{t:'Reports to send', ic:'rep', step2:true, d:'Weekly reports ready for parents'},
   profit:{s:'Profit', t:'Profit this month', ic:'cash', need:'pl', d:'Money in less payments this month, and the margin', href:'#biz/pl', html:() => BIZ.cardProfit()},
   spend:{s:'Payments', t:'Payments this month', ic:'box', need:'spend', d:'What has been spent this month, against the budget', href:'#biz/spending', html:() => BIZ.cardSpend()},
+  bal:{s:'Balances', t:'All accounts', ic:'cash', need:'acct', d:'Money in every bank and mobile money account, from the daily entry', href:'#biz/balances',
+    html:() => { const g = BAL.gaps().length; return `${L('#biz/balances', mkShort(BAL.total()), 'v')}${L('#biz/balances', BAL.enteredToday() ? '✓ Entered today' : 'Not entered today')}<div class="s">${g ? g + ' not adding up' : BAL.accounts().length + ' accounts'}</div>`; }},
   tpay:{s:'Tutor pay', t:'Tutor pay this month', ic:'cash', need:'tpay', d:'Tutor pay so far this month', href:'#pay',
-    html:() => { const c = TPAYUI.card(); return `${L('#pay', mkShort(c.tot), 'v')}${L('#pay', `${c.sessions} session${c.sessions === 1 ? '' : 's'} · ${c.n} tutor${c.n === 1 ? '' : 's'}`)}<div class="s">${c.conf} of ${c.n} payslips confirmed</div>`; }},
+    html:() => { const c = TPAYUI.card(); return `${L('#pay', mkShort(c.tot), 'v')}${L('#pay', `${c.sessions} session${c.sessions === 1 ? '' : 's'} · ${c.n} tutor${c.n === 1 ? '' : 's'}`)}<div class="s">${c.conf} of ${c.n} payslips approved</div>`; }},
 };
-const DEFAULT_HOME = () => LEAN() ? (can('money') ? ['money','owed','students'] : ['students','enrol','renew']) : can('money') ? ['money','students','enrol','tutors'] : ['students','enrol','renew','tutors'];
+const DEFAULT_HOME = () => can('acct') && !isDir() ? ['bal','money','spend','tpay'] : LEAN() ? (can('money') ? ['money','owed','students'] : ['students','enrol','renew']) : can('money') ? ['money','students','enrol','tutors'] : ['students','enrol','renew','tutors'];
 function myCards(){ const h = me().home; return (Array.isArray(h) ? h : DEFAULT_HOME()).filter(k => CARDS[k] && !CARDS[k].step2 && (!CARDS[k].need || can(CARDS[k].need))); }
 async function saveHome(cards){
   const s = hub.session(); if(s && s.me){ s.me.home = cards; localStorage.setItem('lhq_session', JSON.stringify(s)); }
@@ -713,7 +729,7 @@ async function saveHome(cards){
 /* Needs attention: the same kind of task more than once becomes one line (tap it to see each) */
 const GL = {over:'invoices overdue', grace:'payments in their grace period', nocard:'paid without a tuition card', notutor:'cards with a subject without a tutor', end:'periods end this week', muend:'periods ended with make-ups owed',
   quote:'quotes waiting over a week', cant:"cards a tutor can't make", seen:"cards tutors haven't seen", tell:'families to tell about a move', disp:'disputed sessions',
-  rprep:'tutors not prepared', rguide:'guides missing', rweek:'answers to look at', rnote:'notes from students', rmiss:"students who haven't reported", pkout:'packs not handed over', slip:'students slipping'};
+  payq:'payslip queries', rprep:'tutors not prepared', rguide:'guides missing', rweek:'answers to look at', rnote:'notes from students', rmiss:"students who haven't reported", pkout:'packs not handed over', slip:'students slipping'};
 let attG = {};
 function attRows(att){
   const out = [], done = {};
@@ -737,7 +753,7 @@ P.home = () => {
   const draft = store.get('lhq_draft', null);
   const draftRow = draft && !draft.id && (draft.student || draft.name) ? `<div class="card"><a class="it" href="doc.html#draft"><span class="ico">${ic('edit')}</span><span class="t"><b>Unsaved ${esc(WORD[draft.type || 'quote'].toLowerCase())} · ${esc(draft.student || draft.name)}</b><small>Not saved yet</small></span><span class="tag am">Draft</span></a></div>` : '';
   return `<div class="ph"><div class="tt"><h1>${greet}${me().name ? '<span class="x-ph">, ' + esc(window.PROF ? PROF.myName() : first(me().name)) + '</span>' : ''}</h1><p>${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()]} ${d.getDate()} ${MONTHL[d.getMonth()]}</p></div>
-    <div class="acts"><a class="btn" href="#edithome" title="Edit Home" aria-label="Edit Home">${ic('edit',16)}</a>${can('quotes') || can('receipts') || can('cards') ? `<a class="btn n hnew" href="#new">${ic('plus',16,2.4)} New</a>` : ''}</div></div>
+    <div class="acts"><a class="btn" href="#edithome" title="Edit Home" aria-label="Edit Home">${ic('edit',16)}</a>${can('quotes') || can('receipts') || can('cards') || can('spend') ? `<a class="btn n hnew" href="#new">${ic('plus',16,2.4)} New</a>` : ''}</div></div>
   ${cards.length ? `<div class="mcs" data-n="${cards.length}">${cards.map(k => { const c = CARDS[k]; return `<div class="mc" data-go="${typeof c.href === 'function' ? c.href() : c.href}" role="link" tabindex="0" aria-label="${esc(c.t)}"><span class="l">${ic(c.ic,15,2)}${LEAN() && c.s ? c.s : c.t}</span>${c.html(m)}</div>`; }).join('')}</div>` : ''}
   ${draftRow}
   ${PREVIEW && isDir() && !saved.length ? `<div class="card pad" style="border-color:var(--gold)"><div class="cap">Preview</div><p class="note" style="margin:0 0 10px">This preview has its own storage and is empty. Load six months of demo data to try every page.</p><a class="btn n" href="#set/demo">Demo data</a></div>` : ''}
@@ -943,9 +959,10 @@ function newStudentSheet(thenQuote){
 function newSheet(type){
   const list = HD.students();
   const T = [['quote','Quote','For a new or returning student','quotes'],['invoice','Invoice','From a quote the parent agreed to','quotes'],['receipt','Receipt','For a payment on an invoice','receipts'],['card','Tuition card','For tutors, from an invoice','cards']].filter(x => can(x[3]));
+  const X = can('spend') ? [['payment','Payment','Money paid out, from an account','#biz/spending/new','cash']] : [];
   if(!type || !T.some(x => x[0] === type)){
     openSheet(`<div class="hx"><h3>New</h3><button class="ib" data-close>✕</button></div><p class="sp">What are you making?</p>
-      <div class="tgrid">${T.map(([t, l, s]) => `<a href="#new/${t}">${ic(t, 22)}<b>${l}</b><small>${s}</small></a>`).join('')}</div>`);
+      <div class="tgrid">${T.map(([t, l, s]) => `<a href="#new/${t}">${ic(t, 22)}<b>${l}</b><small>${s}</small></a>`).join('')}${X.map(([, l, s, h, i]) => `<a href="${h}">${ic(i, 22)}<b>${l}</b><small>${s}</small></a>`).join('')}</div>`);
     return;
   }
   let rows = '', q = '', blank = `<a class="btn full" href="${D('new=' + type)}">Start a blank ${type === 'card' ? 'tuition card' : WORD[type].toLowerCase()} instead</a>`;
@@ -1369,25 +1386,42 @@ function reqList(){
   return out.sort((a, b) => (b.rep.d || '').localeCompare(a.rep.d || ''));
 }
 P.reqs = () => {
-  const R = reqList(), ap = R.filter(r => !r.dec.s), buy = R.filter(r => r.dec.s === 'approved'), done = R.filter(r => ['bought','declined'].includes(r.dec.s)).slice(0, 20);
-  const row = r => `<div class="it" style="align-items:flex-start;flex-wrap:wrap"><span class="t" style="min-width:200px"><b>${esc(r.item.item)}${r.item.qty && r.item.qty !== '1' ? ' × ' + esc(r.item.qty) : ''}</b><small>${esc(r.rep.tutor)} · asked ${nice(r.rep.d)}${r.item.by ? ' · needed by ' + nice(r.item.by) : ''}${r.item.for ? ' · for ' + esc(r.item.for.replace(/\b\w/g, c => c.toUpperCase())) : ''}${r.dec.s ? ` · ${{approved:'approved', declined:'declined', bought:'bought'}[r.dec.s]} by ${esc(r.dec.boughtBy || r.dec.by)}` : ''}${r.dec.cost ? ' · MWK ' + Number(r.dec.cost).toLocaleString('en-US') : ''}${r.dec.note ? ' · ' + esc(r.dec.note) : ''}</small></span>
-    <span class="acts">${!r.dec.s && isDir() ? `<button class="btn sm n" data-rq="approve:${esc(r.key)}">Approve</button><button class="btn sm" data-rq="decline:${esc(r.key)}">Decline</button>` : r.dec.s === 'approved' && can('spend') ? `<button class="btn sm n" data-rq="bought:${esc(r.key)}">Mark bought</button>` : ''}</span></div>`;
-  return `${crumb('#home', 'Home', 'reqs')}<div class="ph"><div class="tt"><h1>Requisitions</h1><p>${isDir() ? 'You approve · bought goes to Payments' : 'The Director approves · bought goes to Payments'}</p></div></div>
-  <div class="h2">To approve <em>${ap.length}</em></div><div class="card">${ap.map(row).join('') || '<p class="empty">Nothing waiting. ✓</p>'}</div>
+  const R = reqList(), A = isDir() || can('acct'), mk0 = n => mk(n);
+  const toPrice = R.filter(r => !r.dec.s), ap = R.filter(r => r.dec.s === 'priced'), buy = R.filter(r => r.dec.s === 'approved'), done = R.filter(r => ['bought','declined'].includes(r.dec.s)).slice(0, 20);
+  const steps = r => { const d = r.dec, tick = (ok, t) => `<span class="rq-st ${ok ? 'ok' : ''}">${ok ? '✓' : '○'} ${t}</span>`;
+    return `<div class="rq-steps">${tick(true, 'Asked · ' + esc(first(r.rep.tutor)))}${tick(!!d.pricedBy, d.pricedBy ? 'Priced · ' + esc(first(d.pricedBy)) : 'Price')}${tick(['approved','bought'].includes(d.s), d.s === 'declined' ? 'Declined' : 'Approved')}${tick(d.s === 'bought', 'Bought')}</div>`; };
+  const row = r => { const d = r.dec, price = d.total ? `${mk0(d.total)}${d.qty > 1 ? ` (${d.qty} × ${mk0(d.each)})` : ''}${d.supplier ? ' · ' + esc(d.supplier) : ''}` : '';
+    return `<div class="it" style="align-items:flex-start;flex-wrap:wrap"><span class="t" style="min-width:200px"><b>${esc(r.item.item)}${r.item.qty && r.item.qty !== '1' ? ' × ' + esc(r.item.qty) : ''}${d.own ? ' <span class="tag am">Own · check carefully</span>' : ''}</b><small>${esc(r.rep.tutor)} · asked ${nice(r.rep.d)}${r.item.by ? ' · needed by ' + nice(r.item.by) : ''}${price ? ' · ' + price : ''}${d.note ? ' · “' + esc(d.note) + '”' : ''}${d.s === 'bought' && d.cost ? ' · paid ' + mk0(d.cost) : ''}</small>${steps(r)}</span>
+    <span class="acts">${!d.s && A ? `<button class="btn sm n" data-rq="price:${esc(r.key)}">Price it</button>` : ''}${(!d.s || d.s === 'priced') && isDir() ? `<button class="btn sm ${d.s === 'priced' ? 'n' : ''}" data-rq="approve:${esc(r.key)}">Approve</button><button class="btn sm" data-rq="decline:${esc(r.key)}">Decline</button>` : ''}${d.s === 'approved' && (A || can('spend')) ? `<button class="btn sm n" data-rq="bought:${esc(r.key)}">Mark bought</button>` : ''}</span></div>`; };
+  const availTxt = isDir() && window.BAL && BAL.mayRead() ? `<p class="note" style="margin:0 0 8px">Available today: <b>${mk0(BAL.avail())}</b> across your accounts</p>` : '';
+  return `${crumb('#home', 'Home', 'reqs')}<div class="ph"><div class="tt"><h1>Requisitions</h1><p>Tutor asks · accountant prices · Director approves · accountant buys</p></div></div>
+  <div class="h2">To price <em>${toPrice.length}</em></div><div class="card">${toPrice.map(row).join('') || '<p class="empty">Nothing to price. ✓</p>'}</div>
+  <div class="h2">To approve <em>${ap.length}</em></div>${availTxt}<div class="card">${ap.map(row).join('') || '<p class="empty">Nothing waiting. ✓</p>'}</div>
   <div class="h2">Approved · to buy <em>${buy.length}</em></div><div class="card">${buy.map(row).join('') || '<p class="empty">Nothing to buy.</p>'}</div>
   ${done.length ? `<div class="h2">Done</div><div class="card">${done.map(row).join('')}</div>` : ''}`;
 };
 function reqSheet(action, key){
   const r = reqList().find(x => x.key === key); if(!r) return;
-  const send = async body => { try{ await hub.api('req', {method:'POST', body: JSON.stringify(Object.assign({action, key}, body))}); await hub.pull(); closeSheet(); render(); toast({approve:'Approved', decline:'Declined', bought:'Added to Payments'}[action]); }catch(e){ toast(e.message); } };
-  if(action === 'approve') return send({});
-  const cats = (settingsKV().spendCats || '').split('\n').map(x => x.trim()).filter(Boolean);
-  openSheet(`<div class="hx"><h3>${action === 'decline' ? 'Decline' : 'Mark bought'}</h3><button class="ib" data-close>✕</button></div><p class="sp">${esc(r.item.item)}${r.item.qty && r.item.qty !== '1' ? ' × ' + esc(r.item.qty) : ''} · for ${esc(r.rep.tutor)}</p>
+  const send = async body => { try{ await hub.api('req', {method:'POST', body: JSON.stringify(Object.assign({action, key}, body))}); await hub.pull(); closeSheet(); render(); toast({price:'Priced · sent to the Director', approve:'Approved', decline:'Declined', bought:'Bought · added to Payments'}[action]); }catch(e){ toast(e.message); } };
+  const d = r.dec, what = `${esc(r.item.item)}${r.item.qty && r.item.qty !== '1' ? ' × ' + esc(r.item.qty) : ''} · for ${esc(r.rep.tutor)}`, digits = v => String(v || '').replace(/[^\d]/g, '');
+  if(action === 'approve' && d.s === 'priced') return send({});
+  if(action === 'price' || action === 'approve'){
+    openSheet(`<div class="hx"><h3>${action === 'price' ? 'Price it' : 'Approve'}</h3><button class="ib" data-close>✕</button></div><p class="sp">${what}${action === 'approve' ? ' · not priced yet: enter the price' : ''}</p>
+      <div class="r2"><label class="f"><span>Each (MWK)</span><input class="in" id="rqE" inputmode="numeric"></label><label class="f"><span>How many</span><input class="in" id="rqQ" inputmode="numeric" value="${esc(digits(r.item.qty) || '1')}"></label></div>
+      <label class="f"><span>Where from (optional)</span><input class="in" id="rqS" placeholder="e.g. Stationers Ltd"></label><p class="note" id="rqT"></p>
+      <button class="btn n full" id="rqGo">${action === 'price' ? 'Send to the Director' : 'Approve'}</button>`);
+    const tot = () => { $('rqT').textContent = `Total ${mk(+digits($('rqE').value) * Math.max(1, +digits($('rqQ').value) || 1))}`; }; $('rqE').oninput = $('rqQ').oninput = tot; tot();
+    $('rqGo').onclick = () => send({each: digits($('rqE').value), qty: digits($('rqQ').value) || 1, supplier: $('rqS').value.trim()}); return;
+  }
+  const cats = (settingsKV().spendCats || '').split('\n').map(x => x.trim()).filter(Boolean), A = window.BAL ? BAL.accounts() : [];
+  openSheet(`<div class="hx"><h3>${action === 'decline' ? 'Decline' : 'Mark bought'}</h3><button class="ib" data-close>✕</button></div><p class="sp">${what}${d.total ? ' · priced ' + mk(d.total) : ''}</p>
     ${action === 'decline' ? `<label class="f"><span>Why (the tutor sees this)</span><input class="in" id="rqN" placeholder="e.g. We have some in the office"></label>`
-      : `<div class="r2"><label class="f"><span>What it cost (MWK)</span><input class="in" id="rqC" inputmode="numeric"></label><label class="f"><span>Category</span><select class="in" id="rqK">${cats.map(c => `<option${c === 'Stationery' ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select></label></div>
-      <label class="f"><span>Paid by</span><select class="in" id="rqM">${['Cash','Bank transfer','Airtel Money','TNM Mpamba'].map(m => `<option>${m}</option>`).join('')}</select></label>`}
+      : `<div class="r2"><label class="f"><span>What it cost (MWK)</span><input class="in" id="rqC" inputmode="numeric" value="${d.total ? Number(d.total).toLocaleString('en-US') : ''}"></label><label class="f"><span>Category</span><select class="in" id="rqK">${cats.map(c => `<option${c === 'Stationery' ? ' selected' : ''}>${esc(c)}</option>`).join('')}</select></label></div>
+      <div class="r2"><label class="f"><span>Paid by</span><select class="in" id="rqM">${['Cash','Bank transfer','Airtel Money','TNM Mpamba'].map(m => `<option>${m}</option>`).join('')}</select></label>
+      ${A.length ? `<label class="f"><span>From account</span><select class="in" id="rqA">${A.map(a => `<option value="${esc(a.id)}">${esc(a.n)}</option>`).join('')}</select></label>` : ''}</div>`}
     <button class="btn n full" id="rqGo">${action === 'decline' ? 'Decline' : 'Save'}</button>`);
-  $('rqGo').onclick = () => send(action === 'decline' ? {note: $('rqN').value} : {cost: String($('rqC').value).replace(/[^\d]/g, ''), cat: $('rqK').value, method: $('rqM').value});
+  if($('rqM') && $('rqA')){ const sync0 = () => { const a = BAL.accFor('', $('rqM').value); if(a) $('rqA').value = a; }; $('rqM').onchange = sync0; sync0(); }
+  $('rqGo').onclick = () => send(action === 'decline' ? {note: $('rqN').value} : {cost: digits($('rqC').value), cat: $('rqK').value, method: $('rqM').value, acct: $('rqA') ? $('rqA').value : ''});
 }
 
 P.tutors = (show = '') => {
@@ -1658,6 +1692,7 @@ function peoplePin(){ const list = HD.people(), D0 = isDir();
     return `<a class="it" ${mine ? `href="#person/${p.id}"` : self ? 'href="#set/account"' : 'style="cursor:default"'}><span class="av">${inits(p.name)}</span><span class="t"><b>${esc(p.name)}${self ? ' (you)' : ''}</b><small>${roleText(p)}${p.seen ? ' · last seen ' + ago(p.seen) : ''}</small></span>${p.role === 'director' ? '<span class="rolechip">Director</span>' : ''}${p.active ? '' : '<span class="tag rd">Off</span>'}${mine || self ? `<span class="chev">${ic('chev',16,2)}</span>` : p.role === 'director' ? '' : '<span class="tag gr">Director only</span>'}</a>`; }).join('') || '<p class="empty">Loading…</p>'}</div>
   <button class="btn" id="addPerson">${ic('plus',16,2.2)} ${D0 ? 'Add a person' : 'Add a tutor'}</button>`; };
 const PERMS = [
+  ['Role', [['acct','Accountant','Enters balances, records payments in and out, prices requisitions and prepares payslips. Shown as Accountant.']]],
   ['Documents', [['quotes','Make and edit quotes and invoices'],['receipts','Record payments (receipts)'],['cards','Make tuition cards'],['delete','Delete documents'],['restore','Restore deleted documents']]],
   ['Students', [['students','Add and edit student details']]],
   ['Money', [['money','See money totals and reports','Money cards, totals and trends. Amounts on a document stay visible to whoever makes it.'],['tpay','Tutor pay','Work out, add items and confirm payslips']]],
@@ -1676,7 +1711,7 @@ function personPage(id){
       ${p.role === 'admin' ? `<div class="toggle"><div class="t"><b>Also teaches</b><small>Own students, calendar, SRAs</small></div><button class="sw-t ${p.tutor ? 'on' : ''}" data-teach role="switch" aria-checked="${!!p.tutor}" aria-label="Also teaches"></button></div>` : '<p class="note" style="margin:0">Own students only. No money.</p>'}</div>
     ${p.role === 'admin' ? `<div class="card pad"><div class="cap">What ${esc(first(p.name))} can do</div>
       ${PERMS.map(([g, list]) => `<div class="cap" style="font-size:10.5px;margin-top:16px">${g}</div>${list.map(([k, l, sub]) => `<div class="toggle"><div class="t"><b>${l}</b>${sub ? `<small>${sub}</small>` : ''}</div><button class="sw-t ${(p.perms || []).includes(k) ? 'on' : ''}" data-perm="${k}" role="switch" aria-checked="${(p.perms || []).includes(k)}" aria-label="${l}"></button></div>`).join('')}`).join('')}
-      <div class="acts" style="margin-top:12px"><button class="btn sm" id="permDefault">Use admin defaults</button></div>
+      <div class="acts" style="margin-top:12px"><button class="btn sm" id="permDefault">Use admin defaults</button><button class="btn sm" id="permAcct">Use accountant defaults</button></div>
       <div class="cap" style="margin-top:18px">Only you, as Director</div>${DIRECTOR_ONLY.map(x => `<div class="lock">${ic('key',16)}${x}</div>`).join('')}</div>` : ''}` : ''}
   ${PWD() ? `<div class="card pad"><div class="cap">Sign-in</div><dl class="kv"><dt>Username</dt><dd>${esc(p.username || '')}</dd><dt>Email</dt><dd>${esc(p.email || 'not added')}</dd><dt>Status</dt><dd>${pStatus(p)}</dd>${p.children && p.children.length ? `<dt>Children</dt><dd>${esc(p.children.join(', '))}</dd>` : ''}</dl>
       <p class="note" style="margin:6px 0 10px">${p.status === 'setup' ? `${esc(first(p.name))} hasn't set up yet. Give them a setup code: they choose their own password with it.` : p.status === 'pin' ? `${esc(first(p.name))} still signs in with their PIN. They choose a password the next time they sign in.` : `Forgot their password? Make a new setup code.`}</p>
@@ -2056,7 +2091,8 @@ function bind(){
     on('[data-perm]', el => { const k = el.dataset.perm, has = (P0.perms || []).includes(k); const perms = has ? P0.perms.filter(x => x !== k) : (P0.perms || []).concat(k);
       const label = PERMS.flatMap(g => g[1]).find(x => x[0] === k)[1].toLowerCase();
       peopleCall({action:'access', id:pid, perms}, `Saved. ${first(P0.name)} ${has ? 'can no longer' : 'can now'}: ${label}`); });
-    if($('permDefault')) $('permDefault').onclick = () => peopleCall({action:'access', id:pid, perms:['quotes','receipts','cards','delete','restore','students','tutors','msgs','classes']}, 'Defaults restored');
+    if($('permDefault')) $('permDefault').onclick = () => peopleCall({action:'access', id:pid, perms:['quotes','cards','delete','restore','students','tutors','msgs','classes']}, 'Defaults restored');
+    if($('permAcct')) $('permAcct').onclick = () => peopleCall({action:'access', id:pid, perms:['acct','receipts','money','tpay','spend','pl']}, 'Accountant: money in and out, balances, requisitions, payslips');
     if($('ppinGo')) $('ppinGo').onclick = () => peopleCall({action:'pin', id:pid, pin:$('ppin').value}, `New PIN set for ${first(P0.name)}`);
     if($('pOnOff')) $('pOnOff').onclick = () => { if(P0.active && !confirm(`Switch off ${P0.name}? They are signed out everywhere straight away.`)) return; peopleCall({action:P0.active ? 'off' : 'on', id:pid}, P0.active ? `${first(P0.name)} is switched off` : `${first(P0.name)} can sign in again`); };
     if($('pRemove')) $('pRemove').onclick = () => {
