@@ -615,6 +615,9 @@ function attention(list){
     const RQ = reqList(), ap = RQ.filter(r => !r.dec.s), buy = RQ.filter(r => r.dec.s === 'approved');
     if(isDir() && ap.length) out.push({w:-1, s:{name:`${ap.length} requisition${ap.length === 1 ? '' : 's'} to approve`}, href:'#reqs', ico:'box', col:'--am', sub:ap.slice(0, 3).map(r => `${r.item.item} · ${r.rep.tutor}`).join(' · '), btn:['Review', '#reqs']});
     if(can('spend') && buy.length) out.push({w:-1, s:{name:`${buy.length} approved requisition${buy.length === 1 ? '' : 's'} to buy`}, href:'#reqs', ico:'box', col:'--am', sub:buy.slice(0, 3).map(r => r.item.item).join(' · '), btn:['Review', '#reqs']});
+    /* students a tutor flagged, until LHQ deals with them */
+    flagsOf('').filter(r => !r.flag.done).forEach(r => { const nm0 = (HD.students().find(x => x.key === r.flag.st) || {name: r.flag.st}).name;
+      out.push({w:-1, g:'flag', s:{name:`${nm0} · flagged by ${first(r.tutor)}`}, href:stuLink(r.flag.st), ico:'alert', col:'--rd', sub:`${flagWhy(r.flag)} · ${nice(r.d)}`, btn:['Deal with', stuLink(r.flag.st)]}); });
     /* students' daily reports (only for those who may read them) */
     const SR = store.get('lhq_sreports', null);
     if(SR && window.SREP){ const nm = k => (HD.students().find(x => x.key === k) || {name:k}).name;
@@ -774,6 +777,17 @@ function subjectsOf(s){
   const d = s.cur ? s.cur.card || s.cur.inv : s.openQuote || s.loneCard; if(!d) return '';
   return d.type === 'card' ? (d.subjects || []).map(x => x.name).filter(Boolean).join(', ') : (d.items || []).map(x => x.desc).filter(Boolean).join(', ');
 }
+/* students a tutor flagged in a daily report (LHQ only), open until someone deals with them */
+const flagWhy = f => [(f.why || []).join(', '), f.text ? '“' + f.text + '”' : ''].filter(Boolean).join(' · ') || 'Flagged';
+const flagsOf = key => (isDir() || can('students') || can('tutors')) ? Object.values((store.get('lhq_treps', {e:{}}) || {}).e || {}).filter(r => r && !r.x && r.flag && r.flag.st && (!key || r.flag.st === key)).sort((a, b) => (b.d || '').localeCompare(a.d || '')) : [];
+const flagCard = key => { const F = flagsOf(key), open = F.filter(r => !r.flag.done), done = F.filter(r => r.flag.done).slice(0, 3); if(!F.length) return '';
+  return `<div class="h2">Flagged by tutors <em>${open.length}</em></div><div class="card">${open.map(r => `<div class="it" style="flex-wrap:wrap"><span class="ico" style="color:var(--rd)">${ic('alert')}</span><span class="t"><b>${esc(flagWhy(r.flag))}</b><small>${esc(r.tutor)} · ${esc(nice(r.d))}</small></span><button class="btn sm n" data-flagdone="${esc(r.id)}">Dealt with</button></div>`).join('')}${done.map(r => `<div class="it"><span class="ico" style="color:var(--ok)">${ic('check')}</span><span class="t"><b>${esc(flagWhy(r.flag))}</b><small>${esc(r.tutor)} · ${esc(nice(r.d))} · dealt with by ${esc(r.flag.done.by)}${r.flag.done.note ? ' · ' + esc(r.flag.done.note) : ''}</small></span><button class="btn sm" data-flagopen="${esc(r.id)}">Open again</button></div>`).join('')}</div>`; };
+document.addEventListener('click', e => { const b = e.target.closest('[data-flagdone],[data-flagopen]'); if(!b) return;
+  const id = b.dataset.flagdone || b.dataset.flagopen, open = !!b.dataset.flagopen;
+  const go = async note => { try{ await hub.api('flagdone', {method:'POST', body: JSON.stringify({id, open, note})}); await hub.pull(); closeSheet(); render(); toast(open ? 'Opened again' : 'Dealt with ✓'); }catch(err){ toast(err.message || 'Couldn\'t save'); } };
+  if(open){ go(''); return; }
+  openSheet(`<div class="hx"><h3>Dealt with</h3><button class="ib" data-close>✕</button></div><label class="f"><span>What was done (optional)</span><textarea class="in" id="fdNote" style="min-height:0;height:80px" placeholder="e.g. Spoke to the parent; extra session booked"></textarea></label><button class="btn n full" id="fdGo">Mark as dealt with</button>`);
+  document.getElementById('fdGo').onclick = () => go(document.getElementById('fdNote').value.trim()); });
 let editDetails = false;
 P.student = (key, tab = 'overview') => {
   const s = HD.students().find(x => x.key === key);
@@ -782,7 +796,7 @@ P.student = (key, tab = 'overview') => {
   const tabs = [['overview','Overview']].concat((isDir() || can('students') || can('tutors')) && window.STV ? [['effort','Effort']] : [], myRows.length ? [['sessions','Sessions']] : [], (isDir() || can('tutors')) && PREVIEW_OR_DB() ? [['accounts','Accounts']] : [], [['marks','Marks']], store.get('lhq_sreports', null) ? [['reports','Reports']] : [], [['documents',`Doc<span class="x-ph">ument</span>s<i>${s.docs.length}</i>`],['details','Profile']]);
   let body = '';
   if(tab === 'effort' && window.STV) body = STV.page(SCHED.nk(s.name), 'dir');
-  if(tab === 'overview') body = (window.PC ? PC.block('student', {s}, 'This period') : '') + stuOverview(s) + (window.SRAFIG && can('tutors') ? SRAFIG.student(s.key) : '');
+  if(tab === 'overview') body = flagCard(s.key) + (window.PC ? PC.block('student', {s}, 'This period') : '') + stuOverview(s) + (window.SRAFIG && can('tutors') ? SRAFIG.student(s.key) : '');
   if(tab === 'accounts'){
     const ppl = HD.people(), nkk = SCHED.nk, sp = ppl.find(p => p.role === 'student' && nkk(p.name) === nkk(s.name)), par = ppl.filter(p => p.role === 'parent' && (p.children || []).some(c => nkk(c) === nkk(s.name)));
     const conf = (store.get('lhq_confirmer', {}) || {})[nkk(s.name)] === 'parent' ? 'parent' : 'student';
@@ -1714,7 +1728,15 @@ S.company = () => { const s = settingsKV();
   <div class="card pad"><div class="cap">Contact</div><div class="r2">${fieldRow('c_email','Email',s.email,'type="email"')}${fieldRow('c_phone','Phone (header)',s.phone)}</div>
   <div class="cap">Bank</div><div class="r2">${fieldRow('c_bank','Bank name',s.bank)}${fieldRow('c_accname','Account name',s.accname)}${fieldRow('c_branch','Branch',s.branch)}${fieldRow('c_accno','Account number',s.accno,'inputmode="numeric"')}</div>
   <div class="cap">Mobile money</div><div class="r2">${fieldRow('c_popphone','Proof of payment number',s.popphone)}${fieldRow('c_mobile','Mobile banking number',s.mobile)}</div>
-  <button class="btn n" data-save="email,phone,bank,accname,branch,accno,popphone,mobile">Save</button></div>`; };
+  <button class="btn n" data-save="email,phone,bank,accname,branch,accno,popphone,mobile">Save</button></div>
+  <div class="card pad"><div class="cap">LHQ stamp · on receipts</div>${/^data:image\//.test(s.stamp || '') ? `<img src="${s.stamp}" alt="LHQ stamp" style="max-width:160px;max-height:110px;display:block;margin:4px 0 12px;background:#fff;border-radius:8px;padding:6px">` : '<p class="note" style="margin:0 0 10px">No stamp yet. Receipts show a line instead.</p>'}
+    <div class="acts"><label class="btn">${ic('plus',16,2.4)} ${s.stamp ? 'Change' : 'Add'} stamp<input type="file" id="c_stampFile" accept="image/png,image/jpeg,image/webp" hidden></label>${s.stamp ? '<button class="btn rd" id="c_stampDel">Remove</button>' : ''}</div>
+    <p class="note" style="margin:10px 0 0">A photo or scan of the stamp, ideally on white. No staff signatures are kept.</p></div>`; };
+/* the stamp: shrunk to 360 px wide, as a small JPEG, so it travels with the settings */
+document.addEventListener('change', e => { if(e.target.id !== 'c_stampFile' || !e.target.files[0]) return; const f = e.target.files[0], r = new FileReader();
+  r.onload = () => { const img = new Image(); img.onload = () => { const w = Math.min(360, img.width), h = Math.round(img.height * w / img.width), c = document.createElement('canvas'); c.width = w; c.height = h; const g = c.getContext('2d'); g.fillStyle = '#fff'; g.fillRect(0, 0, w, h); g.drawImage(img, 0, 0, w, h);
+    saveSettings({stamp: c.toDataURL('image/jpeg', 0.82)});   /* small: settings reach every device */ render(); }; img.onerror = () => toast('That image couldn\'t be read'); img.src = r.result; }; r.readAsDataURL(f); });
+document.addEventListener('click', e => { if(e.target.closest('#c_stampDel') && confirm('Remove the stamp from receipts?')){ saveSettings({stamp: ''}); render(); } });
 /* fees in dollars: what the cost per session is worth today, and what it was worth when it was set (a falling kwacha shows here first) */
 function feeUsd(s){ if(!window.FX || !FX.may() || !FX.now() || !(+s.rate > 0)) return ''; const n = FX.now().rate, a = s.rateAt, now$ = +s.rate / n, was$ = a && a.fx ? +s.rate / a.fx : null, dpc = was$ ? Math.round((now$ - was$) / was$ * 100) : null;
   return `<p class="note" style="margin:10px 0 0">MWK ${Number(s.rate).toLocaleString('en-US')} a session = <b>$${now$.toFixed(2)}</b> today${was$ ? ` · was $${was$.toFixed(2)} when set (${nice(a.d)})${dpc ? ` · <b style="color:${dpc < 0 ? 'var(--am)' : 'var(--ok)'}">${dpc > 0 ? '+' : ''}${dpc}%</b>` : ''}` : ''} · bank rate ${n.toFixed(2)}</p>`; }

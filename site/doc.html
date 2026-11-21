@@ -89,6 +89,7 @@ input:focus,textarea:focus,select:focus{background-color:var(--panel)}
 
 /* ---------- subject rows ---------- */
 .items{display:grid;gap:8px}
+.dwrow{grid-column:1/-1;display:flex;flex-wrap:wrap;gap:5px;align-items:center;margin-top:2px}.dwrow button{min-height:32px;min-width:44px;padding:4px 8px;border-radius:999px;border:1px solid var(--line);background:var(--field);color:var(--ink);font:inherit;font-size:12.5px;font-weight:700;cursor:pointer}.dwrow button.on{background:var(--navy);border-color:var(--navy);color:var(--onnavy)}.dwrow small{color:var(--muted);font-size:11.5px;margin-left:4px}
 .item-head,.item{display:grid;grid-template-columns:minmax(0,2.2fr) minmax(0,.75fr) minmax(0,.85fr) minmax(0,1.15fr) minmax(0,1.1fr) 34px;gap:6px;align-items:start}
 .item-head span{font-size:11px;font-weight:600;color:var(--muted);padding:0 2px}
 .item-head span.r{text-align:right}
@@ -387,7 +388,7 @@ dialog::backdrop{background:rgba(7,25,45,.55)}
 .doc .lg-ch b{display:block;font-size:13pt;color:#073763;margin:3pt 0 2pt}
 .doc .lg-ch .tag{display:inline-block;background:#f4b223;color:#073763;font-size:6.5pt;font-weight:800;border-radius:3pt;padding:1pt 5pt;letter-spacing:.06em}.doc .lg-ch .tag.bl{background:#eaf0f7}
 .doc .lg-note{margin:9pt 0 0}
-.doc .lg-sig{margin-top:34pt;width:260pt}.doc .lg-sig .ln{border-bottom:.75pt solid #14213d;height:24pt;margin-bottom:4pt}
+.doc .lg-sig{margin-top:34pt;width:260pt}.doc .lg-stamp{display:block;max-width:120pt;max-height:80pt;margin-bottom:4pt}.doc .lg-sig .ln{border-bottom:.75pt solid #14213d;height:24pt;margin-bottom:4pt}
 .doc .lg-foot{margin-top:auto;display:grid;grid-template-columns:1.15fr 1fr;gap:18pt;border-top:.75pt solid #e4e7ec;padding-top:10pt;font-size:8.5pt;line-height:1.5}
 .doc .lg-foot .lg-inc{color:#073763;font-weight:700}.doc .lg-foot .mut{color:#6b7585}
 
@@ -685,7 +686,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
         <label class="lm"><span>Payment reference</span><input id="f_payRef" autocomplete="off" placeholder="Bank or mobile money ref."></label>
       </div>
       <p class="hint pay-note" id="payNote"></p>
-      <label class="lm"><span>Received by (prints above the signature line)</span><input id="f_receivedBy" autocomplete="off" placeholder="Staff member's name"></label>
+      <label class="lm"><span>Received by (prints on the receipt)</span><input id="f_receivedBy" autocomplete="off" placeholder="Staff member's name"></label>
     </div>
 
     <button type="button" class="lean-more" id="leanMore">+ More</button>
@@ -1202,7 +1203,7 @@ function renderDoc(){
   } else {
     const days = doc.items.some(it => String(it.days || '').trim());
     h += `<table class="lg-tb"><tr><th>Subject</th>${days ? '<th class="r">Days</th>' : ''}<th class="r">Sessions</th><th class="r">Per session</th><th class="r">Amount</th></tr>
-      ${doc.items.map(it => `<tr><td>${esc(it.desc)}</td>${days ? `<td class="r">${esc(it.days)}</td>` : ''}<td class="r">${esc(it.sessions)}</td><td class="r">${m0(num(it.cost))}</td><td class="r">${m0(num(it.sessions)*num(it.cost))}</td></tr>`).join('')}</table>`;
+      ${doc.items.map(it => `<tr><td>${esc(it.desc)}</td>${days ? `<td class="r">${Array.isArray(it.dw) && it.dw.length ? it.dw.map(c => (DW.find(x => x[0] === c) || [c, c])[1]).join(', ') : esc(it.days)}</td>` : ''}<td class="r">${esc(it.sessions)}</td><td class="r">${m0(num(it.cost))}</td><td class="r">${m0(num(it.sessions)*num(it.cost))}</td></tr>`).join('')}</table>`;
     const rows = [];
     if(hasDisc){ rows.push(['Subtotal', m0(t.subtotal)]); rows.push([esc(discountLabel()), '−' + m0(t.discount)]); }
     if(T==='quote') rows.push(['Total (MWK)', m0(t.total), 1]);
@@ -1229,7 +1230,7 @@ function renderDoc(){
     const notes = ['Thank you for your payment. Please keep this receipt for your records.'];
     if(P && P.next && t.balance > 0.005) notes.push(nextLine(P, true));
     h += `<div class="lg-sec">${notes.map(x => `<div class="lg-li"><span>•</span><span>${x}</span></div>`).join('')}</div>
-      <div class="lg-sig"><div class="ln"></div><b>Signature</b> · for LHQ Learning Solutions${doc.receivedBy ? ` · received by ${esc(doc.receivedBy)}` : ''}</div>`;
+      <div class="lg-sig">${/^data:image\/(png|jpeg|webp);base64,/.test(settings.stamp || '') ? `<img class="lg-stamp" src="${settings.stamp}" alt="LHQ stamp">` : '<div class="ln"></div>'}<b>${doc.receivedBy ? `Received by ${esc(doc.receivedBy)}` : 'Received'}</b> · for LHQ Learning Solutions</div>`;   // the LHQ stamp (Settings), no handwritten signatures
   }
 
   /* the foot */
@@ -1342,6 +1343,7 @@ function renderItems(){
       <div class="f"><small>Cost/session</small><input data-i="${i}" data-k="cost" value="${esc(it.cost)}" inputmode="decimal" aria-label="Cost per session"></div>
       <div class="amt" id="amt${i}"></div>
       <button class="small danger rm" data-rm="${i}" title="Remove subject" aria-label="Remove subject">✕</button>
+      <div class="dwrow" role="group" aria-label="Tuition days">${DW.map(([c, l]) => `<button type="button" class="${(it.dw || []).includes(c) ? 'on' : ''}" data-dwi="${i}" data-dw="${c}">${l}</button>`).join('')}<small>${(it.dw || []).length ? 'sessions counted on these days' : 'Pick days, or type Days a week'}</small></div>
     </div>`).join('');
   update();
 }
@@ -1379,7 +1381,11 @@ function periodWeeks(d = doc){
   const days = dayDiff(d.periodStart, d.periodEnd) + 1;
   return days >= 7 ? Math.max(1, Math.round(days / 7)) : 0;
 }
+/* tuition days picked (Mon, Wed…): sessions are the exact number of those days in the period, weekends only if picked */
+const DW = [['Mo','Mon'],['Tu','Tue'],['We','Wed'],['Th','Thu'],['Fr','Fri'],['Sa','Sat'],['Su','Sun']];
+function countDays(a, b, dw){ if(!a || !b || !dw.length) return 0; let n = 0; for(let d = a; d <= b; d = addDays(d, 1)) if(dw.includes(['Su','Mo','Tu','We','Th','Fr','Sa'][new Date(d + 'T00:00:00').getDay()])) n++; return n; }
 function autoSessions(it){
+  if(Array.isArray(it.dw) && it.dw.length){ const n = countDays(doc.periodStart, doc.periodEnd, it.dw); return n ? String(n) : null; }
   const w = periodWeeks(), dd = num(it.days);
   return w && dd ? String(Math.round(dd * w)) : null;
 }
@@ -1397,6 +1403,9 @@ F('itemsBody').addEventListener('input', e=>{
   update();
 });
 F('itemsBody').addEventListener('click', e=>{
+  const w = e.target.closest('[data-dw]');
+  if(w){ const it = doc.items[+w.dataset.dwi], c = w.dataset.dw, L = new Set(it.dw || []); L.has(c) ? L.delete(c) : L.add(c);
+    it.dw = DW.map(x => x[0]).filter(x => L.has(x)); if(it.dw.length) it.days = String(it.dw.length); it.sessManual = false; refreshSessions(); renderItems(); return; }
   const b = e.target.closest('[data-rm]'); if(!b) return;
   doc.items.splice(+b.dataset.rm,1); renderItems();
 });
@@ -2275,6 +2284,12 @@ function route(){
     if(get('dup')){ doc.ref = s.ref || ''; msg = `Copy of ${s.number}: ${WORD[doc.type].toLowerCase()} ${doc.number}. Change what you need, then Save.`; }
     else { doc.from = s.number; msg = `${WORD[doc.type]} ${doc.number} started from ${s.number}. Check it, then Save.`; }
     if(doc.type==='card' && get('from')) copyCardDetails(doc, get('from'));
+  } else if(get('change')){
+    const s0 = saved.find(x=>x.id===get('change')), from = get('from');
+    if(!s0 && !route.tried && window.hub && hub.pull){ route.tried = true; hub.pull().then(route, route); return; }
+    if(!s0 || !from){ location.replace('index.html#docs'); return; }
+    doc = convertDoc(s0, 'card'); doc.ref = s0.ref || ''; doc.from = s0.number; doc.periodStart = from; doc.periodEnd = s0.periodEnd; doc.changeOf = s0.id;
+    msg = `New card ${doc.number} from ${niceDate(from)}: change the days and times, then Save. ${s0.number} then ends ${niceDate(addDays(from, -1))}.`;
   } else if(get('renew')){
     const s = saved.find(x=>x.id===get('renew')); if(!s){ location.replace('index.html#docs'); return; }
     doc = convertDoc(s, 'invoice');
@@ -2290,7 +2305,7 @@ function route(){
   }
   if(m === 'edit' && !doc.id && !mayEdit(doc.type)){ toast('You don\'t have permission to make this kind of document'); location.replace('index.html#docs'); return; }
   if(get('new') || get('conv') || get('renew')){ const cm = applyCredit(doc); if(cm) msg = (msg || '') + cm; }
-  if(get('new') || get('conv') || get('dup') || get('renew')) history.replaceState(null, '', location.pathname + '#draft');
+  if(get('new') || get('conv') || get('dup') || get('renew') || get('change')) history.replaceState(null, '', location.pathname + '#draft');
   fillForm(); setMode(m); window.scrollTo(0,0);
   drawBack(); if(doc.id && m === 'view') LHQNav.visit(doc.number);
   if(msg) toast(msg);
@@ -2299,6 +2314,10 @@ window.addEventListener('hashchange', route);
 document.addEventListener('keydown', e=>{ if(e.key==='Escape' && F('dpSheet') && !F('dpSheet').hidden) closeDpSheet(); });
 function saveAndView(){
   const isNew = !doc.id;
+  if(isNew && doc.type === 'card' && doc.changeOf && doc.periodStart){   // the card it replaces ends the day before
+    const i = saved.findIndex(x=>x.id===doc.changeOf);
+    if(i >= 0 && saved[i].periodEnd >= doc.periodStart){ const o = Object.assign({}, saved[i], {periodEnd: addDays(doc.periodStart, -1), endedBy: doc.number, savedAt: Date.now(), updatedAt: Date.now()}); saved[i] = o; store.set('lhq_saved', saved); }
+  }
   saveDoc();
   // a first document for someone makes their student record, so their details are kept once
   const key = studentKey(doc.student);
@@ -2363,6 +2382,7 @@ function drawAside(){
     const end = ch.inv.periodEnd;
     if(t === 'invoice' && ch.card && H.can('quotes') && (!end || H.dayDiff(H.today(), end) <= 14)) nx.push(`<a class="dp-b n full" href="doc.html#renew=${ch.inv.id}">Renew for the next period</a><p class="dp-note">Next invoice, same subjects; the card copies days, times and tutors.</p>`);
   }
+  if(t === 'card' && H.can('cards') && d.periodEnd && d.periodEnd > H.today()) nx.push(`<button class="dp-b full" onclick="changeFromSheet()">Change days or times from a date</button>`);
   if(t === 'card' && H.can('cards')) nx.push(`<button class="dp-b n full" onclick="openCardShare()">${svg('<path d="M4 12l16-8-6 17-3-7-7-2z"/>',16)} Send to tutors</button>`);
   F('dpNext').innerHTML = nx.length ? `<div class="dp-box"><div class="dp-cap">Next step</div>${nx.join('')}</div>` : '';
   // payment
@@ -2375,6 +2395,16 @@ function drawAside(){
   const act = log.map(a=>`<div class="dp-act"><span class="dp-av">${esc((a.by||'?')[0])}</span><div>${esc(W[a.a]||a.a)}${a.from ? ' from ' + esc(a.from) : ''}${a.to ? ' to ' + esc(a.to) : ''}${a.a==='paid' && a.amount ? ' · ' + H.mk(H.num(a.amount)) + ' paid in total' : ''}<small>${esc(a.by||'')}${a.at ? ' · ' + esc(H.ago(a.at)) : ''}</small></div></div>`).join('');
   F('dpAside').innerHTML = `<div class="dp-box">${pay}<div class="dp-cap">Linked documents</div>${links.map(x=>chainRow(x, x.id===d.id)).join('') || chainRow(d, true)}${missing.length ? `<p class="dp-note">Not made yet: ${missing.join(', ')}</p>` : ''}</div>
     ${act ? `<div class="dp-box"><div class="dp-cap">Activity</div>${act}</div>` : ''}`;
+}
+/* a card's days change part-way: weeks already taught keep the old days. This card ends the day before;
+   a copy carries on from that date with the new days (made when that copy is saved). */
+function changeFromSheet(){
+  const d = saved.find(x=>x.id===doc.id) || doc, t = H.today(), min = d.periodStart > t ? addDays(d.periodStart, 1) : addDays(t, 1);
+  dpSheet(`<div class="dp-sh-h"><b>Change from a date</b><button class="dp-x" data-m="close">✕</button></div>
+    <p class="dp-note" style="margin:4px 0 12px">Sessions before this date stay as they are. ${esc(d.number)} ends the day before, and a new card with the new days carries on to ${esc(niceDate(d.periodEnd))}.</p>
+    <label style="display:block;font-weight:700;font-size:13px"><span style="display:block;margin-bottom:6px">Changes from</span><input type="date" id="cfFrom" style="width:100%;min-height:44px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--field);color:var(--ink);font:inherit" value="${min}" min="${min}" max="${d.periodEnd}"></label>
+    <button class="dp-b n full" id="cfGo" style="margin-top:12px">Next · change the days</button>`);
+  F('cfGo').onclick = () => { const v = F('cfFrom').value; if(!v || v < min || v > d.periodEnd){ toast('Choose a date inside the tuition period'); return; } closeDpSheet(); location.hash = 'change=' + d.id + '&from=' + v; };
 }
 /* ⋯ menu: duplicate, copy link, delete */
 function moreMenu(){

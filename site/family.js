@@ -79,12 +79,12 @@ window.FAM = (function(){
     })();
     return loading;
   }
-  /* stay current: on coming back to the app, and every minute while it's on screen (not while something is being filled in) */
+  /* stay current: on coming back to the app, and every 2 minutes while it's on screen (not while something is being filled in) */
   (() => {
     const busy = () => (typeof form !== 'undefined' && form) || document.querySelector('#sheet:not([hidden])') || (document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName));
     const tick = min => { if(document.visibilityState !== 'visible' || !location.hash.startsWith('#me') || !data || busy()) return; if(Date.now() - (data.at || 0) > min) fetchData(); };
     document.addEventListener('visibilitychange', () => tick(15000));
-    setInterval(() => tick(55000), 60000);
+    setInterval(() => tick(110000), 120000);
   })();
   const me = () => (hub.session() || {}).me || {};
   const isParent = () => me().role === 'parent';
@@ -189,7 +189,7 @@ window.FAM = (function(){
     const row = x => `<div class="it">${isParent() ? `<span class="f-mk ${x.done ? 'ok' : ''}">${x.done ? '✓' : ''}</span>` : ''}<span class="t"><b>${esc(x.topic)} ${x.stage ? 'R' + x.stage : 'LD'}</b><small>${esc(sub(x.sub))}${x.pack ? ' · take-home pack' : x.due ? ' · hand in ' + (x.due === t ? 'today' : day(x.due)) : ''}</small></span>${isParent() ? '' : steps(x)}</div>`;
     return `<div class="ph"><div class="tt"><h1>Practice</h1></div>${isParent() || !window.SX || !has('focus') ? '' : '<div class="acts"><a class="btn" href="#me/focus">Focus</a></div>'}</div>${kidChips()}${packCard(k)}
       <div class="h2">Do today</div><div class="card">${doT.map(row).join('') || '<p class="empty">Nothing today. ✓</p>'}</div>${window.FUP ? FUP.famCard(k) : ''}
-      ${inT.length ? `<div class="h2">Hand in</div><div class="card">${inT.map(x => `<div class="it"><span class="f-mk am">!</span><span class="t"><b>${esc(x.topic)} ${x.stage ? 'R' + x.stage : 'LD'}</b><small>${esc(sub(x.sub))} · ${x.status === 'late' ? 'late' : 'today'}</small></span></div>`).join('')}</div>` : ''}
+      ${inT.length ? `<div class="h2">Hand in</div><div class="card">${inT.map(x => `<div class="it"><span class="f-mk am">!</span><span class="t"><b>${esc(x.topic)} ${x.stage ? 'R' + x.stage : 'LD'}</b><small>${esc(sub(x.sub))} · ${x.status === 'late' ? `<b style="color:var(--rd)">Late · ${x.lateBy || 1} day${(x.lateBy || 1) === 1 ? '' : 's'}</b>` : 'today'}</small></span></div>`).join('')}</div>` : ''}
       ${out.length ? `<div class="h2">You have</div><div class="card">${out.map(row).join('')}</div>` : ''}
       ${comingOf(k).length ? `<div class="h2">Coming up <em>assessments</em></div><div class="card">${comingOf(k).map(a => `<div class="it"><span class="f-day"><small>${DAYN[['Su','Mo','Tu','We','Th','Fr','Sa'][HD.parseISO(a.d).getDay()]]}</small><b>${HD.parseISO(a.d).getDate()}</b></span><span class="t"><b class="f-aty">${window.MARKS ? MARKS.ico(a.ak) : ''}<span>${esc((window.MARKS ? MARKS.TY[a.ak] : '') || 'Assessment')} · ${esc(sub(a.sub))}</span></b><small>${[a.s, (a.tp || []).join(', '), a.lhq ? 'from LHQ' : ''].filter(Boolean).map(esc).join(' · ')}</small></span></div>`).join('')}</div>` : ''}`;
   }

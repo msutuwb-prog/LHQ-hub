@@ -748,7 +748,7 @@ async function familyData(me, opt = {}) {
     const sraIts = S.items(cards, t, 45).filter(it => nk(it.st) === kid.key && subOk(it.sub));
     const allS = SR.build(sraIts.map(it => ({ k: it.k, days: it.days, a: it.pa, b: it.b, st: it.st, sub: it.sub, periods: it.periods })), ent, t);
     const sras = allS.filter(x => x.pack ? x.pack.on <= t && SR.add(x.doOn, 7) >= t : x.given && x.status !== "in").map(x => { const id = [x.k, x.topic, x.stage].join("|"), dn = (done || {})[id];
-        return Object.assign({ id, sub: x.sub, topic: x.topic, label: x.label, stage: x.stage, doOn: x.doOn, due: x.due, status: x.status, done: !!dn || x.status === "in" },
+        return Object.assign({ id, sub: x.sub, topic: x.topic, label: x.label, stage: x.stage, doOn: x.doOn, due: x.due, status: x.status, lateBy: x.lateBy || 0, done: !!dn || x.status === "in" },
           x.pack ? { pack: { on: x.pack.on, out: !!x.pack.out, from: x.from || null }, self: dn && dn.sc != null ? { sc: dn.sc, mx: dn.mx || 10 } : null, score: x.score } : {}); });
     /* absence and late notices: on each session they cover (only live ones: not undone) */
     const told = Object.values(nts || {}).filter(n => n && !n.x && n.st === kid.key && n.d >= S.addDays(t, -14));
@@ -1800,6 +1800,7 @@ async function tutorPost(req, me) {
     const rep = { id: "r" + nk(me.name).replace(/[^a-z0-9]/g, "") + d0.replace(/-/g, ""), d: d0, tutor: me.name, req, flag, comment: txt(r.comment, 1500), rate: [1, 2, 3, 4, 5].includes(+r.rate) ? +r.rate : 0, gaps: Math.max(0, Math.min(99, +r.gaps || 0)), hours: Math.max(0, Math.min(24, +r.hours || 0)), sent: now, at: now };
     rep.id = rep.id.slice(0, 40);
     const prevRep = (((await store().get("kv/lhq_treps", { type: "json" })) || {}).e || {})[rep.id];
+    if (rep.flag && prevRep && prevRep.flag && prevRep.flag.done && prevRep.flag.st === rep.flag.st) rep.flag.done = prevRep.flag.done;   // a report sent again keeps LHQ's "dealt with"
     await writeKv("lhq_treps", old => mergeLogs(old, { e: { [rep.id]: rep } }));
     if (rep.req.length && !(prevRep && (prevRep.req || []).length)) await pushSafe(await idsOfStaff("director"), "req", { title: `Requisition · ${me.name}`, body: rep.req.map(x => x.item).join(", ").slice(0, 100), url: "/#reqs" });
     await act(me, "teaching", "report.send", `Sent the daily report for ${dayL(d0)}${rep.req.length ? " · asked for " + rep.req.map(x => x.item).join(", ") : ""}${rep.flag ? " · flagged a student" : ""}`, "tutor_reports", rep.id);
@@ -1967,6 +1968,7 @@ async function handle(req, context) {
     if (req.method === "POST" && path === "prof") return await profPost(req, me);
     if (req.method === "GET" && path === "bdays") return await bdaysGet(me);
     if (req.method === "POST" && path === "wish") return await wishPost(req, me);
+    if (req.method === "POST" && path === "flagdone") return await flagDone(req, me);
     if (req.method === "GET" && path === "stuview") return await stuView(new URL(req.url).searchParams.get("k") || "", me);
     if (req.method === "POST" && path === "family") return await familyPost(req, me);
     if (req.method === "POST" && path === "confirmer") return await setConfirmer(req, me);
@@ -2208,6 +2210,17 @@ async function bdayList(me) {
   return { today: t, opt, week: role === "parent" ? [] : week.filter(x => !x.me || x.in === 0), mine, canWish: !!opt.wish && (staff(me) || isTutor(me)) };
 }
 async function bdaysGet(me) { return json(Object.assign({ ok: true }, await bdayList(me))); }
+/* a student a tutor flagged in a daily report: LHQ marks it dealt with (or opens it again), with a note */
+async function flagDone(req, me) {
+  if (!(isDirector(me) || can(me, "students") || can(me, "tutors"))) return fail("Only LHQ can deal with flags.", 403);
+  const b = await req.json().catch(() => ({})), rid = String(b.id || "");
+  let found = false;
+  await writeKv("lhq_treps", old => { const o = Object.assign({ e: {} }, old), r = (o.e || {})[rid]; if (!r || !r.flag) return o;
+    found = true; r.flag = Object.assign({}, r.flag, b.open ? { done: null } : { done: { by: me.name, at: Date.now(), note: txt0(b.note, 300) } }); r.at = Date.now(); o.e[rid] = r; return o; });
+  if (!found) return fail("That flag isn't here any more.", 404);
+  await act(me, "teaching", b.open ? "flag.open" : "flag.done", b.open ? "Opened a flag again" : "Dealt with a flag", "treps", rid, {});
+  return json({ ok: true });
+}
 async function wishPost(req, me) {
   if (!(staff(me) || isTutor(me))) return fail("Only LHQ staff and tutors send wishes.", 403);
   const b = await req.json().catch(() => ({})), L = await bdayList(me);

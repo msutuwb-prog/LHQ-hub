@@ -10,6 +10,7 @@
   const iso = dt => dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
   const parse = s => { const [y, m, d] = String(s).split('-').map(Number); return new Date(y, m - 1, d); };
   const ADD = new Map(), DOW = new Map();   // the same few hundred dates come up again and again: worked out once
+  const dayGap = (a, b) => Math.round((parse(b) - parse(a)) / 864e5);
   const add = (s, n) => { const k = s + '|' + n; let v = ADD.get(k); if(v === undefined){ const d = parse(s); d.setDate(d.getDate() + n); v = iso(d); if(ADD.size > 50000) ADD.clear(); ADD.set(k, v); } return v; };
   const addMonth = s => { const d = parse(s), day = d.getDate(); d.setDate(1); d.setMonth(d.getMonth() + 1); d.setDate(Math.min(day, new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate())); return iso(d); };
   const dow = s => { let v = DOW.get(s); if(v === undefined){ v = DAYC[parse(s).getDay()]; DOW.set(s, v); } return v; };
@@ -83,13 +84,15 @@
         const giveOn = S.n === 0 ? x.d : isDay(it, doOn) ? doOn : prevDay(it, doOn, x.d);
         const after = !!(it.b && doOn > it.b && !m.g && !m.r);   // after the tuition period: waits for the next one
         // it comes back at the first session after it was given and after its do-on day (given early, it keeps its day)
-        let st = 'upcoming', due = m.g ? nextDay(it, add(m.g.d > doOn ? m.g.d : doOn, 1)) : null, moved = null;
+        let st = 'upcoming', due = m.g ? (m.g.due && m.g.due >= m.g.d ? m.g.due : nextDay(it, add(m.g.d > doOn ? m.g.d : doOn, 1))) : null, moved = null;   // the tutor can set the due date when handing it out
         if(m.r && m.r.h !== 'm') st = 'in';
         else if(m.g){ if(m.r && m.r.h === 'm' && m.r.d >= m.g.d){ moved = m.r.d; due = nextDay(it, add(m.r.d, 1)); } st = today > due || moved ? (today >= due ? 'late' : 'given') : today === due ? 'collect' : 'given'; }
         else if(after) st = 'after';
         else if(giveOn < today) st = 'overdue';
         else if(giveOn === today) st = 'give';
-        out.push({k: x.k, st: it.st || x.st, sub: it.sub || x.sub, topic: x.topic, stage: S.n, label: label(S.n), learnt: x.d, doOn, giveOn, due, status: st,
+        /* late: handed in after the due date, or still out after it; whole days */
+        const hIn = m.r && m.r.h !== 'm' ? m.r.d : null, lateBy = due ? Math.max(0, dayGap(due, hIn || (st === 'late' ? today : due))) : 0;
+        out.push({k: x.k, st: it.st || x.st, sub: it.sub || x.sub, topic: x.topic, stage: S.n, label: label(S.n), learnt: x.d, doOn, giveOn, due, status: st, lateBy,
           score: m.r && m.r.h !== 'm' && m.r.sc != null && m.r.sc !== '' ? {sc: m.r.sc, mx: m.r.mx} : null, moved, given: m.g || null, handed: m.r || null, paused: !!(it.b && it.b < today && !it.next)});
       });
     });

@@ -101,7 +101,7 @@ function cardBlankSubject(name, level, perWeek, sessions){
     tier:'', mode:'selected', picks:{}, details:{}, custom:[], grade:'', basis:'', when:'', note:'', openCh:'' };
 }
 function cardSubjectsFromItems(items, level){
-  return (items||[]).filter(it=>it.desc).map(it=>cardBlankSubject(it.desc, level, it.days, it.sessions));
+  return (items||[]).filter(it=>it.desc).map(it=>{ const x = cardBlankSubject(it.desc, level, it.days, it.sessions); if(Array.isArray(it.dw) && it.dw.length) x.days = it.dw.slice(); return x; });   // days picked on the quote come across
 }
 function cardPicked(s){
   return Object.keys(s.picks||{}).filter(k=>{ const v = s.picks[k]; return v===true || v==='all' || (Array.isArray(v) && v.length); }).length + (s.custom||[]).length;

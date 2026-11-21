@@ -101,12 +101,12 @@ window.TUT = (function(){
     })();
     return loading;
   }
-  /* stay current: on coming back to the app, and every minute while it's on screen (not while something is being filled in) */
+  /* stay current: on coming back to the app, and every 2 minutes while it's on screen (not while something is being filled in) */
   (() => {
     const busy = () => (typeof form !== 'undefined' && form) || document.querySelector('#sheet:not([hidden])') || (document.activeElement && /INPUT|TEXTAREA|SELECT/.test(document.activeElement.tagName));
     const tick = min => { if(document.visibilityState !== 'visible' || !location.hash.startsWith('#teach') || !data || busy()) return; if(Date.now() - (data.at || 0) > min) fetchData(); };
     document.addEventListener('visibilitychange', () => tick(15000));
-    setInterval(() => tick(55000), 60000);
+    setInterval(() => tick(110000), 120000);
   })();
   async function flush(){
     const q = read(QK, []); if(!q.length) return;
@@ -239,7 +239,7 @@ window.TUT = (function(){
     W.forEach(e => { const g = e.wid || e.id; if(ws.has(g)) return; ws.add(g); const G = W.filter(x => (x.wid || x.id) === g), done = G.some(x => x.sc != null && x.sc !== '' || x.abs);
       if(!done) return; out.push({kind:'w', id:g, c:Math.min(...G.map(x => x.mc || x.c || x.at || 0)), at:Math.max(...G.map(x => x.at || 0)), ic:'A', col:'am', b:`${G.length > 1 ? G.map(x => short(x.st)).join(', ') : short(e.st)} · weekly assessment marks`, s:`${(e.tp || []).join(', ') || e.sub} · out of ${e.mx || '?'}`}); });
     const gs = E.filter(e => e.ty === 'g' && e.d === d && !e.grp);
-    if(gs.length) out.push({kind:'g', id:'g', c:Math.min(...gs.map(x => x.c || x.at || 0)), at:0, ic:'G', col:'gr', b:`SRAs handed out · ${gs.length}`, s:gs.map(x => short(x.st) + ' ' + x.tk + ' ' + (x.rv ? 'R' + x.rv : 'LD')).join(', ')});
+    if(gs.length) out.push({kind:'g', id:'g', c:Math.min(...gs.map(x => x.c || x.at || 0)), at:0, ic:'G', col:'gr', b:`SRAs and ARS handed out · ${gs.length}`, s:gs.map(x => short(x.st) + ' ' + x.tk + ' ' + (x.rv ? 'R' + x.rv : 'LD')).join(', ')});
     const rep = d === today() ? todayRep() : null;
     out.forEach(x => { if(rep && x.at > rep.sent && x.c < rep.sent) x.s += ' · edited ' + hm(x.at); });
     return out.sort((a, b) => a.c - b.c);
@@ -250,7 +250,7 @@ window.TUT = (function(){
     const due = I.filter(it => isDay(it, t) && !logged(it)), inCls = new Set();
     (data.classes || []).forEach(c => { const M = due.filter(it => c.stu.includes(stuOf(it.k)) && nk(it.sub) === nk(c.sub)); if(M.length >= 2){ M.forEach(m => inCls.add(m.k)); g.push({href:'#teach/log/' + encodeURIComponent('class:' + c.id), b:`${tStart(M[0], dow) || ''} ${c.name} · session not logged`.trim(), s:c.sub}); } });
     due.filter(it => !inCls.has(it.k)).forEach(it => g.push({href:'#teach/log/' + encodeURIComponent(it.k), b:`${tStart(it, dow) || ''} ${short(it.st)} · session not logged`.trim(), s:it.sub}));
-    SRA.today(sras(), t).collect.forEach(x => g.push({href:'#teach/marks/' + ref(x), b:`${short(x.st)} · ${x.topic} ${x.label}`, s: x.status === 'late' ? 'Late · marks not entered' : 'SRA due back today · marks not entered'}));
+    SRA.today(sras(), t).collect.forEach(x => g.push({href:'#teach/marks/' + ref(x), b:`${short(x.st)} · ${x.topic} ${x.label}`, s: x.status === 'late' ? `Late · ${x.lateBy} day${x.lateBy === 1 ? '' : 's'} · marks not entered` : 'SRA due back today · marks not entered'}));
     SRA.packs(sras(), t, 0).filter(p => !p.out && p.on <= t && p.on >= addDays(t, -3)).forEach(p => g.push({href:'#teach/sra/pack', b:`${short(p.st)} · take-home pack`, s:`${p.sub} · ${p.sheets.length} sheet${p.sheets.length === 1 ? '' : 's'} · ${p.on === t ? 'last session today' : 'last session ' + nice(p.on)} · not ticked as handed over`}));
     pendingWa().filter(w => w.d < t).forEach(w => g.push({href:'#teach/wa/' + encodeURIComponent(w.id), b:`${w.name} · ${atyL(w.ak).toLowerCase()} assessment`, s:`Given ${nice(w.d)} · marks not entered`}));
     return g;
@@ -692,7 +692,7 @@ window.TUT = (function(){
       ${M.some(m => taught(f.att[m.k])) ? `
       <div class="card pad"><div class="cap">Topics covered</div>${topicPicker(f, 'tp', 'open', 'q', 'Choose topics')}
         ${f.tp.map(t => `<div class="t-pk"><div class="row"><span>${esc(t)}</span><button class="t-x" type="button" aria-label="Remove ${esc(t)}" data-ttog="tp:${esc(t)}">×</button></div><div style="margin-top:8px">${tick('fin:' + t, f.fin.includes(t), 'Finished this topic', f.fin.includes(t) ? 'Starts its SRAs: today, then 1, 3, 7, 14 days and a month' : '')}</div></div>`).join('')}</div>
-      <div class="card pad"><div class="cap">SRAs handed out <small style="text-transform:none;letter-spacing:0">· from the SRA tracker</small></div>${sraGroups(f)}</div>
+      <div class="card pad"><div class="cap">SRAs and ARS handed out <small style="text-transform:none;letter-spacing:0">· each SRA goes with its ARS</small></div>${sraGroups(f)}</div>
       <div class="card pad lm"><div class="cap">Guide</div><div class="t-opts">${tick('gb', f.gb, 'Guide handed before the session')}${tick('ga', f.ga, 'Guide handed after the session')}</div></div>
       <div class="card pad lm"><div class="cap">Assessment</div>${tick('wa', f.wa, 'Assessment given')}
         ${f.wa ? (SO => `${SO.length ? `<div class="cap" style="margin-top:12px">Which</div>${one('waSch', SO.map(a => [a.ag || a.id, `${atyL(a.ak)} · ${(a.tp || []).map(esc).join(', ') || esc(a.sub)}<small>${nice(a.d)}${a.s ? ' ' + a.s : ''}</small>`]).concat([['', 'Another one']]), f.waSch || '')}` : ''}
@@ -734,7 +734,7 @@ window.TUT = (function(){
     else Object.values(wIds).forEach(id => { const o = live().find(x => x.id === id); if(o && (o.sc == null || o.sc === '')) list.push(Object.assign({}, o, {x:1})); });
     const fins = list.filter(e => e.ty === 's').reduce((a, e) => a + (e.fin || []).length, 0) ? f.fin.length : 0, gave = list.filter(e => e.ty === 'g' && !e.x && !(f.gIds && Object.values(f.gIds).includes(e.id))).length;
     form = null;
-    saveEntries(list, true).then(ok => { if(!ok) return; toast([f.edit ? 'Changes saved' : 'Session logged', fins ? `SRAs scheduled for ${fins} topic${fins > 1 ? 's' : ''}` : '', gave ? `${gave} SRA${gave > 1 ? 's' : ''} handed out` : '', f.wa && !f.edit ? 'assessment waiting for marks' : ''].filter(Boolean).join(' · ')); location.hash = '#teach'; });
+    saveEntries(list, true).then(ok => { if(!ok) return; toast([f.edit ? 'Changes saved' : 'Session logged', fins ? `SRAs scheduled for ${fins} topic${fins > 1 ? 's' : ''}` : '', gave ? `${gave} SRA${gave > 1 ? 's' : ''} and ARS handed out` : '', f.wa && !f.edit ? 'assessment waiting for marks' : ''].filter(Boolean).join(' · ')); location.hash = '#teach'; });
   }
 
   /* ---------- logging: SRA marks ---------- */
@@ -751,9 +751,10 @@ window.TUT = (function(){
     return backHome() + head(f.edit ? 'Edit SRA marks' : 'SRA marks', 'For an SRA that has been handed in') + `
       <div class="card pad"><label class="f"><span>Student</span><select class="in" data-tmk aria-label="Student" ${f.edit ? 'disabled' : ''}><option value="">Choose…</option>${I.map(i => `<option value="${esc(i.k)}" ${f.k === i.k ? 'selected' : ''}>${esc(i.st)} · ${esc(i.sub)}</option>`).join('')}</select></label>
       ${f.k ? `<div class="cap">Which SRA</div><div class="t-opts">${out.map(x => `<button type="button" role="radio" aria-checked="${f.sra === ref(x)}" class="t-opt${f.sra === ref(x) ? ' on' : ''}" data-tset="sra" data-v="${esc(ref(x))}"><span class="t-ind c"></span><span class="tx">${esc(x.topic)} · ${x.label}<small>${x.status === 'home' ? `Take-home pack · do on ${nice(x.doOn)}` : `Given ${x.given ? nice(x.given.d) : '?'} · due back ${x.due === today() ? 'today' : nice(x.due)}${x.status === 'late' ? ' · late' : ''}`}</small></span></button>`).join('')}
-        <button type="button" role="radio" aria-checked="${f.sra === 'man'}" class="t-opt${f.sra === 'man' ? ' on' : ''}" data-tset="sra" data-v="man"><span class="t-ind c"></span><span class="tx">Not in the list<small>Choose topic and review · LHQ checks</small></span></button></div>
+        <button type="button" role="radio" aria-checked="${f.sra === 'man'}" class="t-opt${f.sra === 'man' ? ' on' : ''}" data-tset="sra" data-v="man"><span class="t-ind c"></span><span class="tx">Handed out but not recorded<small>Say when it was handed out first · LHQ checks</small></span></button></div>
         ${f.sra === 'man' ? `<div class="r2" style="margin-top:10px"><label class="f" style="margin:0"><span>Topic</span>${(tks => tks.length ? `<select class="in" data-tin="tk"><option value="">Choose…</option>${tks.map(t => `<option ${f.tk === t ? 'selected' : ''}>${esc(t)}</option>`).join('')}</select>` : `<input class="in" data-tin="tk" value="${esc(f.tk || '')}" placeholder="Type the topic" autocomplete="off">`)([...new Set((it ? it.topics : []).concat(L.filter(x => x.k === f.k).map(x => x.topic)))])}</label>
-          <label class="f" style="margin:0"><span>Review</span><select class="in" data-tin="rv"><option value="">Choose…</option>${SRA.STAGES.map(s => `<option value="${s.n}" ${f.rv === String(s.n) ? 'selected' : ''}>${s.l}</option>`).join('')}</select></label></div>` : ''}` : ''}</div>
+          <label class="f" style="margin:0"><span>Review</span><select class="in" data-tin="rv"><option value="">Choose…</option>${SRA.STAGES.map(s => `<option value="${s.n}" ${f.rv === String(s.n) ? 'selected' : ''}>${s.l}</option>`).join('')}</select></label></div>
+          <label class="f" style="margin:10px 0 0"><span>Handed out on (SRA and ARS)</span><input class="in" type="date" data-tin="gd" value="${esc(f.gd || '')}" max="${today()}"></label>` : ''}` : ''}</div>
       ${f.sra ? `<div class="card pad"><div class="cap">Marks</div><div class="t-score"><input class="in" inputmode="decimal" data-tin="sc" data-tpc="mpc" value="${esc(f.sc)}" aria-label="Marks"><span>/</span><input class="in" inputmode="decimal" data-tin="mx" data-tpc="mpc" value="${esc(f.mx)}" aria-label="Out of"><b id="mpc">${pct(f.sc, f.mx)}</b></div>
         <label class="f" style="margin:14px 0 0"><span>Handed in on</span><input class="in" type="date" data-tin="d" value="${f.d}" max="${today()}"></label>
         <p class="note">Change the date for an earlier SRA.</p></div>
@@ -762,11 +763,13 @@ window.TUT = (function(){
   }
   function saveMarks(){
     const f = mform, it = itemOf(f.k); if(!it){ toast('Choose the student'); return; }
-    let tk, rv; if(f.sra === 'man'){ tk = f.tk; rv = +f.rv; if(!tk || f.rv === ''){ toast('Choose the topic and review'); return; } } else { const [, a, b] = f.sra.split('/').map(decodeURIComponent); tk = a; rv = +b; }
+    let tk, rv; if(f.sra === 'man'){ tk = f.tk; rv = +f.rv; if(!tk || f.rv === ''){ toast('Choose the topic and review'); return; } if(!f.edit && !f.gd){ toast('Say when the SRA and ARS were handed out'); return; } if(f.gd && f.gd > f.d){ toast('It was handed in before it was handed out'); return; } } else { const [, a, b] = f.sra.split('/').map(decodeURIComponent); tk = a; rv = +b; }
     if(!pct(f.sc, f.mx)){ toast('Check the marks'); return; }
     if(!arsOk(f)){ toast(+f.ao > 0 ? 'Add the ARS score, or tick No ARS' : 'Add what the ARS is out of'); return; }
-    const e = arsTo({id: f.edit || uid(), ty:'r', v:2, k:it.k, st:it.st, sub:it.sub, d:f.d, tk, rv, h:'o', sc:+f.sc, mx:+f.mx}, f); if(f.sra === 'man') e.man = 1;
-    mform = null; saveEntries([e], true).then(ok => { if(ok){ toast('Marks saved · ' + pct(e.sc, e.mx) + (e.na ? ' · no ARS' : ' · ARS ' + pct(e.ars, e.ao))); location.hash = '#teach'; } });
+    const due0 = (sras().find(x => x.k === it.k && x.topic === tk && x.stage === rv) || {}).due, e = arsTo({id: f.edit || uid(), ty:'r', v:2, k:it.k, st:it.st, sub:it.sub, d:f.d, tk, rv, h: due0 && f.d > due0 ? 'l' : 'o', sc:+f.sc, mx:+f.mx}, f);   // after its due date: late if(f.sra === 'man') e.man = 1;
+    /* handed out first: an SRA not recorded as given gets its hand-out recorded before the marks */
+    const L0 = [e]; if(f.sra === 'man' && f.gd && !live().some(x => x.ty === 'g' && x.k === it.k && x.tk === tk && x.rv === rv)) L0.unshift({id: uid(), ty:'g', k:it.k, st:it.st, sub:it.sub, d:f.gd, tk, rv, man: 1});
+    mform = null; saveEntries(L0, true).then(ok => { if(ok){ toast('Marks saved · ' + pct(e.sc, e.mx) + (e.na ? ' · no ARS' : ' · ARS ' + pct(e.ars, e.ao))); location.hash = '#teach'; } });
   }
 
   /* ---------- logging: weekly assessment marks ---------- */
@@ -893,7 +896,7 @@ window.TUT = (function(){
     if(tab === 'students'){
       const f = read('lhq_teach_sraw', ''), C = data.classes || [], I = items();
       const keys = f.startsWith('class:') ? (() => { const c = C.find(x => x.id === f.slice(6)); return c ? I.filter(it => c.stu.includes(stuOf(it.k)) && nk(it.sub) === nk(c.sub)).map(it => it.k) : []; })() : f ? [f] : I.map(it => it.k);
-      const TAG = {in:['ok', x => Math.round(x.score.sc / x.score.mx * 100) + '%'], collect:['bl', () => 'due back'], late:['am', () => 'late'], given:['bl', x => 'back ' + HD.parseISO(x.due).getDate()], give:['am', () => 'today'], overdue:['rd', () => 'not given'], missed:['gr', () => 'missed'], upcoming:['gr', x => nice(x.giveOn).replace(/ \d{4}$/, '')], after:['gr', () => 'next period'], pack:['gr', () => 'pack'], home:['bl', () => 'at home']};
+      const TAG = {in:['ok', x => Math.round(x.score.sc / x.score.mx * 100) + '%' + (x.lateBy ? ' · late ' + x.lateBy + 'd' : '')], collect:['bl', () => 'due back'], late:['am', x => 'late · ' + x.lateBy + 'd'], given:['bl', x => 'back ' + HD.parseISO(x.due).getDate()], give:['am', () => 'today'], overdue:['rd', () => 'not given'], missed:['gr', () => 'missed'], upcoming:['gr', x => nice(x.giveOn).replace(/ \d{4}$/, '')], after:['gr', () => 'next period'], pack:['gr', () => 'pack'], home:['bl', () => 'at home']};
       body = `<div class="card pad"><label class="f" style="margin:0"><span>Show</span><select class="in" data-tsraw aria-label="Show"><option value="">All students</option>${C.map(c => `<option value="class:${c.id}" ${f === 'class:' + c.id ? 'selected' : ''}>${esc(c.name)}</option>`).join('')}${I.map(it => `<option value="${esc(it.k)}" ${f === it.k ? 'selected' : ''}>${esc(it.st)} · ${esc(it.sub)}</option>`).join('')}</select></label></div>` +
         keys.map(k => { const it = itemOf(k); if(!it) return ''; const X = L.filter(x => x.k === k), byT = new Map(); X.forEach(x => { if(!byT.has(x.topic)) byT.set(x.topic, []); byT.get(x.topic).push(x); });
           return `<div class="h2">${esc(it.st)} <em>${esc(it.sub)}</em></div><div class="card">${[...byT.entries()].map(([tp, R]) => `<div class="it" style="display:block"><b style="display:block">${esc(tp)}</b><small style="color:var(--muted);font-size:12.5px">Learning Day ${nice(R[0].learnt)}</small>
@@ -963,9 +966,12 @@ window.TUT = (function(){
   function sraSheet(x){
     const ST = {in:'Handed in', collect:'Due back today', late:'Late', given:'Out with the student', give:'Give today', overdue:'Not handed out yet · give it at the next session', missed:'Missed · not handed out within 7 days, or the next review came round', upcoming:'Coming up', after:'After this tuition period · waits for the next one', pack:'In the take-home pack', home:'At home · in the take-home pack'};
     openSheet(`<div class="hx"><h3>${esc(short(x.st))} · ${esc(x.topic)} · ${x.label}</h3><button class="ib" data-close>✕</button></div>
-      <div class="t-kv" style="margin-bottom:14px"><span>Learning Day</span><b>${nice(x.learnt)}</b><span>Do on</span><b>${nice(x.doOn)}</b><span>Give on</span><b>${nice(x.giveOn)}${x.giveOn !== x.doOn ? ' (no session that day)' : ''}</b><span>Status</span><b>${ST[x.status]}</b>${x.given ? `<span>Given</span><b>${nice(x.given.d)}</b><span>Due back</span><b>${nice(x.due)}</b>` : ''}${x.score ? `<span>Score</span><b>${x.score.sc}/${x.score.mx} · ${pct(x.score.sc, x.score.mx)}</b>` : ''}</div>
+      <div class="t-kv" style="margin-bottom:14px"><span>Learning Day</span><b>${nice(x.learnt)}</b><span>Do on</span><b>${nice(x.doOn)}</b><span>Give on</span><b>${nice(x.giveOn)}${x.giveOn !== x.doOn ? ' (no session that day)' : ''}</b><span>Status</span><b>${ST[x.status]}</b>${x.given ? `<span>Given</span><b>${nice(x.given.d)}</b><span>Due back</span><b>${nice(x.due)}</b>` : ''}${x.lateBy ? `<span>Late</span><b style="color:var(--rd)">${x.lateBy} day${x.lateBy === 1 ? '' : 's'}</b>` : ''}${x.score ? `<span>Score</span><b>${x.score.sc}/${x.score.mx} · ${pct(x.score.sc, x.score.mx)}</b>` : ''}</div>
+      ${x.given && ['collect','late','given'].includes(x.status) ? `<label class="f" style="margin:0 0 12px"><span>Change the due date</span><input class="in" type="date" id="tsDue" value="${x.due}" min="${x.given.d}"></label><p class="note" style="margin:-6px 0 12px">Due on the next session day. Change it for a student who comes less often.</p>` : ''}
       ${['give','overdue','missed'].includes(x.status) ? `<button class="btn n full" type="button" data-tgive="${ref(x)}">Mark as given today</button>` : x.status === 'upcoming' ? `<button class="btn n full" type="button" data-tgive="${ref(x)}" data-early="1">Give early, today</button>` : ['collect','late','given'].includes(x.status) ? `<button class="btn n full" type="button" data-tin="${ref(x)}">Handed in? Enter marks</button>` : x.status === 'home' ? `<a class="btn n full" href="#teach/marks/${ref(x)}">Brought back? Enter marks</a>` : x.pack ? `<a class="btn full" href="#teach/sra/pack">Take-home pack</a>` : ''}`);
     bindSheet();
+    const dueIn = $('tsDue'); if(dueIn) dueIn.onchange = () => { const v = dueIn.value; if(!v || v < x.given.d) return;
+      saveEntries([Object.assign({}, x.given, {due: v})], true).then(ok => { if(ok){ closeSheet(); toast('Due ' + nice(v)); render(); } }); };
   }
   function handInSheet(x){
     const nxt = SRA.nextDay(itemOf(x.k) || {days: []}, addDays(today(), 1));
@@ -980,7 +986,7 @@ window.TUT = (function(){
     const base = {ty:'r', v:2, k:x.k, st:x.st, sub:x.sub, d:today(), tk:x.topic, rv:x.stage};
     $('thGo').onclick = () => { const sc = $('thSc').value.trim(), mx = $('thMx').value.trim(); if(!pct(sc, mx)){ toast('Check the marks'); return; }
       if(!arsOk(A)){ toast(+A.ao > 0 ? 'Add the ARS score, or tick No ARS' : 'Add what the ARS is out of'); return; }
-      saveEntries([arsTo(Object.assign({id: uid(), h:'o', sc:+sc, mx:+mx}, base), A)], true).then(ok => { if(ok){ closeSheet(); toast('Marks saved · ' + pct(sc, mx) + (A.na ? ' · no ARS' : ' · ARS ' + pct(A.ars, A.ao))); } }); };
+      saveEntries([arsTo(Object.assign({id: uid(), h: x.due && today() > x.due ? 'l' : 'o', sc:+sc, mx:+mx}, base), A)], true).then(ok => { if(ok){ closeSheet(); toast('Marks saved · ' + pct(sc, mx) + (A.na ? ' · no ARS' : ' · ARS ' + pct(A.ars, A.ao))); } }); };
     $('thNo').onclick = () => saveEntries([Object.assign({id: uid(), h:'m'}, base)], true).then(ok => { if(ok){ closeSheet(); toast('Moved to ' + nice(nxt) + ' · not counted as missed'); } });
   }
 
