@@ -1769,7 +1769,8 @@ async function tutorExtras(me, d) {
   [...new Set([...d.keys].map(k => k.split("|")[0]))].forEach(st => { const P = PR["s:" + st] || {}, R = SR[st] || {};
     const on = f => tutorSees(kset, st, f), age = R.dob ? ageOf(R.dob) : null;
     sprof[st] = { age, dob: on("dob") ? R.dob || "" : "", phone: on("parent") ? R.phone || "" : "", parent: on("parent") ? R.parent || "" : "", school: on("school") ? R.school || "" : "",
-      health: on("health") ? P.health || null : null, learn: on("learn") ? P.learn || null : null, about: on("about") && P.about ? { goals: P.about.goals || "" } : null, collect: on("collect") ? P.collect || null : null, emerg: on("emerg") ? P.emerg || null : null }; });
+      health: on("health") ? P.health || null : null, learn: on("learn") ? P.learn || null : null, about: on("about") && P.about ? { goals: P.about.goals || "" } : null, collect: on("collect") ? P.collect || null : null, emerg: on("emerg") ? P.emerg || null : null };
+    Object.keys(sprof[st]).forEach(k => { if (k !== "age" && (sprof[st][k] === "" || sprof[st][k] == null || !on({ phone: "parent" }[k] || k))) delete sprof[st][k]; }); });
   const prof = PR["p:" + mk] || {};
   return { prof, sprof, obj: { on: !!((kset.obj || {}).on), subs: ((kset.obj || {}).subs) || [], L: (await store().get("kv/lhq_obj", { type: "json" })) || {} }, fu: Object.values(fuAll).filter(f => f && !f.x && d.keys.has(f.k)), sx, tsee: !!kset.tsee, asks: Object.values(((await store().get("kv/lhq_asks", { type: "json" })) || {})).filter(a => a && nk(a.tutor) === mk && !a.done), avail: (av || {})[mk] || [], acks, gone, ackFrom: ack._from, calLink: calPath(me.id, (((await store().get("kv/lhq_calopt", { type: "json" })) || {})[me.id] || {}).v), makeups, reqs, clashes: await tutorClashes(me), sradone, says, notices, exam, kpiOn: !!((kset.kpi || {}).tutors) };
 }

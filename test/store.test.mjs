@@ -798,10 +798,10 @@ test("what tutors see: parent's phone and date of birth off unless the Director 
   const st0 = (await call("state", null, DIR, "GET")).j, set0 = (st0.kv || {}).lhq_settings || {}, stu0 = (st0.kv || {}).lhq_students || {};
   const w = await call("sync", { kv: { lhq_students: Object.assign({}, stu0, { "wezi banda": { phone: "0999 111 222", parent: "Ruth Banda", dob: "2011-03-04", school: "Kingsway Academy" } }) } }, DIR); assert.equal(w.status, 200, JSON.stringify(w.j));
   let sp = ((await call("tutor", null, tok, "GET")).j.sprof || {})["wezi banda"];
-  assert.ok(sp, "the tutor gets Wezi's profile"); assert.equal(sp.phone, ""); assert.equal(sp.parent, ""); assert.equal(sp.dob, ""); assert.ok(sp.age >= 14, "age always shows"); assert.equal(sp.school, "Kingsway Academy");
+  assert.ok(sp, "the tutor gets Wezi's profile"); assert.equal(sp.phone, undefined); assert.equal(sp.parent, undefined); assert.equal(sp.dob, undefined); assert.ok(sp.age >= 14, "age always shows"); assert.equal(sp.school, "Kingsway Academy");
   await call("sync", { kv: { lhq_settings: Object.assign({}, set0, { tsees: { parent: true, school: false }, tseesBy: { "wezi banda": { parent: false } } }) } }, DIR);
   sp = ((await call("tutor", null, tok, "GET")).j.sprof || {})["wezi banda"];
-  assert.equal(sp.phone, "", "the one-student change wins"); assert.equal(sp.school, "", "school switched off");
+  assert.equal(sp.phone, undefined, "the one-student change wins"); assert.equal(sp.school, undefined, "school switched off");
   const t = await call("sync", { kv: { lhq_settings: Object.assign({}, set0, { tsees: { parent: true } }) } }, tok);
   assert.ok(t.status >= 400 || (t.j.rejected || []).length || t.j.error || (t.j.denied || []).length, "a tutor can't change it");
 });
