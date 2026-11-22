@@ -86,6 +86,8 @@
     const S = streams(), nk = s => String(s || '').trim().toLowerCase().replace(/\s+/g, ' ');
     const tag = r => { const i = inv.find(x => x.number && (x.number === r.ref || x.number === r.invoice)) || null, txt = nk([r.what, r.notes, ...((i && i.items) || []).map(x => x.desc || x.name || '')].join(' '));
       const st = nk(r.student), o = onlBy[st] || [0, 0], mode = o[1] > o[0] ? 'onl' : 'inp';
+      const pg = ((i && i.items) || []).map(x => x.prog).find(Boolean), mp = pg && (S.find(s => s.prog === pg && (s.kind !== 'tuition' || s.mode === mode)) || S.find(s => s.prog === pg));
+      if(mp) return {r, s: mp, mode, why: 'programme "' + mp.name + '" on the invoice'};
       const m = S.find(s => s.match && s.match.split(',').some(w => w.trim() && txt.includes(nk(w)))) || S.find(s => s.kind === 'tuition' && s.mode === mode) || S.find(s => s.kind === 'tuition');
       return {r, s: m, mode, why: m && m.match && m.match.split(',').some(w => w.trim() && txt.includes(nk(w))) ? `"${m.match}" on the invoice` : `${mode === 'onl' ? 'most sessions online' : 'sessions in person'}`}; };
     const T = R.map(tag), amt = r => +String(r.received || 0).replace(/[^\d.]/g, '') || 0;
@@ -432,11 +434,11 @@
     const fee = S.length ? Math.round(inc3 / 3 / S.length / 1000) * 1000 : 80000, R = ((HD.store.get('lhq_pay', {}) || {}).rules) || {}, ses = L.length && S.length ? Math.max(4, Math.round(L.length / 2 / S.length)) : 8;
     const spend = Object.values(HD.store.get('lhq_spend', {}) || {}).filter(e => e && !e.del && e.date >= addD(t, -90)), cats = {}; spend.forEach(e => { cats[e.cat || 'Other'] = (cats[e.cat || 'Other'] || 0) + (+String(e.amount || 0).replace(/[^\d.]/g, '') || 0); });
     const recs = [['lhq_bplan', 'conf', {fy: fyOf(t), cap: 180, centres: 1, centre: 'Area 47', junLeave: 25, low: 85, high: 115, grow: {enq: 30, fee: 8, enrol: 2, kept: 1, partners: 40, places: 30}, comm: 25000, bdoShare: 50, tutorSes: 60, vis: {}}],
-      ['lhq_bplan', 's:inp', {name:'Weekly tuition', kind:'tuition', mode:'inp', status:'running', students0: nI, enqM: Math.max(4, Math.round(nI / 4)), enrol: 35, kept: 86, fee, ses, rate: +R.inp || 8000, ord: 1}],
-      ['lhq_bplan', 's:onl', {name:'Weekly tuition', kind:'tuition', mode:'onl', status:'running', students0: nO, enqM: Math.max(1, Math.round(nO / 4)), enrol: 30, kept: 82, fee: Math.round(fee * 0.85 / 1000) * 1000, ses, rate: +R.onl || 7000, ord: 2}],
-      ['lhq_bplan', 's:ft', {name:'Fast Track', kind:'prog', mode:'inp', status:'running', runs: 2, places: 12, fill: 70, feePlace: 180000, costRun: 900000, months: '1,7', match: 'fast track', ord: 3}],
-      ['lhq_bplan', 's:mar', {name:'IGCSE Marathon', kind:'prog', mode:'inp', status:'running', runs: 1, places: 20, fill: 90, feePlace: 180000, costRun: 1200000, months: '4', match: 'marathon', ord: 4}],
-      ['lhq_bplan', 's:par', {name:'Partner activities', kind:'partner', mode:'none', status:'running', arr:'lhq', children: kids().length || 0, feeChild: 8000, share: 45, comm: 10, toTuition: 20, ord: 5}],
+      ['lhq_bplan', 's:inp', {prog:'weekly', name:'Weekly tuition', kind:'tuition', mode:'inp', status:'running', students0: nI, enqM: Math.max(4, Math.round(nI / 4)), enrol: 35, kept: 86, fee, ses, rate: +R.inp || 8000, ord: 1}],
+      ['lhq_bplan', 's:onl', {prog:'weekly', name:'Weekly tuition', kind:'tuition', mode:'onl', status:'running', students0: nO, enqM: Math.max(1, Math.round(nO / 4)), enrol: 30, kept: 82, fee: Math.round(fee * 0.85 / 1000) * 1000, ses, rate: +R.onl || 7000, ord: 2}],
+      ['lhq_bplan', 's:ft', {prog:'ft', name:'Fast Track', kind:'prog', mode:'inp', status:'running', runs: 2, places: 12, fill: 70, feePlace: 180000, costRun: 900000, months: '1,7', match: 'fast track', ord: 3}],
+      ['lhq_bplan', 's:mar', {prog:'mar', name:'Marathon', kind:'prog', mode:'inp', status:'running', runs: 1, places: 20, fill: 90, feePlace: 180000, costRun: 1200000, months: '4', match: 'marathon', ord: 4}],
+      ['lhq_bplan', 's:par', {prog:'part', name:'Partner activities', kind:'partner', mode:'none', status:'running', arr:'lhq', children: kids().length || 0, feeChild: 8000, share: 45, comm: 10, toTuition: 20, ord: 5}],
       ['lhq_bplan', 'c:staff', {name:'Staff pay', kind:'staff', monthly: 700000, cats: ['Salaries','Staff pay','Wages']}],
       ['lhq_bplan', 'c:rent', {name:'Rent and running', kind:'rent', monthly: Math.round(((cats['Rent'] || 0) + (cats['Utilities'] || 0) + (cats['Internet'] || 0)) / 3) || 350000, cats: ['Rent','Utilities','Internet','Electricity','Water']}],
       ['lhq_bplan', 'c:mkt', {name:'Marketing', kind:'mkt', monthly: Math.round((cats['Marketing'] || 0) / 3) || 100000, cats: ['Marketing','Advertising']}],
@@ -449,6 +451,7 @@
     const s = id ? streams().find(x => x.id === id) : null, st = s ? Object.assign({}, s) : {name:'', kind:'tuition', mode:'inp', status:'planned'};
     const draw = () => { const F = FIELDS[st.kind] || [];
       openSheet(`<div class="hx"><h3>${s ? 'Stream' : 'New stream'}</h3><button class="ib" data-close>✕</button></div>
+        ${window.PROGS ? `<label class="f"><span>Programme</span><select class="in" id="ss_prog"><option value="">Not on the list</option>${PROGS().map(p => `<option value="${esc(p.id)}" ${st.prog === p.id ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select></label>` : ''}
         <label class="f"><span>Name</span><input class="in" id="ss_name" value="${esc(st.name)}" placeholder="e.g. IELTS course"></label>
         <div class="f"><span>Kind</span><div class="chips" style="margin:4px 0 0">${Object.entries(KIND).map(([k, l]) => `<button type="button" class="chip ${st.kind === k ? 'on' : ''}" data-ssk="${k}">${l}</button>`).join('')}</div></div>
         ${st.kind !== 'partner' ? `<div class="f"><span>Where</span><div class="chips" style="margin:4px 0 0">${[['inp','In-person'],['onl','Online']].map(([k, l]) => `<button type="button" class="chip ${st.mode === k ? 'on' : ''}" data-ssm="${k}">${l}</button>`).join('')}</div></div>` : ''}
@@ -456,7 +459,7 @@
         ${F.map(([k, l]) => `<label class="f"><span>${l}</span><input class="in" id="ss_${k}" value="${esc(st[k] != null ? st[k] : '')}"></label>`).join('')}
         <label class="f"><span>Words that mark its receipts (optional, commas)</span><input class="in" id="ss_match" value="${esc(st.match || '')}" placeholder="e.g. ielts"></label>
         <button class="btn n full" id="ssGo">Save</button>${s ? '<button class="btn full" id="ssDel" style="margin-top:8px;color:var(--rd)">Remove</button>' : ''}`);
-      const keep = () => { st.name = $('ss_name').value; st.match = $('ss_match').value; F.forEach(([k]) => { const v = $('ss_' + k).value; st[k] = k === 'months' ? v : v === '' ? '' : +String(v).replace(/[^\d.]/g, ''); }); };
+      const keep = () => { if($('ss_prog')){ const pv = $('ss_prog').value, pp = window.PROGS ? PROGS().find(x => x.id === pv) : null; if(pv !== (st.prog || '')){ st.prog = pv; if(pp && !$('ss_name').value.trim()) $('ss_name').value = pp.name; if(pp) st.kind = {weekly:'tuition', short:'prog', exam:'exam', activity:'partner'}[pp.type] || st.kind; } } st.name = $('ss_name').value; st.match = $('ss_match').value; F.forEach(([k]) => { const v = $('ss_' + k).value; st[k] = k === 'months' ? v : v === '' ? '' : +String(v).replace(/[^\d.]/g, ''); }); };
       document.querySelectorAll('#sheet [data-ssk]').forEach(b => b.onclick = () => { keep(); st.kind = b.dataset.ssk; if(st.kind === 'partner') st.mode = 'none'; else if(st.mode === 'none') st.mode = 'inp'; draw(); });
       document.querySelectorAll('#sheet [data-ssm]').forEach(b => b.onclick = () => { keep(); st.mode = b.dataset.ssm; draw(); });
       document.querySelectorAll('#sheet [data-sss]').forEach(b => b.onclick = () => { keep(); st.status = b.dataset.sss === 'confirmed' ? 'planned' : b.dataset.sss; st.conf = b.dataset.sss === 'confirmed'; draw(); });

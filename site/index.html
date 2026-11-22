@@ -421,6 +421,7 @@ a.ins-row:hover b{text-decoration:underline;text-underline-offset:2px}
 .kidtick{display:flex;gap:10px;align-items:center;width:100%;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:12px;padding:10px 12px;margin-bottom:6px;font:inherit;text-align:left;cursor:pointer}
 .kidtick .bx{flex:none;width:20px;height:20px;border:2px solid var(--line);border-radius:6px;display:grid;place-items:center;font-size:12px;font-weight:900}.kidtick.on .bx{background:var(--accent);border-color:var(--accent);color:var(--onaccent)}
 .rq-steps{display:flex;flex-wrap:wrap;gap:4px 10px;margin-top:6px}.rq-st{font-size:12px;font-weight:700;color:var(--muted)}.rq-st.ok{color:var(--ok)}
+.yrs-g{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:6px}.yrs-g button{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:9px 4px;font-weight:800;font-size:12.5px;cursor:pointer;color:var(--muted)}.yrs-g button.on{background:var(--ok-bg);border-color:var(--ok);color:var(--ok)}
 </style>
 <script src="testbar.js"></script>
 </head>
@@ -1576,13 +1577,13 @@ P.rep = (kind, arg) => PERF.page(kind, arg);
 /* ================= settings ================= */
 const SETS = [
   ['Account', [['account','user','My account'],['appearance','layout','Appearance'],['notifications','bell','Notifications'],['bdays','user','Birthdays', () => staffRole()],['problem','alert','Report a problem']]],
-  ['LHQ', [['people','users','People & access', () => isDir() || can('tutors')],['company','bank','Company & bank details', isDir],['payments','cash','Payments & due dates', isDir],['hours','clock','Opening hours', isDir],['terms','clock','School terms', isDir],['bands','rep','Grade boundaries', isDir],['kpi','users','Tutor KPIs', isDir],['teachset','list','Teaching', isDir],['tsees','user','What tutors see', isDir],['tpay','cash','Tutor pay', isDir],['exams','list','Exams', isDir],['tutorinfo','users','Tutors\' contacts', () => isDir() || can('tutors') || can('msgs')]]],
+  ['LHQ', [['people','users','People & access', () => isDir() || can('tutors')],['company','bank','Company & bank details', isDir],['payments','cash','Payments & due dates', isDir],['hours','clock','Opening hours', isDir],['terms','clock','School terms', isDir],['bands','rep','Grade boundaries', isDir],['kpi','users','Tutor KPIs', isDir],['teachset','list','Teaching', isDir],['progs','list','Programmes', isDir],['years','list','Years we teach', isDir],['tsees','user','What tutors see', isDir],['tpay','cash','Tutor pay', isDir],['exams','list','Exams', isDir],['tutorinfo','users','Tutors\' contacts', () => isDir() || can('tutors') || can('msgs')]]],
   ['Documents', [['numbering','hash','Numbering', () => can('numbering')],['messages','msg','Messages', () => can('msgs')],['lists','list','Lists', () => can('msgs')]]],
   ['Enrolment & sending', [['enrol','link','Student checklist', () => staffRole()],['sending','wa','Email & WhatsApp', () => staffRole()]]],
   ['Data', [['records.html','layout','Shared records', () => isDir()],['backup','box','Backup & restore', () => can('backup')],['move','box','Move pilot data', () => isDir()],['deleted','bin','Recently deleted', () => can('restore')],['demo','restore','Demo data (preview)', () => isDir() && PREVIEW]]],
 ];
 const setVis = ids => SETS.flatMap(([, items]) => items).filter(x => ids.includes(x[0]) && (!x[3] || x[3]()));
-const DETAILS = ['company','payments','hours','terms','bands','exams','kpi','teachset','tsees','tpay','numbering','messages','sending','tutorinfo','enrol'], DATA = ['records.html','backup','move','deleted','demo'];
+const DETAILS = ['company','payments','hours','terms','bands','exams','kpi','teachset','tsees','progs','years','tpay','numbering','messages','sending','tutorinfo','enrol'], DATA = ['records.html','backup','move','deleted','demo'];
 /* Lean: 5 places. Things set once sit inside LHQ details; shared records, backups and the bin inside Data */
 const LEAN_SETS = () => [['Account', [['account','user','My account'],['appearance','layout','Appearance'],['notifications','bell','Notifications']].concat(setVis(['bdays']), [['problem','alert','Report a problem']])],
   ['LHQ', setVis(['people']).concat(setVis(DETAILS).length ? [['details','bank','LHQ details']] : [], setVis(['lists']))],
@@ -1636,6 +1637,54 @@ S.terms = () => { const L = termDraft || (window.MIN ? MIN.terms() : []).map(t =
     <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px"><button class="btn" id="tmAdd">+ Term</button><button class="btn n" id="termSave">Save</button></div></div><p class="note">Holidays are the gaps between terms. Used by Money in.</p>`; };
 let bandSc = 'al', exTab = 'series', topDraft = null;
 S.tpay = () => TPAYUI.settings();
+/* Programmes and Years (Mockup 20b, agreed 22 Nov): one list each for the whole Hub: quotes, cards, Tutor pay, the Plan, enquiries, reports, the Sandbox */
+const YEARS_ALL = ['Reception','Year 1','Year 2','Year 3','Year 4','Year 5','Year 6','Year 7','Year 8','Year 9','Year 10','Year 11','Year 12','Year 13','College','University'];
+const yearIx = v => { const t = String(v || '').toLowerCase(); if(/reception/.test(t)) return 0; if(/college/.test(t)) return 14; if(/universit/.test(t)) return 15; const m = /(\d{1,2})/.exec(t); return m ? +m[1] : -1; };
+const PROG_DEF = [{id:'weekly', name:'Weekly tuition', type:'weekly', from:'Year 1', to:'University', mode:'both', fee:180000, per:'month', months:''},
+  {id:'ft', name:'Fast Track', type:'short', from:'Year 6', to:'Year 13', mode:'both', fee:180000, per:'course', months:'1,7'},
+  {id:'mar', name:'Marathon', type:'short', from:'Year 6', to:'Year 13', mode:'inp', fee:180000, per:'place', months:'4,11'},
+  {id:'ielts', name:'IELTS', type:'exam', from:'Year 12', to:'University', mode:'onl', fee:250000, per:'course', months:''},
+  {id:'sat', name:'SAT', type:'exam', from:'Year 11', to:'Year 13', mode:'onl', fee:250000, per:'course', months:''},
+  {id:'chk', name:'Checkpoint revision', type:'short', from:'Year 6', to:'Year 9', mode:'inp', fee:120000, per:'place', months:''},
+  {id:'camp', name:'Holiday camp', type:'short', from:'Year 1', to:'Year 8', mode:'inp', fee:120000, per:'place', months:'8,12'},
+  {id:'part', name:'Partner activities', type:'activity', from:'Reception', to:'Year 13', mode:'inp', fee:0, per:'month', months:''}];
+window.PROGS = () => { const L = settingsKV().progs; return Array.isArray(L) && L.length ? L : PROG_DEF; };
+window.progsFor = level => { const y = yearIx(level); return PROGS().filter(p => y < 0 || (yearIx(p.from) <= y && y <= yearIx(p.to))); };
+const PTYPE = {weekly:'Weekly', short:'Short course', exam:'Exam prep', activity:'Activity'}, PPER = {month:'per month', course:'per course', place:'per place', session:'per session'}, PMODE = {inp:'in-person', onl:'online', both:'in-person and online'};
+const MOS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+S.progs = () => `<h2 class="sec-h">Programmes</h2><p class="sec-p">Used everywhere in the Hub · ${PROGS().length}. Anything off the list still works on a quote and shows as "Other" in reports.</p>
+  <div class="card">${PROGS().map(p => `<button type="button" class="it" data-prog="${esc(p.id)}" style="width:100%;text-align:left"><span class="t"><b>${esc(p.name)}</b><small>${PTYPE[p.type] || ''} · ${esc(p.from)} – ${esc(p.to)} · ${PMODE[p.mode] || ''} · ${p.fee ? mk(p.fee) + ' ' + PPER[p.per] : 'fee set by partner'}${p.months ? ' · ' + String(p.months).split(',').map(m => MOS[+m - 1]).filter(Boolean).join(', ') : ''}</small></span><span class="chev">›</span></button>`).join('')}</div>
+  <button class="btn n" data-prog="new">+ Add a programme</button>`;
+function progSheet(id){
+  const L = PROGS().map(x => Object.assign({}, x)), p = id === 'new' ? {id:'p' + Date.now().toString(36), name:'', type:'short', from:'Year 6', to:'Year 13', mode:'inp', fee:'', per:'place', months:''} : L.find(x => x.id === id); if(!p) return;
+  const Y = lines(settingsKV().levels).length ? YEARS_ALL.filter(y => lines(settingsKV().levels).some(l => yearIx(l) === yearIx(y))) : YEARS_ALL, sel = (i, o, v) => `<select class="in" id="${i}">${o.map(([k, l]) => `<option value="${esc(k)}" ${String(v) === String(k) ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select>`;
+  const Ys = (Y.length ? Y : YEARS_ALL).map(y => [y, y]);
+  openSheet(`<div class="hx"><h3>${id === 'new' ? 'New programme' : esc(p.name)}</h3><button class="ib" data-close>✕</button></div>
+    <label class="f"><span>Name</span><input class="in" id="pgN" value="${esc(p.name)}" placeholder="e.g. Marathon"></label>
+    <label class="f"><span>Type</span>${sel('pgT', Object.entries(PTYPE), p.type)}</label>
+    <div class="r2"><label class="f"><span>From</span>${sel('pgF', Ys, p.from)}</label><label class="f"><span>To</span>${sel('pgTo', Ys, p.to)}</label></div>
+    <label class="f"><span>Where</span>${sel('pgM', Object.entries({inp:'In-person', onl:'Online', both:'Both'}), p.mode)}</label>
+    <div class="r2"><label class="f"><span>Fee (MWK)</span><input class="in" id="pgFee" inputmode="numeric" value="${esc(p.fee)}"></label><label class="f"><span>Charged</span>${sel('pgP', Object.entries({month:'Per month', course:'Per course', place:'Per place', session:'Per session'}), p.per)}</label></div>
+    <div class="f"><span>Runs in (optional)</span><div class="chips" style="margin:4px 0 0">${MOS.map((m, i) => `<button type="button" class="chip ${String(p.months).split(',').includes(String(i + 1)) ? 'on' : ''}" data-pgm="${i + 1}">${m}</button>`).join('')}</div></div>
+    <button class="btn n full" id="pgGo">Save</button>${id !== 'new' ? '<button class="btn full" id="pgDel" style="margin-top:8px;color:var(--rd)">Remove</button>' : ''}`);
+  document.querySelectorAll('#sheet [data-pgm]').forEach(b => b.onclick = () => b.classList.toggle('on'));
+  $('pgGo').onclick = () => { const n = $('pgN').value.trim(); if(!n) return toast('Give it a name');
+    if(yearIx($('pgF').value) > yearIx($('pgTo').value)) return toast('"From" is after "To"');
+    Object.assign(p, {name:n, type:$('pgT').value, from:$('pgF').value, to:$('pgTo').value, mode:$('pgM').value, fee:+String($('pgFee').value).replace(/[^\d]/g, '') || 0, per:$('pgP').value, months:[...document.querySelectorAll('#sheet [data-pgm].on')].map(b => b.dataset.pgm).join(',')});
+    if(id === 'new') L.push(p); saveSettings({progs: L}); closeSheet(); render(); };
+  if($('pgDel')) $('pgDel').onclick = () => { saveSettings({progs: L.filter(x => x.id !== id)}); closeSheet(); render(); };
+}
+document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-prog]'); if(b && route.page === 'set'){ e.preventDefault(); progSheet(b.dataset.prog); } });
+/* Years we teach: switches that keep the "Year and level" list in Lists in step; custom lines there stay */
+S.years = () => { const L = lines(settingsKV().levels), on = y => L.some(l => l === y || (yearIx(l) === yearIx(y) && yearIx(y) >= 0 && /^(year|reception|college|universit)/i.test(l)));
+  return `<h2 class="sec-h">Years we teach</h2><p class="sec-p">Tap to switch on. Students, programmes, enquiries and reports use this list. Add primary Years as you open them.</p>
+    <div class="yrs-g">${YEARS_ALL.map(y => `<button type="button" class="${on(y) ? 'on' : ''}" data-yr="${esc(y)}">${y}</button>`).join('')}</div>
+    <h3 class="sec-h" style="font-size:15px;margin-top:16px">Stages · for reports</h3><div class="card">${[['Primary','Year 1 – 6'],['Checkpoint','Year 7 – 9'],['IGCSE','Year 10 – 11'],['A Level','Year 12 – 13'],['College and university','']].map(([a, b]) => `<div class="it"><span class="t"><b>${a}</b><small>${b}</small></span></div>`).join('')}</div>
+    <p class="note">Other lines in Lists › Year and level (for example "IB Year 1") stay as they are.</p>`; };
+document.addEventListener('click', e => { const b = e.target.closest && e.target.closest('[data-yr]'); if(!b || route.page !== 'set') return; e.preventDefault();
+  const y = b.dataset.yr, L = lines(settingsKV().levels), same = l => l === y || (yearIx(l) === yearIx(y) && yearIx(y) >= 0 && /^(year|reception|college|universit)/i.test(l)), has = L.some(same);
+  const N = has ? L.filter(l => !same(l)) : L.concat(y).sort((a, c) => { const ia = yearIx(a), ic = yearIx(c); return (ia < 0 ? 99 : ia) - (ic < 0 ? 99 : ic) || a.localeCompare(c); });
+  saveSettings({levels: N.join('\n')}); render(); });
 S.teachset = () => { const c = settingsKV(), sw = (id, on, t, sub) => `<div class="it"><span class="t"><b>${t}</b><small>${sub}</small></span><button class="lp-sw${on ? ' on' : ''}" id="${id}" role="switch" aria-checked="${on}" aria-label="${t}"></button></div>`;
   return `<h2 class="sec-h">Teaching</h2><div class="card">${sw('tsSee', !!c.tsee, 'Tutors see focus and study', 'Each student\'s weekly totals · students can hide theirs')}</div><p class="sec-p">Never block names, times or topics. Dates and busy times students choose to share reach their tutors either way.</p>
     <div class="card">${sw('tsObj', !!(c.obj || {}).on, 'ARS by objective', 'Tutors tap what wasn\'t recalled')}</div>${(c.obj || {}).on ? (() => { const on = (c.obj.subs || []), all = [...new Set(saved.filter(d => d.type === 'card').flatMap(d => (d.subjects || []).map(x => x.name)).filter(Boolean))].sort();

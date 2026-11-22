@@ -319,12 +319,12 @@
     const it = (o, x) => (o[x.id] = x, o);
     const bplan = [
       {id:'conf', fy, cap:180, centres:1, centre:'Area 47', junLeave:25, low:85, high:115, grow:{enq:30, fee:8, enrol:2, kept:1, partners:40, places:30}, comm:25000, bdoShare:50, tutorSes:60, vis:{'@Anna Navilati':{pp:1, planner:1}, '@Benjamin Msutu':{costs:1, streams:1}}, bdoT:{enq:6, enrolPct:40, partners:2, kids:20, toTuition:15, visits:3}},
-      {id:'s:inp', name:'Weekly tuition', kind:'tuition', mode:'inp', status:'running', students0:34, enqM:8, enrol:35, kept:86, fee:180000, ses:8, rate:8000, ord:1},
-      {id:'s:onl', name:'Weekly tuition', kind:'tuition', mode:'onl', status:'running', students0:6, enqM:2, enrol:30, kept:82, fee:150000, ses:8, rate:7000, ord:2},
-      {id:'s:ft', name:'Fast Track', kind:'prog', mode:'inp', status:'running', runs:2, places:12, fill:70, feePlace:180000, costRun:900000, months:'1,7', match:'fast track', ord:3},
-      {id:'s:mar', name:'IGCSE Marathon', kind:'prog', mode:'inp', status:'running', runs:1, places:20, fill:90, feePlace:180000, costRun:1200000, months:'4', match:'marathon', ord:4},
-      {id:'s:par', name:'Partner activities', kind:'partner', mode:'none', status:'running', arr:'lhq', children:20, feeChild:7500, share:45, comm:10, toTuition:20, ord:5},
-      {id:'s:ielts', name:'IELTS course', kind:'exam', mode:'onl', status:'planned', runs:2, places:10, fill:80, feePlace:250000, costRun:800000, months:'3,6', match:'ielts', ord:6},
+      {id:'s:inp', prog:'weekly', name:'Weekly tuition', kind:'tuition', mode:'inp', status:'running', students0:34, enqM:8, enrol:35, kept:86, fee:180000, ses:8, rate:8000, ord:1},
+      {id:'s:onl', prog:'weekly', name:'Weekly tuition', kind:'tuition', mode:'onl', status:'running', students0:6, enqM:2, enrol:30, kept:82, fee:150000, ses:8, rate:7000, ord:2},
+      {id:'s:ft', prog:'ft', name:'Fast Track', kind:'prog', mode:'inp', status:'running', runs:2, places:12, fill:70, feePlace:180000, costRun:900000, months:'1,7', match:'fast track', ord:3},
+      {id:'s:mar', prog:'mar', name:'Marathon', kind:'prog', mode:'inp', status:'running', runs:1, places:20, fill:90, feePlace:180000, costRun:1200000, months:'4', match:'marathon', ord:4},
+      {id:'s:par', prog:'part', name:'Partner activities', kind:'partner', mode:'none', status:'running', arr:'lhq', children:20, feeChild:7500, share:45, comm:10, toTuition:20, ord:5},
+      {id:'s:ielts', prog:'ielts', name:'IELTS course', kind:'exam', mode:'onl', status:'planned', runs:2, places:10, fill:80, feePlace:250000, costRun:800000, months:'3,6', match:'ielts', ord:6},
       {id:'c:staff', name:'Staff pay', kind:'staff', monthly:1200000, cats:['Salaries','Staff pay','Wages']},
       {id:'c:rent', name:'Rent and running', kind:'rent', monthly:650000, cats:['Rent','Utilities','Internet','Electricity','Water']},
       {id:'c:mkt', name:'Marketing', kind:'mkt', monthly:120000, cats:['Marketing','Advertising']},

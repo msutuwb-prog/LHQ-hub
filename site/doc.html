@@ -637,7 +637,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
     <div class="panel" id="itemsPanel">
       <h2>Subjects</h2>
       <div id="itemsBody" class="items"></div>
-      <button type="button" class="small" style="margin-top:10px" id="btnAddItem">+ Add subject</button>
+      <button type="button" class="small" style="margin-top:10px" id="btnAddItem">+ Add subject</button> <select id="progAdd" class="small" style="margin-top:10px;max-width:260px"><option value="">+ Add a programme…</option></select>
       <div class="disc lm">
         <span class="lbl">Discount</span>
         <div class="disc-row">
@@ -1571,6 +1571,13 @@ F('incChips').addEventListener('click', e=>{
   doc.incOff = off.includes(x) ? off.filter(y=>y!==x) : off.concat(x);
   renderIncludes(); update();
 });
+/* programmes from Settings › Programmes (agreed 22 Nov): only those for this student's Year; the line remembers its programme for the Plan */
+const PROG_DEF = [['weekly','Weekly tuition','Year 1','University',180000,'month'],['ft','Fast Track','Year 6','Year 13',180000,'course'],['mar','Marathon','Year 6','Year 13',180000,'place'],['ielts','IELTS','Year 12','University',250000,'course'],['sat','SAT','Year 11','Year 13',250000,'course'],['chk','Checkpoint revision','Year 6','Year 9',120000,'place'],['camp','Holiday camp','Year 1','Year 8',120000,'place']].map(([id, name, from, to, fee, per]) => ({id, name, from, to, fee, per}));
+const yIx = v => { const t = String(v || '').toLowerCase(); if(/reception/.test(t)) return 0; if(/college/.test(t)) return 14; if(/universit/.test(t)) return 15; const m = /(\d{1,2})/.exec(t); return m ? +m[1] : -1; };
+function progOpts(){ const L = (Array.isArray(settings.progs) && settings.progs.length ? settings.progs : PROG_DEF).filter(p => p.type !== 'activity'), y = yIx(doc.level);
+  const el = F('progAdd'); if(!el) return; el.innerHTML = '<option value="">+ Add a programme…</option>' + L.filter(p => y < 0 || (yIx(p.from) <= y && y <= yIx(p.to))).map(p => `<option value="${esc(p.id)}">${esc(p.name)}${p.fee ? ' · MWK ' + money(p.fee) + ' ' + ({month:'a month', course:'a course', place:'a place', session:'a session'}[p.per] || '') : ''}</option>`).join(''); }
+if(F('progAdd')){ F('progAdd').onfocus = progOpts; F('progAdd').onmousedown = progOpts; F('progAdd').onchange = () => { const id = F('progAdd').value; if(!id) return; const p = (Array.isArray(settings.progs) && settings.progs.length ? settings.progs : PROG_DEF).find(x => x.id === id); F('progAdd').value = '';
+  if(p){ doc.items.push({desc: p.name, days: '', sessions: '1', cost: String(p.fee || ''), prog: p.id}); renderItems(); } }; }
 F('btnAddItem').onclick = ()=>{ const it = {desc:'',days:'1',sessions:'4',cost:settings.rate}; const v = autoSessions(it); if(v) it.sessions = v; doc.items.push(it); renderItems(); };
 
 /* "Being payment for" fills itself from the student's first name ("Annalise's Tuition") until it's typed over */
