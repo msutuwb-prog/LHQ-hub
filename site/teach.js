@@ -421,14 +421,14 @@ window.TUT = (function(){
     if(calView === 'month'){
       const first = wkStart(from), cells = []; for(let x = first; x <= to || cells.length % 7; x = HD.addDays(x, 1)) cells.push(x);
       body = `<div class="cal-m">${DORDER.map(k => `<span class="h">${DN[k]}</span>`).join('')}${cells.map(x => { const L = byD[x] || [], out = x < from || x > to;
-        return `<a class="cal-d${out ? ' out' : ''}${x === t ? ' now' : ''}" href="${go('day', x)}"><b>${+x.slice(8)}</b>${L.length ? `<small${L.some(e => e.clash || busyHit(e) || datesOn(e.student, x).some(y => y.busy)) ? ' class="cl"' : ''}>${L.length}</small>` : ''}${[...new Set(items().map(it => it.st))].some(st => datesOn(st, x).length) ? '<i class="t-star">★</i>' : ''}</a>`; }).join('')}</div>`;
+        return `<a class="cal-d${out ? ' out' : ''}${x === t ? ' now' : ''}" href="${go('day', x)}"><b>${+x.slice(8)}</b>${window.TODAY && TODAY.calCount(x) ? '<i class="cal-e"></i>' : ''}${L.length ? `<small${L.some(e => e.clash || busyHit(e) || datesOn(e.student, x).some(y => y.busy)) ? ' class="cl"' : ''}>${L.length}</small>` : ''}${[...new Set(items().map(it => it.st))].some(st => datesOn(st, x).length) ? '<i class="t-star">★</i>' : ''}</a>`; }).join('')}</div>`;
     } else {
       const days = []; for(let x = from; x <= to; x = HD.addDays(x, 1)) days.push(x);
       const un = d => (data.avail || []).filter(u => u.d === SCHED.dayCode(d));
-      body = days.map(x => { const L = byD[x] || [], U = un(x); if(calView === 'week' && !L.length && !U.length) return '';
-        return `<div class="h2">${x === t ? 'Today · ' : ''}${WEEKDAY[HD.parseISO(x).getDay()]} ${nice(x)} <em>${L.length || ''}</em></div><div class="card">${L.map(evRow).join('')}${sharedRows(x, L)}${U.map(u => `<div class="it" style="opacity:.75"><span class="cal-t">${u.s}<small>${u.e}</small></span><span class="t"><b>Not available</b><small>${esc(u.note || '')}</small></span></div>`).join('') || (L.length ? '' : '<p class="empty">No sessions.</p>')}</div>`; }).join('') || '<p class="empty">No sessions this week.</p>';
+      body = days.map(x => { const L = byD[x] || [], U = un(x), ER = window.TODAY ? TODAY.calRows(x) : ''; if(calView === 'week' && !L.length && !U.length && !ER) return '';
+        return `<div class="h2">${x === t ? 'Today · ' : ''}${WEEKDAY[HD.parseISO(x).getDay()]} ${nice(x)} <em>${L.length || ''}</em></div><div class="card">${ER}${L.map(evRow).join('')}${sharedRows(x, L)}${U.map(u => `<div class="it" style="opacity:.75"><span class="cal-t">${u.s}<small>${u.e}</small></span><span class="t"><b>Not available</b><small>${esc(u.note || '')}</small></span></div>`).join('') || (L.length ? '' : '<p class="empty">No sessions.</p>')}</div>`; }).join('') || '<p class="empty">No sessions this week.</p>';
     }
-    return backHome() + head('Calendar', `Your sessions from your tuition cards${nCl ? ` · <b style="color:var(--rd)">${nCl} clash${nCl === 1 ? '' : 'es'}</b>` : ''}`, `<div class="acts"><a class="btn" href="#teach/avail">Times I can't teach</a></div>`) + seg + nav + body + (calView === 'day' ? tPlan(calDate, byD[calDate] || []) : '') +
+    return backHome() + head('Calendar', `Your sessions from your tuition cards${nCl ? ` · <b style="color:var(--rd)">${nCl} clash${nCl === 1 ? '' : 'es'}</b>` : ''}`, `<div class="acts"><button class="btn n" data-cnew="${calView === 'day' ? calDate : ''}">+ Entry</button><a class="btn" href="#teach/avail">Times I can't teach</a></div>`) + seg + nav + body + (calView === 'day' ? tPlan(calDate, byD[calDate] || []) : '') +
       `<div class="h2">On your phone</div><div class="card pad"><p style="margin:0 0 8px">Your sessions, make-ups, SRAs to give and assessments you set, in Google Calendar or your iPhone. One way; your phone checks every few hours, so check the Hub for anything changed today.</p>
       <div class="acts"><a class="btn n" href="${'webcal://' + location.host + (data.calLink || '')}">Add to my calendar</a><button class="btn" data-tcallink>Copy the link</button></div>
       <p class="note" style="margin:8px 0 0">Google: Other calendars › From URL. iPhone: Settings › Calendar › Accounts › Add Subscribed Calendar. Keep it private.</p></div>`;
@@ -566,6 +566,18 @@ window.TUT = (function(){
     if(!L.length) return '';
     return `<div class="h2">Absent or late <em>${L.length}</em></div><div class="card">${L.map(n => `<a class="it" href="#teach/log/${encodeURIComponent(n.k)}"><span class="cal-t">${n.d === t ? esc(n.s) : WEEKDAY[HD.parseISO(n.d).getDay()].slice(0, 3)}<small>${n.d === t ? 'today' : nice(n.d)}</small></span><span class="t"><b>${esc(n.name)}</b><small>${esc(n.sub)} · <span class="t-tl${n.kind === 'late' ? ' lt' : ''}">${esc(toldL(n))}</span>${n.note ? ' · “' + esc(n.note) + '”' : ''}</small></span><span class="chev">›</span></a>`).join('')}</div>`;
   }
+  /* Today (Mockup 16): the Hub's jobs for a tutor tick themselves; own jobs and jobs from LHQ sit with them. Tutors only: staff who teach see it on their own Home. */
+  function todayBlock(){
+    if(!window.TODAY || me().role !== 'tutor') return '';
+    const t = today(), H = [], G = gaps(), S = sras(), rep = todayRep();
+    const give = S.filter(x => x.giveOn === t && x.status === 'give'), back = S.filter(x => x.due === t && ['collect','given'].includes(x.status));
+    const nm = L => [...new Set(L.map(x => short(x.st)))].slice(0, 3).join(', ');
+    if(give.length) H.push({key:'give', t:`Give ${give.length} SRA${give.length === 1 ? '' : 's'}`, sub:nm(give), href:'#teach/sra'});
+    if(back.length) H.push({key:'collect', t:`Collect ${back.length} SRA${back.length === 1 ? '' : 's'}`, sub:nm(back), href:'#teach/sra'});
+    if(G.length) H.push({key:'log', t:`Log ${G.length} session${G.length === 1 ? '' : 's'}`, sub:'each ticks as you log it', href:G[0].href});
+    if(!rep) H.push({key:'rep', t:'Send your daily report', sub:'after your last session', href:'#teach/report'});
+    return TODAY.block({hub:H, ready: !!(data && data.cards)});
+  }
   function home(){
     const t = today(), rep = todayRep(), G = gaps(), L = dayLogs(t), ed = editing === 'teach', q = read(QK, []).length;
     const acts = ed ? `<div class="acts"><button class="btn n" type="button" data-tedit="">Done</button></div>` : `<div class="acts"><button class="btn" type="button" data-tedit="teach" title="Edit cards" aria-label="Edit cards">${PEN()}</button>${logBtn()}</div>`;
@@ -573,7 +585,7 @@ window.TUT = (function(){
       (ed ? '<p class="note" style="margin:-6px 0 12px">Move, remove or add cards.</p>'
         : rep ? `<a class="t-banner ok" href="#teach/report"><span><b>Today's report is in</b>Sent at ${hm(rep.sent)}. You can still log; changes show as edited.</span></a>`
         : `<a class="t-banner" href="#teach/report"><span><b>Daily report due before you leave</b>Reminder between 16:00 and 17:00${G.length ? ` · ${G.length} thing${G.length > 1 ? 's' : ''} still to log` : ''}</span></a>`) +
-      (ed ? '' : (window.PROF ? PROF.tutorTodo(data.prof) : '') + answersBlock() + toldBlock() + slipBlock() + noticesBlock() + clashesBlock() + comingBlock()) + cardsBlock() + (ed ? '' : saysBlock() + reqsBlock() + `
+      (ed ? '' : todayBlock() + (window.PROF ? PROF.tutorTodo(data.prof) : '') + answersBlock() + toldBlock() + slipBlock() + noticesBlock() + clashesBlock() + comingBlock()) + cardsBlock() + (ed ? '' : saysBlock() + reqsBlock() + `
       <div class="h2">Logged today <em>${L.length}</em></div>${timeline(L)}
       ${G.length ? `<div class="h2">Still to log <em>${G.length}</em></div>${gapCard(G)}` : ''}
       <div class="card">${[['#teach/cal','clock','Calendar','Your week from your tuition cards · clashes · times you can\'t teach'],['#teach/students','users','My students','Sessions had and remaining, make-ups'],['#teach/sra','restore','SRA tracker','Give, collect and print · next 7 days · by student'],['#exams','list','Exam timetable','Every Cambridge paper and its date'],...(data && data.kpiOn ? [['#teach/perf','rep','My performance','Your KPIs · Week and Month']] : []),['#teach/pay','cash','My pay','Payslips to check and sign'],['#teach/profile','user','My profile','Details, availability, qualifications'],['#teach/classes','users','Classes',`${(data.classes || []).length} official class${(data.classes || []).length === 1 ? '' : 'es'}`]].concat(tutorRole() ? [] : [['#teach/report','list','Daily report', rep ? 'Sent today' : 'Due before you leave']]).map(([h, i, b, s]) => `<a class="it" href="${h}"><span class="ico">${ic(i,18)}</span><span class="t"><b>${b}</b><small>${s}</small></span><span class="chev">${ic('chev',16,2)}</span></a>`).join('')}</div>`);

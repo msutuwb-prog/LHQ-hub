@@ -542,7 +542,7 @@ test("phone notifications: devices, choices, events, quiet hours and the 07:00 s
   assert.equal((await call("push", { action: "subscribe", sub: { endpoint: "http://bad", keys: {} } }, tok)).status, 400, "only real push addresses");
   assert.equal((await call("push", { action: "subscribe", sub: sub("tutor"), ua: "Android Chrome" }, tok)).status, 200);
   assert.equal((await call("push", { action: "subscribe", sub: sub("dir") }, DIR)).status, 200);
-  const g = (await call("push", null, tok, "GET")).j; assert.deepEqual(g.kinds.map(k => k[0]), ["notice", "decided", "dispute", "report"], "a tutor's kinds"); assert.equal(g.devices.length, 1);
+  const g = (await call("push", null, tok, "GET")).j; assert.deepEqual(g.kinds.map(k => k[0]), ["job", "cal", "notice", "decided", "dispute", "report"], "a tutor's kinds"); assert.equal(g.devices.length, 1);
   await call("push", { action: "prefs", off: {}, quiet: ["00:00", "00:00"], summary: false }, tok);
   await call("push", { action: "prefs", off: {}, quiet: ["00:00", "00:00"], summary: false }, DIR);
   const subj = { name: "Geography", tutor: "Emmanuel Mkwamba", days: ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"], start: "23:58", end: "23:59", sessions: "30" };
@@ -756,4 +756,52 @@ test("away: only the Director marks someone away", async () => {
   const tok = (await call("signin", { id: "emmanuel.mkwamba", password: "Maths!2026x" })).j.token;
   const r = await call("sync", { kv: { lhq_away: { x: { on: 1, from: "2026-11-21", at: Date.now() } } } }, tok);
   assert.ok(r.status >= 400 || (r.j.rejected || r.j.denied || []).length || r.j.error, "a tutor can't");
+});
+
+test("today lists: own jobs, jobs given by LHQ, ticking, carrying over, and who may give", async () => {
+  const tok = (await call("signin", { id: "emmanuel.mkwamba", password: "Maths!2026x" })).j.token;
+  const me = (await call("jobs", null, tok, "GET")).j, d = me.d, y = new Date(Date.parse(d) - 864e5).toISOString().slice(0, 10);
+  const own = await call("jobs", { action: "add", what: "Print 3 SRA sheets" }, tok); assert.equal(own.status, 200, JSON.stringify(own.j));
+  assert.equal((await call("jobs", { action: "add", what: "Not mine to give", to: "pdir" }, tok)).status, 403, "a tutor can't give jobs");
+  const P = (await call("jobs", null, DIR, "GET")).j, em = P.people.find(p => /Emmanuel/.test(p.name));
+  const g = await call("jobs", { action: "add", what: "Bring the marked mocks", to: em.id, d: y }, DIR); assert.equal(g.status, 200, JSON.stringify(g.j));
+  let L = (await call("jobs", null, tok, "GET")).j.mine; assert.ok(L.some(j => j.what === "Bring the marked mocks" && j.byN === "Wanangwa Msutu"), "the tutor gets it");
+  assert.equal((await call("jobs", { action: "tick", id: g.j.id }, DIR)).status, 403, "only the person it's for ticks it");
+  assert.equal((await call("jobs", { action: "tick", id: g.j.id, d }, tok)).status, 200);
+  const T = (await call("jobs", null, DIR, "GET")).j; assert.ok(T.gave.some(j => j.id === g.j.id && j.doneD === d), "the Director sees it ticked");
+  const row = T.team.find(p => p.id === em.id); assert.ok(row && row.n >= 2 && row.done >= 1, "team counts");
+  assert.ok(!JSON.stringify(T.team).includes("Print 3 SRA sheets"), "own jobs stay private: counts only");
+  assert.equal((await call("jobs", { action: "del", id: g.j.id }, tok)).status, 403, "only the giver removes it");
+});
+
+test("calendar entries: private shows as Busy to LHQ, invitations, leave needs the Director, not available blocks make-ups", async () => {
+  const tok = (await call("signin", { id: "emmanuel.mkwamba", password: "Maths!2026x" })).j.token;
+  const d = new Date(Date.now() + 2 * 3600e3 + 3 * 864e5).toISOString().slice(0, 10);
+  const pr = await call("cal", { action: "add", kind: "personal", t: "Dentist", d, s: "14:00", e: "15:00", vis: "me", na: true }, tok); assert.equal(pr.status, 200, JSON.stringify(pr.j));
+  const all = (await call("cal?all=1", null, DIR, "GET")).j.items, busy = all.find(x => x.id === pr.j.id);
+  assert.ok(busy && busy.busy && !busy.t, "the Director sees Busy, not what it is");
+  const lv = await call("cal", { action: "add", kind: "leave", t: "Family wedding", d, vis: "me" }, tok); assert.equal(lv.status, 200);
+  let L = (await call("cal?all=1", null, DIR, "GET")).j.items.find(x => x.id === lv.j.id); assert.equal(L.leave.st, "wait"); assert.equal(L.t, "Family wedding", "leave always shows to LHQ");
+  assert.equal((await call("cal", { action: "leave", id: lv.j.id, ok: true }, tok)).status, 403, "only the Director approves");
+  assert.equal((await call("cal", { action: "leave", id: lv.j.id, ok: true, note: "Enjoy" }, DIR)).status, 200);
+  L = (await call("cal", null, tok, "GET")).j.items.find(x => x.id === lv.j.id); assert.equal(L.leave.st, "ok");
+  assert.equal((await call("cal", { action: "del", id: lv.j.id }, DIR)).status, 403, "only the owner removes an entry");
+  const dirE = await call("cal", { action: "add", kind: "meet", t: "Board prep", d, s: "09:00", e: "10:00", vis: "me" }, DIR);
+  assert.ok(!(await call("cal", null, tok, "GET")).j.items.some(x => x.id === dirE.j.id), "a tutor sees nothing of others' private entries");
+  const em = (await call("jobs", null, DIR, "GET")).j.people.find(p => /Emmanuel/.test(p.name));
+  const inv = await call("cal", { action: "add", kind: "meet", t: "Staff meeting", d, s: "11:00", e: "12:00", vis: "inv", inv: [em.id] }, DIR);
+  assert.ok((await call("cal", null, tok, "GET")).j.items.some(x => x.id === inv.j.id && x.t === "Staff meeting"), "invited people see it in full");
+});
+
+test("what tutors see: parent's phone and date of birth off unless the Director turns them on; one student can differ", async () => {
+  const tok = (await call("signin", { id: "emmanuel.mkwamba", password: "Maths!2026x" })).j.token;
+  const st0 = (await call("state", null, DIR, "GET")).j, set0 = (st0.kv || {}).lhq_settings || {}, stu0 = (st0.kv || {}).lhq_students || {};
+  const w = await call("sync", { kv: { lhq_students: Object.assign({}, stu0, { "wezi banda": { phone: "0999 111 222", parent: "Ruth Banda", dob: "2011-03-04", school: "Kingsway Academy" } }) } }, DIR); assert.equal(w.status, 200, JSON.stringify(w.j));
+  let sp = ((await call("tutor", null, tok, "GET")).j.sprof || {})["wezi banda"];
+  assert.ok(sp, "the tutor gets Wezi's profile"); assert.equal(sp.phone, ""); assert.equal(sp.parent, ""); assert.equal(sp.dob, ""); assert.ok(sp.age >= 14, "age always shows"); assert.equal(sp.school, "Kingsway Academy");
+  await call("sync", { kv: { lhq_settings: Object.assign({}, set0, { tsees: { parent: true, school: false }, tseesBy: { "wezi banda": { parent: false } } }) } }, DIR);
+  sp = ((await call("tutor", null, tok, "GET")).j.sprof || {})["wezi banda"];
+  assert.equal(sp.phone, "", "the one-student change wins"); assert.equal(sp.school, "", "school switched off");
+  const t = await call("sync", { kv: { lhq_settings: Object.assign({}, set0, { tsees: { parent: true } }) } }, tok);
+  assert.ok(t.status >= 400 || (t.j.rejected || []).length || t.j.error || (t.j.denied || []).length, "a tutor can't change it");
 });

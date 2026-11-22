@@ -1767,7 +1767,9 @@ async function tutorExtras(me, d) {
   const fuAll = (await store().get("kv/lhq_fu", { type: "json" })) || {};
   const PR = (await store().get("kv/lhq_prof", { type: "json" })) || {}, SR = (await store().get("kv/lhq_students", { type: "json" })) || {}, sprof = {};
   [...new Set([...d.keys].map(k => k.split("|")[0]))].forEach(st => { const P = PR["s:" + st] || {}, R = SR[st] || {};
-    sprof[st] = { dob: R.dob || "", phone: R.phone || "", parent: R.parent || "", health: P.health || null, learn: P.learn || null, about: P.about ? { goals: P.about.goals || "" } : null, collect: P.collect || null, emerg: P.emerg || null }; });
+    const on = f => tutorSees(kset, st, f), age = R.dob ? ageOf(R.dob) : null;
+    sprof[st] = { age, dob: on("dob") ? R.dob || "" : "", phone: on("parent") ? R.phone || "" : "", parent: on("parent") ? R.parent || "" : "", school: on("school") ? R.school || "" : "",
+      health: on("health") ? P.health || null : null, learn: on("learn") ? P.learn || null : null, about: on("about") && P.about ? { goals: P.about.goals || "" } : null, collect: on("collect") ? P.collect || null : null, emerg: on("emerg") ? P.emerg || null : null }; });
   const prof = PR["p:" + mk] || {};
   return { prof, sprof, obj: { on: !!((kset.obj || {}).on), subs: ((kset.obj || {}).subs) || [], L: (await store().get("kv/lhq_obj", { type: "json" })) || {} }, fu: Object.values(fuAll).filter(f => f && !f.x && d.keys.has(f.k)), sx, tsee: !!kset.tsee, asks: Object.values(((await store().get("kv/lhq_asks", { type: "json" })) || {})).filter(a => a && nk(a.tutor) === mk && !a.done), avail: (av || {})[mk] || [], acks, gone, ackFrom: ack._from, calLink: calPath(me.id, (((await store().get("kv/lhq_calopt", { type: "json" })) || {})[me.id] || {}).v), makeups, reqs, clashes: await tutorClashes(me), sradone, says, notices, exam, kpiOn: !!((kset.kpi || {}).tutors) };
 }
@@ -1934,6 +1936,10 @@ async function tutorPost(req, me) {
       const hit = all.find(m => nk(m.st) === st) || all.find(m => nk(m.tutor) === nk(me.name));
       if (hit) return fail(`That clashes with ${nk(hit.st) === st ? "another make-up for " + hit.st : "your make-up with " + hit.st} at ${hit.s}.`, 409);
     }
+    {   // not when the tutor marked themselves not available (leave, or an entry marked "I'm not available")
+      const na = (await naFor(me.id, b.d)).find(x => x.all || (x.s < b.e && b.s < x.e));
+      if (na) return fail(`You marked yourself not available then (${na.kind === "leave" ? "leave" : na.t}). Choose another time.`, 409);
+    }
     const v = { id, k: b.k, st: card ? card.student : st, sub: card ? card.subjects.find(x => nk(x.name) === sub).name : sub, tutor: me.name, d: b.d, s: b.s, e: b.e, why: String(b.why || "").trim().slice(0, 200), status: "asked", at: now, by: me.name };
     await writeKv("lhq_makeups", old => Object.assign({}, old || {}, { [id]: v }));
     await pushSafe(await idsOfStaff("tutors"), "confirm", { title: "Make-up to confirm", body: `${v.tutor || me.name} · ${v.st} · ${dayL(v.d)} ${v.s}`, url: "/#bookings" });
@@ -1981,6 +1987,143 @@ async function squeeze(req, r) {
     return new Response(zlib.gzipSync(buf), { status: r.status, headers: h });
   } catch { return r; }
 }
+/* ===== Today lists: jobs people add for themselves, and jobs the Director or an admin gives someone (lhq_jobs, endpoint only) =====
+   A job: {id, what, by, byN, to, toN, d (first day), tm (by a time, optional), rep: '' | day | wkday | week | month, done: {date: at} for repeats, doneAt/doneD for one-offs, del} */
+const JOB_REP = ["", "day", "wkday", "week", "month"];
+const jobDue = (j, d) => {   // does a job fall on day d? (one-offs: their day or any later day until done)
+  if (!j || j.del || !j.d || d < j.d) return false;
+  if (!j.rep) return !j.doneD || j.doneD === d;
+  const [y, m, dd] = d.split("-").map(Number), wd = new Date(Date.UTC(y, m - 1, dd)).getUTCDay();
+  if (j.rep === "day") return true;
+  if (j.rep === "wkday") return wd >= 1 && wd <= 5;
+  if (j.rep === "week") { const [y0, m0, d0] = j.d.split("-").map(Number); return new Date(Date.UTC(y0, m0 - 1, d0)).getUTCDay() === wd; }
+  if (j.rep === "month") return +j.d.slice(8) === dd || (+j.d.slice(8) > 28 && dd === new Date(Date.UTC(y, m, 0)).getUTCDate() && +j.d.slice(8) > dd);
+  return false;
+};
+const jobDone = (j, d) => j.rep ? !!(j.done || {})[d] : !!j.doneD;
+const mayGive = p => staff(p);
+async function jobsGet(req, me) {
+  const d = mwToday(), J = (((await store().get("kv/lhq_jobs", { type: "json" })) || {}).items) || {};
+  const all = Object.values(J).filter(j => j && !j.del);
+  const mine = all.filter(j => j.to === me.id), gave = all.filter(j => j.by === me.id && j.to !== me.id && (jobDue(j, d) || (j.doneD && j.doneD >= addDaysIso(d, -1))));
+  const out = { d, mine, gave };
+  if (staff(me)) {   // Team today: each person's own and given jobs for today, counted (what a person's own jobs say stays theirs)
+    const P = await peopleWhere(p => staff(p) || isTutor(p));
+    out.team = P.filter(p => p.id !== me.id).map(p => { const L = all.filter(j => j.to === p.id && jobDue(j, d));
+      return { id: p.id, name: p.name, role: p.role, tutor: !!p.tutor, perms: p.perms || [], n: L.length, done: L.filter(j => jobDone(j, d)).length, late: L.filter(j => !j.rep && j.d < d && !j.doneD).length }; });
+    out.people = P.map(p => ({ id: p.id, name: p.name, role: p.role, tutor: !!p.tutor }));
+  }
+  return json(out);
+}
+async function jobsPost(req, me) {
+  const b = await req.json().catch(() => ({})), now = Date.now(), d = mwToday();
+  if (b.action === "add" || b.action === "edit") {
+    if (me.role === "parent") return fail("Parents see LHQ's jobs only.", 403);
+    const what = String(b.what || "").trim().slice(0, 140); if (!what) return fail("Say what the job is.");
+    const day = /^\d{4}-\d{2}-\d{2}$/.test(b.d || "") ? b.d : d, rep = JOB_REP.includes(b.rep) ? b.rep : "", tm = /^\d{2}:\d{2}$/.test(b.tm || "") ? b.tm : "";
+    let to = me;
+    if (b.to && b.to !== me.id) { if (!mayGive(me)) return fail("Only the Director and admins can give jobs to others.", 403);
+      to = (await peopleWhere(p => p.id === b.to && (staff(p) || isTutor(p))))[0]; if (!to) return fail("That person isn't on LHQ's staff or tutors."); }
+    let id = b.id, prev = null;
+    const v = await writeKv("lhq_jobs", old => { const o = Object.assign({ items: {} }, old); o.items = Object.assign({}, o.items);
+      if (b.action === "edit") { prev = o.items[id]; if (!prev || prev.del || (prev.by !== me.id && !isDirector(me))) { prev = null; return o; }
+        o.items[id] = Object.assign({}, prev, { what, d: day, rep, tm, to: to.id, toN: to.name, upd: now }); }
+      else { id = "j" + crypto.randomBytes(6).toString("hex"); o.items[id] = { id, what, by: me.id, byN: me.name, to: to.id, toN: to.name, d: day, rep, tm, at: now, done: {} }; }
+      return o; });
+    if (b.action === "edit" && !prev) return fail("You can only change jobs you added.", 403);
+    if (to.id !== me.id && b.action === "add") { await pushSafe([to.id], "job", { title: `New job from ${me.name.split(" ")[0]}`, body: what + (day > d ? ` · ${dayL(day)}` : ""), url: isTutor(to) && !staff(to) ? "/#teach" : "/#home" });
+      await act(me, "people", "job.give", `${me.name} gave ${to.name} a job: ${what}`, "job", id); }
+    return json({ ok: true, id, item: v.items[id] });
+  }
+  if (b.action === "tick" || b.action === "untick" || b.action === "del") {
+    let j = null, bad = "";
+    await writeKv("lhq_jobs", old => { const o = Object.assign({ items: {} }, old); o.items = Object.assign({}, o.items); const x = o.items[b.id];
+      if (!x || x.del) { bad = "That job isn't there any more."; return o; }
+      if (b.action === "del" ? (x.by !== me.id && !isDirector(me)) : (x.to !== me.id)) { bad = b.action === "del" ? "Only the person who added it can remove it." : "Only the person it's for can tick it."; return o; }
+      const day = /^\d{4}-\d{2}-\d{2}$/.test(b.d || "") ? b.d : d;
+      j = Object.assign({}, x);
+      if (b.action === "del") j.del = now;
+      else if (j.rep) { j.done = Object.assign({}, j.done); if (b.action === "tick") j.done[day] = now; else delete j.done[day]; }
+      else if (b.action === "tick") { j.doneD = day; j.doneAt = now; } else { delete j.doneD; delete j.doneAt; }
+      o.items[b.id] = j; return o; });
+    if (bad) return fail(bad, 403);
+    if (b.action === "tick" && j.by !== me.id) await pushSafe([j.by], "job", { title: `${me.name.split(" ")[0]} ticked a job`, body: j.what, url: "/#team" });
+    return json({ ok: true, item: j });
+  }
+  return fail("Unknown action.");
+}
+const addDaysIso = (s, n) => { const [y, m, dd] = s.split("-").map(Number); const t = new Date(Date.UTC(y, m - 1, dd + n)); return t.toISOString().slice(0, 10); };
+
+/* ===== Calendar entries (lhq_cal, endpoint only): meetings, leave, work, personal, reminders =====
+   {id, by, byN, role, kind, t, d, d2, all, s, e, vis: me | lhq | inv, inv: [ids], na, leave: {st: wait | ok | no, by, at, note}, at}
+   The owner and invited people see an entry in full; the Director and admins see LHQ entries in full and the rest as "Busy". Leave always shows to LHQ. */
+const CAL_KINDS = ["meet", "leave", "work", "personal", "rem"];
+const calSees = (me, x) => x.by === me.id || (x.inv || []).includes(me.id) || (staff(me) && (x.vis === "lhq" || x.kind === "leave"));
+const calBusy = x => ({ id: x.id, by: x.by, byN: x.byN, role: x.role, busy: true, d: x.d, d2: x.d2 || x.d, all: !!x.all, s: x.s || "", e: x.e || "", na: !!x.na });
+async function calGet(req, me) {
+  const u = new URL(req.url).searchParams, from = u.get("from") || addDaysIso(mwToday(), -40), to = u.get("to") || addDaysIso(mwToday(), 80), all = u.get("all") === "1" && staff(me);
+  const C = (((await store().get("kv/lhq_cal", { type: "json" })) || {}).items) || {};
+  const L = Object.values(C).filter(x => x && !x.del && x.d <= to && (x.d2 || x.d) >= from && (x.rep ? true : true));
+  const items = L.filter(x => calSees(me, x) || (all)).map(x => calSees(me, x) ? x : calBusy(x)).filter(x => all || x.by === me.id || !x.busy);
+  const out = { items, d: mwToday() };
+  if (staff(me) || isTutor(me) || me.role === "student") out.people = (await peopleWhere(p => staff(p) || isTutor(p))).map(p => ({ id: p.id, name: p.name, role: p.role, tutor: !!p.tutor }));
+  return json(out);
+}
+async function calPost(req, me) {
+  const b = await req.json().catch(() => ({})), now = Date.now();
+  if (b.action === "add" || b.action === "edit") {
+    const kind = CAL_KINDS.includes(b.kind) ? b.kind : "meet", t = String(b.t || "").trim().slice(0, 120) || { meet: "Meeting", leave: "Away", work: "Work", personal: "Personal", rem: "Reminder" }[kind];
+    const d = /^\d{4}-\d{2}-\d{2}$/.test(b.d || "") ? b.d : mwToday(), d2 = /^\d{4}-\d{2}-\d{2}$/.test(b.d2 || "") && b.d2 >= d ? b.d2 : d;
+    const allDay = !!b.all || kind === "leave", s = allDay ? "" : (/^\d{2}:\d{2}$/.test(b.s || "") ? b.s : "09:00"), e = allDay ? "" : (/^\d{2}:\d{2}$/.test(b.e || "") && b.e > s ? b.e : s);
+    const family = me.role === "student" || me.role === "parent";
+    let vis = ["me", "lhq", "inv"].includes(b.vis) ? b.vis : "lhq"; if (family && vis === "inv") vis = "lhq"; if (kind === "leave") vis = "lhq";
+    const ids = new Set((await peopleWhere(p => staff(p) || isTutor(p))).map(p => p.id));
+    const inv = vis === "inv" ? [...new Set((Array.isArray(b.inv) ? b.inv : []).filter(i => ids.has(i) && i !== me.id))].slice(0, 40) : [];
+    const na = kind === "leave" ? true : !!b.na;
+    let id = b.id, prev = null, isNew = b.action === "add";
+    await writeKv("lhq_cal", old => { const o = Object.assign({ items: {} }, old); o.items = Object.assign({}, o.items);
+      if (!isNew) { prev = o.items[id]; if (!prev || prev.del || prev.by !== me.id) { prev = null; return o; } }
+      else id = "c" + crypto.randomBytes(6).toString("hex");
+      const leave = kind === "leave" ? (isDirector(me) ? { st: "ok", by: me.name, at: now } : (prev && prev.leave && prev.d === d && prev.d2 === d2 ? prev.leave : { st: "wait" })) : undefined;
+      o.items[id] = Object.assign({}, prev || { id, by: me.id, byN: me.name, role: me.role, at: now }, { kind, t, d, d2, all: allDay, s, e, vis, inv, na, leave, upd: now });
+      return o; });
+    if (!isNew && !prev) return fail("You can only change your own entries.", 403);
+    if (inv.length && isNew) await pushSafe(inv, "cal", { title: `${me.name.split(" ")[0]} invited you`, body: `${t} · ${dayL(d)}${allDay ? "" : " " + s}`, url: "/#calendar" });
+    if (kind === "leave" && !isDirector(me) && (isNew || (prev && (prev.d !== d || prev.d2 !== d2)))) {
+      await pushSafe(await idsOfStaff("director"), "cal", { title: `Leave to approve · ${me.name}`, body: `${dayL(d)}${d2 !== d ? " – " + dayL(d2) : ""}${t && t !== "Away" ? " · " + t : ""}`, url: "/#home" });
+      await act(me, "people", "leave.ask", `${me.name} asked for leave ${d}${d2 !== d ? " to " + d2 : ""}`, "cal", id); }
+    return json({ ok: true, id });
+  }
+  if (b.action === "del") {
+    let bad = false;
+    await writeKv("lhq_cal", old => { const o = Object.assign({ items: {} }, old); o.items = Object.assign({}, o.items); const x = o.items[b.id];
+      if (!x || x.by !== me.id) { bad = true; return o; } o.items[b.id] = Object.assign({}, x, { del: now }); return o; });
+    return bad ? fail("You can only remove your own entries.", 403) : json({ ok: true });
+  }
+  if (b.action === "leave") {
+    if (!isDirector(me)) return fail("Only the Director approves leave.", 403);
+    const ok = !!b.ok, note = String(b.note || "").trim().slice(0, 200); let x = null;
+    await writeKv("lhq_cal", old => { const o = Object.assign({ items: {} }, old); o.items = Object.assign({}, o.items); const c = o.items[b.id];
+      if (!c || c.del || c.kind !== "leave") return o; x = Object.assign({}, c, { leave: { st: ok ? "ok" : "no", by: me.name, at: now, note } }); o.items[b.id] = x; return o; });
+    if (!x) return fail("That leave isn't there any more.", 404);
+    await pushSafe([x.by], "cal", { title: `Leave ${ok ? "approved" : "not approved"}`, body: `${dayL(x.d)}${x.d2 !== x.d ? " – " + dayL(x.d2) : ""}${note ? " · " + note : ""}`, url: "/#calendar" });
+    await act(me, "people", ok ? "leave.ok" : "leave.no", `${x.byN}'s leave ${x.d}${x.d2 !== x.d ? " to " + x.d2 : ""} ${ok ? "approved" : "not approved"}${note ? ": " + note : ""}`, "cal", x.id);
+    return json({ ok: true });
+  }
+  return fail("Unknown action.");
+}
+/* a person's "not available" times on a day (leave that isn't declined, and entries marked not available), for make-ups and clashes */
+async function naFor(personId, d) {
+  const C = (((await store().get("kv/lhq_cal", { type: "json" })) || {}).items) || {};
+  return Object.values(C).filter(x => x && !x.del && x.by === personId && x.na && x.d <= d && (x.d2 || x.d) >= d && !(x.leave && x.leave.st === "no")).map(x => ({ all: !!x.all, s: x.s, e: x.e, t: x.t, kind: x.kind }));
+}
+
+/* What tutors see in a student's profile (Director's setting, agreed 22 Nov): one switch per part, and a change for one student only.
+   Applied here, so a part that's off never reaches a tutor's phone. Parent's name and phone, and date of birth, are off unless the Director turns them on. */
+const TSEE_DEF = { about: true, learn: true, health: true, emerg: true, collect: true, parent: false, dob: false, school: true };
+const tutorSees = (set, st, f) => { const o = (((set || {}).tseesBy) || {})[st] || {}; if (f in o) return !!o[f]; const g = Object.assign({}, TSEE_DEF, (set || {}).tsees || {}); return !!g[f]; };
+const ageOf = dob => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(dob || "")); if (!m) return null; const t = mwToday(); let a = +t.slice(0, 4) - +m[1]; if (t.slice(5) < m[2] + "-" + m[3]) a--; return a >= 0 && a < 120 ? a : null; };
+
 export default async (req, context) => squeeze(req, await handle(req, context));
 /* the scheduler's key: worked out from LHQ_SECRET, so there's nothing extra to set up; LHQ_TICK_KEY replaces it if set */
 export const tickKey = () => process.env.LHQ_TICK_KEY || crypto.createHash("sha256").update("lhq-tick|" + secret()).digest("base64url").slice(0, 24);
@@ -2050,6 +2193,10 @@ async function handle(req, context) {
     if (req.method === "POST" && path === "pay") return await payPost(req, me);
     if (req.method === "GET" && path === "pay") return await payGet(req, me);
     if (req.method === "GET" && path === "activity") return await activityList(req, me);
+    if (req.method === "GET" && path === "jobs") return await jobsGet(req, me);
+    if (req.method === "POST" && path === "jobs") return await jobsPost(req, me);
+    if (req.method === "GET" && path === "cal") return await calGet(req, me);
+    if (req.method === "POST" && path === "cal") return await calPost(req, me);
     if (path === "push") return await pushRoute(req, me);
     return fail("Not found.", 404);
   } catch (e) {
@@ -2066,15 +2213,15 @@ export const config = { path: "/api/hub/*" };
    kv lhq_push: {personId: {subs: [{endpoint, keys, ua, at}], prefs: {off: {kind: true}, quiet: [from, to], summary}, q: [held messages]}}
    kv lhq_pushlog: {"date|person|what": 1} so a timed reminder goes once. Nothing is sent for what someone did themselves. */
 const PUSH_KINDS = {
-  tutor: [["notice", "Absent or late"], ["decided", "Make-ups and requisitions decided"], ["dispute", "Not right on a session"], ["report", "Daily report"]],
-  staff: [["notice", "Absent or late today"], ["settle", "To settle"], ["confirm", "Make-ups to confirm"], ["req", "Requisitions to approve"]],
+  tutor: [["job", "Jobs given to you"], ["cal", "Calendar invites and leave"], ["notice", "Absent or late"], ["decided", "Make-ups and requisitions decided"], ["dispute", "Not right on a session"], ["report", "Daily report"]],
+  staff: [["job", "Jobs given and ticked"], ["cal", "Calendar invites and leave"], ["notice", "Absent or late today"], ["settle", "To settle"], ["confirm", "Make-ups to confirm"], ["req", "Requisitions to approve"]],
   family: [["sreport", "Today's report"], ["sra", "SRAs and take-home sheets"], ["change", "Session changes"], ["answer", "Your tutor answered"]],
 };
 const URGENT = new Set(["notice", "change", "dispute", "settle"]);   // these come at once even with the morning summary
 let pushSender = null;
 export const _setPushSender = f => { pushSender = f; };
 const vapidKeys = () => ({ pub: envGet("LHQ_VAPID_PUBLIC") || "", priv: envGet("LHQ_VAPID_PRIVATE") || "" });
-const kindsFor = p => (staff(p) ? PUSH_KINDS.staff : []).concat(isTutor(p) ? PUSH_KINDS.tutor.filter(k => !(staff(p) && k[0] === "notice")) : []).concat(p.role === "student" || p.role === "parent" ? PUSH_KINDS.family.filter(k => !(p.role === "parent" && k[0] === "sreport")) : []);
+const kindsFor = p => (staff(p) ? PUSH_KINDS.staff : []).concat(isTutor(p) ? PUSH_KINDS.tutor.filter(k => !(staff(p) && ["notice", "job", "cal"].includes(k[0]))) : []).concat(p.role === "student" || p.role === "parent" ? PUSH_KINDS.family.filter(k => !(p.role === "parent" && k[0] === "sreport")) : []);
 const mwHM = () => { const d = new Date(Date.now() + 2 * 3600e3); return String(d.getUTCHours()).padStart(2, "0") + ":" + String(d.getUTCMinutes()).padStart(2, "0"); };
 const inQuiet = (q, t = mwHM()) => { const [a, b] = q || ["21:00", "07:00"]; return a <= b ? t >= a && t < b : t >= a || t < b; };
 async function sendPush(sub, payload) {

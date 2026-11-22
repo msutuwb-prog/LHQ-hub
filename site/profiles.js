@@ -214,7 +214,7 @@ window.PROF = (function(){
 
   /* ---------- tutors: what a tutor needs to know about a student, and their own profile ---------- */
   function tutorKnow(p, name){
-    const av = `<div class="pf-me">${avatar('s:' + nk(name), name, 48)}<div><b>${e(name)}</b>${ageTxt(p && p.dob)}</div></div>`;
+    const av = `<div class="pf-me">${avatar('s:' + nk(name), name, 48)}<div><b>${e(name)}</b>${p && p.dob ? ageTxt(p.dob) : p && p.age != null ? `<small class="pf-age">Age ${p.age}</small>` : ''}</div></div>`;
     if(!p) return av;
     const rows = [];
     if(p.health && p.health.t) rows.push(['Health and safety', p.health.t]);
@@ -223,6 +223,8 @@ window.PROF = (function(){
     if(p.collect) rows.push(['Collection', lst([sum.collect(p.collect), p.phone ? 'call ' + p.phone : ''])]);
     if(p.emerg && p.emerg.n) rows.push(['Emergency contact', lst([p.emerg.n, p.emerg.p])]);
     if(p.dob) rows.push(['Birthday', dayMon(p.dob.replace(/^\d{4}/, '2000'))]);
+    if(p.parent || (p.phone && !p.collect)) rows.push(['Parent', lst([p.parent, p.phone])]);
+    if(p.school) rows.push(['School', p.school]);
     if(!rows.length) return av;
     return av + `<div class="h2">What you need to know</div><div class="card">${rows.map(([t, s]) => `<div class="it"><span class="t"><b>${e(t)}</b><small>${e(s)}</small></span></div>`).join('')}</div>`;
   }
