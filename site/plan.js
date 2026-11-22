@@ -90,7 +90,7 @@
       return {r, s: m, mode, why: m && m.match && m.match.split(',').some(w => w.trim() && txt.includes(nk(w))) ? `"${m.match}" on the invoice` : `${mode === 'onl' ? 'most sessions online' : 'sessions in person'}`}; };
     const T = R.map(tag), amt = r => +String(r.received || 0).replace(/[^\d.]/g, '') || 0;
     const byS = {}; T.forEach(t => { const k = t.s ? t.s.id : '_'; (byS[k] = byS[k] || {amt: 0, L: []}).amt += amt(t.r); byS[k].L.push(t); });
-    const sp = Object.values(kv('lhq_spend')).filter(e => e && !e.del && e.date >= from && e.date <= to), C = costs(), byC = {}, other = {amt: 0, L: []};
+    const sp = Object.values(kv('lhq_spend')).filter(e => e && !e.del && e.date >= from && e.date <= to).filter(e => !/transfer|savings/i.test(e.cat || '')), C = costs(), byC = {}, other = {amt: 0, L: []};
     sp.forEach(e => { const c = C.find(c => (c.cats || []).some(k => nk(k) === nk(e.cat))); const o = c ? (byC[c.id] = byC[c.id] || {amt: 0, L: []}) : other; o.amt += +String(e.amount || 0).replace(/[^\d.]/g, '') || 0; o.L.push(e); });
     const slips = Object.entries((kv('lhq_pay').slips) || {}).filter(([k, v]) => ms.includes(k.split('|')[1]) && v && ['confirmed','signed'].includes(v.st)), tp = slips.reduce((a, [, v]) => a + (+((v.snap || {}).total) || 0), 0);
     const inc = T.reduce((a, t) => a + amt(t.r), 0), cost = Object.values(byC).reduce((a, x) => a + x.amt, 0) + other.amt + tp;
