@@ -2250,6 +2250,53 @@ async function repsPost(req, me) {
   return fail("Unknown report.");
 }
 
+/* ===== Business › Plan (Mockups 17, 17b, 17c), partners, children in activities, enquiries, the board report =====
+   Endpoint-only keys, each {items: {id: record}}: lhq_bplan (conf, streams s:, costs c:, targets t:, planner items i:, who sees), lhq_partners, lhq_kids, lhq_enq, lhq_board.
+   Who sees the plan: the Director, and anyone the Director adds (conf.vis[personId] = {pp, planner, streams, costs, edit}). */
+const PLAN_KEYS = ["lhq_bplan", "lhq_partners", "lhq_kids", "lhq_enq", "lhq_board"];
+const isBdo = p => can(p, "bdo");
+const planVis = (P, me) => isDirector(me) ? { pp: 1, planner: 1, streams: 1, costs: 1, edit: 1 } : ((((P.items || {}).conf || {}).vis || {})[me.id] || {});
+async function planGet(req, me) {
+  if (!staff(me)) return fail("This part is for LHQ admin.", 403);
+  const [P, PA, K, E, B] = await Promise.all(PLAN_KEYS.map(k => store().get("kv/" + k, { type: "json" }))), v = planVis(P || {}, me), out = { vis: v };
+  const pi = (P && P.items) || {};
+  if (v.streams || v.costs) out.plan = Object.fromEntries(Object.entries(pi).filter(([k]) => v.costs || !/^c:/.test(k)).map(([k, x]) => [k, k === "conf" && !isDirector(me) ? Object.assign({}, x, { vis: undefined }) : x]));
+  else out.plan = Object.fromEntries(Object.entries(pi).filter(([k, x]) => /^i:/.test(k) && (v.planner || x.owner === me.id || (x.steps || []).some(s => s.who === me.id))));
+  if (v.pp || isBdo(me) || can(me, "students")) { out.partners = (PA && PA.items) || {}; out.kids = (K && K.items) || {}; }
+  out.enq = (E && E.items) || {};
+  if (isDirector(me)) out.board = (B && B.items) || {};
+  out.people = (await peopleWhere(p => staff(p) || isTutor(p))).map(p => ({ id: p.id, name: p.name, role: p.role, perms: p.perms || [], tutor: !!p.tutor }));
+  return json(out);
+}
+async function planPost(req, me) {
+  if (!staff(me)) return fail("This part is for LHQ admin.", 403);
+  const b = await req.json().catch(() => ({})), key = String(b.key || ""), id = String(b.id || "").slice(0, 60), now = Date.now();
+  if (!PLAN_KEYS.includes(key) || !/^[\w:.-]{1,60}$/.test(id)) return fail("Unknown record.");
+  const rec = b.rec && typeof b.rec === "object" ? JSON.parse(JSON.stringify(b.rec).slice(0, 40000)) : null;
+  if (b.action !== "del" && !rec) return fail("Nothing to save.");
+  const cur = (await store().get("kv/" + key, { type: "json" })) || {}, old = (cur.items || {})[id] || null, P = key === "lhq_bplan" ? cur : ((await store().get("kv/lhq_bplan", { type: "json" })) || {}), v = planVis(P, me);
+  let ok = false;
+  if (key === "lhq_bplan") ok = isDirector(me) || (id !== "conf" && v.edit) || (/^i:/.test(id) && old && (old.owner === me.id || (old.steps || []).some(s => s.who === me.id)) && b.action !== "del");
+  if (key === "lhq_partners") ok = isDirector(me) || isBdo(me);
+  if (key === "lhq_kids") ok = isDirector(me) || isBdo(me) || can(me, "students");
+  if (key === "lhq_board") ok = isDirector(me);
+  if (key === "lhq_enq") {
+    ok = b.action === "del" ? isDirector(me) : true;
+    if (rec && old && old.lock && (rec.src !== old.src || rec.srcOwner !== old.srcOwner) && !isDirector(me)) return fail("The source is locked. Only the Director can change it, with a reason.", 403);
+    if (rec && old && old.lock && (rec.src !== old.src || rec.srcOwner !== old.srcOwner) && !String(b.why || "").trim()) return fail("Say why the source changes.");
+    if (rec && rec.lock && !(old && old.lock) && !(isDirector(me) || (me.role === "admin" && !isBdo(me)))) rec.lock = false;   // admin confirms the source; the BDO can't lock their own
+  }
+  if (!ok) return fail("You can't change this part of the plan.", 403);
+  // someone who may only tick their steps changes nothing else
+  if (key === "lhq_bplan" && /^i:/.test(id) && old && !(isDirector(me) || v.edit)) { const st = (rec.steps || []); rec.steps = (old.steps || []).map((s, i) => s.who === me.id && st[i] ? Object.assign({}, s, { done: st[i].done || 0 }) : s); Object.keys(old).forEach(k => { if (k !== "steps") rec[k] = old[k]; }); }
+  await writeKv(key, o => { const n = Object.assign({ items: {} }, o); n.items = Object.assign({}, n.items);
+    if (b.action === "del") delete n.items[id]; else n.items[id] = Object.assign(rec, { id, upd: now, updBy: me.name, at: (old && old.at) || now, by: (old && old.by) || me.id }); return n; });
+  if (key === "lhq_enq" && rec && old && old.lock && (rec.src !== old.src || rec.srcOwner !== old.srcOwner)) await act(me, "people", "enq.source", `Enquiry source changed for ${rec.who || id}: ${old.src} → ${rec.src} · ${String(b.why).slice(0, 120)}`, "enq", id);
+  if (key === "lhq_board" && rec && rec.st === "ok" && !(old && old.st === "ok")) await act(me, "money", "board.ok", `Board report ${id} approved`, "board", id);
+  if (key === "lhq_bplan" && /^i:/.test(id) && rec && old && JSON.stringify(old.steps || []) !== JSON.stringify(rec.steps || []) && !isDirector(me)) await pushSafe(await idsOfStaff("director"), "job", { title: `${me.name.split(" ")[0]} ticked a plan step`, body: rec.name || "", url: "/#plan/item/" + id });
+  return json({ ok: true });
+}
+
 export default async (req, context) => squeeze(req, await handle(req, context));
 /* the scheduler's key: worked out from LHQ_SECRET, so there's nothing extra to set up; LHQ_TICK_KEY replaces it if set */
 export const tickKey = () => process.env.LHQ_TICK_KEY || crypto.createHash("sha256").update("lhq-tick|" + secret()).digest("base64url").slice(0, 24);
@@ -2320,6 +2367,8 @@ async function handle(req, context) {
     if (req.method === "GET" && path === "pay") return await payGet(req, me);
     if (req.method === "GET" && path === "activity") return await activityList(req, me);
     if (req.method === "GET" && path === "jobs") return await jobsGet(req, me);
+    if (req.method === "GET" && path === "plan") return await planGet(req, me);
+    if (req.method === "POST" && path === "plan") return await planPost(req, me);
     if (req.method === "GET" && path === "fb") return await fbGet(req, me);
     if (req.method === "POST" && path === "fb") return await fbPost(req, me);
     if (req.method === "GET" && path === "ann") return await annGet(req, me);

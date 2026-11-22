@@ -834,3 +834,14 @@ test("staff reports: admin's daily report, the Director's weekly report stays th
   assert.equal((await call("reps", { kind: "d", wk: "2026-11-16", plan: "Fast Track confirmed", up: { x: { st: "dec", note: "yes" } } }, DIR)).status, 200);
   const R = (await call("reps", null, DIR, "GET")).j; assert.ok(R.areps.some(r => r.needs === "Approve the projector")); assert.ok(R.dreps.some(r => r.plan === "Fast Track confirmed"));
 });
+
+test("plan: Director only by default, who-sees switches, enquiry source locked after admin confirms", async () => {
+  const tok = (await call("signin", { id: "emmanuel.mkwamba", password: "Maths!2026x" })).j.token;
+  assert.equal((await call("plan", null, tok, "GET")).status, 403, "tutors don't see the plan");
+  assert.equal((await call("plan", { action: "put", key: "lhq_bplan", id: "s:inp", rec: { name: "Weekly tuition", kind: "tuition", mode: "inp", students0: 24, enqM: 15, enrol: 35, kept: 86, fee: 85000 } }, DIR)).status, 200);
+  assert.equal((await call("plan", { action: "put", key: "lhq_bplan", id: "t:2026", rec: { inc: 800000000, prof: 200000000 } }, DIR)).status, 200);
+  const g = (await call("plan", null, DIR, "GET")).j; assert.ok(g.plan["s:inp"] && g.plan["t:2026"].inc === 800000000);
+  const e = await call("plan", { action: "put", key: "lhq_enq", id: "en1", rec: { who: "Mrs Banda", src: "BDO school visit", srcOwner: "bdo", lock: true, stage: "new", d: "2026-11-20" } }, DIR); assert.equal(e.status, 200);
+  assert.equal((await call("plan", { action: "put", key: "lhq_enq", id: "en1", rec: { who: "Mrs Banda", src: "Facebook", srcOwner: "lhq", lock: true, stage: "new" } }, DIR)).status, 400, "a reason is needed");
+  assert.equal((await call("plan", { action: "put", key: "lhq_enq", id: "en1", rec: { who: "Mrs Banda", src: "Facebook", srcOwner: "lhq", lock: true, stage: "new" }, why: "She saw the ad first" }, DIR)).status, 200);
+});

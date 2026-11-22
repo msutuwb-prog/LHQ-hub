@@ -51,6 +51,7 @@ if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash)
 <script src="tpayui.js"></script>
 <script src="today.js"></script>
 <script src="comms.js"></script>
+<script src="plan.js"></script>
 <script src="srafig.js"></script>
 <script src="fu.js"></script>
 <script src="stuview.js"></script>
@@ -772,7 +773,7 @@ P.home = () => {
     <div class="acts"><a class="btn" href="#edithome" title="Edit Home" aria-label="Edit Home">${ic('edit',16)}</a>${can('quotes') || can('receipts') || can('cards') || can('spend') ? `<a class="btn n hnew" href="#new">${ic('plus',16,2.4)} New</a>` : ''}</div></div>
   ${cards.length ? `<div class="mcs" data-n="${cards.length}">${cards.map(k => { const c = CARDS[k]; return `<div class="mc" data-go="${typeof c.href === 'function' ? c.href() : c.href}" role="link" tabindex="0" aria-label="${esc(c.t)}"><span class="l">${ic(c.ic,15,2)}${LEAN() && c.s ? c.s : c.t}</span>${c.html(m)}</div>`; }).join('')}</div>` : ''}
   ${draftRow}
-  ${window.TODAY ? TODAY.block({hub: att.filter(x => x.job).map(x => ({key:x.job, t:x.s.name, sub:x.sub, href:x.btn ? x.btn[1] : x.href})).concat(window.COMMS ? COMMS.arepJob() : []), ready: hub.session() && saved.length > 0}) : ''}
+  ${window.TODAY ? TODAY.block({hub: att.filter(x => x.job).map(x => ({key:x.job, t:x.s.name, sub:x.sub, href:x.btn ? x.btn[1] : x.href})).concat(window.COMMS ? COMMS.arepJob() : [], window.PLAN && isDir() ? (PLAN.load(), PLAN.boardDue()) : []), ready: hub.session() && saved.length > 0}) : ''}
   ${PREVIEW && isDir() && !saved.length ? `<div class="card pad" style="border-color:var(--gold)"><div class="cap">Preview</div><p class="note" style="margin:0 0 10px">This preview has its own storage and is empty. Load six months of demo data to try every page.</p><a class="btn n" href="#set/demo">Demo data</a></div>` : ''}
   <div class="hcols"><div><div class="h2">Needs attention <span class="acts" style="align-items:center"><em>${AR.length || ''}</em><button class="btn sm" id="attTog">${attOpen ? 'Hide' : 'Show'}</button></span></div>
   ${attOpen ? `<div class="card one">${AR.slice(0, attAll ? 999 : 15).map(r => r.grp ? attGroup(r) : attRow(r.x)).join('') || '<p class="empty">Nothing needs attention. ✓</p>'}${AR.length > 15 && !attAll ? `<button class="it" id="attAll" style="justify-content:center"><b>Show all ${AR.length}</b></button>` : ''}</div>`
@@ -781,6 +782,8 @@ P.home = () => {
   <div class="card one">${recent.map(x => docRow(x, {when:true})).join('') || '<p class="empty">Nothing saved yet. Tap New to start with a quote.</p>'}</div></div></div>`;
 };
 P.team = () => window.TODAY ? TODAY.teamPage() : '';
+P.plan = (a, b, c) => window.PLAN ? PLAN.page(a, b, c) : '';
+P.board = ym => window.PLAN ? PLAN.boardPage(ym) : '';
 P.ann = id => window.COMMS ? COMMS.annPage(id) : '';
 P.annview = id => window.COMMS ? COMMS.annView(id) : '';
 P.feedback = () => window.COMMS ? COMMS.inbox() : '';

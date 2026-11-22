@@ -215,7 +215,7 @@ window.BIZ = (function(){
       return `<div class="ph"><div class="tt"><h1>Business</h1><p>Financial year ${fyLabel(fy)}${isDir() ? '' : ' · shared with you by the Director'}</p></div>${acts}</div>
         ${periodBar('home', period)}
         ${window.PC ? PC.block('biz', {period}, 'Your cards') : ''}
-        <div class="h2">All sections</div><div class="bz-secs">${T.map(([k, l]) => `<a href="#biz/${k}/${k === 'owed' ? '' : period}">${esc(l)}<span>›</span></a>`).join('')}</div>
+        <div class="h2">All sections</div><div class="bz-secs">${isDir() || (window.PLAN && (PLAN.data() || {}).vis && Object.values(PLAN.data().vis).some(Boolean)) ? '<a href="#plan">Plan · year, five years, targets<span>›</span></a>' : ''}${isDir() ? '<a href="#board">Board reports<span>›</span></a>' : ''}${T.map(([k, l]) => `<a href="#biz/${k}/${k === 'owed' ? '' : period}">${esc(l)}<span>›</span></a>`).join('')}</div>
         ${can('pl') ? `<p class="note" style="margin-top:14px">Reports to download or send are under <a href="#reports">Reports</a>.</p>` : ''}`;
     }
     if(tab === 'cat' && T.some(x => x[0] === 'spending')){ /* a payment category's own page */ }
@@ -282,7 +282,7 @@ window.BIZ = (function(){
       <div class="addrow" id="bzCatAdd" hidden style="margin:-6px 0 12px"><input class="in" id="bzCatName" placeholder="Name of the new category" autocomplete="off"><button class="btn sm" id="bzCatGo" type="button">Add</button></div>
       <label class="f" id="bzChanF" ${e.cat === 'Marketing' ? '' : 'hidden'}><span>Marketing channel <small style="font-weight:500">(matched with how new families heard about LHQ)</small></span><select class="in" id="bzChan"><option value="">Choose</option>${channels().map(x => `<option ${e.chan === x ? 'selected' : ''}>${esc(x)}</option>`).join('')}</select></label>
       <div class="r2"><label class="f"><span>Amount <span class="seg sm" id="bzCur" style="margin-left:6px;vertical-align:1px">${[['mwk','MWK'],['usd','USD']].map(([v, l]) => `<button type="button" class="${(e.usd ? 'usd' : 'mwk') === v ? 'on' : ''}" data-cur="${v}" style="padding:2px 8px;font-size:11.5px">${l}</button>`).join('')}</span></span><input class="in" id="bzAmt" inputmode="decimal" value="${e.usd ? e.usd : e.amount ? Number(e.amount).toLocaleString('en-US') : ''}" placeholder="0"><small class="note" id="bzConv" style="display:block;margin-top:4px"></small></label><label class="f"><span>Date</span><input class="in" id="bzDate" type="date" value="${esc(e.date)}"></label></div>
-      <label class="f"><span>What for</span><input class="in" id="bzWhat" value="${esc(e.what)}" placeholder="e.g. Printing SRA sheets" autocomplete="off"></label>
+      <label class="f"><span>What for</span><input class="in" id="bzWhat" value="${esc(e.what)}" placeholder="e.g. Printing SRA sheets" autocomplete="off"></label>${(() => { const PI = window.PLAN && PLAN.data() && PLAN.data().plan ? Object.values(PLAN.data().plan).filter(x => /^i:/.test(x.id) && x.status !== 'done') : []; return PI.length ? `<label class="f"><span>For a plan item (optional)</span><select class="in" id="bzPlan"><option value="">None</option>${PI.map(x => `<option value="${esc(x.id)}" ${e.plan === x.id ? 'selected' : ''}>${esc(x.name)}</option>`).join('')}</select></label>` : ''; })()}
       <label class="f lm"><span>Paid to (optional)</span><input class="in" id="bzTo" value="${esc(e.to || '')}" placeholder="e.g. ESCOM, landlord, printer" autocomplete="off" list="bzPayees"><datalist id="bzPayees">${payees().map(x => `<option value="${esc(x)}">`).join('')}</datalist></label>
       <div class="r2 lm"><label class="f"><span>Paid by</span><select class="in" id="bzMethod"><option value="">Choose</option>${methods().map(m => `<option ${e.method === m ? 'selected' : ''}>${esc(m)}</option>`).join('')}</select></label>
         <label class="f"><span>Repeats</span><select class="in" id="bzRep"><option value="">Once</option><option value="m" ${e.rep === 'm' ? 'selected' : ''}>Every month</option></select></label></div>
@@ -318,7 +318,7 @@ window.BIZ = (function(){
       if(!c){ toast('Choose a category'); return; }
       if(!amt){ toast('Enter the amount'); $('bzAmt').focus(); return; }
       if(!$('bzDate').value){ toast('Choose the date'); return; }
-      Object.assign(e, {cat:c.c, amount:amt, date:$('bzDate').value, what:$('bzWhat').value.trim(), to:$('bzTo').value.trim(), method:$('bzMethod').value, rep:$('bzRep').value});
+      Object.assign(e, {cat:c.c, amount:amt, date:$('bzDate').value, what:$('bzWhat').value.trim(), to:$('bzTo').value.trim(), method:$('bzMethod').value, rep:$('bzRep').value}); if($('bzPlan')) e.plan = $('bzPlan').value || '';
       if($('bzAcct')){ e.acct = $('bzAcct').value || ''; e.ref = $('bzRef').value.trim(); }
       if(/^(tutor pay|salary|salaries)$/i.test(c.c) && $('bzPerson')){ e.person = $('bzPerson').value; e.month = $('bzMonth').value; if(!e.to && e.person) e.to = e.person; } else { delete e.person; delete e.month; }
       if(usdV){ e.usd = usdV; e.fx = rt; } else { delete e.usd; delete e.fx; }
