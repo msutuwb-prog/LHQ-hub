@@ -325,7 +325,7 @@ window.FAM = (function(){
     return `${back}<div class="ph"><div class="tt"><h1>Today's report</h1><p>${day(rep.date)} · 1 = poor, 5 = great</p></div></div>${ses}
       ${rep.wk ? `<div class="f-rs f-wk"><div class="tg">This week</div><div style="font-weight:700;margin:4px 0 8px">${esc(rep.wk.q)}</div><div class="f-row">${rep.wk.o.map(o => `<button class="${st.wk === o ? 'on' : ''}" data-fwk="${esc(o)}">${esc(o)}</button>`).join('')}</div></div>` : ''}
       <div class="f-q" style="margin-bottom:12px"><div class="f-ql">Anything else <span>LHQ only</span></div><textarea class="in" id="frNote" rows="3" placeholder="Optional" style="min-height:70px">${esc(st.note)}</textarea></div>
-      <button class="btn n full" id="frSend" ${ok ? '' : 'disabled'}>Send</button><p class="note" style="text-align:center">Your tutors never see your answers.</p>`;
+      ${window.COMMS ? COMMS.box('frep', ['Practice','Home','Calendar','Progress','Somewhere else']) : ''}<div style="height:12px"></div><button class="btn n full" id="frSend" ${ok ? '' : 'disabled'}>Send</button><p class="note" style="text-align:center">Your tutors never see your answers.</p>`;
   }
 
   function page(sub0, a1, a2){
@@ -422,7 +422,7 @@ window.FAM = (function(){
     document.querySelectorAll('[data-fwk]').forEach(b => b.onclick = () => { const st = R0(); if(st){ st.wk = b.dataset.fwk; render(); } });
     if($('frNote')) $('frNote').oninput = e => { const st = R0(); if(st) st.note = e.target.value; };
     document.querySelectorAll('[data-frchg]').forEach(b => b.onclick = () => { const st = R0(); if(st){ st.edit = true; render(); } });
-    if($('frSend')) $('frSend').onclick = async () => { const k = kid(), st = R0(); if(!st) return; $('frSend').disabled = true;
+    if($('frSend')) $('frSend').onclick = async () => { const k = kid(), st = R0(); if(!st) return; $('frSend').disabled = true; if(window.COMMS) COMMS.flush('frep');
       const j = await post({action:'report', ses: st.ses, wk: st.wk, note: st.note}, 'Sent');
       if(j){ st.edit = false; } else $('frSend').disabled = false; };
     document.querySelectorAll('[data-fhelp]').forEach(b => b.onclick = () => openSheet(`<div class="hx"><h3>Sessions</h3><button class="ib" data-close>✕</button></div><p style="line-height:1.7"><b>7/16</b>: had of planned this period.<br>The bar's dark mark: where you should be by today.<br><b>!</b> behind · <b>✓</b> on track · <b>owed</b>: make-ups due.</p>`));

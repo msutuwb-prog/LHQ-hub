@@ -55,7 +55,7 @@
     if(!S || S.d !== d || S.who !== me().id) S = {d, who: me().id, by:{}};
     if(ready){
       const now = Date.now(), keys = new Set(H.map(h => h.key));
-      H.forEach(h => { const o = S.by[h.key] || {}; S.by[h.key] = {t:h.t, sub:h.sub || '', href:h.href || '', at:o.at || now}; });
+      H.forEach(h => { if(h.hold) return; const o = S.by[h.key] || {}; S.by[h.key] = {t:h.t, sub:h.sub || '', href:h.href || '', at:o.at || now}; });
       Object.entries(S.by).forEach(([k, o]) => { if(k.startsWith(scope) && !keys.has(k) && !o.doneAt) o.doneAt = now; });
       try{ localStorage.setItem(HK, JSON.stringify(S)); }catch(e){}
     }
@@ -68,7 +68,7 @@
     loadJobs();
     const d = tday(), H = o.hub || [], scope = o.scope || '', S = hubSnap(H, o.ready !== false, scope);
     const L = ((J && J.mine) || []).filter(j => due(j, d));
-    const hubOpen = H, hubDone = Object.entries(S.by).filter(([k, x]) => k.startsWith(scope) && x.doneAt && !H.some(h => h.key === k)).map(([k, x]) => Object.assign({key:k}, x));
+    const hubOpen = H.filter(h => !h.hold), hubDone = Object.entries(S.by).filter(([k, x]) => k.startsWith(scope) && x.doneAt && !H.some(h => h.key === k)).map(([k, x]) => Object.assign({key:k}, x));
     const open = L.filter(j => !done(j, d)), fin = L.filter(j => done(j, d));
     const total = hubOpen.length + hubDone.length + L.length, nDone = hubDone.length + fin.length;
     const hubRow = h => h.html ? h.html : `<a class="it" href="${esc(h.href || '#')}"><span class="td-mk"></span><span class="t"><b>${esc(h.t)}</b><small>From the Hub${h.sub ? ' · ' + esc(h.sub) : ''}</small></span><span class="chev">›</span></a>`;
@@ -258,5 +258,11 @@
     .card.one>button.td-ent:first-child{border-top:0}.cal-d .cal-e{display:block;width:6px;height:6px;border-radius:50%;background:var(--gold);margin-top:2px}`;
   const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
 
-  window.TODAY = {block, loadJobs, loadCal, teamPage, everyonePage, entriesOn, calRows, calCount, entrySheet, leaveWaiting, naHit, jobSheet, _due: due};
+  /* for the daily report: how the day's list went (the Hub's jobs and your own) */
+  function jobsToday(){
+    const d = tday(), S = hubSnap([], false), L = ((J && J.mine) || []).filter(j => due(j, d)), hubAll = Object.entries(S.by || {}).filter(([k]) => k !== 'arep').map(([, v]) => v);
+    const done0 = L.filter(j => done(j, d)), moved = L.filter(j => !j.rep && !done(j, d) && j.d < d).length;
+    return {total: L.length + hubAll.length, done: done0.length + hubAll.filter(h => h.doneAt).length, moved, open: L.filter(j => !done(j, d)).map(j => j.what).concat(hubAll.filter(h => !h.doneAt).map(h => h.t))};
+  }
+  window.TODAY = {_jobsToday: jobsToday, block, loadJobs, loadCal, teamPage, everyonePage, entriesOn, calRows, calCount, entrySheet, leaveWaiting, naHit, jobSheet, _due: due};
 })();

@@ -1024,6 +1024,7 @@ window.TUT = (function(){
         ${f.flag.st ? `<div class="t-opts g2" style="margin-top:10px">${['Struggling','Not engaged','Absent again','Other'].map(w => tick('why:' + w, f.flag.why.includes(w), w)).join('')}</div><textarea class="in" style="margin-top:10px;min-height:0;height:72px" data-tin="flag.text" placeholder="${f.flag.why.includes('Other') ? 'Say what it is' : 'A few words (optional)'}" ${dis}>${esc(f.flag.text)}</textarea>` : ''}</div>
       <div class="card pad"><label class="f"><span>Overall comment</span><textarea class="in" data-tin="comment" style="min-height:0;height:84px" placeholder="How the day went, anything LHQ should know" ${dis}>${esc(f.comment)}</textarea></label>
         <div class="cap">How was today? <small style="text-transform:none;letter-spacing:0">· optional</small></div>${one('rate', [1,2,3,4,5].map(n => [n, n]), f.rate || '', 'g5')}<p class="note">1 = a hard day · 5 = a great day</p></div>
+      ${!ro && window.COMMS ? COMMS.box('trep', ['Log a session','SRA tracker','Calendar','Report','My pay','Somewhere else']) : ''}
       ${ro ? `<button class="btn full" type="button" data-trchange>Change and send again</button>`
         : f.warn ? `<div class="t-warn">${G.length} thing${G.length > 1 ? 's' : ''} still to log. Sessions that aren't logged count as not taught.<div class="acts"><button class="btn" type="button" data-trnowarn>Go back</button><button class="btn n" type="button" data-trsend="force">Send anyway</button></div></div>`
         : `<button class="btn n full" type="button" data-trsend style="min-height:48px">${rep ? 'Send again' : "Send today's report"}</button>`}`;
@@ -1034,6 +1035,7 @@ window.TUT = (function(){
     const report = {d: t, req: f.req.filter(q => q.item.trim()), flag: f.flag && f.flag.st ? f.flag : null, comment: f.comment, rate: f.rate || 0, gaps: G.length, hours: h};
     const local = Object.assign({id: 'local' + t, tutor: me().name, sent: Date.now(), at: Date.now()}, report);
     data.reports = (data.reports || []).filter(r => r.d !== t).concat(local); write(CK, data); rform = null;
+    if(window.COMMS) COMMS.flush('trep');
     try{ const r = await hub.api('tutor', {method:'POST', body: JSON.stringify({action:'report', report})}); data.reports = data.reports.filter(x => x.d !== t).concat(r.report); write(CK, data); toast('Report sent to LHQ'); }
     catch(e){ if(!offline(e)){ data.reports = data.reports.filter(x => x !== local); write(CK, data); toast(e.message); render(); return; }
       const q = read(QK, []).filter(x => !(x.t === 'r' && x.report.d === t)); q.push({t:'r', report}); write(QK, q); toast('Saved · sends when online'); }

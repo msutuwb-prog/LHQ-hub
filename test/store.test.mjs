@@ -542,7 +542,7 @@ test("phone notifications: devices, choices, events, quiet hours and the 07:00 s
   assert.equal((await call("push", { action: "subscribe", sub: { endpoint: "http://bad", keys: {} } }, tok)).status, 400, "only real push addresses");
   assert.equal((await call("push", { action: "subscribe", sub: sub("tutor"), ua: "Android Chrome" }, tok)).status, 200);
   assert.equal((await call("push", { action: "subscribe", sub: sub("dir") }, DIR)).status, 200);
-  const g = (await call("push", null, tok, "GET")).j; assert.deepEqual(g.kinds.map(k => k[0]), ["job", "cal", "notice", "decided", "dispute", "report"], "a tutor's kinds"); assert.equal(g.devices.length, 1);
+  const g = (await call("push", null, tok, "GET")).j; assert.deepEqual(g.kinds.map(k => k[0]), ["ann", "job", "cal", "notice", "decided", "dispute", "report"], "a tutor's kinds"); assert.equal(g.devices.length, 1);
   await call("push", { action: "prefs", off: {}, quiet: ["00:00", "00:00"], summary: false }, tok);
   await call("push", { action: "prefs", off: {}, quiet: ["00:00", "00:00"], summary: false }, DIR);
   const subj = { name: "Geography", tutor: "Emmanuel Mkwamba", days: ["Mo", "Tu", "We", "Th", "Fr", "Sa", "Su"], start: "23:58", end: "23:59", sessions: "30" };
@@ -804,4 +804,33 @@ test("what tutors see: parent's phone and date of birth off unless the Director 
   assert.equal(sp.phone, "", "the one-student change wins"); assert.equal(sp.school, "", "school switched off");
   const t = await call("sync", { kv: { lhq_settings: Object.assign({}, set0, { tsees: { parent: true } }) } }, tok);
   assert.ok(t.status >= 400 || (t.j.rejected || []).length || t.j.error || (t.j.denied || []).length, "a tutor can't change it");
+});
+
+test("app feedback: anyone reports, the sender only gets Received, the Director's inbox", async () => {
+  const tok = (await call("signin", { id: "emmanuel.mkwamba", password: "Maths!2026x" })).j.token;
+  const r = await call("fb", { action: "add", ty: "broke", where: "SRA tracker", note: "Save didn't work the first time", way: "lot" }, tok);
+  assert.equal(r.status, 200); assert.deepEqual(Object.keys(r.j), ["ok"], "nothing comes back but ok");
+  assert.equal((await call("fb", null, tok, "GET")).status, 403, "only the Director reads the inbox");
+  const L = (await call("fb", null, DIR, "GET")).j.items, x = L.find(i => /Save didn't work/.test(i.note)); assert.ok(x && x.role === "tutor" && x.st === "new");
+  assert.equal((await call("fb", { action: "st", id: x.id, st: "look", note: "checking" }, tok)).status, 403);
+  assert.equal((await call("fb", { action: "st", id: x.id, st: "fixed", note: "fixed in v72" }, DIR)).status, 200);
+});
+
+test("announcements: who it goes to, Important needs Got it, seen by, only staff post", async () => {
+  const tok = (await call("signin", { id: "emmanuel.mkwamba", password: "Maths!2026x" })).j.token;
+  assert.equal((await call("ann", { action: "add", t: "Tutors only" }, tok)).status, 403, "a tutor can't post");
+  const a = await call("ann", { action: "add", t: "Centre closed on Friday", body: "Staff training", aud: "tutors", imp: true }, DIR); assert.equal(a.status, 200, JSON.stringify(a.j)); assert.ok(a.j.n >= 1);
+  const s = await call("ann", { action: "add", t: "Students only", aud: "students" }, DIR);
+  let mine = (await call("ann", null, tok, "GET")).j.items; assert.ok(mine.some(x => x.id === a.j.id && x.imp && !x.got)); assert.ok(!mine.some(x => x.id === s.j.id), "not for tutors");
+  await call("ann", { action: "got", id: a.j.id }, tok);
+  mine = (await call("ann", null, tok, "GET")).j.items; assert.ok(mine.find(x => x.id === a.j.id).got);
+  const all = (await call("ann?all=1", null, DIR, "GET")).j.all.find(x => x.id === a.j.id); assert.ok(all.gotN >= 1 && all.seenN >= 1 && Array.isArray(all.notSeen));
+});
+
+test("staff reports: admin's daily report, the Director's weekly report stays the Director's", async () => {
+  const tok = (await call("signin", { id: "emmanuel.mkwamba", password: "Maths!2026x" })).j.token;
+  assert.equal((await call("reps", { kind: "a", enq: 3 }, tok)).status, 403, "tutors send their own report, not this one");
+  assert.equal((await call("reps", { kind: "a", enq: 3, visits: 1, needs: "Approve the projector", hub: { money: 420000 } }, DIR)).status, 200);
+  assert.equal((await call("reps", { kind: "d", wk: "2026-11-16", plan: "Fast Track confirmed", up: { x: { st: "dec", note: "yes" } } }, DIR)).status, 200);
+  const R = (await call("reps", null, DIR, "GET")).j; assert.ok(R.areps.some(r => r.needs === "Approve the projector")); assert.ok(R.dreps.some(r => r.plan === "Fast Track confirmed"));
 });

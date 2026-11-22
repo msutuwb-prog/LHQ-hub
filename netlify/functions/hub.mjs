@@ -2124,6 +2124,132 @@ const TSEE_DEF = { about: true, learn: true, health: true, emerg: true, collect:
 const tutorSees = (set, st, f) => { const o = (((set || {}).tseesBy) || {})[st] || {}; if (f in o) return !!o[f]; const g = Object.assign({}, TSEE_DEF, (set || {}).tsees || {}); return !!g[f]; };
 const ageOf = dob => { const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(dob || "")); if (!m) return null; const t = mwToday(); let a = +t.slice(0, 4) - +m[1]; if (t.slice(5) < m[2] + "-" + m[3]) a--; return a >= 0 && a < 120 ? a : null; };
 
+/* ===== App feedback (Mockup 13): from the daily reports and More › Report a problem. The sender only ever sees "Received ✓". ===== */
+const FB_TY = ["broke", "looks", "slow", "idea"], FB_ST = ["new", "look", "fixed", "wont"];
+async function fbPost(req, me) {
+  const b = await req.json().catch(() => ({})), now = Date.now();
+  if (b.action === "add") {
+    const ty = FB_TY.includes(b.ty) ? b.ty : "broke", note = String(b.note || "").trim().slice(0, 1000); if (!note) return fail("Say what happened.");
+    const id = "f" + crypto.randomBytes(6).toString("hex");
+    const v = { id, by: me.id, byN: me.name, role: me.tutor && !staff(me) ? "tutor" : me.role, ty, note, where: String(b.where || "").slice(0, 60), way: ["little", "lot", "cant"].includes(b.way) ? b.way : "", from: b.from === "report" ? "report" : "more",
+      dev: String(b.dev || "").slice(0, 120), ver: String(b.ver || "").slice(0, 20), page: String(b.page || "").slice(0, 80), at: now, st: "new" };
+    await writeKv("lhq_fb", old => Object.assign({}, old, { [id]: v }));
+    if (v.way === "cant") await pushSafe(await idsOfStaff("director"), "fb", { title: `Can't use the Hub · ${me.name}`, body: note.slice(0, 100), url: "/#feedback" });
+    return json({ ok: true });
+  }
+  if (b.action === "st") {
+    if (!isDirector(me)) return fail("Only the Director looks after app feedback.", 403);
+    const st = FB_ST.includes(b.st) ? b.st : "new", note = String(b.note || "").trim().slice(0, 500); let x = null;
+    await writeKv("lhq_fb", old => { const o = Object.assign({}, old); if (o[b.id]) { x = Object.assign({}, o[b.id], { st, lhq: note, stAt: now }); o[b.id] = x; } return o; });
+    return x ? json({ ok: true }) : fail("That report isn't there any more.", 404);
+  }
+  return fail("Unknown action.");
+}
+async function fbGet(req, me) {
+  if (!isDirector(me)) return fail("Only the Director looks after app feedback.", 403);
+  return json({ items: Object.values((await store().get("kv/lhq_fb", { type: "json" })) || {}).sort((a, b) => b.at - a.at) });
+}
+
+/* ===== Announcements (Mockup 13): Normal goes to the bell; Important shows a strip on every page until "Got it". ===== */
+const mayAnnounce = p => staff(p) || (p && (p.perms || []).includes("ann"));
+async function famKeysOf(p) {
+  if (!dbMode() || !p) return [];
+  const rows = p.role === "student" ? await q("SELECT name FROM students WHERE person_id = $1 AND NOT del", [p.id])
+    : p.role === "parent" ? await q("SELECT s.name FROM guardians g JOIN students s ON s.id = g.student_id WHERE g.parent_id = $1 AND NOT g.del AND NOT s.del", [p.id]) : [];
+  return rows.map(r => nk(r.name));
+}
+async function annFor(a, p) {
+  const A = a.aud || "all";
+  if (A === "all") return true;
+  if (A === "staff") return staff(p);
+  if (A === "tutors") return isTutor(p);
+  if (A === "students") return p.role === "student";
+  if (A === "parents") return p.role === "parent";
+  if (A === "fams") { const K = await famKeysOf(p); return K.some(k => (a.fams || []).includes(k)); }
+  return false;
+}
+async function annGet(req, me) {
+  const u = new URL(req.url).searchParams, d = mwToday(), A = Object.values((await store().get("kv/lhq_ann", { type: "json" })) || {}).filter(a => a && !a.del);
+  const mine = []; for (const a of A) if ((!a.until || a.until >= d) && (a.by === me.id || await annFor(a, me))) mine.push({ id: a.id, t: a.t, body: a.body, imp: !!a.imp, byN: a.byN, at: a.at, until: a.until || "", got: a.by === me.id || !!(a.got || {})[me.id], seen: a.by === me.id || !!(a.seen || {})[me.id] });
+  const out = { items: mine.sort((x, y) => y.at - x.at) };
+  if (u.get("all") === "1" && mayAnnounce(me)) {
+    const P = await peopleWhere(() => true);
+    out.all = [];
+    for (const a of A.sort((x, y) => y.at - x.at).slice(0, 60)) { const to = []; for (const p of P) if (p.id !== a.by && await annFor(a, p)) to.push(p);
+      out.all.push(Object.assign({}, a, { n: to.length, seenN: to.filter(p => (a.seen || {})[p.id]).length, gotN: to.filter(p => (a.got || {})[p.id]).length, notSeen: to.filter(p => !(a.seen || {})[p.id]).map(p => ({ name: p.name, role: p.role })) })); }
+  }
+  return json(out);
+}
+async function annPost(req, me) {
+  const b = await req.json().catch(() => ({})), now = Date.now();
+  if (b.action === "seen" || b.action === "got") {
+    const ids = (Array.isArray(b.ids) ? b.ids : [b.id]).filter(Boolean).slice(0, 50);
+    await writeKv("lhq_ann", old => { const o = Object.assign({}, old); ids.forEach(id => { if (!o[id]) return; const a = Object.assign({}, o[id]); a.seen = Object.assign({}, a.seen, { [me.id]: (a.seen || {})[me.id] || now }); if (b.action === "got") a.got = Object.assign({}, a.got, { [me.id]: now }); o[id] = a; }); return o; });
+    return json({ ok: true });
+  }
+  if (!mayAnnounce(me)) return fail("You can't post announcements.", 403);
+  if (b.action === "add") {
+    const t = String(b.t || "").trim().slice(0, 120), body = String(b.body || "").trim().slice(0, 2000); if (!t) return fail("Give it a title.");
+    const aud = ["all", "staff", "tutors", "students", "parents", "fams"].includes(b.aud) ? b.aud : "all", fams = aud === "fams" ? (Array.isArray(b.fams) ? b.fams : []).map(nk).filter(Boolean).slice(0, 200) : [];
+    if (aud === "fams" && !fams.length) return fail("Choose the families.");
+    const until = /^\d{4}-\d{2}-\d{2}$/.test(b.until || "") ? b.until : "", id = "a" + crypto.randomBytes(6).toString("hex");
+    const a = { id, by: me.id, byN: me.name, t, body, imp: !!b.imp, aud, fams, until, at: now, seen: {}, got: {} };
+    const P = await peopleWhere(p => p.id !== me.id), to = []; for (const p of P) if (await annFor(a, p)) to.push(p);
+    if (b.email) { const withE = to.filter(p => p.email); a.email = { n: 0, of: to.length, reach: withE.length };
+      try { const sent = await mailMany(withE.map(p => p.email), `LHQ · ${t}`, `${body || t}\n\n${me.name}, LHQ Learning Solutions`); a.email.n = sent; } catch (e) { a.email.err = String(e.message || e).slice(0, 120); } }
+    await writeKv("lhq_ann", old => Object.assign({}, old, { [id]: a }));
+    await pushSafe(to.map(p => p.id), "ann", { title: (a.imp ? "Important · " : "") + t, body: body.slice(0, 120), url: "/" });
+    await act(me, "people", "ann.add", `Announcement to ${aud === "fams" ? fams.length + " families" : aud}: ${t}`, "ann", id);
+    return json({ ok: true, id, n: to.length, email: a.email || null });
+  }
+  if (b.action === "del") {
+    let bad = false; await writeKv("lhq_ann", old => { const o = Object.assign({}, old); if (!o[b.id] || (o[b.id].by !== me.id && !isDirector(me))) { bad = true; return o; } o[b.id] = Object.assign({}, o[b.id], { del: now }); return o; });
+    return bad ? fail("Only the person who posted it can take it down.", 403) : json({ ok: true });
+  }
+  return fail("Unknown action.");
+}
+/* email through LHQ's Gmail when it's set up (GMAIL_USER, GMAIL_APP_PASSWORD); one message with everyone in Bcc */
+async function mailMany(list, subject, text) {
+  const user = envGet("GMAIL_USER"), pass = envGet("GMAIL_APP_PASSWORD"); if (!list.length) return 0;
+  if (!user || !pass) throw new Error("Email isn't set up on this Hub");
+  const nm = (await import("nodemailer")).default, tr = nm.createTransport({ service: "gmail", auth: { user, pass } });
+  for (let i = 0; i < list.length; i += 80) await tr.sendMail({ from: `"${envGet("FROM_NAME") || "LHQ Learning Solutions"}" <${user}>`, to: user, bcc: list.slice(i, i + 80), subject, text });
+  return list.length;
+}
+
+/* ===== Staff reports (Mockup 14): admin's daily report; the Director's weekly report (internal, never in the board report) ===== */
+async function repsGet(req, me) {
+  if (!staff(me)) return fail("This part is for LHQ admin.", 403);
+  const u = new URL(req.url).searchParams, from = u.get("from") || addDaysIso(mwToday(), -35);
+  const A = Object.values((await store().get("kv/lhq_areps", { type: "json" })) || {}).filter(r => r && r.d >= from && (isDirector(me) || r.by === me.id));
+  const out = { areps: A.sort((a, b) => b.d.localeCompare(a.d) || a.byN.localeCompare(b.byN)) };
+  if (isDirector(me)) out.dreps = Object.values((await store().get("kv/lhq_dreps", { type: "json" })) || {}).sort((a, b) => b.wk.localeCompare(a.wk)).slice(0, 12);
+  return json(out);
+}
+async function repsPost(req, me) {
+  const b = await req.json().catch(() => ({})), now = Date.now(), S = (v, n = 1000) => String(v || "").trim().slice(0, n);
+  if (b.kind === "a") {
+    if (!staff(me)) return fail("This part is for LHQ admin.", 403);
+    const d = mwToday(), id = me.id + "|" + d, hubF = b.hub && typeof b.hub === "object" ? JSON.parse(JSON.stringify(b.hub).slice(0, 8000)) : {};
+    let was = null;
+    await writeKv("lhq_areps", old => { const o = Object.assign({}, old); was = o[id] || null;
+      o[id] = { id, by: me.id, byN: me.name, d, hub: hubF, enq: Math.max(0, Math.min(999, +b.enq || 0)), visits: Math.max(0, Math.min(999, +b.visits || 0)), issues: S(b.issues), supplies: S(b.supplies), needs: S(b.needs), jobs: b.jobs && typeof b.jobs === "object" ? { done: +b.jobs.done || 0, total: +b.jobs.total || 0, moved: +b.jobs.moved || 0, open: (Array.isArray(b.jobs.open) ? b.jobs.open : []).slice(0, 20).map(x => S(x, 140)) } : null, at: was ? was.at : now, upd: was ? now : 0 };
+      return o; });
+    if (S(b.needs)) await pushSafe(await idsOfStaff("director"), "rep", { title: `Needs you · ${me.name.split(" ")[0]}'s report`, body: S(b.needs, 120), url: "/#reports/admin" });
+    return json({ ok: true, id });
+  }
+  if (b.kind === "d") {
+    if (!isDirector(me)) return fail("Only the Director writes this report.", 403);
+    const wk = /^\d{4}-\d{2}-\d{2}$/.test(b.wk || "") ? b.wk : mwToday(), up = {};
+    Object.entries(b.up || {}).slice(0, 60).forEach(([k, v]) => { if (v && ["dec", "open"].includes(v.st)) up[String(k).slice(0, 80)] = { st: v.st, note: S(v.note, 300) }; });
+    await writeKv("lhq_dreps", old => { const o = Object.assign({}, old), w = o[wk];
+      o[wk] = { wk, by: me.id, byN: me.name, hub: b.hub && typeof b.hub === "object" ? JSON.parse(JSON.stringify(b.hub).slice(0, 8000)) : {}, plan: S(b.plan, 2000), dec: S(b.dec, 2000), rel: S(b.rel, 2000), qual: S(b.qual, 2000), risks: S(b.risks, 2000), up, at: w ? w.at : now, upd: w ? now : 0 };
+      return o; });
+    return json({ ok: true });
+  }
+  return fail("Unknown report.");
+}
+
 export default async (req, context) => squeeze(req, await handle(req, context));
 /* the scheduler's key: worked out from LHQ_SECRET, so there's nothing extra to set up; LHQ_TICK_KEY replaces it if set */
 export const tickKey = () => process.env.LHQ_TICK_KEY || crypto.createHash("sha256").update("lhq-tick|" + secret()).digest("base64url").slice(0, 24);
@@ -2194,6 +2320,12 @@ async function handle(req, context) {
     if (req.method === "GET" && path === "pay") return await payGet(req, me);
     if (req.method === "GET" && path === "activity") return await activityList(req, me);
     if (req.method === "GET" && path === "jobs") return await jobsGet(req, me);
+    if (req.method === "GET" && path === "fb") return await fbGet(req, me);
+    if (req.method === "POST" && path === "fb") return await fbPost(req, me);
+    if (req.method === "GET" && path === "ann") return await annGet(req, me);
+    if (req.method === "POST" && path === "ann") return await annPost(req, me);
+    if (req.method === "GET" && path === "reps") return await repsGet(req, me);
+    if (req.method === "POST" && path === "reps") return await repsPost(req, me);
     if (req.method === "POST" && path === "jobs") return await jobsPost(req, me);
     if (req.method === "GET" && path === "cal") return await calGet(req, me);
     if (req.method === "POST" && path === "cal") return await calPost(req, me);
@@ -2213,15 +2345,15 @@ export const config = { path: "/api/hub/*" };
    kv lhq_push: {personId: {subs: [{endpoint, keys, ua, at}], prefs: {off: {kind: true}, quiet: [from, to], summary}, q: [held messages]}}
    kv lhq_pushlog: {"date|person|what": 1} so a timed reminder goes once. Nothing is sent for what someone did themselves. */
 const PUSH_KINDS = {
-  tutor: [["job", "Jobs given to you"], ["cal", "Calendar invites and leave"], ["notice", "Absent or late"], ["decided", "Make-ups and requisitions decided"], ["dispute", "Not right on a session"], ["report", "Daily report"]],
-  staff: [["job", "Jobs given and ticked"], ["cal", "Calendar invites and leave"], ["notice", "Absent or late today"], ["settle", "To settle"], ["confirm", "Make-ups to confirm"], ["req", "Requisitions to approve"]],
-  family: [["sreport", "Today's report"], ["sra", "SRAs and take-home sheets"], ["change", "Session changes"], ["answer", "Your tutor answered"]],
+  tutor: [["ann", "Announcements"], ["job", "Jobs given to you"], ["cal", "Calendar invites and leave"], ["notice", "Absent or late"], ["decided", "Make-ups and requisitions decided"], ["dispute", "Not right on a session"], ["report", "Daily report"]],
+  staff: [["ann", "Announcements"], ["fb", "App problems"], ["rep", "Reports that need you"], ["job", "Jobs given and ticked"], ["cal", "Calendar invites and leave"], ["notice", "Absent or late today"], ["settle", "To settle"], ["confirm", "Make-ups to confirm"], ["req", "Requisitions to approve"]],
+  family: [["ann", "Announcements from LHQ"], ["sreport", "Today's report"], ["sra", "SRAs and take-home sheets"], ["change", "Session changes"], ["answer", "Your tutor answered"]],
 };
 const URGENT = new Set(["notice", "change", "dispute", "settle"]);   // these come at once even with the morning summary
 let pushSender = null;
 export const _setPushSender = f => { pushSender = f; };
 const vapidKeys = () => ({ pub: envGet("LHQ_VAPID_PUBLIC") || "", priv: envGet("LHQ_VAPID_PRIVATE") || "" });
-const kindsFor = p => (staff(p) ? PUSH_KINDS.staff : []).concat(isTutor(p) ? PUSH_KINDS.tutor.filter(k => !(staff(p) && ["notice", "job", "cal"].includes(k[0]))) : []).concat(p.role === "student" || p.role === "parent" ? PUSH_KINDS.family.filter(k => !(p.role === "parent" && k[0] === "sreport")) : []);
+const kindsFor = p => (staff(p) ? PUSH_KINDS.staff : []).concat(isTutor(p) ? PUSH_KINDS.tutor.filter(k => !(staff(p) && ["notice", "job", "cal", "ann"].includes(k[0]))) : []).concat(p.role === "student" || p.role === "parent" ? PUSH_KINDS.family.filter(k => !(p.role === "parent" && k[0] === "sreport")) : []);
 const mwHM = () => { const d = new Date(Date.now() + 2 * 3600e3); return String(d.getUTCHours()).padStart(2, "0") + ":" + String(d.getUTCMinutes()).padStart(2, "0"); };
 const inQuiet = (q, t = mwHM()) => { const [a, b] = q || ["21:00", "07:00"]; return a <= b ? t >= a && t < b : t >= a || t < b; };
 async function sendPush(sub, payload) {

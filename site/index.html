@@ -50,6 +50,7 @@ if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash)
 <script src="tpay.js"></script>
 <script src="tpayui.js"></script>
 <script src="today.js"></script>
+<script src="comms.js"></script>
 <script src="srafig.js"></script>
 <script src="fu.js"></script>
 <script src="stuview.js"></script>
@@ -465,6 +466,10 @@ const staffRole = () => ['director','admin'].includes(me().role);
 /* ---------- the bell, on every account: what needs you (counted) and news ---------- */
 const BELL_SEEN = 'lhq_bell_seen';
 function bellItems(){
+  const B = bellItems0(), C = window.COMMS ? COMMS.bell() : {need: [], info: []};
+  return {need: C.need.concat(B.need), info: C.info.concat(B.info)};
+}
+function bellItems0(){
   const r = me().role;
   if(r === 'student' || r === 'parent') return FAM.bell();
   if(r === 'tutor') return TUT.bell();
@@ -481,6 +486,7 @@ function bellCount(){
 }
 window.lhqBellRefresh = bellCount;
 async function bellOpen(){
+  if(window.COMMS) COMMS.markAllSeen();
   const B = bellItems(), seen = +(localStorage.getItem(BELL_SEEN) || 0);
   if(staffRole() && can('tutors')){ try{ const j = await hub.api('activity?from=' + encodeURIComponent(new Date(Date.now() - 3 * 864e5).toISOString())); window.BELLINFO = (j.rows || []).filter(x => x.who !== me().name).slice(0, 12).map(x => ({t:x.summary, s:x.who + ' · ' + ago(new Date(x.created_at).getTime()), at:new Date(x.created_at).getTime(), href:'#activity'})); B.info = B.info.concat(window.BELLINFO); }catch(e){} }
   const row = (x, need) => `<a class="it" href="${esc(x.href || '#')}" data-close><span class="ico" style="color:var(${need ? '--am' : '--bl'})">${ic(need ? 'alert' : 'clock')}</span><span class="t"><b style="${!need && (x.at || 0) <= seen ? 'font-weight:600' : ''}">${esc(x.t)}</b>${x.s ? `<small>${esc(x.s)}</small>` : ''}</span><span class="chev">›</span></a>`;
@@ -504,8 +510,8 @@ function render(){
   document.documentElement.classList.toggle('lean', LEAN());
   if(render.last !== route.page){ document.documentElement.classList.remove('flt-open'); render.last = route.page; }
   if(render.lastH !== location.hash){ document.documentElement.classList.remove('lean-open'); render.lastH = location.hash; }
-  if(me().role === 'tutor' && !['teach','settings','set','exams'].includes(route.page)){ location.replace('#teach'); route = {page:'teach', args:[]}; }
-  if(['student','parent'].includes(me().role) && !['me','settings','set','exams'].includes(route.page)){ location.replace('#me'); route = {page:'me', args:[]}; }
+  if(me().role === 'tutor' && !['teach','settings','set','exams','annview'].includes(route.page)){ location.replace('#teach'); route = {page:'teach', args:[]}; }
+  if(['student','parent'].includes(me().role) && !['me','settings','set','exams','annview'].includes(route.page)){ location.replace('#me'); route = {page:'me', args:[]}; }
   const sec = route.page === 'me' ? ({practice:'mprac', calendar:'mcal', progress:'mprog', sessions:'mprog', subject:'mprog', payments:'mpay', more:'more', habits: me().role === 'parent' ? 'more' : 'mprog', day:'mcal', week:'mcal', year:'mcal', blk:'mcal', review:'mprog', school:'mprog', reflect:'mprog', sounds:'more', sharing:'more', callink:'more', focus:'mfocus', report:'mrep', reminders:'more', bar:'more'}[route.args[0]] || 'me') : route.page === 'teach' && me().role === 'tutor' ? ({sra:'tsra', fu:'tsra', report:'trep', cal:'tcal', avail:'tcal'}[route.args[0]] || 'teach') : {student:'students', set:'settings', person:'settings', new:'home', edithome:'home', biz:'business', perf:'reports', rep:'reports', srafig:'reports', fu:'reports', teach:'teach', tutors:'tutors', bookings:'tutors', reqs:'tutors', sessions:'tutors', confirm:'tutors', clashes:'tutors', calendar:'calendar', says:'tutors', more:'more'}[route.page] || route.page;
   LHQNav.section(sec);
   const m = $('main');
@@ -521,6 +527,7 @@ function render(){
   if(window.FX) FX.after();
   if(window.MOTION) MOTION.after();
   if(window.PROF){ PROF.after(); if(route.page === 'set' && route.args[0] === 'bdays') PROF.bindSettings(); if(route.page === 'set' && route.args[0] === 'account') PROF.bindMe(); }
+  if(window.COMMS) COMMS.after();
   if(route.page === 'new') newSheet(route.args[0]);
   if(route.page === 'makeups') makeupSheet(route.args[0]);
   if(route.page === 'tutors' && route.args[0] === 'none' && $('none')) $('none').scrollIntoView();
@@ -765,7 +772,7 @@ P.home = () => {
     <div class="acts"><a class="btn" href="#edithome" title="Edit Home" aria-label="Edit Home">${ic('edit',16)}</a>${can('quotes') || can('receipts') || can('cards') || can('spend') ? `<a class="btn n hnew" href="#new">${ic('plus',16,2.4)} New</a>` : ''}</div></div>
   ${cards.length ? `<div class="mcs" data-n="${cards.length}">${cards.map(k => { const c = CARDS[k]; return `<div class="mc" data-go="${typeof c.href === 'function' ? c.href() : c.href}" role="link" tabindex="0" aria-label="${esc(c.t)}"><span class="l">${ic(c.ic,15,2)}${LEAN() && c.s ? c.s : c.t}</span>${c.html(m)}</div>`; }).join('')}</div>` : ''}
   ${draftRow}
-  ${window.TODAY ? TODAY.block({hub: att.filter(x => x.job).map(x => ({key:x.job, t:x.s.name, sub:x.sub, href:x.btn ? x.btn[1] : x.href})), ready: hub.session() && saved.length > 0}) : ''}
+  ${window.TODAY ? TODAY.block({hub: att.filter(x => x.job).map(x => ({key:x.job, t:x.s.name, sub:x.sub, href:x.btn ? x.btn[1] : x.href})).concat(window.COMMS ? COMMS.arepJob() : []), ready: hub.session() && saved.length > 0}) : ''}
   ${PREVIEW && isDir() && !saved.length ? `<div class="card pad" style="border-color:var(--gold)"><div class="cap">Preview</div><p class="note" style="margin:0 0 10px">This preview has its own storage and is empty. Load six months of demo data to try every page.</p><a class="btn n" href="#set/demo">Demo data</a></div>` : ''}
   <div class="hcols"><div><div class="h2">Needs attention <span class="acts" style="align-items:center"><em>${AR.length || ''}</em><button class="btn sm" id="attTog">${attOpen ? 'Hide' : 'Show'}</button></span></div>
   ${attOpen ? `<div class="card one">${AR.slice(0, attAll ? 999 : 15).map(r => r.grp ? attGroup(r) : attRow(r.x)).join('') || '<p class="empty">Nothing needs attention. ✓</p>'}${AR.length > 15 && !attAll ? `<button class="it" id="attAll" style="justify-content:center"><b>Show all ${AR.length}</b></button>` : ''}</div>`
@@ -774,6 +781,12 @@ P.home = () => {
   <div class="card one">${recent.map(x => docRow(x, {when:true})).join('') || '<p class="empty">Nothing saved yet. Tap New to start with a quote.</p>'}</div></div></div>`;
 };
 P.team = () => window.TODAY ? TODAY.teamPage() : '';
+P.ann = id => window.COMMS ? COMMS.annPage(id) : '';
+P.annview = id => window.COMMS ? COMMS.annView(id) : '';
+P.feedback = () => window.COMMS ? COMMS.inbox() : '';
+P.areport = () => window.COMMS ? COMMS.adminReport() : '';
+P.wreport = () => window.COMMS ? COMMS.weeklyReport() : '';
+P.sreps = d => window.COMMS ? COMMS.staffReports(d) : '';
 P.everyone = d => window.TODAY ? TODAY.everyonePage(d) : '';
 P.edithome = () => {
   const cards = myCards(), MAX = 6, m = metrics(HD.students());
@@ -1524,7 +1537,7 @@ P.says = () => {
 /* ================= business (business.js) ================= */
 P.biz = (tab, period, cat) => (!tab || tab === 'home' ? crumb(null, null, 'biz') : '') + BIZ.page(tab, period, cat);
 P.perf = () => { setTimeout(() => location.replace('#rep/business'), 0); return ''; };
-P.reports = () => PERF.page() + (isDir() || me().role === 'admin' ? `<div class="card" style="margin-top:14px"><a class="it" href="#activity"><span class="t"><b>Activity</b><small>Everything done in the Hub, by whom</small></span><span class="chev">›</span></a></div>` : '');
+P.reports = () => PERF.page() + (isDir() || me().role === 'admin' ? `<div class="card" style="margin-top:14px">${!isDir() ? `<a class="it" href="#areport"><span class="t"><b>Today's report</b><small>The Hub fills in the day · you add the rest</small></span><span class="chev">›</span></a>` : ''}<a class="it" href="#sreps"><span class="t"><b>Staff reports</b><small>${isDir() ? 'Admin\'s daily reports · the app' : 'Your reports by day'}</small></span><span class="chev">›</span></a>${isDir() ? `<a class="it" href="#wreport"><span class="t"><b>This week's report</b><small>Yours · internal · the board never sees it</small></span><span class="chev">›</span></a><a class="it" href="#feedback"><span class="t"><b>App feedback</b><small>Problems and ideas from everyone</small></span><span class="chev">›</span></a>` : ''}<a class="it" href="#ann"><span class="t"><b>Announcements</b><small>To everyone, staff, tutors or families</small></span><span class="chev">›</span></a><a class="it" href="#activity"><span class="t"><b>Activity</b><small>Everything done in the Hub, by whom</small></span><span class="chev">›</span></a></div>` : '');
 P.teach = (sub, a1, a2) => TUT.page(sub, a1, a2);
 P.me = (sub, a1, a2) => FAM.page(sub, a1, a2);
 /* tutor KPIs (kpi.js, kpiui.js): the Director, and Admin when switched on */
@@ -1548,7 +1561,7 @@ P.rep = (kind, arg) => PERF.page(kind, arg);
 
 /* ================= settings ================= */
 const SETS = [
-  ['Account', [['account','user','My account'],['appearance','layout','Appearance'],['notifications','bell','Notifications'],['bdays','user','Birthdays', () => staffRole()]]],
+  ['Account', [['account','user','My account'],['appearance','layout','Appearance'],['notifications','bell','Notifications'],['bdays','user','Birthdays', () => staffRole()],['problem','alert','Report a problem']]],
   ['LHQ', [['people','users','People & access', () => isDir() || can('tutors')],['company','bank','Company & bank details', isDir],['payments','cash','Payments & due dates', isDir],['hours','clock','Opening hours', isDir],['terms','clock','School terms', isDir],['bands','rep','Grade boundaries', isDir],['kpi','users','Tutor KPIs', isDir],['teachset','list','Teaching', isDir],['tsees','user','What tutors see', isDir],['tpay','cash','Tutor pay', isDir],['exams','list','Exams', isDir],['tutorinfo','users','Tutors\' contacts', () => isDir() || can('tutors') || can('msgs')]]],
   ['Documents', [['numbering','hash','Numbering', () => can('numbering')],['messages','msg','Messages', () => can('msgs')],['lists','list','Lists', () => can('msgs')]]],
   ['Enrolment & sending', [['enrol','link','Student checklist', () => staffRole()],['sending','wa','Email & WhatsApp', () => staffRole()]]],
@@ -1557,7 +1570,7 @@ const SETS = [
 const setVis = ids => SETS.flatMap(([, items]) => items).filter(x => ids.includes(x[0]) && (!x[3] || x[3]()));
 const DETAILS = ['company','payments','hours','terms','bands','exams','kpi','teachset','tsees','tpay','numbering','messages','sending','tutorinfo','enrol'], DATA = ['records.html','backup','move','deleted','demo'];
 /* Lean: 5 places. Things set once sit inside LHQ details; shared records, backups and the bin inside Data */
-const LEAN_SETS = () => [['Account', [['account','user','My account'],['appearance','layout','Appearance'],['notifications','bell','Notifications']].concat(setVis(['bdays']))],
+const LEAN_SETS = () => [['Account', [['account','user','My account'],['appearance','layout','Appearance'],['notifications','bell','Notifications']].concat(setVis(['bdays']), [['problem','alert','Report a problem']])],
   ['LHQ', setVis(['people']).concat(setVis(DETAILS).length ? [['details','bank','LHQ details']] : [], setVis(['lists']))],
   ['Data', setVis(DATA).length ? [['data','box','Data']] : []]];
 const allowed = id => SETS.some(([, items]) => items.some(x => x[0] === id && (!x[3] || x[3]()))) || (id === 'details' && setVis(DETAILS).length > 0) || (id === 'data' && setVis(DATA).length > 0);
@@ -1707,6 +1720,7 @@ const mayManage = p => p.id !== me().id && p.role !== 'director' && (isDir() || 
 let peopleShow = 'all';
 S.people = () => PWD() ? peoplePw() : peoplePin();
 S.bdays = () => window.PROF ? PROF.settingsPage() : '';
+S.problem = () => window.COMMS ? COMMS.problemPage() : '';
 function peoplePw(){
   const all = HD.people(), D0 = isDir(), need = p => p.locked || ['setup','pin'].includes(p.status);
   const F = [['all','Everyone'],['need','Needs something'],['staff','Staff'],['student','Students'],['parent','Parents']];
