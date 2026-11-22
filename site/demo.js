@@ -12,7 +12,7 @@
   const ADMINS = ['Wanangwa Msutu', 'Catherine Mkwinda'];
   const PEOPLE = [
     {name:'Catherine Mkwinda', role:'admin', pin:'1111', seen:Date.now() - 2 * 3600e3, perms:['quotes','cards','delete','restore','students','tutors','msgs','classes']},
-    {name:'Benjamin Msutu', role:'admin', pin:'1111', seen:Date.now() - 3 * 3600e3, perms:['acct','receipts','money','tpay','spend','pl']},   /* the accountant, who also teaches (agreed 21 Nov) */
+    {name:'Benjamin Msutu', role:'admin', pin:'1111', seen:Date.now() - 3 * 3600e3, perms:['acct','bdo','ann','receipts','money','tpay','spend','pl']},   /* the accountant, who also teaches (agreed 21 Nov) */
     {name:'Emmanuel Mkwamba', role:'tutor', pin:'1111', seen:Date.now() - DAY},
     {name:'Ungweru Kaonga', role:'tutor', pin:'1111', seen:Date.now() - 3 * DAY},
     {name:'Maureen Story', role:'tutor', pin:'1111', seen:Date.now() - 5 * 3600e3},

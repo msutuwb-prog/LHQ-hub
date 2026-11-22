@@ -67,7 +67,7 @@ const canon = v => JSON.stringify(v, (k, x) => x && typeof x === "object" && !Ar
 const KV_KEYS = ["lhq_bal", "lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes", "lhq_treps", "lhq_avail", "lhq_cardack", "lhq_makeups", "lhq_reqs", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams", "lhq_kpi", "lhq_pay", "lhq_asks", "lhq_school", "lhq_fu", "lhq_obj", "lhq_fx", "lhq_prof", "lhq_bk", "lhq_away"];
 
 /* ---------- roles and permissions ---------- */
-const PERMS = ["acct", "quotes", "receipts", "cards", "delete", "restore", "students", "money", "tpay", "tutors", "msgs", "numbering", "backup", "classes", "moveclass", "spend", "pl"];
+const PERMS = ["acct", "bdo", "ann", "quotes", "receipts", "cards", "delete", "restore", "students", "money", "tpay", "tutors", "msgs", "numbering", "backup", "classes", "moveclass", "spend", "pl"];
 const ADMIN_DEFAULT = ["quotes", "cards", "delete", "restore", "students", "tutors", "msgs", "classes"];
 const TYPE_PERM = { quote: "quotes", invoice: "quotes", receipt: "receipts", card: "cards" };
 // settings fields: lists and wording can be given to admins; everything else (bank, contact, payment rules) is the Director's
@@ -2238,6 +2238,13 @@ async function repsPost(req, me) {
     if (S(b.needs)) await pushSafe(await idsOfStaff("director"), "rep", { title: `Needs you · ${me.name.split(" ")[0]}'s report`, body: S(b.needs, 120), url: "/#reports/admin" });
     return json({ ok: true, id });
   }
+  if (b.kind === "b") {
+    if (!(isBdo(me) || isDirector(me))) return fail("This report is the BDO's.", 403);
+    const d = mwToday(), dt = new Date(Date.UTC(+d.slice(0, 4), +d.slice(5, 7) - 1, +d.slice(8))), wk = new Date(dt - ((dt.getUTCDay() + 6) % 7) * 864e5).toISOString().slice(0, 10), id = me.id + "|wk" + wk;
+    await writeKv("lhq_areps", old => { const o = Object.assign({}, old), w = o[id]; o[id] = { id, by: me.id, byN: me.name, d, wk, bdo: true, hub: b.hub && typeof b.hub === "object" ? JSON.parse(JSON.stringify(b.hub).slice(0, 6000)) : {}, meet: S(b.meet), close: S(b.close), needs: S(b.needs), at: w ? w.at : now, upd: w ? now : 0 }; return o; });
+    if (S(b.needs)) await pushSafe(await idsOfStaff("director"), "rep", { title: `Needs you · ${me.name.split(" ")[0]}'s weekly report`, body: S(b.needs, 120), url: "/#sreps" });
+    return json({ ok: true });
+  }
   if (b.kind === "d") {
     if (!isDirector(me)) return fail("Only the Director writes this report.", 403);
     const wk = /^\d{4}-\d{2}-\d{2}$/.test(b.wk || "") ? b.wk : mwToday(), up = {};
@@ -2295,6 +2302,56 @@ async function planPost(req, me) {
   if (key === "lhq_board" && rec && rec.st === "ok" && !(old && old.st === "ok")) await act(me, "money", "board.ok", `Board report ${id} approved`, "board", id);
   if (key === "lhq_bplan" && /^i:/.test(id) && rec && old && JSON.stringify(old.steps || []) !== JSON.stringify(rec.steps || []) && !isDirector(me)) await pushSafe(await idsOfStaff("director"), "job", { title: `${me.name.split(" ")[0]} ticked a plan step`, body: rec.name || "", url: "/#plan/item/" + id });
   return json({ ok: true });
+}
+
+/* ===== Staff pay (Mockup 18): salary, allowances, commission and bonus (each switched on by the Director), staff payslips Prepared → Approved → Received =====
+   lhq_spay: {cfg: {personId: {salary, allow: [{name, amt}], prob, comm: {on, from, rates: {tuition, prog, kid}, take4}, bonus: {on, from, items: [{k, label, target, amt, on}]}}}, slips: {"pid|YYYY-MM": {st, snap, by, at, aBy, aAt, sAt}}} */
+async function spayGet(req, me) {
+  const S = (await store().get("kv/lhq_spay", { type: "json" })) || {}, all = isDirector(me) || can(me, "tpay");
+  if (all) return json({ cfg: S.cfg || {}, slips: S.slips || {}, people: (await peopleWhere(p => staff(p) && !isDirector(p))).map(p => ({ id: p.id, name: p.name, perms: p.perms || [] })) });
+  if (!staff(me)) return fail("Staff payslips are for LHQ staff.", 403);
+  return json({ cfg: { [me.id]: (S.cfg || {})[me.id] || null }, slips: Object.fromEntries(Object.entries(S.slips || {}).filter(([k, v]) => k.startsWith(me.id + "|") && v.st !== "prepared")) });
+}
+async function spayPost(req, me) {
+  const b = await req.json().catch(() => ({})), now = Date.now(), pid = String(b.pid || ""), m = String(b.m || ""), key = pid + "|" + m;
+  if (b.action === "cfg") {
+    if (!isDirector(me)) return fail("Only the Director sets staff pay.", 403);
+    const c = b.cfg || {}, N = v => Math.max(0, Math.min(1e9, Math.round(+v || 0))), D8 = v => /^\d{4}-\d{2}-\d{2}$/.test(v || "") ? v : "";
+    const v = { salary: N(c.salary), prob: D8(c.prob), allow: (Array.isArray(c.allow) ? c.allow : []).slice(0, 10).map(a => ({ name: String(a.name || "").slice(0, 40), amt: N(a.amt) })).filter(a => a.name),
+      comm: { on: !!(c.comm || {}).on, from: D8((c.comm || {}).from), take4: !!(c.comm || {}).take4, rates: { tuition: N(((c.comm || {}).rates || {}).tuition), prog: N(((c.comm || {}).rates || {}).prog), kid: N(((c.comm || {}).rates || {}).kid) } },
+      bonus: { on: !!(c.bonus || {}).on, from: D8((c.bonus || {}).from), items: (Array.isArray((c.bonus || {}).items) ? c.bonus.items : []).slice(0, 10).map(x => ({ k: String(x.k || "").slice(0, 20), label: String(x.label || "").slice(0, 60), target: +x.target || 0, amt: N(x.amt), on: !!x.on })) } };
+    let was = null; await writeKv("lhq_spay", old => { const o = Object.assign({}, old); o.cfg = Object.assign({}, o.cfg); was = o.cfg[pid] || null; o.cfg[pid] = v; return o; });
+    const who = ((await peopleWhere(p => p.id === pid))[0] || {}).name || pid, ch = [];
+    if (!was || was.salary !== v.salary) ch.push(`salary ${money(v.salary)}`); if (!was || !!(was.comm || {}).on !== v.comm.on) ch.push(`commission ${v.comm.on ? "on" : "off"}`); if (!was || !!(was.bonus || {}).on !== v.bonus.on) ch.push(`bonus ${v.bonus.on ? "on" : "off"}`);
+    if (ch.length) await act(me, "pay", "spay.cfg", `${who}'s pay: ${ch.join(", ")}`, "spay", pid);
+    return json({ ok: true });
+  }
+  if (!/^\d{4}-\d{2}$/.test(m) || !pid) return fail("Which payslip?");
+  if (b.action === "sign") {
+    if (me.id !== pid) return fail("Only the person it's for can do this.", 403);
+    let bad = ""; await writeKv("lhq_spay", old => { const o = Object.assign({}, old); o.slips = Object.assign({}, o.slips); const s = o.slips[key]; if (!s || s.st === "prepared") { bad = "That payslip isn't approved yet."; return o; } o.slips[key] = Object.assign({}, s, { st: "signed", sAt: now }); return o; });
+    return bad ? fail(bad, 409) : json({ ok: true });
+  }
+  if (!(isDirector(me) || can(me, "tpay"))) return fail("You don't have permission for payslips.", 403);
+  if (b.action === "prepare") {
+    if (pid === me.id && !isDirector(me)) return fail("Someone else prepares your own payslip.", 403);
+    const sn = b.snap || {}, lines = (Array.isArray(sn.lines) ? sn.lines : []).slice(0, 40).map(l => ({ t: String(l.t || "").slice(0, 80), s: String(l.s || "").slice(0, 300), amt: Math.round(+l.amt || 0), k: String(l.k || "").slice(0, 20) }));
+    const snap = { name: String(sn.name || "").slice(0, 80), m, lines, total: lines.reduce((a, l) => a + l.amt, 0) }, dir = isDirector(me);
+    await writeKv("lhq_spay", old => { const o = Object.assign({}, old); o.slips = Object.assign({}, o.slips); o.slips[key] = Object.assign({}, o.slips[key], { st: dir ? "confirmed" : "prepared", snap, by: me.name, at: now }, dir ? { aBy: me.name, aAt: now } : {}); return o; });
+    if (!dir) await pushSafe(await idsOfStaff("director"), "pay", { title: `Staff payslip to approve · ${snap.name}`, body: `${monthL(m)} · ${money(snap.total)}`, url: "/#spay" });
+    else await pushSafe([pid], "pay", { title: "Your payslip is ready", body: `${monthL(m)} · ${money(snap.total)}`, url: "/#mypay" });
+    await act(me, "pay", "spay.prepare", `${snap.name} · ${monthL(m)} payslip ${dir ? "approved" : "prepared"} · ${money(snap.total)}`, "spay", key);
+    return json({ ok: true });
+  }
+  if (b.action === "approve" || b.action === "reopen") {
+    if (b.action === "approve" && !isDirector(me)) return fail("Only the Director approves payslips.", 403);
+    let x = null; await writeKv("lhq_spay", old => { const o = Object.assign({}, old); o.slips = Object.assign({}, o.slips); const s = o.slips[key]; if (!s) return o;
+      if (b.action === "reopen" && !(isDirector(me) || s.st === "prepared")) return o;
+      x = b.action === "approve" ? Object.assign({}, s, { st: "confirmed", aBy: me.name, aAt: now }) : null; if (x) o.slips[key] = x; else delete o.slips[key]; return o; });
+    if (x) await pushSafe([pid], "pay", { title: "Your payslip is ready", body: `${monthL(m)} · ${money(x.snap.total)}`, url: "/#mypay" });
+    return json({ ok: true });
+  }
+  return fail("Unknown action.");
 }
 
 export default async (req, context) => squeeze(req, await handle(req, context));
@@ -2367,6 +2424,8 @@ async function handle(req, context) {
     if (req.method === "GET" && path === "pay") return await payGet(req, me);
     if (req.method === "GET" && path === "activity") return await activityList(req, me);
     if (req.method === "GET" && path === "jobs") return await jobsGet(req, me);
+    if (req.method === "GET" && path === "spay") return await spayGet(req, me);
+    if (req.method === "POST" && path === "spay") return await spayPost(req, me);
     if (req.method === "GET" && path === "plan") return await planGet(req, me);
     if (req.method === "POST" && path === "plan") return await planPost(req, me);
     if (req.method === "GET" && path === "fb") return await fbGet(req, me);

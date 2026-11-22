@@ -205,7 +205,7 @@
   function arepView(r){
     const F = r.hub || {}, rows = F.money != null ? factRows(F) : '';
     return `${rows ? `<div class="h2">From the Hub</div><div class="card one">${rows}${r.jobs ? `<div class="it"><span class="t"><b>Today list</b><small>${r.jobs.done} of ${r.jobs.total} done${r.jobs.moved ? ` · ${r.jobs.moved} moved` : ''}${(r.jobs.open || []).length ? ' · not done: ' + esc(r.jobs.open.join(', ')) : ''}</small></span></div>` : ''}</div>` : ''}
-      <div class="h2">${esc(first(r.byN))} added</div><div class="card one">${[['Enquiries handled', `${r.enq || 0}${r.visits ? ` · ${r.visits} booked a visit` : ''}`], ['Parent issues', r.issues], ['Printing and supplies', r.supplies], ['Needs the Director', r.needs]].filter(([, v]) => v).map(([l, v]) => `<div class="it"><span class="t"><b>${l}</b><small style="white-space:pre-wrap">${esc(v)}</small></span></div>`).join('') || '<p class="empty">Nothing added.</p>'}</div>`;
+      <div class="h2">${esc(first(r.byN))} added</div><div class="card one">${(r.bdo ? [['Weekly report', `enquiries ${(r.hub || {}).enq || 0} · enrolled ${(r.hub || {}).enrolPct || 0}% · children ${(r.hub || {}).kids || 0}`], ['Meetings held', r.meet], ['Close to signing', r.close], ['Needs the Director', r.needs]] : [['Enquiries handled', `${r.enq || 0}${r.visits ? ` · ${r.visits} booked a visit` : ''}`], ['Parent issues', r.issues], ['Printing and supplies', r.supplies], ['Needs the Director', r.needs]]).filter(([, v]) => v).map(([l, v]) => `<div class="it"><span class="t"><b>${l}</b><small style="white-space:pre-wrap">${esc(v)}</small></span></div>`).join('') || '<p class="empty">Nothing added.</p>'}</div>`;
   }
   document.addEventListener('click', async e => {
     const t = e.target.closest && e.target.closest('#arGo,[data-arepedit],#drGo,[data-drup]'); if(!t) return; e.preventDefault();
@@ -248,7 +248,7 @@
   function staffReports(d){
     loadReps(); if(!isStaff()) return '';
     d = /^\d{4}-\d{2}-\d{2}$/.test(d || '') ? d : tday();
-    const L = ((RP && RP.areps) || []).filter(r => r.d === d), fs = fbStats();
+    const L = ((RP && RP.areps) || []).filter(r => r.d === d || (r.bdo && r.wk && r.wk <= d && d <= addD(r.wk, 6))), fs = fbStats();
     return `<a class="crumb" href="#reports">‹ Reports</a><div class="ph"><div class="tt"><h1>Staff reports</h1><p>${nice(d)}</p></div></div>
       <div class="cal-nav"><a class="btn sm" href="#sreps/${addD(d, -1)}">‹</a><b>${nice(d)}</b><a class="btn sm" href="#sreps/${addD(d, 1)}">›</a></div>
       ${isDir() ? `<div class="h2">The app <a class="btn sm" href="#feedback">Open</a></div><div class="kv3"><div><span>New today</span><b>${fs.today.length}</b><small>${fs.today.filter(x => x.way === 'cant').length} can't use it</small></div><div><span>Open</span><b>${fs.open.length}</b><small>${fs.open.length ? 'oldest ' + ago(Math.min(...fs.open.map(x => x.at))) : '–'}</small></div><div><span>Fixed</span><b>${fs.fixedM.length}</b><small>this month</small></div></div>` : ''}

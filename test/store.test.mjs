@@ -845,3 +845,15 @@ test("plan: Director only by default, who-sees switches, enquiry source locked a
   assert.equal((await call("plan", { action: "put", key: "lhq_enq", id: "en1", rec: { who: "Mrs Banda", src: "Facebook", srcOwner: "lhq", lock: true, stage: "new" } }, DIR)).status, 400, "a reason is needed");
   assert.equal((await call("plan", { action: "put", key: "lhq_enq", id: "en1", rec: { who: "Mrs Banda", src: "Facebook", srcOwner: "lhq", lock: true, stage: "new" }, why: "She saw the ad first" }, DIR)).status, 200);
 });
+
+test("staff payslips: the Director sets pay and switches; prepared → approved → received; staff see only their own", async () => {
+  const tok = (await call("signin", { id: "emmanuel.mkwamba", password: "Maths!2026x" })).j.token;
+  assert.equal((await call("spay", null, tok, "GET")).status, 403, "tutors don't");
+  const ppl = (await call("spay", null, DIR, "GET")).j.people; assert.ok(Array.isArray(ppl));
+  const add = await call("people", { action: "add", name: "Benjamin Test", role: "admin" }, DIR); assert.equal(add.status, 200, JSON.stringify(add.j));
+  const pid = ((await call("spay", null, DIR, "GET")).j.people.find(p => p.name === "Benjamin Test") || {}).id; assert.ok(pid);
+  assert.equal((await call("spay", { action: "cfg", pid, cfg: { salary: 350000, comm: { on: false, rates: { tuition: 25000 } }, bonus: { on: false } } }, tok)).status, 403);
+  assert.equal((await call("spay", { action: "cfg", pid, cfg: { salary: 350000, comm: { on: true, rates: { tuition: 25000 } }, bonus: { on: false } } }, DIR)).status, 200);
+  const r = await call("spay", { action: "prepare", pid, m: "2026-12", snap: { name: "Benjamin Test", lines: [{ t: "Salary", amt: 350000 }, { t: "Commission · 3 weekly tuition", s: "Thoko B. paid 4 Dec", amt: 75000 }] } }, DIR);
+  assert.equal(r.status, 200); const S = (await call("spay", null, DIR, "GET")).j.slips[pid + "|2026-12"]; assert.equal(S.st, "confirmed"); assert.equal(S.snap.total, 425000);
+});

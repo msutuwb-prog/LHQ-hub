@@ -359,7 +359,7 @@
       try{ const j = await hub.api('jobs', {method:'POST', body: JSON.stringify({action:'add', what: `${s.t} · ${i.name}`, to: s.who, d: s.by})}); s.job = j.id; await hub.api('plan', {method:'POST', body: JSON.stringify({action:'put', key:'lhq_bplan', id: i.id, rec: i})}); }catch(e){} }
   }
   /* ---------- partners and schools ---------- */
-  const partners = () => Object.values((D && D.partners) || {}), kids = () => Object.values((D && D.kids) || {}).filter(k => !k.del);
+  const partners = () => Object.values((D && D.partners) || {}).filter(p => p.kind !== 'school'), schoolRecs = () => Object.values((D && D.partners) || {}).filter(p => p.kind === 'school'), kids = () => Object.values((D && D.kids) || {}).filter(k => !k.del);
   let PBY = 'p';
   function partnersPage(){
     const P = partners(), K = kids(), moved = K.filter(k => k.moved), money = partnerMoney();
@@ -412,7 +412,7 @@
     A.receipts.forEach(t2 => { const k = String(t2.r.student || '').trim().toLowerCase(), sc = ((R[k] || {}).school || 'School not set').trim(); if(by[sc]){ by[sc].amt += A.amt(t2.r); by[sc][t2.mode]++; } });
     const K = kids(), kb = {}; K.forEach(k => { const sc = (k.school || 'School not set').trim(); (kb[sc] = kb[sc] || []).push(k); });
     return head('Schools', `${act.length} students · from the student profiles`) + tabs('schools') +
-      `<div class="card one">${Object.entries(by).sort((a, b) => b[1].n - a[1].n).map(([sc, o]) => row(esc(sc), `${o.L.slice(0, 3).map(s => esc(first(s.name))).join(', ')}${o.n > 3 ? ' and ' + (o.n - 3) + ' more' : ''}`, o.n, M(o.amt), sc === 'School not set' ? '#students/missing' : null)).join('') || '<p class="empty">No active students.</p>'}</div>
+      `<div class="card one">${Object.entries(by).sort((a, b) => b[1].n - a[1].n).map(([sc, o]) => { const sr = schoolRecs().find(x => String(x.name).toLowerCase() === sc.toLowerCase()), lv = sr && (sr.log || []).filter(l => l.kind === 'visit').slice(-1)[0]; return row(esc(sc), `${o.L.slice(0, 3).map(s => esc(first(s.name))).join(', ')}${o.n > 3 ? ' and ' + (o.n - 3) + ' more' : ''}${lv ? ' · visited ' + nice(lv.d) : ''}`, o.n, M(o.amt), sc === 'School not set' ? '#students/missing' : null, sc !== 'School not set' && (isDir() || (me().perms || []).includes('bdo')) ? `<button class="pl-ed" data-schlog="${esc(sc)}" title="Contact log">✎</button>` : ''); }).join('') || '<p class="empty">No active students.</p>'}</div>
       ${Object.keys(kb).length ? `<div class="h2">Partner children by school <em>${K.length}</em></div><div class="card one">${Object.entries(kb).map(([sc, L]) => row(esc(sc), L.slice(0, 4).map(k => esc(first(k.name))).join(', ') + (L.some(k => k.moved) ? ` · ${L.filter(k => k.moved).length} now in tuition` : ''), L.length)).join('')}</div>` : ''}
       <p class="note">Set a student's school on their details page. Your share of each school: release 3.</p>`;
   }
@@ -634,5 +634,5 @@
     @media print{html.pl-printing body *{visibility:hidden}html.pl-printing #main,html.pl-printing #main *{visibility:visible}html.pl-printing #main{position:absolute;left:0;top:0;width:100%}html.pl-printing .no-print,html.pl-printing .acts,html.pl-printing .crumb,html.pl-printing #cmStrip{display:none!important}html.pl-printing .pl-bs{break-inside:avoid}}`;
   const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
 
-  window.PLAN = {page, boardPage, load, boardDue, model, actuals, partners: () => partners(), kids: () => kids(), data: () => D};
+  window.PLAN = {page, boardPage, load, boardDue, model, actuals, partners: () => partners(), schools: () => schoolRecs(), kids: () => kids(), data: () => D};
 })();

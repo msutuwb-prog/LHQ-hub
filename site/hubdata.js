@@ -34,7 +34,7 @@
   const can = k => isDir() || (me().role === 'admin' && (me().perms || []).includes(k));
   const ROLE = {director:'Director', admin:'Admin', tutor:'Tutor', student:'Student', parent:'Parent', bdo:'BDO'};
   const isAcct = p => !!p && p.role === 'admin' && (p.perms || []).includes('acct');   // the accountant: an admin with the Accountant role switched on
-  const roleText = p => (isAcct(p) ? 'Accountant' : ROLE[p.role] || (p.admin ? 'Admin' : 'Tutor')) + (p.role !== 'tutor' && p.tutor ? ' + Tutor' : '');
+  const roleText = p => (isAcct(p) && (p.perms || []).includes('bdo') ? 'BDO and accountant' : (p.perms || []).includes('bdo') && p.role === 'admin' ? 'BDO' : isAcct(p) ? 'Accountant' : ROLE[p.role] || (p.admin ? 'Admin' : 'Tutor')) + (p.role !== 'tutor' && p.tutor ? ' + Tutor' : '');
 
   let saved = [], settings = {};
   let rIdx = null;   // receipts by the invoice number they pay, built once per load (lists with thousands of documents stay quick)

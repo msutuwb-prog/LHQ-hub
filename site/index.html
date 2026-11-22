@@ -52,6 +52,7 @@ if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash)
 <script src="today.js"></script>
 <script src="comms.js"></script>
 <script src="plan.js"></script>
+<script src="bdo.js"></script>
 <script src="srafig.js"></script>
 <script src="fu.js"></script>
 <script src="stuview.js"></script>
@@ -567,6 +568,8 @@ function pageLabel(){
 /* admins without receipts or money see only what a student owes and its status: no receipts, no amounts paid (agreed 21 Nov) */
 const awayOf = p => { const a = (store.get('lhq_away', {}) || {})[p.id]; return a && a.on ? a : null; };
 const owedOnly = () => !isDir() && !can('receipts') && !can('money');
+/* the BDO alone (no money, documents or student permissions): no amounts families owe (agreed 22 Nov) */
+const bdoOnly = () => can('bdo') && !isDir() && !can('money') && !can('receipts') && !can('quotes') && !can('acct');
 const shownDocs = L => owedOnly() ? L.filter(d => typeOf(d) !== 'receipt') : L;
 function docRow(d, o = {}){
   const t = typeOf(d), [s, c] = HD.docStatus(d);
@@ -679,6 +682,7 @@ function attention(list){
       if(W.appr.length && isDir()) out.push({w:-1, job:'payok', s:{name:`${W.appr.length} payslip${W.appr.length === 1 ? '' : 's'} to approve`}, href:'#pay/m/' + W.am, ico:'cash', col:'--am', sub:W.appr.slice(0, 3).join(' · '), btn:['Review', '#pay/m/' + W.am]});
       W.q.forEach(x => out.push({w:-1, g:'payq', s:{name:`${x.tutor} asked about their payslip`}, href:`#pay/${encodeURIComponent(x.tutor)}/${x.m}`, ico:'msg', col:'--am', sub:`“${x.note}”`, btn:['Answer', `#pay/${encodeURIComponent(x.tutor)}/${x.m}`]})); }
   }
+  if(window.BDO){ if(isDir()) BDO.loadSp(); BDO.bdoAttention().concat(BDO.probAttention()).forEach(x => out.push({w:-1, s:{name:x.t}, href:x.href, ico:'clock', col:'--am', sub:x.sub})); }
   if(window.TODAY) TODAY.leaveWaiting().forEach(x => out.push({w:-2, job:'leave' + x.id, s:{name:`Leave to approve · ${x.byN}`}, href:'#everyone/' + x.d, ico:'clock', col:'--am', sub:`${nice(x.d)}${x.d2 && x.d2 !== x.d ? ' – ' + nice(x.d2) : ''}${x.t && x.t !== 'Away' ? ' · ' + x.t : ''}`, btn:['Decide', '#everyone/' + x.d]}));
   return out.sort((a, b) => a.w - b.w);
 }
@@ -764,7 +768,7 @@ const PREVIEW_OR_DB = () => true;
 let attAll = false, attOpen = true; try{ attOpen = localStorage.getItem('lhq_attOpen') !== '0'; }catch(e){}
 
 P.home = () => {
-  const list = HD.students(), att = attention(list), AR = attRows(att.filter(x => !x.job)), m = metrics(list), cards = myCards();
+  const list = HD.students(), att = attention(list).filter(x => !(bdoOnly() && ['over','grace','nocard','quote','end','muend'].includes(x.g))), AR = attRows(att.filter(x => !x.job)), m = metrics(list), cards = myCards();
   const h = new Date().getHours(), greet = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening', d = new Date();
   const recent = shownDocs(saved).slice().sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0)).slice(0, 6);
   const draft = store.get('lhq_draft', null);
@@ -773,7 +777,8 @@ P.home = () => {
     <div class="acts"><a class="btn" href="#edithome" title="Edit Home" aria-label="Edit Home">${ic('edit',16)}</a>${can('quotes') || can('receipts') || can('cards') || can('spend') ? `<a class="btn n hnew" href="#new">${ic('plus',16,2.4)} New</a>` : ''}</div></div>
   ${cards.length ? `<div class="mcs" data-n="${cards.length}">${cards.map(k => { const c = CARDS[k]; return `<div class="mc" data-go="${typeof c.href === 'function' ? c.href() : c.href}" role="link" tabindex="0" aria-label="${esc(c.t)}"><span class="l">${ic(c.ic,15,2)}${LEAN() && c.s ? c.s : c.t}</span>${c.html(m)}</div>`; }).join('')}</div>` : ''}
   ${draftRow}
-  ${window.TODAY ? TODAY.block({hub: att.filter(x => x.job).map(x => ({key:x.job, t:x.s.name, sub:x.sub, href:x.btn ? x.btn[1] : x.href})).concat(window.COMMS ? COMMS.arepJob() : [], window.PLAN && isDir() ? (PLAN.load(), PLAN.boardDue()) : []), ready: hub.session() && saved.length > 0}) : ''}
+  ${window.BDO ? BDO.homeBlock() : ''}
+  ${window.TODAY ? TODAY.block({hub: att.filter(x => x.job).map(x => ({key:x.job, t:x.s.name, sub:x.sub, href:x.btn ? x.btn[1] : x.href})).concat(window.BDO ? BDO.enqJobs() : [], window.COMMS ? COMMS.arepJob() : [], window.PLAN && isDir() ? (PLAN.load(), PLAN.boardDue()) : []), ready: hub.session() && saved.length > 0}) : ''}
   ${PREVIEW && isDir() && !saved.length ? `<div class="card pad" style="border-color:var(--gold)"><div class="cap">Preview</div><p class="note" style="margin:0 0 10px">This preview has its own storage and is empty. Load six months of demo data to try every page.</p><a class="btn n" href="#set/demo">Demo data</a></div>` : ''}
   <div class="hcols"><div><div class="h2">Needs attention <span class="acts" style="align-items:center"><em>${AR.length || ''}</em><button class="btn sm" id="attTog">${attOpen ? 'Hide' : 'Show'}</button></span></div>
   ${attOpen ? `<div class="card one">${AR.slice(0, attAll ? 999 : 15).map(r => r.grp ? attGroup(r) : attRow(r.x)).join('') || '<p class="empty">Nothing needs attention. ✓</p>'}${AR.length > 15 && !attAll ? `<button class="it" id="attAll" style="justify-content:center"><b>Show all ${AR.length}</b></button>` : ''}</div>`
@@ -784,6 +789,12 @@ P.home = () => {
 P.team = () => window.TODAY ? TODAY.teamPage() : '';
 P.plan = (a, b, c) => window.PLAN ? PLAN.page(a, b, c) : '';
 P.board = ym => window.PLAN ? PLAN.boardPage(ym) : '';
+P.enq = () => window.BDO ? BDO.enqPage() : '';
+P.score = () => window.BDO ? BDO.scorePage() : '';
+P.bweek = () => window.BDO ? BDO.weekPage() : '';
+P.spay = id => window.BDO ? (id ? BDO.spayPerson(id) : BDO.spayPage()) : '';
+P.spayset = id => window.BDO ? BDO.paySettings(id) : '';
+P.mypay = () => window.BDO ? BDO.myPay() : '';
 P.ann = id => window.COMMS ? COMMS.annPage(id) : '';
 P.annview = id => window.COMMS ? COMMS.annView(id) : '';
 P.feedback = () => window.COMMS ? COMMS.inbox() : '';
@@ -920,7 +931,7 @@ function stuOverview(s){
     const period = range(c.inv.periodStart, c.inv.periodEnd) || c.inv.period || '';
     head = 'This tuition period' + (period ? ' · ' + period : '');
     chain = (c.quote || c.inv.ref ? chip(c.quote, 'Quote') + ar : '') + chip(c.inv, 'Invoice') + ar + (owedOnly() ? '' : (c.receipts.length ? c.receipts.map(r => chip(r)).join('') : chip(null, 'Receipt')) + ar) + chip(c.card, 'Card');
-    facts = (owedOnly() ? `<dt>Owes</dt><dd>${c.st.paidUp ? 'Nothing' : mk(c.st.balance)} <span class="tag ${c.st.cls}">${esc(c.st.paidUp ? 'Paid' : c.st.text)}</span></dd>` : `<dt>Invoice</dt><dd>${mk(c.st.total)}${c.inv.plan === 'half' ? ' · 50/50 plan' : ''}</dd><dt>Paid</dt><dd>${mk(c.st.paid)} <span class="tag ${c.st.cls}">${esc(c.st.text)}</span></dd>`) + `
+    facts = (owedOnly() ? `<dt>Owes</dt><dd>${bdoOnly() ? '–' : c.st.paidUp ? 'Nothing' : mk(c.st.balance)} <span class="tag ${c.st.cls}">${esc(c.st.paidUp ? 'Paid' : c.st.text)}</span></dd>` : `<dt>Invoice</dt><dd>${mk(c.st.total)}${c.inv.plan === 'half' ? ' · 50/50 plan' : ''}</dd><dt>Paid</dt><dd>${mk(c.st.paid)} <span class="tag ${c.st.cls}">${esc(c.st.text)}</span></dd>`) + `
       ${c.card && HD.makeups(c.card).some(x => x.owed) ? `<dt>Make-ups owed</dt><dd>${HD.makeups(c.card).filter(x => x.owed).map(x => `${esc(x.sub)}: ${x.owed}`).join(' · ')}</dd>` : ''}
       ${c.card ? `<dt>Tutors</dt><dd>${(c.card.subjects || []).map(x => `${esc(x.name)}: ${x.tutor ? esc(x.tutor) : '<span style="color:var(--am)">no tutor yet</span>'}`).join('<br>')}</dd>` : ''}`;
     if(!c.st.paidUp && can('receipts')) nexts.push(`<a class="btn g full" href="${D('conv=receipt:' + c.inv.id)}">${c.st.plan && c.st.firstPaid ? 'Receive 2nd instalment' : 'Record a payment'} · ${mk(c.st.balance)}</a>`);
@@ -1540,7 +1551,7 @@ P.says = () => {
 /* ================= business (business.js) ================= */
 P.biz = (tab, period, cat) => (!tab || tab === 'home' ? crumb(null, null, 'biz') : '') + BIZ.page(tab, period, cat);
 P.perf = () => { setTimeout(() => location.replace('#rep/business'), 0); return ''; };
-P.reports = () => PERF.page() + (isDir() || me().role === 'admin' ? `<div class="card" style="margin-top:14px">${!isDir() ? `<a class="it" href="#areport"><span class="t"><b>Today's report</b><small>The Hub fills in the day · you add the rest</small></span><span class="chev">›</span></a>` : ''}<a class="it" href="#sreps"><span class="t"><b>Staff reports</b><small>${isDir() ? 'Admin\'s daily reports · the app' : 'Your reports by day'}</small></span><span class="chev">›</span></a>${isDir() ? `<a class="it" href="#wreport"><span class="t"><b>This week's report</b><small>Yours · internal · the board never sees it</small></span><span class="chev">›</span></a><a class="it" href="#feedback"><span class="t"><b>App feedback</b><small>Problems and ideas from everyone</small></span><span class="chev">›</span></a>` : ''}<a class="it" href="#ann"><span class="t"><b>Announcements</b><small>To everyone, staff, tutors or families</small></span><span class="chev">›</span></a><a class="it" href="#activity"><span class="t"><b>Activity</b><small>Everything done in the Hub, by whom</small></span><span class="chev">›</span></a></div>` : '');
+P.reports = () => PERF.page() + (isDir() || me().role === 'admin' ? `<div class="card" style="margin-top:14px">${!isDir() ? `<a class="it" href="#areport"><span class="t"><b>Today's report</b><small>The Hub fills in the day · you add the rest</small></span><span class="chev">›</span></a>` : ''}<a class="it" href="#sreps"><span class="t"><b>Staff reports</b><small>${isDir() ? 'Admin\'s daily reports · the app' : 'Your reports by day'}</small></span><span class="chev">›</span></a>${isDir() ? `<a class="it" href="#wreport"><span class="t"><b>This week's report</b><small>Yours · internal · the board never sees it</small></span><span class="chev">›</span></a><a class="it" href="#feedback"><span class="t"><b>App feedback</b><small>Problems and ideas from everyone</small></span><span class="chev">›</span></a>` : ''}<a class="it" href="#enq"><span class="t"><b>Enquiries</b><small>Every enquiry, its source and where it got to</small></span><span class="chev">›</span></a>${isDir() || can('tpay') ? `<a class="it" href="#spay"><span class="t"><b>Staff payslips</b><small>Salary, allowances, commission and bonus</small></span><span class="chev">›</span></a>` : ''}${isDir() ? '' : `<a class="it" href="#mypay"><span class="t"><b>My payslips</b></span><span class="chev">›</span></a>`}<a class="it" href="#ann"><span class="t"><b>Announcements</b><small>To everyone, staff, tutors or families</small></span><span class="chev">›</span></a><a class="it" href="#activity"><span class="t"><b>Activity</b><small>Everything done in the Hub, by whom</small></span><span class="chev">›</span></a></div>` : '');
 P.teach = (sub, a1, a2) => TUT.page(sub, a1, a2);
 P.me = (sub, a1, a2) => FAM.page(sub, a1, a2);
 /* tutor KPIs (kpi.js, kpiui.js): the Director, and Admin when switched on */
@@ -1740,7 +1751,8 @@ function peoplePin(){ const list = HD.people(), D0 = isDir();
     return `<a class="it" ${mine ? `href="#person/${p.id}"` : self ? 'href="#set/account"' : 'style="cursor:default"'}><span class="av">${inits(p.name)}</span><span class="t"><b>${esc(p.name)}${self ? ' (you)' : ''}</b><small>${roleText(p)}${p.seen ? ' · last seen ' + ago(p.seen) : ''}</small></span>${p.role === 'director' ? '<span class="rolechip">Director</span>' : ''}${p.active ? '' : '<span class="tag rd">Off</span>'}${mine || self ? `<span class="chev">${ic('chev',16,2)}</span>` : p.role === 'director' ? '' : '<span class="tag gr">Director only</span>'}</a>`; }).join('') || '<p class="empty">Loading…</p>'}</div>
   <button class="btn" id="addPerson">${ic('plus',16,2.2)} ${D0 ? 'Add a person' : 'Add a tutor'}</button>`; };
 const PERMS = [
-  ['Role', [['acct','Accountant','Enters balances, records payments in and out, prices requisitions and prepares payslips. Shown as Accountant.']]],
+  ['Role', [['acct','Accountant','Enters balances, records payments in and out, prices requisitions and prepares payslips. Shown as Accountant.'],['bdo','Business Development Officer','Enquiries, partners, schools, their scorecard and weekly report. Shown as BDO. No fees owed, payslips or student health notes.']]],
+  ['Announcements', [['ann','Can post announcements']]],
   ['Documents', [['quotes','Make and edit quotes and invoices'],['receipts','Record payments (receipts)'],['cards','Make tuition cards'],['delete','Delete documents'],['restore','Restore deleted documents']]],
   ['Students', [['students','Add and edit student details']]],
   ['Money', [['money','See money totals and reports','Money cards, totals and trends. Amounts on a document stay visible to whoever makes it.'],['tpay','Tutor pay','Work out, add items and confirm payslips']]],
@@ -1760,7 +1772,7 @@ function personPage(id){
       ${p.role === 'admin' ? `<div class="toggle"><div class="t"><b>Also teaches</b><small>Own students, calendar, SRAs</small></div><button class="sw-t ${p.tutor ? 'on' : ''}" data-teach role="switch" aria-checked="${!!p.tutor}" aria-label="Also teaches"></button></div>` : '<p class="note" style="margin:0">Own students only. No money.</p>'}</div>
     ${p.role === 'admin' ? `<div class="card pad"><div class="cap">What ${esc(first(p.name))} can do</div>
       ${PERMS.map(([g, list]) => `<div class="cap" style="font-size:10.5px;margin-top:16px">${g}</div>${list.map(([k, l, sub]) => `<div class="toggle"><div class="t"><b>${l}</b>${sub ? `<small>${sub}</small>` : ''}</div><button class="sw-t ${(p.perms || []).includes(k) ? 'on' : ''}" data-perm="${k}" role="switch" aria-checked="${(p.perms || []).includes(k)}" aria-label="${l}"></button></div>`).join('')}`).join('')}
-      <div class="acts" style="margin-top:12px"><button class="btn sm" id="permDefault">Use admin defaults</button><button class="btn sm" id="permAcct">Use accountant defaults</button></div>
+      <div class="acts" style="margin-top:12px"><button class="btn sm" id="permDefault">Use admin defaults</button><button class="btn sm" id="permAcct">Use accountant defaults</button><button class="btn sm" id="permBdo">Use BDO defaults</button></div>
       <div class="cap" style="margin-top:18px">Only you, as Director</div>${DIRECTOR_ONLY.map(x => `<div class="lock">${ic('key',16)}${x}</div>`).join('')}</div>` : ''}` : ''}
   ${PWD() ? `<div class="card pad"><div class="cap">Sign-in</div><dl class="kv"><dt>Username</dt><dd>${esc(p.username || '')}</dd><dt>Email</dt><dd>${esc(p.email || 'not added')}</dd><dt>Status</dt><dd>${pStatus(p)}</dd>${p.children && p.children.length ? `<dt>Children</dt><dd>${esc(p.children.join(', '))}</dd>` : ''}</dl>
       <p class="note" style="margin:6px 0 10px">${p.status === 'setup' ? `${esc(first(p.name))} hasn't set up yet. Give them a setup code: they choose their own password with it.` : p.status === 'pin' ? `${esc(first(p.name))} still signs in with their PIN. They choose a password the next time they sign in.` : `Forgot their password? Make a new setup code.`}</p>
@@ -2145,6 +2157,7 @@ function bind(){
       const label = PERMS.flatMap(g => g[1]).find(x => x[0] === k)[1].toLowerCase();
       peopleCall({action:'access', id:pid, perms}, `Saved. ${first(P0.name)} ${has ? 'can no longer' : 'can now'}: ${label}`); });
     if($('permDefault')) $('permDefault').onclick = () => peopleCall({action:'access', id:pid, perms:['quotes','cards','delete','restore','students','tutors','msgs','classes']}, 'Defaults restored');
+    if($('permBdo')) $('permBdo').onclick = () => peopleCall({action:'access', id:pid, perms:['bdo','ann']}, 'BDO: enquiries, partners, schools, scorecard');
     if($('permAcct')) $('permAcct').onclick = () => peopleCall({action:'access', id:pid, perms:['acct','receipts','money','tpay','spend','pl']}, 'Accountant: money in and out, balances, requisitions, payslips');
     if($('ppinGo')) $('ppinGo').onclick = () => peopleCall({action:'pin', id:pid, pin:$('ppin').value}, `New PIN set for ${first(P0.name)}`);
     if($('pOnOff')) $('pOnOff').onclick = () => { if(P0.active && !confirm(`Switch off ${P0.name}? They are signed out everywhere straight away.`)) return; peopleCall({action:P0.active ? 'off' : 'on', id:pid}, P0.active ? `${first(P0.name)} is switched off` : `${first(P0.name)} can sign in again`); };
