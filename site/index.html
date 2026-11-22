@@ -53,6 +53,7 @@ if(/^#import=/.test(location.hash)) location.replace('doc.html' + location.hash)
 <script src="comms.js"></script>
 <script src="plan.js"></script>
 <script src="bdo.js"></script>
+<script src="enrol.js"></script>
 <script src="srafig.js"></script>
 <script src="fu.js"></script>
 <script src="stuview.js"></script>
@@ -791,6 +792,7 @@ P.team = () => window.TODAY ? TODAY.teamPage() : '';
 P.plan = (a, b, c) => window.PLAN ? PLAN.page(a, b, c) : '';
 P.board = ym => window.PLAN ? PLAN.boardPage(ym) : '';
 P.enq = () => window.BDO ? BDO.enqPage() : '';
+P.enrol = () => window.ENROL ? ENROL.page() : '';
 P.score = () => window.BDO ? BDO.scorePage() : '';
 P.bweek = () => window.BDO ? BDO.weekPage() : '';
 P.spay = id => window.BDO ? (id ? BDO.spayPerson(id) : BDO.spayPage()) : '';
@@ -1552,7 +1554,7 @@ P.says = () => {
 /* ================= business (business.js) ================= */
 P.biz = (tab, period, cat) => (!tab || tab === 'home' ? crumb(null, null, 'biz') : '') + BIZ.page(tab, period, cat);
 P.perf = () => { setTimeout(() => location.replace('#rep/business'), 0); return ''; };
-P.reports = () => PERF.page() + (isDir() || me().role === 'admin' ? `<div class="card" style="margin-top:14px">${!isDir() ? `<a class="it" href="#areport"><span class="t"><b>Today's report</b><small>The Hub fills in the day · you add the rest</small></span><span class="chev">›</span></a>` : ''}<a class="it" href="#sreps"><span class="t"><b>Staff reports</b><small>${isDir() ? 'Admin\'s daily reports · the app' : 'Your reports by day'}</small></span><span class="chev">›</span></a>${isDir() ? `<a class="it" href="#wreport"><span class="t"><b>This week's report</b><small>Yours · internal · the board never sees it</small></span><span class="chev">›</span></a><a class="it" href="#feedback"><span class="t"><b>App feedback</b><small>Problems and ideas from everyone</small></span><span class="chev">›</span></a>` : ''}<a class="it" href="#enq"><span class="t"><b>Enquiries</b><small>Every enquiry, its source and where it got to</small></span><span class="chev">›</span></a>${isDir() || can('tpay') ? `<a class="it" href="#spay"><span class="t"><b>Staff payslips</b><small>Salary, allowances, commission and bonus</small></span><span class="chev">›</span></a>` : ''}${isDir() ? '' : `<a class="it" href="#mypay"><span class="t"><b>My payslips</b></span><span class="chev">›</span></a>`}<a class="it" href="#ann"><span class="t"><b>Announcements</b><small>To everyone, staff, tutors or families</small></span><span class="chev">›</span></a><a class="it" href="#activity"><span class="t"><b>Activity</b><small>Everything done in the Hub, by whom</small></span><span class="chev">›</span></a></div>` : '');
+P.reports = () => PERF.page() + (isDir() || me().role === 'admin' ? `<div class="card" style="margin-top:14px">${!isDir() ? `<a class="it" href="#areport"><span class="t"><b>Today's report</b><small>The Hub fills in the day · you add the rest</small></span><span class="chev">›</span></a>` : ''}<a class="it" href="#sreps"><span class="t"><b>Staff reports</b><small>${isDir() ? 'Admin\'s daily reports · the app' : 'Your reports by day'}</small></span><span class="chev">›</span></a>${isDir() ? `<a class="it" href="#wreport"><span class="t"><b>This week's report</b><small>Yours · internal · the board never sees it</small></span><span class="chev">›</span></a><a class="it" href="#feedback"><span class="t"><b>App feedback</b><small>Problems and ideas from everyone</small></span><span class="chev">›</span></a>` : ''}<a class="it" href="#enrol"><span class="t"><b>People and enrolments</b><small>Each child once · each sign-up a sale · new, returning, added</small></span><span class="chev">›</span></a><a class="it" href="#enq"><span class="t"><b>Enquiries</b><small>Every enquiry, its source and where it got to</small></span><span class="chev">›</span></a>${isDir() || can('tpay') ? `<a class="it" href="#spay"><span class="t"><b>Staff payslips</b><small>Salary, allowances, commission and bonus</small></span><span class="chev">›</span></a>` : ''}${isDir() ? '' : `<a class="it" href="#mypay"><span class="t"><b>My payslips</b></span><span class="chev">›</span></a>`}<a class="it" href="#ann"><span class="t"><b>Announcements</b><small>To everyone, staff, tutors or families</small></span><span class="chev">›</span></a><a class="it" href="#activity"><span class="t"><b>Activity</b><small>Everything done in the Hub, by whom</small></span><span class="chev">›</span></a></div>` : '');
 P.teach = (sub, a1, a2) => TUT.page(sub, a1, a2);
 P.me = (sub, a1, a2) => FAM.page(sub, a1, a2);
 /* tutor KPIs (kpi.js, kpiui.js): the Director, and Admin when switched on */
