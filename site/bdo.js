@@ -27,7 +27,7 @@
   /* ---------- enquiries ---------- */
   const STG = [['new','New'],['contacted','Contacted'],['visit','Visit or trial'],['ready','Ready to enrol'],['enrolled','Enrolled'],['lost','Lost']];
   const STL = Object.fromEntries(STG);
-  const SRC = {lhq: ['Facebook','Billboard','Website','Walk-in','A family we teach','Other'], bdo: ['BDO school visit','BDO partner','BDO event','BDO contact']};
+  const SRC = {lhq: ['Facebook','Billboard','Website','Walk-in','A family we teach','Referral','Other'], bdo: ['BDO school visit','BDO partner','BDO event','BDO contact']};
   const LOST = ['Fees','Timing','Chose another','No reply','Other'];
   let EF = 'open';
   const isOpen = e => !['enrolled','lost'].includes(e.stage);
@@ -45,7 +45,7 @@
   function enqSheet(id){
     const e = id ? enqs().find(x => x.id === id) : null, st = e ? JSON.parse(JSON.stringify(e)) : {who:'', phone:'', for:'tuition', year:'', school:'', subj:'', src:'', srcOwner:'', stage:'new', follow: addD(tday(), 2), notes:'', d: tday()};
     const admin = isDir() || (me().role === 'admin' && !isBdo()), locked = e && e.lock, students = window.HD ? HD.students().slice().sort((a, b) => a.name.localeCompare(b.name)) : [];
-    const keep = () => { ['who','phone','year','school','subj','follow','notes','lostWhy','why'].forEach(k => { const el = $('eq_' + k); if(el) st[k] = el.value; }); const f = $('eq_for'); if(f){ st.prog = f.value; const p = window.PROGS ? PROGS().find(x => x.id === f.value) : null; st.for = p ? ({weekly:'tuition', short:'prog', exam:'exam', activity:'activity'}[p.type] || 'tuition') : 'tuition'; } };
+    const keep = () => { const rf = $('eq_ref'); if(rf) st.refBy = rf.value; ['who','phone','year','school','subj','follow','notes','lostWhy','why'].forEach(k => { const el = $('eq_' + k); if(el) st[k] = el.value; }); const f = $('eq_for'); if(f){ st.prog = f.value; const p = window.PROGS ? PROGS().find(x => x.id === f.value) : null; st.for = p ? ({weekly:'tuition', short:'prog', exam:'exam', activity:'activity'}[p.type] || 'tuition') : 'tuition'; } };
     const draw = () => { openSheet(`<div class="hx"><h3>${e ? esc(e.who) : 'New enquiry'}</h3><button class="ib" data-close>✕</button></div>
       ${e ? `<div class="bd-stg">${STG.slice(0, 5).map(([k]) => `<span class="${STG.findIndex(x => x[0] === st.stage) >= STG.findIndex(x => x[0] === k) && st.stage !== 'lost' ? 'on' : ''}"></span>`).join('')}</div><div class="chips">${STG.map(([k, l]) => `<button type="button" class="chip ${st.stage === k ? 'on' : ''}" data-eqs="${k}">${l}</button>`).join('')}</div>` : ''}
       <div class="r2"><label class="f"><span>Parent or student</span><input class="in" id="eq_who" value="${esc(st.who)}"></label><label class="f"><span>Phone</span><input class="in" id="eq_phone" value="${esc(st.phone)}"></label></div>
@@ -53,9 +53,9 @@
       <div class="r2"><label class="f"><span>Year</span><input class="in" id="eq_year" value="${esc(st.year)}" placeholder="Year 10"></label><label class="f"><span>School</span><input class="in" id="eq_school" value="${esc(st.school)}"></label></div>
       <label class="f"><span>Subjects</span><input class="in" id="eq_subj" value="${esc(st.subj)}" placeholder="Maths, Physics"></label>
       <div class="f"><span>Where from ${locked ? '🔒' : ''}</span>${locked && !isDir() ? `<p class="note" style="margin:4px 0 0">${st.srcOwner === 'bdo' ? 'BDO' : 'LHQ'} · ${esc(st.src)} · confirmed by ${esc(e.lockBy || 'admin')}</p>` : `
-        <div class="chips" style="margin:4px 0 0">${SRC.lhq.map(s => `<button type="button" class="chip ${st.src === s ? 'on' : ''}" data-eqsrc="lhq|${s}">${s}</button>`).join('')}</div>
-        <div class="chips" style="margin:6px 0 0">${SRC.bdo.map(s => `<button type="button" class="chip ${st.src === s ? 'on' : ''}" data-eqsrc="bdo|${s}">${s}</button>`).join('')}</div>
-        <p class="note" style="margin:4px 0 0">Top row: LHQ. Bottom row: BDO, counts for commission.</p>${locked && isDir() ? '<label class="f" style="margin-top:6px"><span>Why it changes (needed)</span><input class="in" id="eq_why"></label>' : ''}`}</div>
+        <select class="in" id="eq_src" style="margin-top:4px"><option value="">Choose…</option><optgroup label="LHQ">${SRC.lhq.map(s => `<option value="lhq|${s}" ${st.src === s ? 'selected' : ''}>${s}</option>`).join('')}</optgroup><optgroup label="BDO · counts for commission">${SRC.bdo.map(s => `<option value="bdo|${s}" ${st.src === s ? 'selected' : ''}>${s}</option>`).join('')}</optgroup></select>
+        ${st.src === 'Referral' && window.FAMS ? `<select class="in" id="eq_ref" style="margin-top:6px"><option value="">Which family referred them?</option>${Object.values(FAMS.F().fams || {}).filter(f => !f.del).sort((a, b) => a.name.localeCompare(b.name)).map(f => `<option value="${esc(f.id)}" ${st.refBy === f.id ? 'selected' : ''}>${esc(f.name)}</option>`).join('')}</select>` : ''}
+        <p class="note" style="margin:4px 0 0">A referral is an LHQ source: no BDO commission.</p>${locked && isDir() ? '<label class="f" style="margin-top:6px"><span>Why it changes (needed)</span><input class="in" id="eq_why"></label>' : ''}`}</div>
       ${st.stage === 'lost' ? `<div class="f"><span>Why lost</span><div class="chips" style="margin:4px 0 0">${LOST.map(l => `<button type="button" class="chip ${st.lost === l ? 'on' : ''}" data-eqlost="${l}">${l}</button>`).join('')}</div></div>` : ''}
       ${st.stage === 'enrolled' ? `<label class="f"><span>The student</span><select class="in" id="eq_stu"><option value="">Choose…</option>${students.map(s => `<option value="${esc(s.key)}" ${st.student === s.key ? 'selected' : ''}>${esc(s.name)}</option>`).join('')}</select></label>` : ''}
       ${isOpen(st) ? `<label class="f"><span>Follow up</span><input class="in" type="date" id="eq_follow" value="${esc(st.follow || '')}"></label>` : ''}
@@ -64,12 +64,13 @@
       ${admin && !locked && st.src ? '<button class="btn full" id="eqLock" style="margin-top:8px">Confirm the source 🔒</button>' : ''}`);
       const on = (sel, f) => document.querySelectorAll('#sheet ' + sel).forEach(b => b.onclick = () => { keep(); f(b); draw(); });
       on('[data-eqs]', b => { st.stage = b.dataset.eqs; }); on('[data-eqfor]', b => st.for = b.dataset.eqfor); on('[data-eqsrc]', b => { const [o, s] = b.dataset.eqsrc.split('|'); st.srcOwner = o; st.src = s; }); on('[data-eqlost]', b => st.lost = b.dataset.eqlost);
-      const save = async lock => { keep(); if($('eq_stu')) st.student = $('eq_stu').value; if(!st.who.trim()) return toast('Who is it?'); if(!st.src) return toast('Where did they hear about LHQ?'); if(st.stage === 'lost' && !st.lost) return toast('Why was it lost?');
+      const sr = $('eq_src'); if(sr) sr.onchange = () => { keep(); const [o, x] = sr.value.split('|'); st.srcOwner = o || ''; st.src = x || ''; draw(); };
+      const save = async lock => { keep(); if($('eq_stu')) st.student = $('eq_stu').value; if(!st.who.trim()) return toast('Who is it?'); if(!st.src) return toast('Where did they hear about LHQ?'); if(st.stage === 'lost' && !st.lost) return toast('Why was it lost?'); if(st.src === 'Referral' && !st.refBy) return toast('Which family referred them?');
         if(st.stage === 'enrolled' && !st.student) return toast('Choose the student');
         if(st.stage === 'enrolled' && !(e && e.enrolledD)) st.enrolledD = tday();
         const why = st.why; delete st.why; if(lock){ st.lock = true; st.lockBy = me().name; }
         if(!e && admin && !isBdo()) { st.lock = true; st.lockBy = me().name; }
-        if(await put('lhq_enq', e ? e.id : uid('en'), st, {why})){ closeSheet(); toast(st.stage === 'ready' && !(e && e.stage === 'ready') ? 'Sent to admin to enrol' : 'Saved'); } };
+        if(await put('lhq_enq', e ? e.id : uid('en'), st, {why})){ if(st.stage === 'enrolled' && st.src === 'Referral' && window.FAMS) FAMS.linkReferral(st.student, st.refBy); closeSheet(); toast(st.stage === 'ready' && !(e && e.stage === 'ready') ? 'Sent to admin to enrol' : 'Saved'); } };
       $('eqGo').onclick = () => save(false); if($('eqLock')) $('eqLock').onclick = () => save(true); };
     draw();
   }

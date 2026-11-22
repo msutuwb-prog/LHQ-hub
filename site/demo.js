@@ -379,7 +379,22 @@
       fdemo3:{id:'fdemo3', by:'@Benjamin Msutu', byN:'Benjamin Msutu', role:'admin', ty:'slow', note:'Balances take a while to open on my phone.', where:'Business', from:'more', way:'little', dev:'Android · Chrome', ver:'v70', at:T - 9 * DAY, st:'fixed', stAt:T - 3 * DAY}};
     const areps = {}; for(let i = 1; i <= 5; i++){ const dd = d(-i); if([0, 6].includes(new Date(dd + 'T12:00:00').getDay())) continue; const rc = R.filter(r => r.date === dd);
       areps['@Catherine Mkwinda|' + dd] = {id:'@Catherine Mkwinda|' + dd, by:'@Catherine Mkwinda', byN:'Catherine Mkwinda', d:dd, hub:{money:rc.reduce((a, r) => a + +r.received, 0), pays:rc.length, invN:0, qN:0, studs:[], ses:0, logged:0, missed:0, mu:0, trep:0, tut:0, trMiss:[]}, enq:2 + i % 3, visits:i % 2, issues:i === 1 ? 'Mrs Gondwe asked about the sibling discount: sorted.' : '', supplies:i === 2 ? 'Toner running low.' : '', needs:i === 1 ? 'Approve MWK 180,000 for a second projector' : '', at:T - i * DAY}; }
-    return {lhq_bplan:{items:bplan}, lhq_partners:{items:P3.reduce(it, {})}, lhq_kids:{items:kids}, lhq_enq:{items:enq}, lhq_ann:ann, lhq_cal:{items:cal}, lhq_jobs:{items:jobs}, lhq_spay:spay, lhq_fb:fb, lhq_areps:areps};
+    /* Families (release 3a): one per parent; workplaces; two children not with LHQ yet; a referral; one activity child sharing a parent's phone, for "Same family?" */
+    const WK = [['Malawi Revenue Authority','Tax officer'],['Airtel Malawi','Engineer'],['Kamuzu Central Hospital','Doctor'],['Reserve Bank of Malawi','Economist'],['Malawi Revenue Authority','Accountant'],['National Bank','Manager'],['Malawi Revenue Authority','Auditor'],['', ''],['Ministry of Health','Nurse'],['Self-employed','Business owner']];
+    const fam = {fams: {}, no: [], ref: {by: {type: 'pct', v: 10}, nw: {type: 'pct', v: 5}}}, byPar = {};
+    Object.entries(recs).forEach(([k, r]) => { const pk = (r.parent || r.name).toLowerCase(); (byPar[pk] = byPar[pk] || []).push(k); });
+    Object.entries(byPar).forEach(([pk, ks], i) => { const r = recs[ks[0]], id = 'famd' + i, w = WK[i % WK.length];
+      fam.fams[id] = {id, name: String(r.parent || r.name).trim().split(' ').slice(-1)[0] + ' family', parents: [{name: r.parent || '', phone: r.phone || '', email: r.email || '', pref: ['WhatsApp','A call','WhatsApp','Email'][i % 4], work: w[0], job: w[1], area: ['Area 43','Area 47','Area 10','Area 3'][i % 4], heard: r.heard || ''}],
+        kids: ks.map(k => ({id: 's:' + k})), okOffer: i % 3 !== 2, okOfferBy: i % 3 !== 2 ? 'Said yes · ' + d(-40 + i % 20) + ' · Catherine' : '', okRefer: i % 2 === 0, at: T - 60 * DAY, by: 'Catherine Mkwinda'}; });
+    const FI = Object.keys(fam.fams);
+    if(FI[0]) fam.fams[FI[0]].kids.push({id: 'n:demo1', name: 'Wezi ' + fam.fams[FI[0]].name.split(' ')[0], year: 'Year 2', school: '', by: 'Catherine Mkwinda'});
+    if(FI[3]) fam.fams[FI[3]].kids.push({id: 'n:demo2', name: 'Kondwani ' + fam.fams[FI[3]].name.split(' ')[0], year: 'Year 4', school: '', by: 'Anna Navilati'});
+    if(FI[5] && FI[0]) fam.fams[FI[5]].refBy = FI[0];
+    if(FI[7] && FI[0]) fam.fams[FI[7]].refBy = FI[0];
+    const s0 = recs[(fam.fams[FI[1]] || {kids: [{id: 's:'}]}).kids[0].id.slice(2)];
+    if(s0 && kids.kd0){ kids.kd0.phone = s0.phone; kids.kd0.parent = s0.parent; kids.kd0.name = kids.kd0.name.split(' ')[0] + ' ' + String(s0.name).split(' ').slice(-1)[0]; }
+    if(FI[2] && kids.kd3) fam.fams[FI[2]].kids.push({id: 'k:kd3'});
+    return {lhq_bplan:{items:bplan}, lhq_partners:{items:P3.reduce(it, {})}, lhq_kids:{items:kids}, lhq_enq:{items:enq}, lhq_fam:fam, lhq_ann:ann, lhq_cal:{items:cal}, lhq_jobs:{items:jobs}, lhq_spay:spay, lhq_fb:fb, lhq_areps:areps};
   }
   /* Business: spending from the first month with payments to today, recorded by Wanangwa and Catherine.
      Rent, internet and staff salaries repeat monthly; this month's internet and salaries are left for "to confirm". */

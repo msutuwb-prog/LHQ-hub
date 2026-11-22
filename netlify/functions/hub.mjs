@@ -64,7 +64,7 @@ async function usesDbStore() {
 /* compare two values whatever order their keys come in (the database keeps keys in its own order) */
 const canon = v => JSON.stringify(v, (k, x) => x && typeof x === "object" && !Array.isArray(x) ? Object.keys(x).sort().reduce((o, key) => (o[key] = x[key], o), {}) : x);
 
-const KV_KEYS = ["lhq_bal", "lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes", "lhq_treps", "lhq_avail", "lhq_cardack", "lhq_makeups", "lhq_reqs", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams", "lhq_kpi", "lhq_pay", "lhq_asks", "lhq_school", "lhq_fu", "lhq_obj", "lhq_fx", "lhq_prof", "lhq_bk", "lhq_away"];
+const KV_KEYS = ["lhq_fam", "lhq_bal", "lhq_settings", "lhq_templates", "lhq_counters", "lhq_repEdits", "lhq_logs", "lhq_tlinks", "lhq_students", "lhq_spend", "lhq_budget", "lhq_income", "lhq_classes", "lhq_treps", "lhq_avail", "lhq_cardack", "lhq_makeups", "lhq_reqs", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams", "lhq_kpi", "lhq_pay", "lhq_asks", "lhq_school", "lhq_fu", "lhq_obj", "lhq_fx", "lhq_prof", "lhq_bk", "lhq_away"];
 
 /* ---------- roles and permissions ---------- */
 const PERMS = ["acct", "bdo", "ann", "quotes", "receipts", "cards", "delete", "restore", "students", "money", "tpay", "tutors", "msgs", "numbering", "backup", "classes", "moveclass", "spend", "pl"];
@@ -73,7 +73,8 @@ const TYPE_PERM = { quote: "quotes", invoice: "quotes", receipt: "receipts", car
 // settings fields: lists and wording can be given to admins; everything else (bank, contact, payment rules) is the Director's
 const LIST_FIELDS = ["subjects", "levels", "methods", "includes", "tutors", "grades", "gradeBasis", "sessionLengths", "spendCats", "heardFrom", "districts"];
 /* Business: who may read each part. Spending goes to whoever records it or sees profit and loss; budgets with profit and loss. */
-const KV_READ = { lhq_bk: p => isDirector(p), lhq_bal: p => isDirector(p) || can(p, "acct") || can(p, "pl"),   // money accounts and their daily balances
+const KV_READ = { lhq_fam: p => isDirector(p) || can(p, "students") || can(p, "bdo"),   // families: Director, admin with students, the BDO (agreed 22 Nov)
+  lhq_bk: p => isDirector(p), lhq_bal: p => isDirector(p) || can(p, "acct") || can(p, "pl"),   // money accounts and their daily balances
   lhq_spend: p => can(p, "spend") || can(p, "pl"), lhq_income: p => can(p, "spend") || can(p, "pl"), lhq_budget: p => can(p, "pl"),
   lhq_sreports: p => isDirector(p) || can(p, "tutors"),
   lhq_prof: p => isDirector(p) || can(p, "students") || can(p, "tutors"),   // profiles hold health notes and pay: LHQ only
@@ -326,6 +327,9 @@ async function checkSync(me, upserts, deletes, kv) {
       if (ch.some(id => old[id] && old[id].by !== me.name)) return "You can only change spending you recorded. Ask the Director to change the others.";
     } else if (["lhq_makeups", "lhq_reqs", "lhq_treps", "lhq_clashes", "lhq_moves", "lhq_confirmer", "lhq_sradone", "lhq_sreports", "lhq_notices", "lhq_targets", "lhq_myexams", "lhq_kpi", "lhq_pay", "lhq_asks", "lhq_school", "lhq_fu", "lhq_obj", "lhq_fx", "lhq_bk"].includes(k)) {
       if (changedKeys(old, v).length) return "Make-ups, requisitions, clashes, targets and tutors' reports change through their own buttons.";
+    } else if (k === "lhq_fam") {
+      if (changedKeys(old, v).length && !(me.role === "admin" && (can(me, "students") || can(me, "bdo")))) return "Only the Director, admin and the BDO change families.";
+      if (canon((v || {}).ref) !== canon(old.ref) && old.ref) return "Only the Director sets referral discounts.";
     } else if (k === "lhq_away") {
       if (changedKeys(old, v).length && !isDirector(me)) return "Only the Director marks someone away.";
     } else if (k === "lhq_avail" || k === "lhq_cardack") {

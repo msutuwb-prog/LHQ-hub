@@ -648,6 +648,7 @@ body[data-mode=view] .dp-aside{grid-area:aside}
           <input id="f_discReason" placeholder="Reason, e.g. Sibling" aria-label="Discount reason (prints on the document)">
         </div>
       </div>
+      <div id="refDue" hidden style="margin-top:10px;padding:10px 12px;border-radius:12px;background:var(--am-bg,#fff4e0);font-size:13.5px"></div>
       <div class="fld" id="ttRow" style="margin-top:14px;margin-bottom:0"><span class="lbl">Tuition</span>
         <div class="seg" id="ttSeg" role="group" aria-label="Tuition" style="max-width:420px;margin-bottom:10px">
           <button type="button" data-t="term">Term to term</button><button type="button" data-t="fast">Fast track</button><button type="button" data-t="hol">Holiday</button>
@@ -1352,7 +1353,18 @@ function renderItems(){
   update();
 }
 
-function update(){
+/* referral discounts from Families (agreed 22 Nov): offered here, added only when tapped; the invoice remembers it so it's given once */
+function refDueFor(){ try{ if(!['invoice','quote'].includes(doc.type) || !window.HD || !doc.student) return null; const A = HD.store.get('lhq_fam', null); if(!A || !A.fams) return null;
+  const S = HD.students(), key = HD.sk(doc.student), F = Object.values(A.fams).filter(f => !f.del), fam = F.find(f => (f.kids || []).some(c => c.id === 's:' + key)); if(!fam) return null;
+  const used = k => saved.some(d => !d.del && d.id !== doc.id && d.refKey === k), paidKid = f => (f.kids || []).some(c => { const st = S.find(x => 's:' + x.key === c.id); return st && (st.periods || []).some(p => (p.receipts || []).some(r => num(r.received) > 0)); });
+  const by = F.find(g => g.refBy === fam.id && !used('f:' + g.id) && paidKid(g)), R = A.ref || {};
+  if(by && R.by && num(R.by.v) > 0) return {k: 'f:' + by.id, r: R.by, why: 'Referral · ' + by.name};
+  if(fam.refBy && A.fams[fam.refBy] && !used('n:' + fam.id) && !paidKid(fam) && R.nw && num(R.nw.v) > 0) return {k: 'n:' + fam.id, r: R.nw, why: 'Referred by the ' + A.fams[fam.refBy].name};
+  return null; }catch(e){ return null; } }
+function refOffer(){ const el = F('refDue'); if(!el) return; const r = doc.refKey ? null : refDueFor(); el.hidden = !r; if(!r) return;
+  el.innerHTML = `<b>Referral discount due</b> · ${r.r.type === 'amt' ? 'MWK ' + money(r.r.v) : num(r.r.v) + '%'} · ${esc(r.why)} <button type="button" class="small" id="refAdd" style="margin-left:6px">Add it</button>`;
+  F('refAdd').onclick = () => { doc.discType = r.r.type === 'amt' ? 'amt' : 'pct'; doc.discValue = String(r.r.v); doc.discReason = r.why; doc.refKey = r.k; fillForm(); update(); }; }
+function update(){ try{ refOffer(); }catch(e){}
   const t = totals(), T = doc.type;
   doc.items.forEach((it,i)=>{ const c=F('amt'+i); if(c) c.textContent = 'MWK ' + money(num(it.sessions)*num(it.cost)); });
   const rows = [];
