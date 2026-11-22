@@ -570,7 +570,7 @@ const awayOf = p => { const a = (store.get('lhq_away', {}) || {})[p.id]; return 
 const owedOnly = () => !isDir() && !can('receipts') && !can('money');
 /* the BDO alone (no money, documents or student permissions): no amounts families owe (agreed 22 Nov) */
 const bdoOnly = () => can('bdo') && !isDir() && !can('money') && !can('receipts') && !can('quotes') && !can('acct');
-const shownDocs = L => owedOnly() ? L.filter(d => typeOf(d) !== 'receipt') : L;
+const shownDocs = L => bdoOnly() ? L.filter(d => typeOf(d) === 'card') : owedOnly() ? L.filter(d => typeOf(d) !== 'receipt') : L;   // the BDO alone sees tuition cards only: no invoices, quotes or receipts
 function docRow(d, o = {}){
   const t = typeOf(d), [s, c] = HD.docStatus(d);
   const amt = t === 'card' ? (d.subjects||[]).map(x => x.name).filter(Boolean).join(', ') || 'Tuition card' : t === 'receipt' ? 'Received ' + mk(num(d.received)) : mk(d.total != null ? d.total : HD.total(d));

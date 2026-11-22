@@ -255,7 +255,7 @@
       ${L.map(r => `<div class="h2">${esc(r.byN)} <em>sent ${hm(r.at)}</em></div>${arepView(r)}`).join('') || `<p class="empty">${RP ? 'No staff reports this day.' : 'Loading…'}</p>`}`;
   }
   /* admin's Today: "Send your daily report" ticks itself once sent */
-  const arepJob = () => { if(!isStaff() || isDir()) return []; loadReps(); return !RP ? [{key:'arep', hold:true}] : !myArep() ? [{key:'arep', t:'Send your daily report', sub:'about 2 minutes', href:'#areport'}] : []; };
+  const arepJob = () => { if(!isStaff() || isDir() || (me().perms || []).includes('bdo')) return []; loadReps(); return !RP ? [{key:'arep', hold:true}] : !myArep() ? [{key:'arep', t:'Send your daily report', sub:'about 2 minutes', href:'#areport'}] : []; };
 
   const css = `.cm-box{border:1px dashed var(--line);border-radius:14px;padding:12px;background:var(--surface);margin-top:12px}.cm-hd{display:flex;align-items:center;gap:8px;font-weight:800;margin-bottom:8px}.cm-hd small{color:var(--muted);font-weight:700;margin-left:auto;font-size:11.5px}
     .cm-strip{display:flex;gap:8px;align-items:center;border-radius:12px;padding:9px 12px;font-size:14px;font-weight:700;margin-bottom:12px;background:var(--accent);color:var(--onaccent)}.cm-strip .t{flex:1;min-width:0}.cm-strip .btn{background:rgba(255,255,255,.16);border-color:transparent;color:var(--onaccent)}

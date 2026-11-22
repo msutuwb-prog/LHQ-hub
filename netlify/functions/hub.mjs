@@ -1444,7 +1444,11 @@ async function demo(req, me) {
   const s = store(), docs = {}, now = Date.now();
   for (let i = 0; i < b.docs.length; i += 20) await Promise.all(b.docs.slice(i, i + 20).map(d => { docs[d.id] = { type: d.type || "quote", number: d.number, savedAt: d.savedAt || now, by: d.updatedBy || "" }; return s.setJSON("doc/" + d.id, d); }));
   for (const d of b.trash || []) await s.setJSON("trash/" + d.id, d);
-  for (const [k, v] of Object.entries(b.kv || {})) if (KV_KEYS.includes(k) || k === "lhq_focus" || k === "lhq_plan") await s.setJSON("kv/" + k, v);   // students' focus rounds and blocks: endpoint-only, but demo data seeds them
+  const DEMO_NEW = ["lhq_bplan", "lhq_partners", "lhq_kids", "lhq_enq", "lhq_ann", "lhq_cal", "lhq_jobs", "lhq_spay", "lhq_fb", "lhq_areps"];
+  const byName = {}; (await getPeople()).forEach(p => { if (p && p.name) byName[p.name] = p.id; });
+  const ids = v => JSON.parse(JSON.stringify(v).replace(/"@([^"|]+)(\||")/g, (m, n, end) => byName[n] ? '"' + byName[n] + end : m));   // "@Name" in the demo becomes that person's id
+  for (const [k, v] of Object.entries(b.kv || {})) if (KV_KEYS.includes(k) || k === "lhq_focus" || k === "lhq_plan") await s.setJSON("kv/" + k, v);
+    else if (DEMO_NEW.includes(k)) await s.setJSON("kv/" + k, ids(v));   // students' focus rounds and blocks: endpoint-only, but demo data seeds them
   Object.values(docs).forEach(m => { m.r = now; });
   await s.setJSON("index", { rev: now, docs, at: now, epoch: crypto.randomBytes(6).toString("hex") });
   return json({ ok: true, docs: b.docs.length, people: list.map(pub) });

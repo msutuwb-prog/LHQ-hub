@@ -12,7 +12,8 @@
   const ADMINS = ['Wanangwa Msutu', 'Catherine Mkwinda'];
   const PEOPLE = [
     {name:'Catherine Mkwinda', role:'admin', pin:'1111', seen:Date.now() - 2 * 3600e3, perms:['quotes','cards','delete','restore','students','tutors','msgs','classes']},
-    {name:'Benjamin Msutu', role:'admin', pin:'1111', seen:Date.now() - 3 * 3600e3, perms:['acct','bdo','ann','receipts','money','tpay','spend','pl']},   /* the accountant, who also teaches (agreed 21 Nov) */
+    {name:'Benjamin Msutu', role:'admin', pin:'1111', seen:Date.now() - 3 * 3600e3, perms:['acct','receipts','money','tpay','spend','pl']},   /* the interim accountant, who also teaches (agreed 21 Nov) */
+    {name:'Anna Navilati', role:'admin', pin:'1111', seen:Date.now() - 5 * 3600e3, perms:['bdo','ann']},   /* the interim Business Development Officer (agreed 22 Nov) */
     {name:'Emmanuel Mkwamba', role:'tutor', pin:'1111', seen:Date.now() - DAY},
     {name:'Ungweru Kaonga', role:'tutor', pin:'1111', seen:Date.now() - 3 * DAY},
     {name:'Maureen Story', role:'tutor', pin:'1111', seen:Date.now() - 5 * 3600e3},
@@ -303,10 +304,82 @@
       lhq_fu[id] = f; });
     /* bank rates (MWK per USD) for the MK / $ button: a slow drift over the last 12 months, no random draws */
     const lhq_fx = {days: {}, fix: {}, src: 'demo'}; for(let i = 365; i >= 0; i -= 1){ const d = iso(new Date(T - i * DAY)); lhq_fx.days[d] = Math.round((1735 + (365 - i) * 0.045 + Math.sin(i / 9) * 0.6) * 100) / 100; }
-    return {docs, trash, people:PEOPLE, kv:{lhq_fx, lhq_fu, lhq_focus, lhq_plan, lhq_treps:{e:treps}, lhq_makeups:makeups, lhq_students:recs, lhq_logs:{e:logs, imports}, lhq_counters:{quote:C.quote, invoice:C.invoice, receipt:C.receipt + 1, card:C.card}, lhq_spend:money.spend, lhq_budget:money.budget, lhq_targets:targets, lhq_reqs, lhq_pay:{rules: {trBy: {'catherine mkwinda': 15000, 'emmanuel mkwamba': 3000}},
+    const NEW = newParts(T, docs, recs);
+    return {docs, trash, people:PEOPLE, kv:{...NEW, lhq_fx, lhq_fu, lhq_focus, lhq_plan, lhq_treps:{e:treps}, lhq_makeups:makeups, lhq_students:recs, lhq_logs:{e:logs, imports}, lhq_counters:{quote:C.quote, invoice:C.invoice, receipt:C.receipt + 1, card:C.card}, lhq_spend:money.spend, lhq_budget:money.budget, lhq_targets:targets, lhq_reqs, lhq_pay:{rules: {trBy: {'catherine mkwinda': 15000, 'emmanuel mkwamba': 3000}},
       place: Object.fromEntries([...new Set(Object.values(POOL).flat())].map(n => [n.toLowerCase(), [{p: ['Catherine Mkwinda','Emmanuel Mkwamba'].includes(n) ? 'full' : 'part', from: '2026-01-01'}]])),
       items: {pi1: {id: 'pi1', tutor: 'Peter Mvula', m: iso(new Date(T)).slice(0, 7), kind: 'advance', amt: 30000, label: 'Advance', d: iso(new Date(T - 4 * DAY)), by: 'Wanangwa Msutu', at: T - 4 * DAY},
         pi2: {id: 'pi2', tutor: 'Emmanuel Mkwamba', m: iso(new Date(T)).slice(0, 7), kind: 'allowance', amt: 10000, label: 'Transport · exam invigilation', d: iso(new Date(T - 2 * DAY)), by: 'Wanangwa Msutu', at: T - 2 * DAY}}}}};
+  }
+  /* Release 2 parts (22 Nov): the plan, partners and children, enquiries, announcements, calendar entries, jobs, staff pay, app feedback and admin's reports.
+     "@Name" stands for that person's id; the server swaps it in when the demo loads. */
+  function newParts(T, docs, recs){
+    const d = n => iso(new Date(T + n * DAY)), t0 = d(0), ym = t0.slice(0, 7), fy = +t0.slice(5, 7) >= 9 ? +t0.slice(0, 4) : +t0.slice(0, 4) - 1;
+    const R = docs.filter(x => x.type === 'receipt' && +x.received > 0), first = {}; R.forEach(r => { const k = norm(r.student); if(!first[k] || r.date < first[k]) first[k] = r.date; });
+    const S = Object.values(recs), schools = [...new Set(S.map(r => r.school).filter(Boolean))];
+    const it = (o, x) => (o[x.id] = x, o);
+    const bplan = [
+      {id:'conf', fy, cap:180, centres:1, centre:'Area 47', junLeave:25, low:85, high:115, grow:{enq:30, fee:8, enrol:2, kept:1, partners:40, places:30}, comm:25000, bdoShare:50, tutorSes:60, vis:{'@Anna Navilati':{pp:1, planner:1}, '@Benjamin Msutu':{costs:1, streams:1}}, bdoT:{enq:6, enrolPct:40, partners:2, kids:20, toTuition:15, visits:3}},
+      {id:'s:inp', name:'Weekly tuition', kind:'tuition', mode:'inp', status:'running', students0:34, enqM:8, enrol:35, kept:86, fee:180000, ses:8, rate:8000, ord:1},
+      {id:'s:onl', name:'Weekly tuition', kind:'tuition', mode:'onl', status:'running', students0:6, enqM:2, enrol:30, kept:82, fee:150000, ses:8, rate:7000, ord:2},
+      {id:'s:ft', name:'Fast Track', kind:'prog', mode:'inp', status:'running', runs:2, places:12, fill:70, feePlace:180000, costRun:900000, months:'1,7', match:'fast track', ord:3},
+      {id:'s:mar', name:'IGCSE Marathon', kind:'prog', mode:'inp', status:'running', runs:1, places:20, fill:90, feePlace:180000, costRun:1200000, months:'4', match:'marathon', ord:4},
+      {id:'s:par', name:'Partner activities', kind:'partner', mode:'none', status:'running', arr:'lhq', children:20, feeChild:7500, share:45, comm:10, toTuition:20, ord:5},
+      {id:'s:ielts', name:'IELTS course', kind:'exam', mode:'onl', status:'planned', runs:2, places:10, fill:80, feePlace:250000, costRun:800000, months:'3,6', match:'ielts', ord:6},
+      {id:'c:staff', name:'Staff pay', kind:'staff', monthly:1200000, cats:['Salaries','Staff pay','Wages']},
+      {id:'c:rent', name:'Rent and running', kind:'rent', monthly:650000, cats:['Rent','Utilities','Internet','Electricity','Water']},
+      {id:'c:mkt', name:'Marketing', kind:'mkt', monthly:120000, cats:['Marketing','Advertising']},
+      {id:'c:mat', name:'Materials and printing', kind:'materials', monthly:90000, cats:['Printing','Stationery','Materials']},
+      {id:'t:' + fy, inc:300000000, prof:90000000}, {id:'t:' + (fy + 4), inc:1500000000, prof:450000000},
+      {id:'i:term1', name:'Term 1', area:'terms', owner:'@Catherine Mkwinda', d1:fy + '-09-07', d2:fy + '-12-04', status:'done', steps:[]},
+      {id:'i:mocks', name:'Year 11 mock exams', area:'terms', owner:'@Catherine Mkwinda', d1:d(-13), d2:d(-2), status:'done', steps:[{t:'Print the papers', who:'@Catherine Mkwinda', by:d(-14), done:T - 14 * DAY}]},
+      {id:'i:enqpage', name:'Enquiry page on the website', area:'mkt', owner:'@Wanangwa Msutu', d1:d(-40), d2:d(-1), status:'confirmed', cost:150000, steps:[{t:'Write the page', who:'@Wanangwa Msutu', by:d(-20), done:T - 21 * DAY}, {t:'Form goes to Enquiries', who:'@Wanangwa Msutu', by:d(-3)}]},
+      {id:'i:open', name:'Open day', area:'mkt', owner:'@Anna Navilati', d1:d(13), d2:'', status:'confirmed', cost:450000, aim:'12 enquiries', tag:'BDO event', desc:'Taster sessions for Years 8–11 and a talk for parents, to bring in enquiries before January.', steps:[{t:'Book the hall', who:'@Anna Navilati', by:d(-10), done:T - 10 * DAY}, {t:'Invite current families', who:'@Catherine Mkwinda', by:d(6)}, {t:'Tutors for the tasters', who:'@Anna Navilati', by:d(9)}]},
+      {id:'i:partners', name:'Sign 2 new partners', area:'mkt', owner:'@Anna Navilati', d1:d(-20), d2:d(80), status:'confirmed', steps:[{t:'Baking: Sweet Crumbs', who:'@Anna Navilati', by:d(30)}, {t:'Gym: FitZone teen class', who:'@Anna Navilati', by:d(60)}]},
+      {id:'i:chem', name:'Hire an A Level Chemistry tutor', area:'people', owner:'@Wanangwa Msutu', d1:d(-12), d2:d(-2), status:'confirmed', steps:[{t:'Advert out', who:'@Catherine Mkwinda', by:d(-10), done:T - 10 * DAY}]},
+      {id:'i:ft', name:'Fast Track · January', area:'prog', owner:'@Catherine Mkwinda', d1:(fy + 1) + '-01-04', d2:(fy + 1) + '-01-29', status:'confirmed', steps:[]},
+      {id:'i:mar', name:'IGCSE Marathon', area:'prog', owner:'@Catherine Mkwinda', d1:(fy + 1) + '-04-06', d2:(fy + 1) + '-04-24', status:'confirmed', steps:[]},
+      {id:'i:ielts', name:'IELTS course', area:'prog', owner:'@Wanangwa Msutu', d1:(fy + 1) + '-03-01', d2:(fy + 1) + '-06-30', status:'planned', steps:[]},
+      {id:'i:site', name:'Centre 2: find a site', area:'growth', owner:'@Wanangwa Msutu', d1:(fy + 1) + '-03-01', d2:(fy + 1) + '-08-31', status:'planned', steps:[]},
+      {id:'i:board', name:'Board meeting', area:'growth', owner:'@Wanangwa Msutu', d1:ym + '-27', d2:'', status:'confirmed', steps:[{t:'Board report', who:'@Wanangwa Msutu', by:ym + '-25'}]}
+    ].reduce(it, {});
+    const P3 = [{id:'ptchess', name:'Lilongwe Chess Club', contact:'Mr Tembo · 0999 000 111', arr:'lhq', share:40, since:d(-80), renew:d(20), acts:[{id:'acch', name:'Chess · Saturdays', fee:7500}]},
+      {id:'ptswim', name:'AquaKids Swimming', contact:'Ms Chirwa · 0888 222 333', arr:'lhq', share:50, since:d(-60), renew:d(150), acts:[{id:'acsw', name:'Swimming · Wednesdays', fee:9000}]},
+      {id:'ptkart', name:'Kart Arena', contact:'Mr Gama · 0999 444 555', arr:'partner', comm:10, since:d(-30), renew:d(300), acts:[{id:'ackt', name:'Go-karting · monthly', fee:25000}]}];
+    P3.forEach(p => p.log = [{d:d(-25), kind:'meeting', t:'Agreed the term plan.', by:'Anna Navilati'}]);
+    schools.slice(0, 3).forEach((sc, i) => P3.push({id:'sch-' + norm(sc).replace(/[^a-z0-9]+/g, '-').slice(0, 40), kind:'school', name:sc, log:[{d:d(-6 - i * 9), kind:'visit', t:'Met the Head of Year 11.', by:'Anna Navilati'}]}));
+    const KN = ['Chisomo Phiri','Tadala Banda','Kondwani Mvula','Thoko Gondwe','Wezi Kalua','Mphatso Zulu','Atupele Nkhoma','Limbani Chirwa','Dalitso Moyo','Takondwa Kaunda','Yamikani Phiri','Chimwemwe Tembo','Lusungu Mhango','Kumbukani Banda','Madalitso Gama','Tiyamike Chisi','Ulemu Kamanga','Pempho Mwale','Zione Lungu','Alinafe Soko'];
+    const kids = KN.map((n, i) => { const p = i < 8 ? 'ptchess' : i < 15 ? 'ptswim' : 'ptkart', a = {ptchess:'acch', ptswim:'acsw', ptkart:'ackt'}[p]; return {id:'kd' + i, name:n, parent:'Parent of ' + n.split(' ')[0], phone:'0999 1' + String(10000 + i * 7).slice(-5), school:schools[i % Math.max(1, schools.length)] || '', year:'Year ' + (7 + i % 5), act:a, partner:p, since:d(-70 + i * 2), src:'partner'}; }).reduce(it, {});
+    /* enquiries over four months: about half from the BDO's work; the enrolled ones are real students, with the date of their first payment */
+    const SL = ['Facebook','Billboard','Website','Walk-in','A family we teach'], BL = ['BDO school visit','BDO partner','BDO event','BDO contact'], enq = {};
+    const newStu = Object.entries(first).filter(([, f]) => f >= d(-110)).sort((a, b) => a[1].localeCompare(b[1]));
+    let n = 0; const mkE = (o) => { const id = 'endemo' + (n++); enq[id] = Object.assign({id, phone:'0999 ' + (300000 + n * 37), year:'Year ' + (8 + n % 5), subj:pick(['Maths','Physics','Chemistry','English','Biology']) + ', ' + pick(['Maths','Physics','Economics']), for:'tuition', by:'@Anna Navilati', at:T}, o); };
+    newStu.forEach(([k, f], i) => { const bdo = i % 2 === 0; mkE({who:(recs[k] || {}).parent || 'Parent', st:(recs[k] || {}).name, school:(recs[k] || {}).school || '', d:iso(new Date(new Date(f + 'T09:00:00').getTime() - 9 * DAY)), src:bdo ? BL[i % 4] : SL[i % 5], srcOwner:bdo ? 'bdo' : 'lhq', lock:true, lockBy:'Catherine Mkwinda', stage:'enrolled', student:k, enrolledD:iso(new Date(new Date(f + 'T09:00:00').getTime() - 2 * DAY))}); });
+    const NM = ['Mrs Banda','Mr Gondwe','Mrs Kumwenda','Mr Phiri','Ms Mvula','Mrs Chirwa','Mr Nkhoma','Mrs Zulu','Mr Kalua','Mrs Moyo','Mr Tembo','Mrs Mhango','Mr Soko','Mrs Lungu','Mr Kaunda','Mrs Mwale','Mr Chisi','Mrs Kamanga','Mr Gama','Mrs Chiumia','Mr Banda','Mrs Nyirenda','Mr Mbewe','Mrs Kapalamula','Mr Ngwira'];
+    NM.forEach((w, i) => { const bdo = i % 2 === 1, age = 3 + i * 4, stg = i < 6 ? (i % 3 === 0 ? 'new' : i % 3 === 1 ? 'contacted' : 'visit') : i < 8 ? 'ready' : 'lost';
+      mkE({who:w, school:schools[i % Math.max(1, schools.length)] || '', d:d(-age), src:bdo ? BL[i % 4] : SL[i % 5], srcOwner:bdo ? 'bdo' : 'lhq', lock:i % 4 !== 3, lockBy:i % 4 !== 3 ? 'Catherine Mkwinda' : '', stage:stg, follow:stg === 'new' || stg === 'contacted' || stg === 'visit' ? d(i % 2 ? -1 : 2) : '', lost:stg === 'lost' ? pick(['Fees','Timing','Chose another','No reply']) : '', for:i % 7 === 0 ? 'prog' : 'tuition'}); });
+    Object.values(kids).slice(0, 3).forEach((k, i) => { k.moved = d(-20 + i * 5); const id = 'enkid' + i; enq[id] = {id, who:k.parent, st:k.name, phone:k.phone, school:k.school, src:'BDO partner · ' + ({ptchess:'Lilongwe Chess Club', ptswim:'AquaKids Swimming', ptkart:'Kart Arena'}[k.partner]), srcOwner:'bdo', partner:k.partner, kid:k.id, stage:'ready', d:k.moved, lock:true, lockBy:'Catherine Mkwinda', by:'@Anna Navilati', at:T}; k.enq = id; });
+    const ann = {andemo1:{id:'andemo1', by:'@Wanangwa Msutu', byN:'Wanangwa Msutu', t:'Centre closed on Friday', body:'LHQ is closed on Friday for staff training. Online sessions go ahead as normal.', imp:true, aud:'all', fams:[], until:d(5), at:T - 2 * 3600e3, seen:{}, got:{}},
+      andemo2:{id:'andemo2', by:'@Catherine Mkwinda', byN:'Catherine Mkwinda', t:'New SRA schedule', body:'Reviews now go out on session days.', imp:false, aud:'tutors', fams:[], until:'', at:T - 3 * DAY, seen:{}, got:{}}};
+    const cal = {cdemo1:{id:'cdemo1', by:'@Anna Navilati', byN:'Anna Navilati', role:'admin', kind:'leave', t:'Family wedding', d:d(4), d2:d(4), all:true, s:'', e:'', vis:'lhq', inv:[], na:true, leave:{st:'wait'}, at:T},
+      cdemo2:{id:'cdemo2', by:'@Wanangwa Msutu', byN:'Wanangwa Msutu', role:'director', kind:'meet', t:'Staff meeting', d:d(1), d2:d(1), all:false, s:'09:00', e:'10:00', vis:'inv', inv:['@Catherine Mkwinda', '@Anna Navilati', '@Benjamin Msutu'], na:false, at:T},
+      cdemo3:{id:'cdemo3', by:'@Peter Mvula', byN:'Peter Mvula', role:'tutor', kind:'personal', t:'Dentist', d:d(1), d2:d(1), all:false, s:'10:00', e:'11:00', vis:'me', inv:[], na:true, at:T},
+      cdemo4:{id:'cdemo4', by:'@Catherine Mkwinda', byN:'Catherine Mkwinda', role:'admin', kind:'work', t:'Bank: signatories', d:d(2), d2:d(2), all:false, s:'14:00', e:'15:00', vis:'lhq', inv:[], na:false, at:T}};
+    const jobs = {jdemo1:{id:'jdemo1', what:'Print the Year 11 mock papers', by:'@Wanangwa Msutu', byN:'Wanangwa Msutu', to:'@Catherine Mkwinda', toN:'Catherine Mkwinda', d:t0, rep:'', tm:'12:00', at:T, done:{}},
+      jdemo2:{id:'jdemo2', what:'Send the Term 2 dates to parents', by:'@Wanangwa Msutu', byN:'Wanangwa Msutu', to:'@Catherine Mkwinda', toN:'Catherine Mkwinda', d:d(-2), rep:'', tm:'', at:T - 2 * DAY, done:{}},
+      jdemo3:{id:'jdemo3', what:'Call two partner leads', by:'@Anna Navilati', byN:'Anna Navilati', to:'@Anna Navilati', toN:'Anna Navilati', d:d(-14), rep:'wkday', tm:'', at:T - 14 * DAY, done:{}},
+      jdemo4:{id:'jdemo4', what:'Board pack: check the figures', by:'@Wanangwa Msutu', byN:'Wanangwa Msutu', to:'@Wanangwa Msutu', toN:'Wanangwa Msutu', d:ym + '-25', rep:'month', tm:'', at:T, done:{}}};
+    const pm = iso(new Date(new Date(T).getFullYear(), new Date(T).getMonth() - 1, 1)).slice(0, 7);
+    const spay = {cfg:{'@Catherine Mkwinda':{salary:450000, allow:[{name:'Transport', amt:30000}], prob:'', comm:{on:false, rates:{tuition:0, prog:0, kid:0}}, bonus:{on:false, items:[]}},
+      '@Benjamin Msutu':{salary:400000, allow:[{name:'Transport', amt:30000}], prob:'', comm:{on:false, rates:{}}, bonus:{on:false, items:[]}},
+      '@Anna Navilati':{salary:350000, allow:[], prob:d(8), comm:{on:true, from:d(-120), take4:false, rates:{tuition:25000, prog:15000, kid:10000}}, bonus:{on:false, items:[{k:'partners', label:'New partners', target:2, amt:50000, on:true}, {k:'enq', label:'Enquiries a month', target:6, amt:30000, on:true}]}}},
+      slips:{['@Catherine Mkwinda|' + pm]:{st:'signed', snap:{name:'Catherine Mkwinda', m:pm, lines:[{t:'Salary', amt:450000}, {t:'Transport', s:'allowance', amt:30000}], total:480000}, by:'Benjamin Msutu', at:T - 20 * DAY, aBy:'Wanangwa Msutu', aAt:T - 19 * DAY, sAt:T - 18 * DAY},
+        ['@Benjamin Msutu|' + pm]:{st:'confirmed', snap:{name:'Benjamin Msutu', m:pm, lines:[{t:'Salary', amt:400000}, {t:'Transport', s:'allowance', amt:30000}], total:430000}, by:'Wanangwa Msutu', at:T - 19 * DAY, aBy:'Wanangwa Msutu', aAt:T - 19 * DAY}}};
+    const fb = {fdemo1:{id:'fdemo1', by:'@Peter Mvula', byN:'Peter Mvula', role:'tutor', ty:'broke', note:"Save didn't work the first time on the marks sheet.", where:'SRA tracker', from:'report', dev:'iPhone · Safari', ver:'v71', at:T - 5 * 3600e3, st:'new'},
+      fdemo2:{id:'fdemo2', by:'@Catherine Mkwinda', byN:'Catherine Mkwinda', role:'admin', ty:'idea', note:'A button to copy a quote for WhatsApp.', where:'Documents', from:'more', dev:'Windows · Chrome', ver:'v71', at:T - 2 * DAY, st:'look', lhq:'Next release'},
+      fdemo3:{id:'fdemo3', by:'@Benjamin Msutu', byN:'Benjamin Msutu', role:'admin', ty:'slow', note:'Balances take a while to open on my phone.', where:'Business', from:'more', way:'little', dev:'Android · Chrome', ver:'v70', at:T - 9 * DAY, st:'fixed', stAt:T - 3 * DAY}};
+    const areps = {}; for(let i = 1; i <= 5; i++){ const dd = d(-i); if([0, 6].includes(new Date(dd + 'T12:00:00').getDay())) continue; const rc = R.filter(r => r.date === dd);
+      areps['@Catherine Mkwinda|' + dd] = {id:'@Catherine Mkwinda|' + dd, by:'@Catherine Mkwinda', byN:'Catherine Mkwinda', d:dd, hub:{money:rc.reduce((a, r) => a + +r.received, 0), pays:rc.length, invN:0, qN:0, studs:[], ses:0, logged:0, missed:0, mu:0, trep:0, tut:0, trMiss:[]}, enq:2 + i % 3, visits:i % 2, issues:i === 1 ? 'Mrs Gondwe asked about the sibling discount: sorted.' : '', supplies:i === 2 ? 'Toner running low.' : '', needs:i === 1 ? 'Approve MWK 180,000 for a second projector' : '', at:T - i * DAY}; }
+    return {lhq_bplan:{items:bplan}, lhq_partners:{items:P3.reduce(it, {})}, lhq_kids:{items:kids}, lhq_enq:{items:enq}, lhq_ann:ann, lhq_cal:{items:cal}, lhq_jobs:{items:jobs}, lhq_spay:spay, lhq_fb:fb, lhq_areps:areps};
   }
   /* Business: spending from the first month with payments to today, recorded by Wanangwa and Catherine.
      Rent, internet and staff salaries repeat monthly; this month's internet and salaries are left for "to confirm". */
