@@ -194,6 +194,10 @@ test("a command sent twice (phone retrying) happens once", async () => {
 
 test("pay: worked out from the logs, confirmed, then the tutor sees and signs it", async () => {
   const chi = await who("Chisomo Banda"), month = new Date().toISOString().slice(0, 7);
+  // the demo leaves weekend amounts unset; set them so the month's Saturday sessions (some months have them) can be paid
+  const pr = (await one("SELECT value FROM settings WHERE key = 'pay_rules'")).value;
+  pr.full.weekend = pr.full.weekend.map(w => Object.assign({}, w, { amount: w.amount == null ? 5000 : w.amount }));
+  await run(dir, "settings.set", { key: "pay_rules", value: pr });
   const d = await run(dir, "payslip.draft", { tutor_id: chi.id, month });
   const slip = await one("SELECT * FROM payslips WHERE id = $1", [d.id]);
   assert.ok(slip.lines.some(l => l.kind === "salary"), "full-timer: salary line");
@@ -272,7 +276,7 @@ test("the current Hub copies into the records, and copying again adds nothing", 
   assert.equal(inDb, logged.length - a.skipped.filter(x => x.startsWith("Log")).length, "one attendance row per session log");
   const absent = logged.filter(e => e.a === "absent").length;
   assert.ok((await q("SELECT count(*)::int n FROM makeups WHERE why LIKE '%old logs%'"))[0].n === absent, "absences became make-ups owed");
-  const may = await one("SELECT status, pin_hash FROM people WHERE id = 'b10'");
+  const may = await one("SELECT status, pin_hash FROM people WHERE id = $1", ["b" + people.findIndex(p => p.name === "Mayamiko Goliati")]);
   assert.equal(may.status, "off", "an inactive tutor stays off"); assert.ok(may.pin_hash, "PIN hash kept for the move to passwords");
   const b = await all();
   assert.equal((b.sessions || 0) + (b.students || 0) + (b.groups || 0) + (b.sras || 0), 0, "a second copy adds nothing");

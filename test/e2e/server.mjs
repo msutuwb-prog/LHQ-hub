@@ -21,7 +21,7 @@ export async function start(port, url) {
     if (up.startsWith("/api/hub/") || up.startsWith("/api/v2/")) {
       const ch = []; for await (const c of req) ch.push(c);
       const r = await (up.startsWith("/api/hub/") ? hubM.default : v2)(new Request("http://x" + req.url, { method: req.method, headers: req.headers, body: req.method === "POST" ? Buffer.concat(ch) : undefined }), { deploy: { context: "deploy-preview" } });
-      res.writeHead(r.status, { "content-type": "application/json" }); res.end(await r.text()); return;
+      res.writeHead(r.status, Object.assign({ "content-type": "application/json" }, r.headers.get("content-encoding") ? { "content-encoding": r.headers.get("content-encoding") } : {})); res.end(Buffer.from(await r.arrayBuffer())); return;
     }
     if (up.startsWith("/api/")) { res.writeHead(404); res.end("{}"); return; }
     const f = path.join(ROOT, up === "/" ? "index.html" : decodeURIComponent(up));

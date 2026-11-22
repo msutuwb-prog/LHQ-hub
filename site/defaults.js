@@ -5,11 +5,11 @@ const DEFAULT_SUBJECTS = ['Mathematics','Additional Mathematics','Physics','Chem
   'Geography','History','French','Global Perspectives'];
 
 /* Business › Spending: the categories, in the order they are offered. Renovations and Purchases are one-off costs. */
-const DEFAULT_SPEND_CATS = ['Salaries','Rentals','Utilities','Communication','Stationery','Transportation','Marketing','Maintenance','Trainings','Renovations','Purchases','Refunds','Loan repayment'];
+const DEFAULT_SPEND_CATS = ['Tutor pay','Salaries','Rentals','Utilities','Communication','Stationery','Transportation','Marketing','Maintenance','Trainings','Renovations','Purchases','Refunds','Loan repayment'];
 
 /* How families hear about LHQ (students) and where marketing money goes (spending): one list, so they can be matched */
 const DEFAULT_HEARD = ['A friend or family member','Sibling at LHQ','Instagram','Facebook','TikTok','WhatsApp','Google','Their school','Study Smart Session','Flyers or posters','Radio or TV','An event','Other'];
-const FREE_CHANNELS = ['A friend or family member','Sibling at LHQ'];   // word of mouth: no spending behind it
+const FREE_CHANNELS = ['A friend or family member','Sibling at LHQ'];   // word of mouth: no payments behind it
 const DEFAULT_DISTRICTS = ['Lilongwe','Blantyre','Mzuzu','Zomba'];
 
 /* LHQ's financial year: 1 September to 31 August (the month it starts, 1–12) */
@@ -83,12 +83,12 @@ LHQ Learning Solutions`,
   receiptEmailBody:
 `Dear {name},
 
-Thank you for your payment of MKW {received} for {for}. Please find attached your receipt ({number}){refline}.
+Thank you for your payment of MWK {received} for {for}. Please find attached your receipt ({number}){refline}.
 
-Invoice total: MKW {total}
-Paid before this: MKW {prevpaid}
-This payment: MKW {received}
-Balance remaining: MKW {balance}
+Invoice total: MWK {total}
+Paid before this: MWK {prevpaid}
+This payment: MWK {received}
+Balance remaining: MWK {balance}
 
 Please keep this receipt for your records. For any questions, call {popphone} or email {email}.
 
@@ -98,9 +98,9 @@ LHQ Learning Solutions
   receiptWaBody:
 `Hello {name},
 
-Thank you for your payment of *MKW {received}* for {for}. Here is your receipt ({number}).
+Thank you for your payment of *MWK {received}* for {for}. Here is your receipt ({number}).
 
-Balance remaining: *MKW {balance}*
+Balance remaining: *MWK {balance}*
 
 Please keep this receipt for your records.
 LHQ Learning Solutions`

@@ -1,3 +1,11 @@
+/* names: "Mr Nalivati" stays "Mr Nalivati" (a title keeps the surname: "Mrs Grace Phiri" → "Mrs Phiri"); initials skip the title too.
+   lhqFirst is the short name used in greetings and lists. */
+(function(){
+  const T = /^(mr|mrs|ms|miss|mx|dr|prof|rev|madam|madame|sir|pastor|fr|sr|hon)\.?$/i;
+  window.lhqFirst = n => { const w = String(n || '').trim().split(/\s+/).filter(Boolean); if(!w.length) return ''; return T.test(w[0]) && w[1] ? w[0].replace(/\.$/, '') + ' ' + w[w.length - 1] : w[0]; };   // "Mrs Grace Phiri" → "Mrs Phiri"
+  window.lhqInitials = () => '';   // no initials anywhere: an empty avatar shows a person outline (decided 21 Nov)
+
+})();
 /* LHQ Hub: light / dark theme, shared by every page.
    Loads in <head> so the right colours show before the page paints. */
 (function(){
@@ -8,11 +16,16 @@
   const get = () => choice() === 'auto' ? (mq && mq.matches ? 'dark' : 'light') : choice();
   function set(v){ try{ localStorage.setItem(KEY, v); }catch(e){} apply(get()); window.dispatchEvent(new CustomEvent('lhqtheme', {detail:get()})); }
   if(mq) (mq.addEventListener ? mq.addEventListener('change', () => { if(choice() === 'auto') apply(get()); }) : mq.addListener(() => { if(choice() === 'auto') apply(get()); }));
-  /* text size on this device: standard or large */
+  /* text size on this device: standard, large or larger */
   const TKEY = 'lhq_text';
-  const text = () => { try{ return localStorage.getItem(TKEY) === 'l' ? 'l' : 's'; }catch(e){ return 's'; } };
-  function setText(v){ try{ localStorage.setItem(TKEY, v); }catch(e){} document.documentElement.classList.toggle('tx-l', v === 'l'); }
-  document.documentElement.classList.toggle('tx-l', text() === 'l');
+  const text = () => { try{ const v = localStorage.getItem(TKEY); return v === 'l' || v === 'xl' ? v : 's'; }catch(e){ return 's'; } };
+  function setText(v){ try{ localStorage.setItem(TKEY, v); }catch(e){} document.documentElement.classList.toggle('tx-l', v === 'l'); document.documentElement.classList.toggle('tx-xl', v === 'xl'); }
+  document.documentElement.classList.toggle('tx-l', text() === 'l'); document.documentElement.classList.toggle('tx-xl', text() === 'xl');
+  /* colour theme on this device: changes the accent only (buttons, selected tabs, the bar, the timer ring, chart lines) */
+  const CKEY = 'lhq_col', COLS = ['navy', 'teal', 'purple', 'forest', 'rose', 'sunset'];
+  const col = () => { try{ const v = localStorage.getItem(CKEY); return COLS.includes(v) ? v : 'navy'; }catch(e){ return 'navy'; } };
+  function setCol(v){ try{ localStorage.setItem(CKEY, v); }catch(e){} if(v === 'navy') delete document.documentElement.dataset.col; else document.documentElement.dataset.col = v; }
+  if(col() !== 'navy') document.documentElement.dataset.col = col();
   const logo = () => document.documentElement.dataset.theme === 'dark' ? 'logo-white.png' : 'logo.png';
   function apply(t){
     document.documentElement.dataset.theme = t;
@@ -32,8 +45,8 @@
     document.addEventListener('click', e => { if(e.target.closest && e.target.closest('.theme-btn')) toggle(); });
   });
   /* another tab changed it */
-  window.addEventListener('storage', e => { if(e.key === KEY) apply(get()); if(e.key === TKEY) setText(text()); });
-  window.lhqTheme = {get, choice, set, toggle, apply, logo, text, setText};
+  window.addEventListener('storage', e => { if(e.key === KEY) apply(get()); if(e.key === TKEY) setText(text()); if(e.key === CKEY) setCol(col()); });
+  window.lhqTheme = {get, choice, set, toggle, apply, logo, text, setText, col, setCol, COLS};
   /* The PDF and image maker is large, so pages load first and fetch it a moment later
      (or straight away when PDF, Print or Share is tapped). */
   let pdfP = null;
@@ -60,3 +73,6 @@
   window.lhqInstalled = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
   window.lhqPdfSoon = () => window.addEventListener('load', () => setTimeout(() => window.lhqPdf().catch(() => {}), 1200));
 })();
+
+(function(){ const svg = encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#9aa6b8" stroke-width="1.8" stroke-linecap="round"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7"/></svg>');
+  const st = document.createElement('style'); st.textContent = `.av:empty,.pf-av:empty{background:var(--surface2,#eef1f5) url("data:image/svg+xml,${svg}") center/58% no-repeat !important}`; document.head.appendChild(st); })();

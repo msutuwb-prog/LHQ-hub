@@ -4,7 +4,7 @@
    Shown as a page at #perf, downloaded as an A4 PDF. Uses BIZ, INS and HD, and index.html's helpers. */
 window.PERF = (function(){
   const KEY = 'lhq_perf';   // + '_' + kind for the other reports
-  const SECTIONS = [['summary','One-page summary'],['trend','12-month trend'],['money','Money in, explained'],['spending','Spending'],['pl','Profit & loss'],
+  const SECTIONS = [['summary','One-page summary'],['trend','12-month trend'],['money','Money in, explained'],['spending','Payments'],['pl','Profit & loss'],
     ['pipeline','Quotes and conversion'],['sessions','Sessions and tutors'],['students','Students and renewals'],['marketing','Marketing return'],['other','Other money in and loans'],['pots','Allocations']];
   const AUD = {
     director: {n: 'Director', s: SECTIONS.map(x => x[0]), anon: false, money: true},
@@ -62,7 +62,7 @@ window.PERF = (function(){
     const conv = quotes.filter(q => invRef.has(UP(q.number)));
     const invs = F.invs.filter(i => inR(i.date));
     const newS = F.S.filter(s => { const i = F.invs.find(x => x.id === F.firstInv.get(s.key)); return i && inR(i.date); });
-    const active = F.S.filter(s => s.periods.some(p => (p.inv.periodStart || p.inv.date || '') <= to && (p.inv.periodEnd || '9999') >= to)).length;
+    const active = F.S.filter(s => s.periods.some(p => (p.inv.date || p.inv.periodStart || '') <= to && (p.inv.periodEnd || '9999') >= to)).length;   // the same as Home: invoiced, and the period not over
     const X = F.sess.filter(e => inR(e.d)), taught = X.filter(e => e.a === 'attended' || e.a === 'late');
     const ended = []; F.S.forEach(s => s.periods.forEach((p, i) => { const e = p.inv.periodEnd; if(e && inR(e) && e < today()) ended.push({s, renewed: i > 0, prog: INS.progOf(p.inv.level)}); }));
     const paid = invs.map(i => ({i, st: HD.invState(i), r: F.rcts.filter(r => UP(r.ref) === UP(i.number)).sort((a, c) => (a.date || '').localeCompare(c.date || ''))})).filter(x => x.st.paidUp && x.r.length);
@@ -107,13 +107,13 @@ window.PERF = (function(){
         const d = chg(f.revenue, p.revenue); if(d != null) hi.push(`Money in was ${Ms(f.revenue)}, ${d >= 0 ? 'up' : 'down'} ${Math.abs(d)}% on the period before${l.revenue ? ` and ${f.revenue >= l.revenue ? 'up' : 'down'} ${Math.abs(chg(f.revenue, l.revenue))}% on the same dates last year` : ''}.`);
         if(f.revenue) hi.push(`Profit was ${Ms(f.profit)}, a ${pc(f.profit, f.revenue)}% margin.`);
         if(prog) hi.push(`${esc(prog[0])} brought in the most: ${Ms(prog[1])}, ${pc(prog[1], f.tuition)}% of tuition.`);
-        const up = srt(Object.fromEntries(Object.keys(f.byCat).map(k => [k, f.byCat[k] - (p.byCat[k] || 0)])))[0]; if(up && up[1] > 0) hi.push(`${esc(up[0])} spending rose the most, by ${Ms(up[1])}.`);
+        const up = srt(Object.fromEntries(Object.keys(f.byCat).map(k => [k, f.byCat[k] - (p.byCat[k] || 0)])))[0]; if(up && up[1] > 0) hi.push(`${esc(up[0])} payments rose the most, by ${Ms(up[1])}.`);
       }
       hi.push(`${f.newS.length} new student${f.newS.length === 1 ? '' : 's'} joined; ${f.active} ${f.active === 1 ? 'was' : 'were'} in a tuition period at the end.`);
       if(f.quotes.length) hi.push(`${pc(f.conv.length, f.quotes.length)}% of quotes became invoices (${f.conv.length} of ${f.quotes.length}).`);
       if(f.ended.length) hi.push(`${pc(f.renewed, f.ended.length)}% of tuition periods that ended were renewed.`);
       hi.push(`Tutors logged ${f.taught} sessions (${Math.round(f.hours)} hours); ${f.missS + f.missT} were missed.`);
-      out.push(sec('Summary', `<div class="pf-ks">${money ? kp('Money in', Ms(f.revenue), cmp(f.revenue, p.revenue, l.revenue)) + kp('Spending', Ms(f.exp), cmp(f.exp, p.exp, l.exp, -1)) + kp('Profit', Ms(f.profit), `${f.revenue ? pc(f.profit, f.revenue) + '% margin · ' : ''}${ar(chg(f.profit, p.profit))} vs before`) : ''}
+      out.push(sec('Summary', `<div class="pf-ks">${money ? kp('Money in', Ms(f.revenue), cmp(f.revenue, p.revenue, l.revenue)) + kp('Payments', Ms(f.exp), cmp(f.exp, p.exp, l.exp, -1)) + kp('Profit', Ms(f.profit), `${f.revenue ? pc(f.profit, f.revenue) + '% margin · ' : ''}${ar(chg(f.profit, p.profit))} vs before`) : ''}
         ${kp('New students', f.newS.length, cmp(f.newS.length, p.newS.length, l.newS.length))}${kp('Students in a period', f.active, `${ar(chg(f.active, p.active))} vs before`)}
         ${kp('Quotes → invoices', f.quotes.length ? pc(f.conv.length, f.quotes.length) + '%' : '–', `${f.conv.length} of ${f.quotes.length}`)}${kp('Sessions taught', f.taught, `${Math.round(f.hours)} h · ${ar(chg(f.taught, p.taught))} vs before`)}
         ${kp('Renewals', f.ended.length ? pc(f.renewed, f.ended.length) + '%' : '–', `${f.renewed} of ${f.ended.length} periods that ended`)}${money ? '' : kp('Make-ups owed now', INS.sessFigures([b.thisMonth()]).owed, '')}</div>
@@ -122,26 +122,26 @@ window.PERF = (function(){
     }
     if(has('trend')){
       const end = R.to.slice(0, 7), Ms12 = Array.from({length: 12}, (_, i) => b.addMonth(end, i - 11)), fg = Ms12.map(m => b.figures([m]));
-      const series = money ? [{name: 'Money in', col: '#073763', vals: fg.map(x => x.revenue)}, {name: 'Spending', col: '#f4b223', vals: fg.map(x => x.exp)}, {name: 'Profit', col: '#2c7a4b', vals: fg.map(x => x.profit)}]
+      const series = money ? [{name: 'Money in', col: '#073763', vals: fg.map(x => x.revenue)}, {name: 'Payments', col: '#f4b223', vals: fg.map(x => x.exp)}, {name: 'Profit', col: '#2c7a4b', vals: fg.map(x => x.profit)}]
         : [{name: 'New students', col: '#073763', vals: Ms12.map(m => figs(m + '-01', lastDay(m)).newS.length)}, {name: 'Sessions taught ÷ 10', col: '#f4b223', vals: Ms12.map(m => Math.round(figs(m + '-01', lastDay(m)).taught / 10))}];
       out.push(sec('Last 12 months', '<div class="pf-chart">' + lit(INS.lineChart(Ms12.map(m => b.monShort(m)), series, money ? {label: 'Trend'} : {fmt: v => Math.round(v), fmtTip: v => v, label: 'Trend'})).replace(/width="100%" style="min-width:520px"/, 'width="714" height="228"') + '</div>'));
     }
     if(has('money') && money){
       const D = (key, title) => { const now = grp(f.rows, r => r[key], r => r.amt), bef = grp(p.rows, r => r[key], r => r.amt);
-        return `<div><h3>${title}</h3>` + table(['', 'Amount', 'Share', 'vs before'], srt(now).slice(0, 10).map(([k, v]) => ({c: [esc(k), M(v), pc(v, f.tuition) + '%', ar(chg(v, bef[k] || 0))]}))) + '</div>'; };
+        return `<div class="pf-blk"><h3>${title}</h3>` + table(['', 'Amount', 'Share', 'vs before'], srt(now).slice(0, 10).map(([k, v]) => ({c: [esc(k), M(v), pc(v, f.tuition) + '%', ar(chg(v, bef[k] || 0))]}))) + '</div>'; };
       out.push(sec('Money in, explained', `<p class="pf-n">Tuition received ${M(f.tuition)}. Each payment is split across its invoice's subjects in proportion to their amounts.</p>
         <div class="pf-2">${D('prog', 'By programme')}${D('sub', 'By subject')}</div><div class="pf-2">${D('tutor', 'By tutor')}${D('mode', 'Online or in person')}</div>
         <div class="pf-2">${D('district', 'By district')}${D('school', 'By school')}</div><div class="pf-2">${D('newRet', 'New or returning')}${D('source', 'How they heard')}</div>`));
     }
     if(has('spending') && money){
       const bud = b.budget(), mf = Math.max(1, Math.round(HD.dayDiff(R.from, R.to) / 30.4)), cats = [...new Set([...Object.keys(f.byCat), ...Object.keys(p.byCat)])].sort((a, c) => (f.byCat[c] || 0) - (f.byCat[a] || 0));
-      out.push(sec('Spending', table(['Category', 'This period', 'Before', 'Change', 'Budget'], cats.map(k => ({c: [esc(k), M(f.byCat[k] || 0), M(p.byCat[k] || 0), ar(chg(f.byCat[k] || 0, p.byCat[k] || 0), -1), num(bud[k]) ? M(num(bud[k]) * mf) : '–']})).concat([{cls: 'tot', c: ['Total', M(f.exp), M(p.exp), ar(chg(f.exp, p.exp), -1), M(sum(Object.values(bud), num) * mf)]}]),
-        {note: `Spending is ${f.revenue ? pc(f.exp, f.revenue) + '% of money in' : 'not yet covered by money in'}${f.active ? `, about ${Ms(f.exp / f.active)} per student in a period` : ''}. Budgets are the monthly budget × ${mf} month${mf === 1 ? '' : 's'}.`})));
+      out.push(sec('Payments', table(['Category', 'This period', 'Before', 'Change', 'Budget'], cats.map(k => ({c: [esc(k), M(f.byCat[k] || 0), M(p.byCat[k] || 0), ar(chg(f.byCat[k] || 0, p.byCat[k] || 0), -1), num(bud[k]) ? M(num(bud[k]) * mf) : '–']})).concat([{cls: 'tot', c: ['Total', M(f.exp), M(p.exp), ar(chg(f.exp, p.exp), -1), M(sum(Object.values(bud), num) * mf)]}]),
+        {note: `Payments are ${f.revenue ? pc(f.exp, f.revenue) + '% of money in' : 'not yet covered by money in'}${f.active ? `, about ${Ms(f.exp / f.active)} per student in a period` : ''}. Budgets are the monthly budget × ${mf} month${mf === 1 ? '' : 's'}.`})));
     }
     if(has('pl') && money){
       out.push(sec('Profit & loss', table(['', 'This period', 'Before', 'Last year'], [
         {c: ['Tuition received', M(f.tuition), M(p.tuition), M(l.tuition)]}, {c: ['Other money in', M(f.other), M(p.other), M(l.other)]}, {cls: 'sub', c: ['Money in', M(f.revenue), M(p.revenue), M(l.revenue)]},
-        {c: ['Spending', '−' + M(f.exp), '−' + M(p.exp), '−' + M(l.exp)]}, {cls: 'tot', c: ['Profit', (f.profit < 0 ? '−' : '') + M(Math.abs(f.profit)), (p.profit < 0 ? '−' : '') + M(Math.abs(p.profit)), (l.profit < 0 ? '−' : '') + M(Math.abs(l.profit))]},
+        {c: ['Payments', ...[f.exp, p.exp, l.exp].map(v => (v > 0.5 ? '−' : '') + M(v))]}, {cls: 'tot', c: ['Profit', (f.profit < 0 ? '−' : '') + M(Math.abs(f.profit)), (p.profit < 0 ? '−' : '') + M(Math.abs(p.profit)), (l.profit < 0 ? '−' : '') + M(Math.abs(l.profit))]},
         {c: ['Margin', f.revenue ? pc(f.profit, f.revenue) + '%' : '–', p.revenue ? pc(p.profit, p.revenue) + '%' : '–', l.revenue ? pc(l.profit, l.revenue) + '%' : '–']}],
         {note: `Invoiced in this period: ${M(f.invoiced)} on ${f.nInv} invoices. Loans and owner investment (${M(f.capital)}) and loan repayments are not counted in profit.`})));
     }
@@ -181,7 +181,7 @@ window.PERF = (function(){
     if(has('pots') && money){
       const P = ((store.get('lhq_budget', {}) || {}).pots || {}).list || [];
       if(P.length) out.push(sec('Allocations', table(['Allocation', 'Share', 'Received', 'Spent', 'Difference'], P.map(pt => { const got = f.revenue * pt.p / 100, sp = sum(pt.cats || [], k => f.byCat[k] || 0);
-        return {c: [esc(pt.n), pt.p + '%', M(got), M(sp), `<b style="color:${got - sp < 0 ? '#b42318' : '#1f7a4d'}">${got - sp < 0 ? '−' : ''}${M(Math.abs(got - sp))}</b>`]}; })), {note: 'Each allocation\'s share of money in during this period, and what its spending categories cost.'}));
+        return {c: [esc(pt.n), pt.p + '%', M(got), M(sp), `<b style="color:${got - sp < 0 ? '#b42318' : '#1f7a4d'}">${got - sp < 0 ? '−' : ''}${M(Math.abs(got - sp))}</b>`]}; })), {note: 'Each allocation\'s share of money in during this period, and what its payment categories cost.'}));
     }
     return paper('Business report', c, R, out);
   }
@@ -206,6 +206,10 @@ window.PERF = (function(){
   }
   const isTaught = e => e.a === 'attended' || e.a === 'late';
   const testPc = e => e.sc !== '' && e.sc != null && num(e.mx) > 0 ? num(e.sc) / num(e.mx) * 100 : null;
+  /* assessments only (not SRAs): Weekly, Monthly, Past paper; a score on an older session log counts as Weekly, Topical as Weekly, Mock as Past paper */
+  const isTest = e => ((e.ty === 'w' && !e.abs) || e.ty === 's') && testPc(e) != null;
+  const akT = e => e.ty === 's' || e.ak === 't' ? 'w' : e.ak === 'k' ? 'p' : (e.ak || 'w'), AKL = {w: 'Weekly', m: 'Monthly', p: 'Past paper'};
+  const arsPc = e => !e.na && num(e.ao) > 0 && e.ars != null && e.ars !== '' ? num(e.ars) / num(e.ao) * 100 : null;
   const avg = L => L.length ? Math.round(sum(L) / L.length) : null;
   const pcs = v => v == null ? '–' : v + '%';
 
@@ -218,21 +222,30 @@ window.PERF = (function(){
     const studs = new Set(SJ.map(j => j.s.key)), name = k => anon ? 'A student' : ((HD.students().find(s => s.key === k) || {}).name || k);
     const prevE = logsIn(R.prev.from, R.prev.to).filter(e => e.ty === 's'), prevSJ = subjIn(R.prev.from, R.prev.to);
     const prevPl = sum(prevSJ, j => plannedIn(j.card, j.x, R.prev.from, R.prev.to)), prevDone = prevE.filter(isTaught).length;
-    const tests = E.map(testPc).filter(v => v != null), out = [];
+    const tests = E.filter(isTest).map(testPc), out = [];
     if(has('summary')){
       out.push(sec('Summary', `<div class="pf-ks">${kp('Students taught', studs.size, `${SJ.length} subject${SJ.length === 1 ? '' : 's'}`)}${kp('Sessions delivered', `${done} of ${pl}`, `${pcs(pc(done, pl))} of planned · before ${prevE.length && prevPl ? pcs(pc(prevDone, prevPl)) : 'no logs'}`)}
-        ${kp('Missed', absent + cant, `${absent} student absent · ${cant} tutor couldn't teach`)}${kp('Test average', pcs(avg(tests)), `${tests.length} test${tests.length === 1 ? '' : 's'}`)}</div>
+        ${kp('Missed', absent + cant, `${absent} student absent · ${cant} tutor couldn't teach`)}${kp('Assessment average', pcs(avg(tests)), `${tests.length} test${tests.length === 1 ? '' : 's'}`)}</div>
         <p class="pf-n">"Planned" counts each subject's days on its tuition card between the dates (up to its number of sessions). "Delivered" is what tutors logged as attended or late, make-ups included (${made}).</p>`, 'first'));
     }
     if(has('delivery')){
       const bySub = {}; SJ.forEach(j => { const o = bySub[j.x.name] = bySub[j.x.name] || {st: new Set(), pl: 0, done: 0, miss: 0, T: []}; o.st.add(j.s.key); o.pl += plannedIn(j.card, j.x, R.from, R.to < t ? R.to : t); });
       S.forEach(e => { const o = bySub[e.sub]; if(!o) return; if(isTaught(e)) o.done++; else o.miss++; });
-      E.forEach(e => { const o = bySub[e.sub], v = testPc(e); if(o && v != null) o.T.push(v); });
-      out.push(sec('Delivery by subject', table(['Subject', 'Students', 'Planned', 'Delivered', 'Rate', 'Missed', 'Test avg'], srt(Object.fromEntries(Object.entries(bySub).map(([k, o]) => [k, o.st.size]))).map(([k]) => { const o = bySub[k];
+      E.filter(isTest).forEach(e => { const o = bySub[e.sub], v = testPc(e); if(o) o.T.push(v); });
+      out.push(sec('Delivery by subject', table(['Subject', 'Students', 'Planned', 'Delivered', 'Rate', 'Missed', 'Assessment avg'], srt(Object.fromEntries(Object.entries(bySub).map(([k, o]) => [k, o.st.size]))).map(([k]) => { const o = bySub[k];
         return {c: [esc(k), o.st.size, o.pl, o.done, `<b style="color:${pc(o.done, o.pl) >= 90 ? '#1f7a4d' : pc(o.done, o.pl) >= 70 ? '#7a5400' : '#b42318'}">${pcs(pc(o.done, o.pl))}</b>`, o.miss, pcs(avg(o.T))]}; }))));
       const wk = []; for(let d = mondayOf(R.from); d <= R.to; d = addDays(d, 7)) wk.push(d);
       if(wk.length > 1 && wk.length <= 26){ const ser = [{name: 'Planned', col: '#9aa3b2', vals: wk.map(w => sum(SJ, j => plannedIn(j.card, j.x, w, addDays(w, 6) < t ? addDays(w, 6) : t)))}, {name: 'Delivered', col: '#073763', vals: wk.map(w => S.filter(e => isTaught(e) && e.d >= w && e.d <= addDays(w, 6)).length)}];
         out.push(`<div class="pf-chart">${lit(INS.lineChart(wk.map(w => nice(w)), ser, {bars: true, fmt: v => Math.round(v), h: 200, label: 'Sessions by week'})).replace(/width="100%" style="min-width:520px"/, 'width="714" height="198"')}</div>`); }
+    }
+    if(has('recall')){
+      const R0 = E.filter(e => e.ty === 'r' && e.v === 2 && !e.self), subs = [...new Set(R0.map(e => e.sub))].sort();
+      const rows = subs.map(n => { const L = R0.filter(e => e.sub === n), inn = L.filter(e => e.h !== 'm' && testPc(e) != null), A = inn.map(arsPc).filter(v => v != null);
+        const byKT = {}; inn.forEach(e => { (byKT[e.k + '|' + e.tk] = byKT[e.k + '|' + e.tk] || []).push(e); }); const drops = {};
+        Object.values(byKT).forEach(X => { if(X.length < 2) return; X.sort((a, b) => (+a.rv || 0) - (+b.rv || 0)); (drops[X[0].tk] = drops[X[0].tk] || []).push(testPc(X[X.length - 1]) - testPc(X[0])); });
+        const worst = Object.entries(drops).map(([tk, D]) => [tk, Math.round(avg(D))]).sort((a, b) => a[1] - b[1])[0];
+        return {c: [esc(n), pcs(pc(L.filter(e => e.h === 'o').length, L.length)), pcs(pc(inn.length, L.length)), pcs(avg(inn.map(testPc))), A.length ? pcs(avg(A)) : '–', worst && worst[1] <= -10 ? `${esc(worst[0])} · ${worst[1]}` : '–']}; });
+      out.push(sec('SRAs and recall', rows.length ? table(['Subject', 'On their day', 'Handed in', 'SRA avg', 'ARS avg', 'Topic dropping most'], rows, {note: 'Topic dropping most: the average fall from each student\'s first marked review to their latest, when 10 points or more.'}) : '<p class="pf-n">No SRAs in these dates.</p>'));
     }
     if(has('programmes')){
       const g = {}; [...studs].forEach(k => { const st = HD.students().find(s => s.key === k); const p = INS.progOf(st && st.level); g[p] = (g[p] || 0) + 1; });
@@ -240,7 +253,7 @@ window.PERF = (function(){
       out.push(sec('Students and where they learn', `<div class="pf-2"><div><h3>Students by programme</h3>${bars(srt(g), studs.size, v => v)}</div><div><h3>Sessions by place</h3>${bars(srt(md), done, v => v + ' sessions')}</div></div>`));
     }
     if(has('missed')){
-      const owed = []; HD.students().forEach(s => { const cd = s.cur && s.cur.card; if(cd) HD.makeups(cd).filter(x => x.owed).forEach(x => owed.push([s.key, x])); });
+      const owed = []; HD.students().forEach(s => { const cd = s.card; if(cd) HD.makeups(cd).filter(x => x.owed).forEach(x => owed.push([s.key, x])); });
       out.push(sec('Missed sessions and make-ups', `<div class="pf-ks">${kp('Student absent', absent)}${kp("Tutor couldn't teach", cant)}${kp('Make-ups taught', made)}${kp('Make-ups owed now', sum(owed, o => o[1].owed))}</div>
         ${owed.length ? '<h3>Make-ups owed now</h3>' + table(['Student', 'Subject', 'Tutor', 'Owed'], owed.sort((a, b) => b[1].owed - a[1].owed).slice(0, 20).map(([k, x]) => ({c: [esc(name(k)), esc(x.sub), esc(x.tutor || '–'), x.owed]}))) : ''}`));
     }
@@ -270,24 +283,34 @@ window.PERF = (function(){
       const delay = S.filter(e => e.at).map(e => Math.max(0, HD.dayDiff(e.d, HD.isoOf(new Date(e.at)))));
       return {n, J, L, S, studs: new Set(J.map(j => j.s.key)).size, pl: sum(J, j => plannedIn(j.card, j.x, R.from, end)), done: S.filter(isTaught).length, cant: S.filter(e => e.a === 'cancelled').length, absent: S.filter(e => e.a === 'absent').length,
         hrs: sum(S.filter(isTaught), e => { const m = String(j0(J, e).mins || '1 hour'); return (/min/i.test(m) ? parseFloat(m) / 60 : parseFloat(m) || 1); }), delay: delay.length ? Math.round(sum(delay) / delay.length * 10) / 10 : null, late: delay.filter(d => d > 2).length,
-        tests: avg(L.map(testPc).filter(v => v != null)), owed: sum(HD.students(), s => { const cd = s.cur && s.cur.card; return cd ? sum(HD.makeups(cd).filter(x => lw(x.tutor) === lw(n)), x => x.owed) : 0; })}; };
+        tests: avg(L.filter(isTest).map(testPc)), owed: sum(HD.students(), s => { const cd = s.card; return cd ? sum(HD.makeups(cd).filter(x => lw(x.tutor) === lw(n)), x => x.owed) : 0; })}; };
     const j0 = (J, e) => (J.find(j => j.k === e.k.split('|')[0] + '|' + sk(e.sub)) || {x: {}}).x;
     const D = T.map(of), out = [];
     if(has('summary')){
-      out.push(sec(own ? 'Your summary' : 'Summary', table(['Tutor', 'Students', 'Planned', 'Logged', 'Rate', "Couldn't teach", 'Hours', 'Days to log', 'Test avg'],
+      out.push(sec(own ? 'Your summary' : 'Summary', table(['Tutor', 'Students', 'Planned', 'Logged', 'Rate', "Couldn't teach", 'Hours', 'Days to log', 'Assessment avg'],
         D.sort((a, b) => b.pl - a.pl).map(d => ({c: [esc(d.n), d.studs, d.pl, d.done, `<b style="color:${pc(d.done, d.pl) >= 90 ? '#1f7a4d' : pc(d.done, d.pl) >= 70 ? '#7a5400' : '#b42318'}">${pcs(pc(d.done, d.pl))}</b>`, d.cant, Math.round(d.hrs), d.delay == null ? '–' : d.delay, pcs(d.tests)]})),
         {note: '"Planned" comes from the days on each tuition card. "Rate" is sessions logged as taught against planned: a low rate means sessions were missed or not logged. "Days to log" is the average time between a session and its log.'}), 'first'));
     }
+    if(has('quality') && window.KPI){
+      /* from the tutor KPIs (the same figures, the same rules) and the students' daily reports (averages only) */
+      const v = k => Object.values(store.get(k, {}) || {}), K = window.KPI, kctx = {cards: saved.filter(d => (d.type || 'quote') === 'card'), entries: Object.values(((store.get('lhq_logs', {e: {}}) || {}).e) || {}), treps: Object.values(((store.get('lhq_treps', {e: {}}) || {}).e) || {}), makeups: v('lhq_makeups'),
+        sreports: store.get('lhq_sreports', {}) || {}, targets: store.get('lhq_targets', {}) || {}, kpi: store.get('lhq_kpi', {}) || {}, set: (window.settingsKV ? settingsKV() : {}), t};
+      const rr = {a: R.from, b: end}, SR = store.get('lhq_sreports', null), SRT = SR && window.SREP ? SREP.rows(SR).filter(x => x.d >= R.from && x.d <= end) : [];
+      const f = (F, id) => F[id] && F[id].n ? `${F[id].k}/${F[id].n}` : '–';
+      out.push(sec('Session quality', table(['Tutor', 'Taught as planned', 'On time', 'Logged on the day', 'SRAs on their day', 'ARS with SRAs', 'Rating', 'Prepared'], D.filter(d => d.pl || d.S.length).map(d => { const F = K.figures(kctx, d.n, rr), st = SRT.length ? SREP.stats(SRT.filter(x => lw(x.tutor) === lw(d.n))) : null;
+        return {c: [esc(d.n), f(F, 'ses'), f(F, 'ont'), f(F, 'log'), f(F, 'sra'), f(F, 'ars'), st && st.n >= 5 ? st.rate : '–', st && st.n >= 5 ? st.prep + '%' : '–']}; }),
+        {note: 'The same figures as Tutor KPIs. Rating and prepared come from the students\' daily reports, shown only from 5 answers.'})));
+    }
     if(has('students')) D.forEach(d => { if(!d.J.length) return;
-      out.push(sec(`${esc(d.n)}: students`, table(['Student', 'Subject', 'Planned', 'Taught', 'Absent', 'Test avg', 'Last log'], d.J.filter((j, i, a) => a.findIndex(y => y.k === j.k) === i).map(j0 => { const same = d.J.filter(y => y.k === j0.k), j = Object.assign({}, j0, {pl: sum(same, y => plannedIn(y.card, y.x, R.from, end))}); const L = d.L.filter(e => e.k.split('|')[0] + '|' + sk(e.sub) === j.k), S = L.filter(e => e.ty === 's'), last = L.map(e => e.d).sort().pop();
-        return {c: [esc(anon ? 'A student' : j.s.name), esc(j.x.name), j.pl, S.filter(isTaught).length, S.filter(e => e.a === 'absent').length, pcs(avg(L.map(testPc).filter(v => v != null))), last ? nice(last) : '<b style="color:#b42318">none</b>']}; })))); });
+      out.push(sec(`${esc(d.n)}: students`, table(['Student', 'Subject', 'Planned', 'Taught', 'Absent', 'Assessment avg', 'Last log'], d.J.filter((j, i, a) => a.findIndex(y => y.k === j.k) === i).map(j0 => { const same = d.J.filter(y => y.k === j0.k), j = Object.assign({}, j0, {pl: sum(same, y => plannedIn(y.card, y.x, R.from, end))}); const L = d.L.filter(e => e.k.split('|')[0] + '|' + sk(e.sub) === j.k), S = L.filter(e => e.ty === 's'), last = L.map(e => e.d).sort().pop();
+        return {c: [esc(anon ? 'A student' : j.s.name), esc(j.x.name), j.pl, S.filter(isTaught).length, S.filter(e => e.a === 'absent').length, pcs(avg(L.filter(isTest).map(testPc))), last ? nice(last) : '<b style="color:#b42318">none</b>']}; })))); });
     if(has('logging')){
       const late = D.flatMap(d => d.S.filter(e => e.at && HD.dayDiff(e.d, HD.isoOf(new Date(e.at))) > 2).map(e => [d.n, e]));
       out.push(sec('Logging', `<div class="pf-ks">${kp('Logs in these dates', sum(D, d => d.S.length))}${kp('Logged over 2 days late', late.length)}${kp('Tutors with no logs', D.filter(d => d.pl && !d.S.length).length)}${kp('Make-ups owed now', sum(D, d => d.owed))}</div>
         ${D.filter(d => d.pl && !d.S.length).length ? `<p class="pf-n">No logs at all from: ${D.filter(d => d.pl && !d.S.length).map(d => esc(d.n)).join(', ')}.</p>` : ''}`));
     }
     if(has('makeups')){
-      const rows = []; HD.students().forEach(s => { const cd = s.cur && s.cur.card; if(cd) HD.makeups(cd).filter(x => x.owed && T.some(n => lw(n) === lw(x.tutor))).forEach(x => rows.push({c: [esc(x.tutor), esc(anon ? 'A student' : s.name), esc(x.sub), x.missT ? `${x.missT} tutor` : '', x.owed]})); });
+      const rows = []; HD.students().forEach(s => { const cd = s.card; if(cd) HD.makeups(cd).filter(x => x.owed && T.some(n => lw(n) === lw(x.tutor))).forEach(x => rows.push({c: [esc(x.tutor), esc(anon ? 'A student' : s.name), esc(x.sub), x.missT ? `${x.missT} tutor` : '', x.owed]})); });
       out.push(sec('Make-ups owed', rows.length ? table(['Tutor', 'Student', 'Subject', 'Not taught by tutor', 'Owed'], rows) : '<p class="pf-n">No make-up sessions owed.</p>'));
     }
     return paper(own ? `Tutor report · ${c.tutor}` : 'Tutor report', c, R, out, c.tutor && !own ? c.tutor : '');
@@ -300,11 +323,11 @@ window.PERF = (function(){
     const R = range(c), has = k => c.s.includes(k), t = today(), end = R.to < t ? R.to : t;
     const SJ = subjIn(R.from, R.to).filter(j => j.s.key === st.key), E = logsIn(R.from, R.to).filter(e => e.k && e.k.split('|')[0] === st.key), S = E.filter(e => e.ty === 's');
     const pl = sum(SJ, j => plannedIn(j.card, j.x, R.from, end)), done = S.filter(isTaught).length, held = S.filter(e => e.a !== 'cancelled').length;
-    const tests = E.filter(e => testPc(e) != null).sort((a, b) => a.d.localeCompare(b.d)), out = [];
+    const tests = E.filter(isTest).sort((a, b) => a.d.localeCompare(b.d)), out = [];
     const subs = [...new Set(SJ.map(j => j.x.name))];
     if(has('summary')){
       out.push(sec(esc(st.name), `<p style="margin:0 0 8px">${esc([st.level, st.school].filter(Boolean).join(' · '))}</p>
-        <div class="pf-ks">${kp('Attendance', held ? pcs(pc(S.filter(isTaught).length, held)) : '–', `${S.filter(isTaught).length} of ${held} sessions`)}${kp('Sessions', `${done} of ${pl}`, 'taught of planned so far')}${kp('Test average', pcs(avg(tests.map(testPc))), `${tests.length} test${tests.length === 1 ? '' : 's'}`)}${kp('Subjects', subs.length, subs.join(', '))}</div>
+        <div class="pf-ks">${kp('Attendance', held ? pcs(pc(S.filter(isTaught).length, held)) : '–', `${S.filter(isTaught).length} of ${held} sessions`)}${kp('Sessions', `${done} of ${pl}`, 'taught of planned so far')}${kp('Weekly average', pcs(avg(tests.filter(e => akT(e) === 'w').map(testPc))), `${tests.filter(e => akT(e) === 'w').length} weekly · ${tests.filter(e => akT(e) === 'm').length} monthly`)}${kp('Subjects', subs.length, subs.join(', '))}</div>
         <h3>Subjects and tutors</h3>${table(['Subject', 'Tutor', 'Days and times'], SJ.filter((j, i, a) => a.findIndex(y => y.x.name === j.x.name) === i).map(j => ({c: [esc(j.x.name), esc(j.x.tutor || 'To be confirmed'), esc((j.x.days || []).map(d => ({Mo:'Mon',Tu:'Tue',We:'Wed',Th:'Thu',Fr:'Fri',Sa:'Sat',Su:'Sun'})[d] || d).join(', ') + (j.x.start ? ' · ' + j.x.start + '–' + (j.x.end || '') : ''))]})))}`, 'first'));
     }
     if(has('attendance')){
@@ -316,13 +339,19 @@ window.PERF = (function(){
       out.push(sec('Topics covered', Object.keys(T).length ? Object.entries(T).map(([k, L]) => `<h3>${esc(k)} · ${L.length}</h3><p style="margin:0">${L.map(esc).join(' · ')}</p>`).join('') : '<p class="pf-n">No topics logged yet in these dates.</p>'));
     }
     if(has('tests')){
-      const bySub = subs.filter(n => tests.some(e => e.sub === n)).map(n => { const L = tests.filter(e => e.sub === n), v = L.map(testPc); return {n, L, v, avg: avg(v), first: Math.round(v[0]), last: Math.round(v[v.length - 1]), best: Math.round(Math.max(...v))}; });
-      const wk = []; if(tests.length) for(let d = mondayOf(tests[0].d); d <= tests[tests.length - 1].d; d = addDays(d, 7)) wk.push(d);
+      const bySub = subs.filter(n => tests.some(e => e.sub === n)).map(n => { const L = tests.filter(e => e.sub === n && akT(e) === 'w'), v = L.map(testPc); return {n, L, v}; });
+      const rowsT = subs.flatMap(n => ['w', 'm', 'p'].map(k => { const L = tests.filter(e => e.sub === n && akT(e) === k), v = L.map(testPc); return L.length ? {n, k, L, avg: avg(v), first: Math.round(v[0]), last: Math.round(v[v.length - 1]), best: Math.round(Math.max(...v))} : null; }).filter(Boolean));
+      const wT = tests.filter(e => akT(e) === 'w'), wk = []; if(wT.length) for(let d = mondayOf(wT[0].d); d <= wT[wT.length - 1].d; d = addDays(d, 7)) wk.push(d);
       const series = bySub.map((x, i) => { let lastV = null; return {name: x.n, col: ['#073763','#f4b223','#1a74b0','#2c7a4b','#a85a14'][i % 5], vals: wk.map(w => { const v = x.L.filter(e => e.d >= w && e.d <= addDays(w, 6)).map(testPc); if(v.length) lastV = Math.round(sum(v) / v.length); return lastV == null ? 0 : lastV; })}; });
-      out.push(sec('Test scores', tests.length ? table(['Subject', 'Tests', 'Average', 'First', 'Latest', 'Best'], bySub.map(x => ({c: [esc(x.n), x.L.length, `<b>${x.avg}%</b>`, x.first + '%', `${x.last}% ${x.last > x.first ? '<i class="up">▲</i>' : x.last < x.first ? '<i class="dn">▼</i>' : ''}`, x.best + '%']})))
-        + (wk.length > 1 ? `<h3>Weekly average</h3><div class="pf-chart">${lit(INS.lineChart(wk.map(w => nice(w)), series, {fmt: v => Math.round(v) + '%', fmtTip: v => v + '%', h: 190, label: 'Test scores'})).replace(/width="100%" style="min-width:520px"/, 'width="714" height="188"')}</div>` : '')
-        + (c.aud === 'internal' ? '<h3>Every test</h3>' + table(['Date', 'Subject', 'Score', '%'], tests.map(e => ({c: [nice(e.d), esc(e.sub), `${e.sc} / ${e.mx}`, `${Math.round(testPc(e))}%`]}))) : '')
-        : '<p class="pf-n">No tests logged yet in these dates.</p>'));
+      out.push(sec('Assessments', tests.length ? table(['Subject', 'Type', 'Taken', 'Average', 'First', 'Latest', 'Best'], rowsT.map(x => ({c: [esc(x.n), AKL[x.k], x.L.length, `<b>${x.avg}%</b>`, x.first + '%', `${x.last}% ${x.last > x.first ? '<i class="up">▲</i>' : x.last < x.first ? '<i class="dn">▼</i>' : ''}`, x.best + '%']})))
+        + (wk.length > 1 ? `<h3>Weekly assessments</h3><div class="pf-chart">${lit(INS.lineChart(wk.map(w => nice(w)), series, {fmt: v => Math.round(v) + '%', fmtTip: v => v + '%', h: 190, label: 'Test scores'})).replace(/width="100%" style="min-width:520px"/, 'width="714" height="188"')}</div>` : '')
+        + (c.aud === 'internal' ? '<h3>Every assessment</h3>' + table(['Date', 'Subject', 'Type', 'Score', '%'], tests.map(e => ({c: [nice(e.d), esc(e.sub), AKL[akT(e)], `${e.sc} / ${e.mx}`, `${Math.round(testPc(e))}%`]}))) : '')
+        : '<p class="pf-n">No assessments marked yet in these dates.</p>'));
+    }
+    if(has('recall')){
+      const R0 = E.filter(e => e.ty === 'r' && e.h !== 'm' && testPc(e) != null);
+      const rows = subs.map(n => { const L = R0.filter(e => e.sub === n), A = L.map(arsPc).filter(v => v != null); return L.length ? {c: [esc(n), L.length, `${L.filter(e => e.h === 'o').length}`, pcs(avg(L.map(testPc))), `${A.length} of ${L.length}`, A.length ? `<b>${pcs(avg(A))}</b>` : '–']} : null; }).filter(Boolean);
+      out.push(sec('SRAs and recall', rows.length ? table(['Subject', 'SRAs in', 'On time', 'SRA average', 'With an ARS', 'ARS recall'], rows, {note: 'The ARS (Active Recall Sheet) is done from memory before each SRA. It is shown for practice and is not part of any grade.'}) : '<p class="pf-n">No SRAs handed in yet in these dates.</p>'));
     }
     if(has('comments')){
       const C = E.filter(e => e.ty === 'c').sort((a, b) => b.d.localeCompare(a.d)), notes = S.filter(e => e.n).sort((a, b) => b.d.localeCompare(a.d)).slice(0, 8);
@@ -340,19 +369,21 @@ window.PERF = (function(){
 
   /* ---------- the four reports ---------- */
   const KINDS = {
-    business: {t: 'Business report', d: 'Money in, spending, profit, pipeline and marketing, for the Director, a staff meeting, partners or the board.', need: 'pl', SECTIONS, AUD, build: buildBusiness},
-    tuition: {t: 'Tuition report', d: 'How teaching is going: sessions delivered against planned, missed sessions, make-ups, tests, renewals and gaps.', need: 'pl|cards|students',
-      SECTIONS: [['summary','Summary'],['delivery','Delivery by subject'],['programmes','Students and where they learn'],['missed','Missed sessions and make-ups'],['topics','Topics covered'],['renewals','Renewals coming'],['gaps','Gaps to fix']],
-      AUD: {director: {n: 'Director', s: ['summary','delivery','programmes','missed','topics','renewals','gaps'], anon: false, money: false}, staff: {n: 'Staff meeting', s: ['summary','delivery','missed','renewals','gaps'], anon: false, money: false}, partners: {n: 'Partners', s: ['summary','delivery','programmes','topics'], anon: true, money: false}}, build: buildTuition},
-    tutor: {t: 'Tutor report', d: 'Each tutor’s students, sessions logged against planned, how promptly they log, test results and make-ups owed.', need: 'pl|tutors',
-      SECTIONS: [['summary','Summary'],['students','Each tutor’s students'],['logging','Logging'],['makeups','Make-ups owed']],
-      AUD: {director: {n: 'Director', s: ['summary','students','logging','makeups'], anon: false, money: false}, tutor: {n: 'The tutor’s own copy', s: ['summary','students','makeups'], anon: false, money: false}}, build: buildTutor, pick: 'tutor'},
-    student: {t: 'Student report', d: 'One student: attendance, sessions, topics covered, test scores, tutors’ comments, next steps and (for LHQ) payments.', need: 'pl|students|cards', dflt: 'period',
-      SECTIONS: [['summary','Summary'],['attendance','Attendance'],['topics','Topics covered'],['tests','Test scores'],['comments','Tutors’ comments'],['next','Next steps'],['payments','Payments']],
-      AUD: {parent: {n: 'Parent', s: ['summary','attendance','topics','tests','comments','next'], anon: false, money: false}, internal: {n: 'Inside LHQ', s: ['summary','attendance','topics','tests','comments','next','payments'], anon: false, money: true}}, build: buildStudent, pick: 'student'},
+    business: {t: 'Business report', d: 'Money in, payments, profit, pipeline and marketing.', need: 'pl', SECTIONS, AUD, build: buildBusiness},
+    tuition: {t: 'Tuition report', d: 'How teaching is going: sessions, make-ups, assessments, renewals and gaps.', need: 'pl|cards|students',
+      SECTIONS: [['summary','Summary'],['delivery','Delivery by subject'],['recall','SRAs and recall'],['programmes','Students and where they learn'],['missed','Missed sessions and make-ups'],['topics','Topics covered'],['renewals','Renewals coming'],['gaps','Gaps to fix']],
+      AUD: {director: {n: 'Director', s: ['summary','delivery','recall','programmes','missed','topics','renewals','gaps'], anon: false, money: false}, staff: {n: 'Staff meeting', s: ['summary','delivery','recall','missed','renewals','gaps'], anon: false, money: false}, partners: {n: 'Partners', s: ['summary','delivery','programmes','topics'], anon: true, money: false}}, build: buildTuition},
+    tutor: {t: 'Tutor report', d: 'Sessions, logging, assessments and make-ups, per tutor.', need: 'pl|tutors',
+      SECTIONS: [['summary','Summary'],['quality','Session quality'],['students','Each tutor\'s students'],['logging','Logging'],['makeups','Make-ups owed']],
+      AUD: {director: {n: 'Director', s: ['summary','quality','students','logging','makeups'], anon: false, money: false}, tutor: {n: 'The tutor\'s own copy', s: ['summary','quality','students','makeups'], anon: false, money: false}}, build: buildTutor, pick: 'tutor'},
+    student: {t: 'Student report', d: 'One student: attendance, sessions, topics covered, assessment scores, tutors\' comments, next steps and (for LHQ) payments.', need: 'pl|students|cards', dflt: 'period',
+      SECTIONS: [['summary','Summary'],['attendance','Attendance'],['topics','Topics covered'],['tests','Assessments'],['recall','SRAs and recall'],['comments','Tutors\' comments'],['next','Next steps'],['payments','Payments']],
+      AUD: {parent: {n: 'Parent', s: ['summary','attendance','topics','tests','recall','comments','next'], anon: false, money: false}, internal: {n: 'Inside LHQ', s: ['summary','attendance','topics','tests','recall','comments','next','payments'], anon: false, money: true}}, build: buildStudent, pick: 'student'},
   };
   const okK = k => KINDS[k] && KINDS[k].need.split('|').some(x => can(x));
-  function build(c){ return KINDS[rk].build(c); }
+  function build(c){ const o = KINDS[rk].build(c);   // in dollars (MK / $): the rule and the rates used, inside the report so the download carries them
+    if(window.FX && FX.active() && o && o.html && o.R){ const n = FX.note(o.R.from, o.R.to), i = o.html.lastIndexOf('</div>'); if(i > 0) o.html = o.html.slice(0, i) + n + o.html.slice(i); }
+    return o; }
 
   /* ---------- the choice sheet ---------- */
   function sheet(){
@@ -362,7 +393,7 @@ window.PERF = (function(){
       : k === 'quarter' ? `<select class="in" id="pfAt">${qs.map(q => `<option value="${q}" ${q === c.at ? 'selected' : ''}>${esc(b.periodLabel(q).replace(/ · to date$/, ''))}</option>`).join('')}</select>`
       : k === 'year' ? `<select class="in" id="pfAt">${ys.map(y => `<option value="${y}" ${y === c.at ? 'selected' : ''}>${esc(b.periodLabel(y).replace(/ · to date$/, ''))}</option>`).join('')}</select>`
       : k === 'week' ? `<input class="in" type="date" id="pfAt" value="${esc(/^\d{4}-\d\d-\d\d$/.test(c.at) ? c.at : today())}" max="${today()}">`
-      : k === 'period' ? '<p class="note" style="margin:0">The student’s current tuition period.</p>'
+      : k === 'period' ? '<p class="note" style="margin:0">The student\'s current tuition period.</p>'
       : `<div class="r2"><input class="in" type="date" id="pfFrom" value="${esc(c.from || addDays(today(), -29))}"><input class="in" type="date" id="pfTo" value="${esc(c.to || today())}"></div>`;
     const kinds = (rk === 'student' ? [['period','This period']] : []).concat([['week','Week'],['month','Month'],['quarter','Quarter'],['year','Year'],['custom','Dates']]);
     const pick = K.pick === 'tutor' ? `<label class="f"><span>Tutor</span><select class="in" id="pfWho"><option value="">All tutors</option>${tutorList().map(n => `<option ${n === c.tutor ? 'selected' : ''}>${esc(n)}</option>`).join('')}</select></label>`
@@ -400,7 +431,8 @@ window.PERF = (function(){
     const K = Object.entries(KINDS).filter(([k]) => okK(k));
     return `<div class="ph"><div class="tt"><h1>Reports</h1><p>Reports to download or send. Live numbers are on Business.</p></div></div>
       <div class="rp-grid">${K.map(([k, x]) => `<a class="card pad rp-c" href="#rep/${k}"><b>${esc(x.t)}</b><span>${esc(x.d)}</span><i>${ic('chev',16,2.2)}</i></a>`).join('')}
-      <a class="card pad rp-c" href="reports.html"><b>Parent progress reports</b><span>The weekly, two-weekly and monthly reports sent to parents from tutors’ logs.</span><i>${ic('chev',16,2.2)}</i></a></div>
+      ${can('tutors') ? `<a class="card pad rp-c" href="#srafig"><b>SRAs</b><span>Averages at each review, topics dropping, each student.</span><i>${ic('chev',16,2.2)}</i></a>` : ''}
+      <a class="card pad rp-c" href="reports.html"><b>Parent progress reports</b><span>The weekly, two-weekly and monthly reports sent to parents from tutors' logs.</span><i>${ic('chev',16,2.2)}</i></a></div>
       ${K.length ? '' : '<p class="note">Ask the Director for access to the LHQ reports.</p>'}`;
   }
   function page(kind, arg){
@@ -424,9 +456,9 @@ window.PERF = (function(){
       const el = stage.firstElementChild, w = el.offsetWidth;
       const blob = await (await lhqPdf())().set({margin: [10, 0, 12, 0], image: {type: 'jpeg', quality: 0.96},
         html2canvas: {scale: 2, useCORS: true, backgroundColor: '#ffffff', x: 0, y: 0, scrollX: 0, scrollY: 0, width: w, windowWidth: w},
-        jsPDF: {unit: 'mm', format: 'a4', orientation: 'portrait'}, pagebreak: {mode: ['css'], before: rk === 'business' ? '.pf-s.first + .pf-s' : [], avoid: ['.pf-t.sm', '.pf-t tr', '.pf-b', '.pf-ks', 'h2', 'h3', '.pf-chart', '.pf-hl li']}}).from(el).outputPdf('blob');
+        jsPDF: {unit: 'mm', format: 'a4', orientation: 'portrait'}, pagebreak: {mode: ['css'], before: rk === 'business' ? '.pf-s.first + .pf-s' : [], avoid: ['.pf-t.sm', '.pf-t tr', '.pf-b', '.pf-ks', 'h2', 'h3', '.pf-chart', '.pf-hl li', '.pf-2']}}).from(el).outputPdf('blob');
       const who = rk === 'student' ? ((HD.students().find(s => s.key === c.stu) || {}).name || '') : rk === 'tutor' ? (c.tutor || 'All tutors') : (K.AUD[c.aud] || {}).n || '';
-      const name = `LHQ ${K.t}_ ${who ? who + '_ ' : ''}${R.label}.pdf`.replace(/[\\/:*?"<>|]/g, '');
+      const name = `LHQ ${K.t}_ ${who ? who + '_ ' : ''}${R.label}${window.FX && FX.active() ? ' (USD)' : ''}.pdf`.replace(/[\\/:*?"<>|]/g, '');
       const u = URL.createObjectURL(blob), a = document.createElement('a'); a.href = u; a.download = name; document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(u), 30000);
       toast('PDF downloaded');
     }catch(e){ console.error(e); toast('Couldn\'t make the PDF. Try again.'); }

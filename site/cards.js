@@ -34,9 +34,9 @@ window.PC = (function(){
   LIB.biz = {
     money: {t:'Money in', ic:'cash', need:'pl', d:'Tuition and other money received, against the period before', f:({period}) => { const b = B(), f = b.figures(b.months(period)), V = vsBefore(period);
       return {href:`#biz/money/${period}`, v: mkShort(f.revenue), lines:[[f.other ? `${mkShort(f.inc)} tuition · ${mkShort(f.other)} other` : `${mkShort(f.invoiced)} invoiced`]], tr: tr(chg(V.now.revenue, V.prev.revenue), V.word)}; }},
-    spending: {t:'Spending', ic:'box', need:'spend|pl', d:'What was spent, against the budget', f:({period}) => { const b = B(), ms = b.months(period), f = b.figures(ms), V = vsBefore(period), bud = sum(Object.values(b.budget()), num) * ms.length, top = Object.entries(f.byCat).sort((a, c) => c[1] - a[1])[0];
+    spending: {t:'Payments', ic:'box', need:'spend|pl', d:'What was spent, against the budget', f:({period}) => { const b = B(), ms = b.months(period), f = b.figures(ms), V = vsBefore(period), bud = sum(Object.values(b.budget()), num) * ms.length, top = Object.entries(f.byCat).sort((a, c) => c[1] - a[1])[0];
       return {href:`#biz/spending/${period}`, v: mkShort(f.exp), bar: bud && can('pl') ? Math.min(100, pc(f.exp, bud)) : null, lines:[[bud && can('pl') ? `${pc(f.exp, bud)}% of ${mkShort(bud)} budget` : top ? `Most on ${top[0]}` : 'Nothing recorded yet']], tr: can('pl') ? tr(chg(V.now.exp, V.prev.exp), V.word, -1) : ''}; }},
-    profit: {t:'Profit', ic:'cash', need:'pl', d:'Money in less spending, and the margin', f:({period}) => { const b = B(), f = b.figures(b.months(period)), V = vsBefore(period);
+    profit: {t:'Profit', ic:'cash', need:'pl', d:'Money in less payments, and the margin', f:({period}) => { const b = B(), f = b.figures(b.months(period)), V = vsBefore(period);
       return {href:`#biz/pl/${period}`, v: (f.profit < 0 ? '−' : '') + mkShort(Math.abs(f.profit)), lines:[[f.revenue ? `${pc(f.profit, f.revenue)}% margin` : 'No money in yet']], tr: tr(chg(V.now.profit, V.prev.profit), V.word)}; }},
     owed: {t:'Owed to LHQ', ic:'alert', need:'money', d:'Unpaid balances: who, how much, how late', f:() => { const L = I().owedFacts(), late = L.filter(x => x.late > 0);
       return {href:'#biz/owed', v: mkShort(sum(L, x => x.st.balance)), lines:[[plural(L.length, 'invoice') + ' not fully paid'], late.length ? [`${late.length} late · ${mkShort(sum(late, x => x.now))}`, '', 'bad'] : ['Nothing late']]}; }},
@@ -58,28 +58,31 @@ window.PC = (function(){
       return {href:`#biz/money/${period}`, v: top ? `<span style="font-size:.78em">${esc(top[0])}</span>` : '–', lines:[[top ? `${mkShort(top[1])} · ${pc(top[1], tot)}% of tuition` : 'No payments yet']]}; }},
     marketing: {t:'Marketing return', ic:'link', need:'pl', d:'The marketing channel that returned the most for its cost', f:({period}) => { const M = I().mkt(B().months(period)), best = M.paid.filter(x => x.spend > 0 && x.n > 0).sort((a, c) => c.ret - a.ret)[0];
       return {href:`#biz/marketing/${period}`, v: best ? best.ret.toFixed(1) + '×' : '–', lines:[[best ? esc(best.k) : 'Record marketing with a channel'], [`${mkShort(M.totalSpend)} spent`]]}; }},
-    budget: {t:'Budget used', ic:'bank', need:'pl', d:'Spending against the monthly budgets', f:({period}) => { const b = B(), ms = b.months(period), f = b.figures(ms), bud = sum(Object.values(b.budget()), num) * ms.length, over = Object.entries(b.budget()).filter(([c, v]) => num(v) && (f.byCat[c] || 0) > num(v) * ms.length).length;
+    budget: {t:'Budget used', ic:'bank', need:'pl', d:'Payments against the monthly budgets', f:({period}) => { const b = B(), ms = b.months(period), f = b.figures(ms), bud = sum(Object.values(b.budget()), num) * ms.length, over = Object.entries(b.budget()).filter(([c, v]) => num(v) && (f.byCat[c] || 0) > num(v) * ms.length).length;
       return {href:`#biz/budgets/${period}`, v: bud ? pc(f.exp, bud) + '%' : '–', bar: bud ? Math.min(100, pc(f.exp, bud)) : null, lines:[[bud ? `${mkShort(bud - f.exp)} left` : 'No budgets yet'], over ? [`${plural(over, 'category', 'categories')} over`, '', 'bad'] : null].filter(Boolean)}; }},
     alloc: {t:'Allocations', ic:'bank', need:'pl', d:'What to move into each allocation this month', f:() => { const P = ((store.get('lhq_budget', {}) || {}).pots || {}).list || [], inM = B().figures([B().thisMonth()]).revenue;
       return {href:`#biz/allocations`, v: P.length ? mkShort(inM) : '–', lines:[[P.length ? `to split across ${plural(P.length, 'allocation')}` : 'Not set up yet'], P[0] ? [`${P[0].n}: ${mkShort(inM * P[0].p / 100)}`] : null].filter(Boolean)}; }},
     paytime: {t:'Paying on time', ic:'clock', need:'pl', d:'Days from invoice to payment, and how many pay on time', f:({period}) => { const H = I().habits(B().months(period));
       return {href:`#biz/owed`, v: H.onTime != null ? H.onTime + '%' : '–', lines:[[H.daysToPay != null ? `${H.daysToPay} days to pay on average` : 'Not enough paid yet'], H.late.length ? [`${plural(H.late.length, 'family', 'families')} often late`, '', 'warn'] : null].filter(Boolean)}; }},
-    highlights: {t:'Highlights', ic:'rep', need:'pl', d:'The fastest growing subject, best channel and biggest spending rise', f:({period}) => ({href:`#biz/overview/${period}`, v: '<span style="font-size:.7em">See what changed</span>', lines:[['Growing, declining, busiest times']]})},
+    highlights: {t:'Highlights', ic:'rep', need:'pl', d:'The fastest growing subject, best channel and biggest rise in payments', f:({period}) => ({href:`#biz/overview/${period}`, v: '<span style="font-size:.7em">See what changed</span>', lines:[['Growing, declining, busiest times']]})},
   };
-  const BIZ_SECTIONS = [['overview','Highlights','pl'], ['money','Money in','pl'], ['owed','Owed to LHQ','money'], ['pipeline','Pipeline','pl'], ['sessions','Sessions','pl'], ['spending','Spending','spend|pl'],
+  const BIZ_SECTIONS = [['overview','Highlights','pl'], ['money','Money in','pl'], ['owed','Owed to LHQ','money'], ['pipeline','Pipeline','pl'], ['sessions','Sessions','pl'], ['balances','Balances','acct|pl'], ['spending','Payments','spend|pl'],
     ['budgets','Budgets','pl'], ['allocations','Allocations','pl'], ['marketing','Marketing','pl'], ['charts','Charts','pl'], ['pl','Profit & loss','pl']];
   const DEF = {
     biz: () => can('pl') ? ['money','spending','profit','owed','conv','sessions','makeups','renewal'] : can('spend') ? ['spending','confirm'].concat(can('money') ? ['owed'] : []) : can('money') ? ['owed'] : [],
     students: () => ['active','new','ending'].concat(can('money') ? ['overdue'] : ['waiting']),
     student: () => ['attendance','sessions','makeups'].concat(can('money') ? ['payment'] : ['tests']),
     tutors: () => ['teaching','notutor','logged','quiet'],
+    money: () => window.MIN ? MIN.DEF() : [],
   };
+  /* Money in: whole sections rather than small cards (moneyin.js) */
+  Object.defineProperty(LIB, 'money', {get: () => window.MIN ? MIN.LIB : {}, enumerable: true});
 
   /* Students list */
   LIB.students = {
-    active: {t:'Active', ic:'users', d:'Students in a tuition period now', f:() => { const n = curCards().length; return {href:'#students/current', v: String(n), lines:[[`${plural(HD.students().length, 'student')} in total`]]}; }},
-    new: {t:'New this month', ic:'plus', d:'Students whose first invoice is this month', f:() => { const m = ym(today()), n = HD.students().filter(s => ym(s.first) === m).length; return {href:'#students/new', v: String(n), lines:[['first invoice this month']]}; }},
-    ending: {t:'Ending soon', ic:'clock', d:'Tuition periods ending in the next 7 days', f:() => { const L = HD.students().filter(s => s.status.k === 'ending'); return {href:'#students/ending', v: String(L.length), lines:[[L[0] ? `Next: ${L[0].name}` : 'None this week']]}; }},
+    active: {t:'Active', ic:'users', d:'Students in a tuition period now', f:() => { const t = today(), n = HD.students().filter(s => s.cur && (!s.cur.inv.periodEnd || s.cur.inv.periodEnd >= t)).length; return {href:'#students/current', v: String(n), lines:[[`${plural(HD.students().length, 'student')} in total`]]}; }},
+    new: {t:'New this month', ic:'plus', d:'Students whose first invoice is this month', f:() => { const m = ym(today()), n = HD.students().filter(s => ym(s.firstInv) === m).length; return {href:'#students/new', v: String(n), lines:[['first invoice this month']]}; }},
+    ending: {t:'Ending soon', ic:'clock', d:'Tuition periods ending in the next 7 days', f:() => { const t = today(), L = HD.students().filter(s => s.cur && s.cur.inv.periodEnd && s.cur.inv.periodEnd >= t && dayDiff(t, s.cur.inv.periodEnd) <= 7).sort((x, y) => x.cur.inv.periodEnd.localeCompare(y.cur.inv.periodEnd)); return {href:'#students/ending', v: String(L.length), lines:[[L[0] ? `Next: ${L[0].name}` : 'None this week']]}; }},
     overdue: {t:'Overdue', ic:'alert', need:'money', d:'Students with a late payment', f:() => { const L = HD.students().filter(s => s.status.k === 'over'); return {href:'#students/over', v: String(L.length), lines:[[L.length ? 'payment overdue' : 'Nobody is late']]}; }},
     waiting: {t:'Quote sent', ic:'quote', d:'Families who have a quote and no invoice yet', f:() => { const L = HD.students().filter(s => s.status.k === 'quote'); return {href:'#students/quote', v: String(L.length), lines:[['waiting to start']]}; }},
     ended: {t:'Ended, not renewed', ic:'restore', d:'Students whose period ended with no new one', f:() => { const L = HD.students().filter(s => s.status.k === 'ended'); return {href:'#students/ended', v: String(L.length), lines:[['ask about the next period']]}; }},
@@ -89,13 +92,13 @@ window.PC = (function(){
   };
   /* A student's page: ctx = {s} (from HD.students()) */
   const stuLogs = s => rawLogs().filter(e => e.k && e.k.split('|')[0] === s.key);
-  const inPeriod = (s, e) => { const p = s.cur && s.cur.inv; return !p || !p.periodStart || (e.d >= p.periodStart && e.d <= (p.periodEnd || '9999')); };
+  const inPeriod = (s, e) => { const p = (s.cur && s.cur.inv && s.cur.inv.periodStart) ? s.cur.inv : s.card; return !p || !p.periodStart || (e.d >= p.periodStart && e.d <= (p.periodEnd || '9999')); };
   LIB.student = {
     attendance: {t:'Attendance', ic:'users', d:'Sessions attended this tuition period', f:({s}) => { const E = stuLogs(s).filter(e => e.ty === 's' && inPeriod(s, e)), a = E.filter(e => e.a === 'attended' || e.a === 'late').length, held = E.filter(e => e.a !== 'cancelled').length;
       return {href:`#rep/student/${encodeURIComponent(s.key)}`, v: held ? pc(a, held) + '%' : '–', lines:[[`${a} of ${plural(held, 'session')} attended`], E.filter(e => e.a === 'late').length ? [`${E.filter(e => e.a === 'late').length} late`, '', 'warn'] : null].filter(Boolean)}; }},
-    sessions: {t:'Sessions', ic:'clock', d:'Sessions logged against those planned so far this period', f:({s}) => { const c = s.cur && s.cur.card, t = today(), pl = c ? sum(c.subjects || [], x => planned(c, x, t)) : 0, done = stuLogs(s).filter(e => e.ty === 's' && inPeriod(s, e) && e.a !== 'cancelled' && e.a !== 'absent').length;
+    sessions: {t:'Sessions', ic:'clock', d:'Sessions logged against those planned so far this period', f:({s}) => { const c = s.card, t = today(), pl = c ? sum(c.subjects || [], x => planned(c, x, t)) : 0, done = stuLogs(s).filter(e => e.ty === 's' && inPeriod(s, e) && e.a !== 'cancelled' && e.a !== 'absent').length;
       return {href:`#rep/student/${encodeURIComponent(s.key)}`, v: `${done}<small> of ${pl}</small>`, lines:[[c ? 'planned so far' : 'No tuition card yet']], bar: pl ? Math.min(100, pc(done, pl)) : null}; }},
-    makeups: {t:'Make-ups owed', ic:'restore', d:'Sessions owed to this student', f:({s}) => { const c = s.cur && s.cur.card, M = c ? HD.makeups(c).filter(x => x.owed) : [];
+    makeups: {t:'Make-ups owed', ic:'restore', d:'Sessions owed to this student', f:({s}) => { const c = s.card, M = c ? HD.makeups(c).filter(x => x.owed) : [];
       return {href:`#rep/student/${encodeURIComponent(s.key)}`, v: String(sum(M, x => x.owed)), lines: M.length ? M.slice(0, 2).map(x => [`${x.sub}: ${x.owed}`]) : [['Nothing owed']]}; }},
     tests: {t:'Test scores', ic:'rep', d:'Average of topical tests this period, and the latest', f:({s}) => { const T = stuLogs(s).filter(e => e.sc !== '' && e.sc != null && num(e.mx) > 0 && inPeriod(s, e)).sort((a, c) => (a.d || '').localeCompare(c.d || '')), avg = T.length ? Math.round(sum(T, e => num(e.sc) / num(e.mx) * 100) / T.length) : null, last = T[T.length - 1];
       return {href:`#rep/student/${encodeURIComponent(s.key)}`, v: avg != null ? avg + '%' : '–', lines:[[last ? `Latest ${last.sub}: ${pc(num(last.sc), num(last.mx))}%` : 'No tests logged yet']]}; }},
@@ -141,7 +144,7 @@ window.PC = (function(){
     const ed = editing === page, link = (href, html, cls) => ed || !href ? `<div class="${cls}">${html}</div>` : `<a class="mcl ${cls}" href="${href}">${html}<span class="mca">›</span></a>`;
     const ctl = ed ? `<div class="ctl"><button title="Move earlier" ${i === 0 ? 'disabled' : ''} data-pcmv="${page}:${i}:-1">${ic('back',15,2.2)}</button><button title="Move later" ${i === n - 1 ? 'disabled' : ''} data-pcmv="${page}:${i}:1">${ic('chev',15,2.2)}</button><button class="rm" title="Remove" data-pcrm="${page}:${i}">✕</button></div>` : '';
     return `<div class="mc${ed ? ' ed' : ''}"${!ed && r.href ? ` data-go="${r.href}" role="link" tabindex="0"` : ''} aria-label="${esc(def.t)}">${ctl}<span class="l">${ic(def.ic, 15, 2)}${esc(def.t)}</span>
-      ${link(r.href, String(r.v).replace(/^MKW\s+/, '<small class="u">MKW</small>'), 'v')}${r.bar != null ? `<div class="bar"><i style="width:${r.bar}%"></i></div>` : ''}${(r.lines || []).map(([x, h, c]) => link(h || '', esc(x), 's' + (c ? ' ' + c : ''))).join('')}${r.spark || ''}${r.tr || ''}</div>`;
+      ${link(r.href, String(r.v).replace(/^MWK\s+/, '<small class="u">MWK</small>'), 'v')}${r.bar != null ? `<div class="bar"><i style="width:${r.bar}%"></i></div>` : ''}${(r.lines || []).map(([x, h, c]) => link(h || '', esc(x), 's' + (c ? ' ' + c : ''))).join('')}${r.spark || ''}${r.tr || ''}</div>`;
   }
   function chartCard(item){
     try{ const D = I().chartData(Object.assign({n: 12, over: 'm'}, item.c)), s = D.series.slice(0, 3);
@@ -161,6 +164,15 @@ window.PC = (function(){
       <p class="note">Only you see your choice, on any device.</p>` : '';
     return head + grid + add;
   }
+  /* a page made of sections: the pencil sits in the page header; while editing, the page shows the chooser */
+  const pencil = page => `<button class="ib${editing === page ? ' on' : ''}" data-pcedit="${page}" title="${editing === page ? 'Done' : 'Choose sections'}" aria-label="${editing === page ? 'Done' : 'Choose sections'}">${editing === page ? '✓' : ic('edit', 17)}</button>`;
+  function sections(page){
+    const L = chosen(page), lib = Object.entries(LIB[page]).filter(([k, c]) => okNeed(c) && !L.includes(k));
+    const row = (k, i) => { const c = LIB[page][k]; return `<div class="it"><span class="ico">${ic(c.ic)}</span><span class="t"><b>${esc(c.t)}</b></span><span class="pc-ctl"><button class="ib" ${i === 0 ? 'disabled' : ''} data-pcmv="${page}:${i}:-1" aria-label="Up">${ic('back',15,2.2)}</button><button class="ib" ${i === L.length - 1 ? 'disabled' : ''} data-pcmv="${page}:${i}:1" aria-label="Down">${ic('chev',15,2.2)}</button><button class="ib" data-pcrm="${page}:${i}" aria-label="Remove">✕</button></span></div>`; };
+    return `<div class="h2">Showing <em>${L.length}</em></div><div class="card">${L.map(row).join('') || '<p class="empty">None.</p>'}</div>
+      ${lib.length ? `<div class="h2">Add</div><div class="card">${lib.map(([k, c]) => `<div class="it"><span class="ico">${ic(c.ic)}</span><span class="t"><b>${esc(c.t)}</b><small>${esc(c.d)}</small></span><button class="btn sm" data-pcadd="${page}:${k}">Add</button></div>`).join('')}</div>` : ''}
+      <button class="btn n full" data-pcedit="${page}">Done</button>`;
+  }
   function bind(){
     const on = (sel, fn) => document.querySelectorAll(sel).forEach(el => el.onclick = e => { e.preventDefault(); e.stopPropagation(); fn(el); });
     on('[data-pcedit]', el => { editing = editing === el.dataset.pcedit ? '' : el.dataset.pcedit; render(); });
@@ -169,5 +181,5 @@ window.PC = (function(){
     on('[data-pcadd]', el => { const [p, k] = el.dataset.pcadd.split(':'), L = chosen(p).slice(); if(!L.includes(k)) L.push(k); save(p, L); });
   }
   function pinChart(name, c){ const L = chosen('biz').slice(); if(L.length >= 16){ toast('Remove a card first: 16 at most'); return; } L.push({k:'chart', n: name, c}); save('biz', L); toast('Pinned to Business'); }
-  return {block, bind, pinChart, chosen, planned, rawLogs, curCards, LIB, BIZ_SECTIONS, isEditing: p => editing === p};
+  return {block, sections, pencil, bind, pinChart, chosen, planned, rawLogs, curCards, LIB, BIZ_SECTIONS, isEditing: p => editing === p};
 })();

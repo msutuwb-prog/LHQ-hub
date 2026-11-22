@@ -171,7 +171,7 @@ footer{text-align:center;font-size:12.5px;color:var(--muted);padding:6px 16px 0}
   <section class="panel">
     <h2><span class="n">4</span>When and where</h2>
     <div class="fld"><span class="lbl">Days you could usually come</span><div class="days" id="days" role="group" aria-label="Days"></div></div>
-    <div class="fld" style="margin-bottom:0"><span class="lbl">Where</span><button type="button" class="dd" id="ddWhere"></button></div>
+    <div class="fld" style="margin-bottom:0"><span class="lbl">Tuition mode</span><button type="button" class="dd" id="ddWhere"></button></div>
   </section>
 
   <section class="panel">
@@ -222,7 +222,7 @@ const PROGRAMMES = ['IB','IELTS','SAT'];
 const LEVEL_SHORT = {'IB':'IB Diploma','Year 6 · Primary Checkpoint':'Year 6 (Checkpoint)','Year 9 · Checkpoint':'Year 9 (Checkpoint)','Year 10 · IGCSE':'Year 10 (IGCSE)','Year 11 · IGCSE':'Year 11 (IGCSE)','Year 12 · AS Level':'Year 12 (AS Level)','Year 13 · A Level':'Year 13 (A Level)'};
 const GRADES = ['A*','A','B','C','D','E','F','G','U'];
 const BASIS = ['End of term results','Mid-term results','Mock exam','Class test','School report','Checkpoint results','My own estimate'];
-const WHERE = ['At LHQ','Online','Either'];
+const WHERE = ['In person','Online','Blended','Home','Other'];
 const COVER = [{v:'selected', l:'Some topics', s:'Tick the ones you want'}, {v:'full', l:'The whole course', s:'Start from the beginning'}, {v:'unsure', l:'Not sure yet', s:'Your tutor will check in the first session'}];
 const TIERS = [{v:'Extended', l:'Extended'}, {v:'Core', l:'Core'}, {v:'', l:'Not sure'}];
 const CHEV = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 9l6 6 6-6"/></svg>';
@@ -440,8 +440,9 @@ F('area').addEventListener('input', e=>{ st.area = e.target.value; renderPreview
 F('ddSchool').onclick = e=>openSheet({title:'Your school', btn:e.currentTarget, selected:st.school,
   search:{placeholder:'Search or type your school', build:schoolOptions},
   onDone:v=>{ if(v==='__other'){ setTimeout(()=>{ F('ddSchool').click(); F('shSearch').focus(); }, 50); return; } st.school = v; setDD(F('ddSchool'), st.school, 'Choose'); renderPreview(); persist(); }});
-F('ddWhere').onclick = e=>openSheet({title:'Where would you like your sessions?', btn:e.currentTarget, selected:st.where,
-  options:[{v:'At LHQ', l:'At LHQ', s:'Area 47, Sector 4, Lilongwe'}, {v:'Online', l:'Online'}, {v:'Either', l:'Either is fine'}], onDone:v=>{ st.where = v; renderWhen(); renderPreview(); persist(); }});
+F('ddWhere').onclick = e=>openSheet({title:'How would you like your sessions?', btn:e.currentTarget, selected:st.where,
+  options:[{v:'In person', l:'In person', s:'At LHQ · Area 47, Sector 4, Lilongwe'}, {v:'Online', l:'Online'}, {v:'Blended', l:'Blended', s:'Some in person, some online'}, {v:'Home', l:'Home', s:'The tutor comes to you'}, {v:'__other', l:'Other'}],
+  onDone:v=>{ if(v==='__other'){ const n = (prompt('How would you like your sessions?')||'').trim(); if(!n) return; v = n; } st.where = v; setDD(F('ddWhere'), st.where, 'Choose'); renderWhen(); renderPreview(); persist(); }});
 
 /* ---------- the message ---------- */
 function topicLines(s){
