@@ -422,7 +422,7 @@ window.PERF = (function(){
       if(!n.s.length){ toast('Choose at least one section'); return; }
       saveCfg(Object.assign(cfg(), n)); closeSheet();
       const h = '#rep/' + rk + (rk === 'student' && n.stu ? '/' + encodeURIComponent(n.stu) : '');
-      if(location.hash === h) render(); else location.hash = h;
+      if(location.hash === h) render(); else hubGo(h);
     };
   }
 

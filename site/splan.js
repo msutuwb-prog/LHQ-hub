@@ -254,7 +254,7 @@ window.SPLAN = (function(){
       ['ebA', 'ebB', 'ebF'].forEach(i => { if($(i)) $(i).onchange = () => { keep(); draw(); }; });
       $('ebGo').onclick = async () => { keep(); if(!b.name && b.all) return toast('Give it a name'); if(b.all && b.sh === 'sub' && !b.sub) return toast('Choose the subject');
         try{ await hub.api('family', {method: 'POST', body: JSON.stringify({action: 'block', block: b})}); closeSheet(); if(window.FAM && FAM.refresh) await FAM.refresh(); toast(b.busy && (b.all ? b.sh !== 'none' : b.sh === 'busy') ? 'Saved · tutors and LHQ see "Busy"' : 'Saved'); render(); }catch(e){ toast(e.message); } };
-      if($('ebDel')) $('ebDel').onclick = async () => { try{ await hub.api('family', {method: 'POST', body: JSON.stringify({action: 'unblock', id: b.id})}); closeSheet(); if(window.FAM && FAM.refresh) await FAM.refresh(); toast('Deleted'); location.hash = '#me/day/' + (d || T()); render(); }catch(e){ toast(e.message); } }; };
+      if($('ebDel')) $('ebDel').onclick = async () => { try{ await hub.api('family', {method: 'POST', body: JSON.stringify({action: 'unblock', id: b.id})}); closeSheet(); if(window.FAM && FAM.refresh) await FAM.refresh(); toast('Deleted'); hubGo('#me/day/' + (d || T())); render(); }catch(e){ toast(e.message); } }; };
     draw();
   }
   const sw = (on, f) => `<button type="button" class="sp-sw ${on ? 'on' : ''}" data-esw="${f}" aria-label="On or off"><i></i></button>`;
@@ -294,7 +294,7 @@ i.yx,.sp-mg i.yx{background:var(--rd)}i.ya,.sp-mg i.ya{background:var(--accent)}
   function bind(k){
     if(!k) return; css();
     const on = (sel, f) => document.querySelectorAll(sel).forEach(el => el.onclick = e => { e.preventDefault(); f(el); });
-    on('[data-spgo]', el => { location.hash = el.dataset.spgo; });
+    on('[data-spgo]', el => { hubGo(el.dataset.spgo); });
     on('[data-spplan]', el => { PM = {d: el.dataset.spplan, items: autoPlan(k, el.dataset.spplan)}; render(); });
     on('[data-spclear]', () => { PM = null; render(); });
     on('[data-sped]', el => edSheet(k, +el.dataset.sped));

@@ -66,6 +66,20 @@
   const TK = 'lhq_trail';
   const here = () => location.pathname.replace(/^.*\//, '').replace(/^$/, 'index.html') + location.hash;
   const norm = u => String(u || '').replace(/^index\.html#?$/, 'index.html#home').replace(/^#/, 'index.html#');
+  /* going somewhere from code: a filter, tab or period on the same page replaces the address, so Back leaves the page (24 Nov) */
+  /* the phone's history, numbered (24 Nov): each step remembers its place, so a back link can jump to the page you came from
+     however many steps ago, and the phone's Back then carries on from there */
+  const SG = (k, d) => { try{ return JSON.parse(sessionStorage.getItem(k)) ?? d; }catch(e){ return d; } }, SS = (k, v) => { try{ sessionStorage.setItem(k, JSON.stringify(v)); }catch(e){} };
+  const hashOf = u => '#' + (String(u || '').split('#')[1] || 'home');
+  function stamp(){ const H = SG('lhq_hist', []), st = history.state;
+    let i; if(st && typeof st.hi === 'number') i = st.hi; else { i = SG('lhq_hcur', -1) + 1; H.length = i; try{ history.replaceState(Object.assign({}, st || {}, {hi: i}), ''); }catch(e){} }
+    H[i] = hashOf(location.href); SS('lhq_hist', H); SS('lhq_hcur', i); }
+  stamp(); window.addEventListener('hashchange', stamp); window.addEventListener('popstate', stamp);
+  /* change the address without a new step (a filter, tab or period on the same page) */
+  function replaceHash(h){ const i = SG('lhq_hcur', 0); try{ history.replaceState({hi: i}, '', h); }catch(e){ return location.replace(h); } const H = SG('lhq_hist', []); H[i] = hashOf(h); SS('lhq_hist', H); window.dispatchEvent(new HashChangeEvent('hashchange')); }
+  /* a back link: if the page is in the steps behind, go back to it there; otherwise false (the link opens it as usual) */
+  function backTo(h){ const H = SG('lhq_hist', []), i = SG('lhq_hcur', 0), t = hashOf(h); for(let j = i - 1; j >= 0; j--) if(H[j] === t){ history.go(j - i); return true; } return false; }
+  window.hubGo = h => { h = String(h || ''); const cur = location.hash || '#home'; if(h === cur) return; if(pageOf(h) === pageOf(cur)) replaceHash(h); else location.hash = h; };
   const pageOf = u => String(u || '').replace(/^[^#]*#?/, '').split('/').slice(0, 2).join('/');
   function trail(){ try{ return JSON.parse(sessionStorage.getItem(TK) || '[]'); }catch(e){ return []; } }
   function visit(label){
@@ -85,5 +99,5 @@
   }
   /* a section opened from the menu starts a fresh trail, so it shows no back link */
   document.addEventListener('click', e => { if(e.target.closest && e.target.closest('#hnSide a, #hnBar a, .hn-top .hn-logo')){ try{ sessionStorage.setItem(TK, '[]'); }catch(err){} } }, true);
-  window.LHQNav = {pageOf, mount, refresh: () => draw(), layout, setLayout, lean, moreItems, pool, chosenKeys, DEF, section: s => { current = s; draw(); }, ic, visit, back, trail};
+  window.LHQNav = {pageOf, replaceHash, backTo, mount, refresh: () => draw(), layout, setLayout, lean, moreItems, pool, chosenKeys, DEF, section: s => { current = s; draw(); }, ic, visit, back, trail};
 })();

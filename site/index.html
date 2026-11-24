@@ -543,11 +543,11 @@ const SCROLL = (() => { try{ return JSON.parse(sessionStorage.getItem('lhq_scrol
 let byTap = false, lastPage = '', scrollT = 0;
 if('scrollRestoration' in history) history.scrollRestoration = 'manual';
 document.addEventListener('click', e => { const a = e.target.closest('a[href]'); if(!a || !/^#|index\.html#/.test(a.getAttribute('href')) || a.target || e.ctrlKey || e.metaKey || e.shiftKey) return; byTap = true;
-  const h = '#' + a.getAttribute('href').replace(/^[^#]*#/, ''), T = LHQNav.trail(), prev = T.length > 1 ? T[T.length - 2] : null, cur = location.hash || '#home';
-  /* Back links go back in the phone's history too, so the phone's own Back button doesn't return to the page you just left (fixed 24 Nov) */
-  if(a.classList.contains('crumb') && prev && prev.u.replace(/^[^#]*#/, '#') === h){ e.preventDefault(); history.back(); return; }
+  const h = '#' + a.getAttribute('href').replace(/^[^#]*#/, ''), cur = location.hash || '#home';
+  /* Back links go back through the phone's history to that page, so the phone's own Back carries on from there (fixed 24 Nov) */
+  if(a.classList.contains('crumb')){ if(LHQNav.backTo(h)) e.preventDefault(); return; }
   /* a filter, tab or period on the same page replaces the address instead of adding a step to Back */
-  if(h !== cur && LHQNav.pageOf(h) === LHQNav.pageOf(cur) && !/^#(new|makeups)/.test(h)){ e.preventDefault(); location.replace(h); } }, true);
+  if(h !== cur && LHQNav.pageOf(h) === LHQNav.pageOf(cur) && !/^#(new|makeups)/.test(h)){ e.preventDefault(); LHQNav.replaceHash(h); } }, true);
 addEventListener('scroll', () => { clearTimeout(scrollT); scrollT = setTimeout(() => { SCROLL[location.hash || '#home'] = scrollY; try{ sessionStorage.setItem('lhq_scroll', JSON.stringify(SCROLL)); }catch(e){} }, 120); }, {passive:true});
 const pageKey = () => route.page === 'biz' ? 'biz/' + (route.args[0] || '') : route.page === 'student' ? 'student/' + (route.args[0] || '') : route.page;
 function placeScroll(prevPage, tap){

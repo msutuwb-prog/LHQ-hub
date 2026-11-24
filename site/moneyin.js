@@ -135,7 +135,7 @@ window.MIN = (function(){
   const st = {dim: LS('lhq_mi_dim') || 'prog', ct: LS('lhq_mi_ct') || 'bars', qm: LS('lhq_mi_qm') || 'q', more: false};
   if(!DIMS.some(x => x[0] === st.dim)) st.dim = 'prog';
   const dimName = () => DIMS.find(x => x[0] === st.dim)[1];
-  const go = p => { if(p) location.hash = '#biz/money/' + key(p); };
+  const go = p => { if(p) hubGo('#biz/money/' + key(p)); };
 
   /* ---------- the period bar ---------- */
   function bar(k){
@@ -356,7 +356,7 @@ window.MIN = (function(){
   document.addEventListener('click', e => {
     const t = e.target.closest('[data-mi]'); if(!t || t.disabled || !cur) return;
     const a = t.dataset.mi, v = t.dataset.v, p = cur.p; e.preventDefault();
-    if(a === 'go'){ if(v) { closeSheet(); location.hash = '#biz/money/' + v; } return; }
+    if(a === 'go'){ if(v) { closeSheet(); hubGo('#biz/money/' + v); } return; }
     if(a === 'type'){ const ty = v === 'q' ? (st.qm === 'term' ? 'term' : 'q') : v, at = live(p) ? T() : p.start; return go(periodOf(ty, at > T() ? T() : at)); }
     if(a === 'qm'){ st.qm = v; LS('lhq_mi_qm', v); return go(periodOf(v === 'term' ? 'term' : 'q', live(p) ? T() : p.start)); }
     if(a === 'pick') return pickSheet(p);

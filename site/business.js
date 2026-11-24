@@ -326,7 +326,7 @@ window.BIZ = (function(){
       if(!cats().some(x => x.toLowerCase() === c.c.toLowerCase())){   // a new category joins the list for everyone
         const st = Object.assign({}, store.get('lhq_settings', {})); st.spendCats = [...cats(), c.c].join('\n'); store.set('lhq_settings', st); }
       delete e.skip; saveEntry(e); closeSheet(); toast(isNew ? `Recorded: ${mk(amt)} for ${c.c}` : 'Saved');
-      const p = ym(e.date); if(route.page === 'biz' && route.args[1] !== p && !String(route.args[1] || '').startsWith('fy')) location.hash = `#biz/spending/${p}`; else render();
+      const p = ym(e.date); if(route.page === 'biz' && route.args[1] !== p && !String(route.args[1] || '').startsWith('fy')) hubGo(`#biz/spending/${p}`); else render();
     };
     if($('bzDel')) $('bzDel').onclick = () => { if(!confirm('Delete this payment?')) return; e.del = true; saveEntry(e); closeSheet(); toast('Deleted'); render(); };
   }
@@ -360,7 +360,7 @@ window.BIZ = (function(){
     if(window.INS) INS.bind();
     if(window.MIN) MIN.bind();
     on('[data-bzedit]', el => { const e = (store.get('lhq_spend', {}) || {})[el.dataset.bzedit]; if(e) sheet(Object.assign({}, e)); });
-    on('[data-bzp]', el => { location.hash = '#biz/' + el.dataset.bzp; });
+    on('[data-bzp]', el => { hubGo('#biz/' + el.dataset.bzp); });
     on('[data-bzcsv]', el => csv(el.dataset.bzcsv));
     on('[data-bzbud]', () => budgetSheet());
     const copyOf = (sid, date, extra) => { const d = due().find(x => x.sid === sid && x.date === date); if(!d) return null; const L = d.last;
