@@ -66,7 +66,8 @@ function sbxStore(b) { const K = k => SBX_PASS(k) ? k : SBX_P + k;
 const store = () => { const b = storeOnDb ? pgStore : blobs(); return inSbx() ? sbxStore(b) : b; };
 async function usesDbStore() {
   if (!dbMode()) return false;
-  try { const r = await one("SELECT value FROM settings WHERE key = 'hub_store' AND NOT del"); return !!r && r.value === "db"; } catch { return false; }
+  /* Supabase only (24 Nov): a new, empty Hub keeps everything in the database from the start; only an explicit switch back says otherwise */
+  try { const r = await one("SELECT value FROM settings WHERE key = 'hub_store' AND NOT del"); return !r || r.value === "db"; } catch { return false; }
 }
 
 /* compare two values whatever order their keys come in (the database keeps keys in its own order) */
