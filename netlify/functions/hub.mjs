@@ -62,7 +62,7 @@ const SBX = new AsyncLocalStorage(), inSbx = () => !!SBX.getStore(), SBX_P = "sb
 function sbxStore(b) { const K = k => SBX_PASS(k) ? k : SBX_P + k;
   return { get: (k, o) => b.get(K(k), o), getWithMetadata: (k, o) => b.getWithMetadata(K(k), o), setJSON: (k, v, o) => b.setJSON(K(k), v, o), delete: k => b.delete(K(k)),
     list: async (o = {}) => { const r = await b.list({ prefix: SBX_P + (o.prefix || "") }); return { blobs: r.blobs.map(x => Object.assign({}, x, { key: x.key.slice(SBX_P.length) })) }; },
-    ...(b.getAll ? { getAll: p => b.getAll(SBX_P + p) } : {}) }; }
+    ...(b.getAll ? { getAll: p => b.getAll(SBX_P + p) } : {}), ...(b.setMany ? { setMany: L => b.setMany(L.map(([k, v]) => [K(k), v])) } : {}) }; }
 const store = () => { const b = storeOnDb ? pgStore : blobs(); return inSbx() ? sbxStore(b) : b; };
 let _udb = { v: null, at: 0 };
 async function usesDbStore() {
@@ -1305,7 +1305,7 @@ async function hubStore(req, me) {
 /* Preview only: replace everything with demo data, or empty it. Never on the live site. */
 async function wipe(keepPeople) {
   const s = store();
-  for (const prefix of ["doc/", "hist/", "trash/", "kv/", "fails/"]) { const { blobs } = await s.list({ prefix }); for (const b of blobs) await s.delete(b.key); }
+  for (const prefix of ["doc/", "hist/", "trash/", "kv/", "fails/"]) { if (s.clear) { await s.clear(prefix); continue; } const { blobs } = await s.list({ prefix }); for (const b of blobs) await s.delete(b.key); }
   await s.delete("index");
   const list = (await getPeople()).filter(p => keepPeople(p));
   await putPeople(list);
@@ -1465,8 +1465,9 @@ async function demo(req, me) {
   }
   await putPeople(list);
   const s = store(), docs = {}, now = Date.now();
-  for (let i = 0; i < b.docs.length; i += 20) await Promise.all(b.docs.slice(i, i + 20).map(d => { docs[d.id] = { type: d.type || "quote", number: d.number, savedAt: d.savedAt || now, by: d.updatedBy || "" }; return s.setJSON("doc/" + d.id, d); }));
-  for (const d of b.trash || []) await s.setJSON("trash/" + d.id, d);
+  b.docs.forEach(d => { docs[d.id] = { type: d.type || "quote", number: d.number, savedAt: d.savedAt || now, by: d.updatedBy || "" }; });
+  if (s.setMany) await s.setMany(b.docs.map(d => ["doc/" + d.id, d]).concat((b.trash || []).map(d => ["trash/" + d.id, d])));
+  else { for (let i = 0; i < b.docs.length; i += 20) await Promise.all(b.docs.slice(i, i + 20).map(d => s.setJSON("doc/" + d.id, d))); for (const d of b.trash || []) await s.setJSON("trash/" + d.id, d); }
   const DEMO_NEW = ["lhq_bplan", "lhq_partners", "lhq_kids", "lhq_enq", "lhq_ann", "lhq_cal", "lhq_jobs", "lhq_spay", "lhq_fb", "lhq_areps"];
   const byName = {}; (await getPeople()).forEach(p => { if (p && p.name) byName[p.name] = p.id; });
   const ids = v => JSON.parse(JSON.stringify(v).replace(/"@([^"|]+)(\||")/g, (m, n, end) => byName[n] ? '"' + byName[n] + end : m));   // "@Name" in the demo becomes that person's id
@@ -1480,11 +1481,12 @@ async function demo(req, me) {
 async function sbxPost(req, me) {
   if (!inSbx() || !isDirector(SBX.getStore().dir) || me.id !== SBX.getStore().dir.id) return fail("Only the Director, in the Sandbox.", 403);
   const b = await req.json().catch(() => ({})), s = store(), now = Date.now();
-  if (b.action === "clear") { for (const prefix of ["doc/", "trash/", "kv/"]) { const { blobs: L } = await s.list({ prefix }); for (let i = 0; i < L.length; i += 25) await Promise.all(L.slice(i, i + 25).map(x => s.delete(x.key))); }
+  if (b.action === "clear") { for (const prefix of ["doc/", "trash/", "kv/"]) { if (s.clear) { await s.clear(prefix); continue; } const { blobs: L } = await s.list({ prefix }); for (let i = 0; i < L.length; i += 25) await Promise.all(L.slice(i, i + 25).map(x => s.delete(x.key))); }
     await s.setJSON("index", { rev: now, docs: {}, at: now, epoch: crypto.randomBytes(6).toString("hex") }); return json({ ok: true }); }
   if (b.action === "docs") { const { data: idx } = await getIndex(), docs = Object.assign({}, idx.docs || {});
     const L = Array.isArray(b.docs) ? b.docs.slice(0, 600) : [];
-    for (let i = 0; i < L.length; i += 25) await Promise.all(L.slice(i, i + 25).map(d => { docs[d.id] = { type: d.type || "quote", number: d.number, savedAt: d.savedAt || now, by: d.updatedBy || "", r: now }; return s.setJSON("doc/" + d.id, d); }));
+    L.forEach(d => { docs[d.id] = { type: d.type || "quote", number: d.number, savedAt: d.savedAt || now, by: d.updatedBy || "", r: now }; });
+    if (s.setMany) await s.setMany(L.map(d => ["doc/" + d.id, d])); else for (let i = 0; i < L.length; i += 25) await Promise.all(L.slice(i, i + 25).map(d => s.setJSON("doc/" + d.id, d)));
     await s.setJSON("index", { rev: now, docs, at: now, epoch: idx.epoch || crypto.randomBytes(6).toString("hex") }); return json({ ok: true, n: Object.keys(docs).length }); }
   if (b.action === "kv") { const byName = {}; (await getPeople()).forEach(p => { if (p && p.name) byName[p.name] = p.id; });
     const ids = v => JSON.parse(JSON.stringify(v).replace(/"@([^"|]+)(\||")/g, (m, n, end) => byName[n] ? '"' + byName[n] + end : m));

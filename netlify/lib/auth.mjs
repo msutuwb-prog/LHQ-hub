@@ -41,8 +41,10 @@ export function pwProblem(pw, p) {
   if (pw.length > 200) return "That password is too long.";
   return null;
 }
-const mkUsername = async (T, name) => {
+const mkUsername = async (T, name, taken) => {
   const base = nk(name).replace(/[^a-z ]/g, "").split(" ").filter(Boolean).join(".") || "user";
+  /* with the usernames already taken (saving many people at once), no trip to the database per name */
+  if (taken) { let u = base, i = 2; while (taken.has(u)) u = base + i++; taken.add(u); return u; }
   let u = base, i = 2; while (await T.one("SELECT 1 FROM people WHERE username = $1", [u])) u = base + i++; return u;
 };
 
@@ -58,6 +60,7 @@ export async function listPeople() { return (await q("SELECT * FROM people WHERE
 export async function savePeople(list) {
   return writeTx(async T => {
     const rows = await T.q("SELECT * FROM people WHERE NOT del"), byId = new Map(rows.map(r => [r.id, r])), keep = new Set();
+    const taken = new Set((await T.q("SELECT username FROM people WHERE username IS NOT NULL")).map(r => r.username));
     for (const p of list) {
       keep.add(p.id);
       const r = byId.get(p.id), prefs = Object.assign({}, r ? r.prefs : {}, { home: p.home || null, cards: p.cards || {} }, p.view ? { view: p.view } : {}, p.feat && typeof p.feat === "object" ? { feat: p.feat } : {}, Array.isArray(p.nav) ? { nav: p.nav } : p.nav === null && r && r.prefs && r.prefs.nav ? { nav: null } : {});
@@ -65,7 +68,7 @@ export async function savePeople(list) {
       const set = { name: p.name, role: p.role, perms: JSON.stringify(p.role === "admin" ? (p.perms || []) : []), also_tutor: p.role !== "tutor" && !!p.tutor,
         prefs: JSON.stringify(prefs), status, pv: p.pv || 1, last_seen: p.seen ? new Date(p.seen).toISOString() : null };
       if (!r) {
-        Object.assign(set, { id: p.id, username: await mkUsername(T, p.name), pin_salt: p.salt || null, pin_hash: p.hash || null, status: p.active === false ? "off" : p.hash ? "pin" : "setup" });
+        Object.assign(set, { id: p.id, username: await mkUsername(T, p.name, taken), pin_salt: p.salt || null, pin_hash: p.hash || null, status: p.active === false ? "off" : p.hash ? "pin" : "setup" });
         const k = Object.keys(set); await T.q(`INSERT INTO people (${k.join(", ")}) VALUES (${k.map((_, i) => "$" + (i + 1)).join(", ")})`, k.map(x => set[x]));
         continue;
       }

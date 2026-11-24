@@ -33,6 +33,17 @@ const NS = [
   { prefix: "trash/", table: "doc_trash", cols: v => ({ deleted_at: num(v.deletedAt) == null ? null : Math.round(num(v.deletedAt)), deleted_by: v.deletedBy || null }), order: "id" }
 ];
 const nsOf = key => NS.find(n => String(key).startsWith(n.prefix));
+/* many rows in one statement (24 Nov): loading demo data or building the Sandbox one row per query took longer than a request may
+   run once the database is across a network. Rows go in groups of up to 200 (and under Postgres's limit on parameters). */
+async function upsertMany(Q, table, cols, rows, conflict, sets) {
+  if (!rows.length) return;
+  const per = Math.max(1, Math.min(200, Math.floor(30000 / cols.length)));
+  for (let i = 0; i < rows.length; i += per) {
+    const part = rows.slice(i, i + per), vals = [];
+    const ph = part.map(r => "(" + r.map(v => { vals.push(v); return "$" + vals.length; }).join(", ") + ")").join(", ");
+    await Q(`INSERT INTO ${table} (${cols.join(", ")}) VALUES ${ph} ON CONFLICT (${conflict}) DO UPDATE SET ${sets}`, vals);
+  }
+}
 const KV = { table: "hub_kv" };
 
 /* lists kept one row per entry: read as the whole {id: entry} list, written by saving only the entries that changed.
@@ -46,6 +57,9 @@ const MONEY = kind => ({
     ON CONFLICT (id) DO UPDATE SET kind = EXCLUDED.kind, entry_date = EXCLUDED.entry_date, cat = EXCLUDED.cat, amount = EXCLUDED.amount, del = EXCLUDED.del,
       added_by = EXCLUDED.added_by, body = EXCLUDED.body, rev = nextval('lhq_rev'), updated_at = now()`,
     [id, kind, day(e.date), e.cat || null, num(e.amount), !!e.del, e.by || null, JSON.stringify(e)]),
+  putMany: (T, L) => upsertMany(T.q, "money", ["id", "kind", "entry_date", "cat", "amount", "del", "added_by", "body"],
+    L.map(([id, e]) => [id, kind, day(e.date), e.cat || null, num(e.amount), !!e.del, e.by || null, JSON.stringify(e)]), "id",
+    "kind = EXCLUDED.kind, entry_date = EXCLUDED.entry_date, cat = EXCLUDED.cat, amount = EXCLUDED.amount, del = EXCLUDED.del, added_by = EXCLUDED.added_by, body = EXCLUDED.body, rev = nextval('lhq_rev'), updated_at = now()"),
   drop: null, all: T => T.q("DELETE FROM money WHERE kind = $1", [kind])
 });
 const sid = k => "st" + crypto.createHash("sha256").update(nk(k)).digest("hex").slice(0, 16);
@@ -56,6 +70,9 @@ const STUDENTS = {
     ON CONFLICT (key) DO UPDATE SET name = EXCLUDED.name, level = EXCLUDED.level, school = EXCLUDED.school, del = false,
       info = students.info || jsonb_build_object('hub', EXCLUDED.info->'hub', 'hubKey', EXCLUDED.info->'hubKey')`,
     [sid(k), nk(k), String(e.name || k).trim() || k, e.level || null, e.school || null, JSON.stringify({ hub: e, hubKey: k })]),
+  putMany: (T, L) => upsertMany(T.q, "students", ["id", "key", "name", "level", "school", "info"],
+    L.map(([k, e]) => [sid(k), nk(k), String(e.name || k).trim() || k, e.level || null, e.school || null, JSON.stringify({ hub: e, hubKey: k })]), "key",
+    "name = EXCLUDED.name, level = EXCLUDED.level, school = EXCLUDED.school, del = false, info = students.info || jsonb_build_object('hub', EXCLUDED.info->'hub', 'hubKey', EXCLUDED.info->'hubKey')"),
   drop: (T, k) => T.q("UPDATE students SET info = info - 'hub' - 'hubKey' WHERE coalesce(info->>'hubKey', key) = $1", [k]),
   all: T => T.q("UPDATE students SET info = info - 'hub' - 'hubKey' WHERE info ? 'hub'")
 };
@@ -68,6 +85,9 @@ const ROWS = (table, cols) => ({
   put: (T, id, e) => { const c = cols(e), ks = Object.keys(c);
     return T.q(`INSERT INTO ${table} (id, ${ks.join(", ")}, body) VALUES ($1, ${ks.map((_, i) => "$" + (i + 2)).join(", ")}, $${ks.length + 2})
       ON CONFLICT (id) DO UPDATE SET ${ks.map(k => `${k} = EXCLUDED.${k}`).join(", ")}, body = EXCLUDED.body, rev = nextval('lhq_rev'), updated_at = now()`, [id, ...ks.map(k => c[k]), JSON.stringify(e)]); },
+  putMany: (T, L) => { if (!L.length) return; const ks = Object.keys(cols(L[0][1]));
+    return upsertMany(T.q, table, ["id", ...ks, "body"], L.map(([id, e]) => { const c = cols(e); return [id, ...ks.map(k => c[k]), JSON.stringify(e)]; }), "id",
+      ks.map(k => `${k} = EXCLUDED.${k}`).concat(["body = EXCLUDED.body", "rev = nextval('lhq_rev')", "updated_at = now()"]).join(", ")); },
   drop: null, all: T => T.q(`DELETE FROM ${table}`)
 });
 const LOGS = ROWS("logs", e => ({ ty: e.ty || null, student_key: skOf(e), subject: e.sub || null, day: day(e.d), tutor: e.tutor || null, del: !!e.x, at: num(e.at) == null ? null : Math.round(num(e.at)), confirm: (e.cf && e.cf.s) || null }));
@@ -98,7 +118,8 @@ async function mapPut(key, value, mode, match) {
     if (mode === "match" && (await tagNow()) !== match) return [];
     const old = new Map((await M.rows(T)).map(r => [r.k, canon(r.body)]));
     const whole = value && typeof value === "object" ? value : {}, next = W ? (whole.e && typeof whole.e === "object" ? whole.e : {}) : whole;
-    for (const [k, e] of Object.entries(next)) if (e && typeof e === "object" && old.get(k) !== canon(e)) await M.put(T, k, e);
+    const changed = Object.entries(next).filter(([k, e]) => e && typeof e === "object" && old.get(k) !== canon(e));
+    if (M.putMany && changed.length > 3) await M.putMany(T, changed); else for (const [k, e] of changed) await M.put(T, k, e);
     if (M.drop) for (const k of old.keys()) if (!(k in next)) await M.drop(T, k);
     if (W) { const rest = Object.assign({}, whole); delete rest.e;
       await T.q("INSERT INTO settings (id, key, scope, value) VALUES ($1, $1, 'staff', $2) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, del = false", [rkey, JSON.stringify(rest)]); }
@@ -148,6 +169,31 @@ export const pgStore = {
   async setJSON(key, value, o = {}) {
     const e = tag(), r = await rowPut(key, value, e, o.onlyIfNew ? "new" : o.onlyIfMatch ? "match" : "", o.onlyIfMatch);
     return r.length ? { modified: true, etag: r[0].etag || e } : { modified: false };
+  },
+  /* everything under a prefix, in a few statements (emptying a test copy or the Sandbox) */
+  async clear(prefix) {
+    for (const n of NS) if (n.prefix.startsWith(prefix)) await q(`DELETE FROM ${n.table}`);
+    await q("DELETE FROM hub_kv WHERE key LIKE $1", [like(prefix)]);
+    for (const k of Object.keys(MAPS)) if (k.startsWith(prefix)) await tx(async T => { await MAPS[k].all(T); if (WRAPPED.has(k)) await T.q("UPDATE settings SET del = true WHERE key = $1", ["hub:" + k.slice(3) + ":rest"]); });
+    for (const k of SETTINGS) if (k.startsWith(prefix)) await q("UPDATE settings SET del = true WHERE key = $1", [skey(k)]);
+  },
+  /* many documents or values at once (demo data, the Sandbox): one statement per group instead of one per row */
+  async setMany(pairs) {
+    const groups = new Map(), slow = [];
+    for (const [key, value] of [...new Map(pairs)]) {   // one row per key, the last one wins
+      if (MAPS[key] || SETTINGS.has(key)) { slow.push([key, value]); continue; }
+      const n = nsOf(key);
+      if (!n) { const g = groups.get("kv") || { kv: true, rows: [] }; g.rows.push([key, JSON.stringify(value), tag()]); groups.set("kv", g); continue; }
+      const c = n.cols(value || {}, key.slice(n.prefix.length)); if (n.table === "documents") delete c.rev;
+      const ks = Object.keys(c).filter(k => c[k] !== undefined), sig = n.table + ":" + ks.join(",");
+      const g = groups.get(sig) || { n, ks, rows: [] }; g.rows.push([key.slice(n.prefix.length), ...ks.map(k => c[k]), JSON.stringify(value), tag()]); groups.set(sig, g);
+    }
+    for (const g of groups.values()) {
+      if (g.kv) await upsertMany(q, "hub_kv", ["key", "value", "etag"], g.rows, "key", "value = EXCLUDED.value, etag = EXCLUDED.etag, updated_at = now()");
+      else await upsertMany(q, g.n.table, ["id", ...g.ks, "body", "etag"], g.rows, "id",
+        g.ks.map(k => `${k} = EXCLUDED.${k}`).concat(["body = EXCLUDED.body", "etag = EXCLUDED.etag"], g.n.table === "documents" ? ["rev = nextval('lhq_rev')", "updated_at = now()"] : []).join(", "));
+    }
+    for (const [key, value] of slow) await pgStore.setJSON(key, value);
   },
   async delete(key) { if (MAPS[key]) { await tx(async T => { await MAPS[key].all(T); if (WRAPPED.has(key)) await T.q("UPDATE settings SET del = true WHERE key = $1", ["hub:" + key.slice(3) + ":rest"]); }); return; } if (SETTINGS.has(key)) { await q("UPDATE settings SET del = true WHERE key = $1", [skey(key)]); return; } const n = nsOf(key); if (!n) await q("DELETE FROM hub_kv WHERE key = $1", [key]); else await q(`DELETE FROM ${n.table} WHERE id = $1`, [key.slice(n.prefix.length)]); },
   async list({ prefix = "" } = {}) {
