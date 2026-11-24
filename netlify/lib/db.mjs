@@ -1,7 +1,6 @@
 /* The database connection, transactions and migrations.
-   On Netlify: Netlify Database (Postgres) gives the connection through @netlify/database (NETLIFY_DB_URL).
-   Anywhere else (another Postgres such as Supabase or Neon directly, or the tests): set DATABASE_URL.
-   LHQ's live Hub uses Supabase (free, no hourly charge) since Netlify Database's hourly compute used up the credits. */
+   DATABASE_URL only: LHQ's Supabase database (free, no hourly charge), or a local Postgres for the tests.
+   Never Netlify Database: its hourly compute used up LHQ's credits twice. */
 import { MIGRATIONS } from "./schema.mjs";
 import crypto from "node:crypto";
 import pg from "pg";
@@ -18,20 +17,16 @@ async function supabaseCa() {
 async function getPool() {
   if (pool) return pool;
   plainDates(pg.types);
-  try { plainDates((await import("@neondatabase/serverless")).types); } catch {}
-  const url = process.env.DATABASE_URL || process.env.NETLIFY_DATABASE_URL;
-  if (url && !process.env.NETLIFY_DB_URL) {
+  /* Supabase only (agreed 24 Nov). Netlify Database bills every hour it's awake and twice used up LHQ's credits, so the Hub never
+     connects to it, even when Netlify provides one: without DATABASE_URL it stops and says so. */
+  const url = process.env.DATABASE_URL;
+  if (!url) throw new Error("DATABASE_URL isn't set: the Hub only uses the Supabase database.");
+  if (/\.supabase\.(com|co)\b/.test(url)) {
     /* Supabase: its certificates are signed by Supabase's own authority, so the Hub checks them against that
        (supabase-ca.mjs, a public certificate, in this folder). The sslmode in the address is taken out: it would override this. */
-    if (/\.supabase\.(com|co)\b/.test(url)) {
-      const ca = await supabaseCa(), cs = url.replace(/([?&])sslmode=[^&]*(&|$)/, (m, a, b) => b ? a : "").replace(/[?&]$/, "");
-      pool = new pg.Pool({ connectionString: cs, max: 3, ssl: ca ? { ca, rejectUnauthorized: true } : { rejectUnauthorized: true } });
-    } else
-    pool = new pg.Pool({ connectionString: url, max: 3, ssl: /sslmode=require|neon\.tech/.test(url) ? { rejectUnauthorized: true } : undefined });
-  } else {
-    const { getDatabase } = await import("@netlify/database");
-    pool = getDatabase().pool;
-  }
+    const ca = await supabaseCa(), cs = url.replace(/([?&])sslmode=[^&]*(&|$)/, (m, a, b) => b ? a : "").replace(/[?&]$/, "");
+    pool = new pg.Pool({ connectionString: cs, max: 3, ssl: ca ? { ca, rejectUnauthorized: true } : { rejectUnauthorized: true } });
+  } else pool = new pg.Pool({ connectionString: url, max: 3, ssl: /sslmode=require/.test(url) ? { rejectUnauthorized: true } : undefined });
   return pool;
 }
 
@@ -54,10 +49,8 @@ export async function migrate() {
   } catch (e) { await c.query("ROLLBACK").catch(() => {}); throw e; }
   finally { c.release(); }
 }
-/* On Netlify, Netlify applies the migrations itself on every deploy (netlify/database/migrations, generated from
-   schema.mjs: see test/schema.test.mjs), so the functions never change tables. Anywhere else (another Postgres, tests)
-   the functions run them on first use. */
-export const netlifyApplies = () => !!process.env.NETLIFY_DB_URL && !pool_isTest;
+/* the functions run the migrations themselves on first use */
+export const netlifyApplies = () => false;
 let pool_isTest = false;
 export async function db() {
   if (!ready) ready = (netlifyApplies() ? Promise.resolve() : migrate()).catch(e => { ready = null; throw e; });
