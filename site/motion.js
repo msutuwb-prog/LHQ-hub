@@ -43,7 +43,9 @@ window.MOTION = (function(){
   /* a sheet sliding up, and its shade fading in (only when it opens, not when it redraws) */
   function sheet(){
     if(!on()) return; const s = document.getElementById('sheet'), bg = document.getElementById('shbg');
-    if(s && s.animate) s.animate([{transform: 'translateY(28px)', opacity: .4}, {transform: 'none', opacity: 1}], {duration: 180, easing: 'ease-out'});
+    /* on a wide screen the sheet is centred with translate(-50%, -50%): the slide keeps that, or it would start at the bottom right and jump (fixed 24 Nov) */
+    if(!s) return; const base = getComputedStyle(s).transform, c = base && base !== 'none' ? base + ' ' : '';
+    if(s && s.animate) s.animate([{transform: c + 'translateY(28px)', opacity: .4}, {transform: c + 'translateY(0)', opacity: 1}], {duration: 180, easing: 'ease-out'});
     if(bg && bg.animate) bg.animate([{opacity: 0}, {opacity: 1}], {duration: 180});
   }
   apply();

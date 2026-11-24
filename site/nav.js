@@ -66,11 +66,14 @@
   const TK = 'lhq_trail';
   const here = () => location.pathname.replace(/^.*\//, '').replace(/^$/, 'index.html') + location.hash;
   const norm = u => String(u || '').replace(/^index\.html#?$/, 'index.html#home').replace(/^#/, 'index.html#');
+  const pageOf = u => String(u || '').replace(/^[^#]*#?/, '').split('/').slice(0, 2).join('/');
   function trail(){ try{ return JSON.parse(sessionStorage.getItem(TK) || '[]'); }catch(e){ return []; } }
   function visit(label){
     const u = norm(here()); let t = trail();
-    const i = t.findIndex(x => x.u === u);
-    if(i >= 0) t = t.slice(0, i + 1); else t.push({u, l: label || ''});
+    const i = t.findIndex(x => x.u === u), last = t[t.length - 1];
+    /* a filter, tab or period on the same page (the same first two parts of the address) replaces its entry instead of adding one,
+       so Back leaves the page rather than stepping through every filter (fixed 24 Nov) */
+    if(i >= 0) t = t.slice(0, i + 1); else if(last && pageOf(last.u) === pageOf(u)) t[t.length - 1] = {u, l: label || last.l}; else t.push({u, l: label || ''});
     t[t.length - 1].l = label || t[t.length - 1].l;
     try{ sessionStorage.setItem(TK, JSON.stringify(t.slice(-30))); }catch(e){}
   }
@@ -82,5 +85,5 @@
   }
   /* a section opened from the menu starts a fresh trail, so it shows no back link */
   document.addEventListener('click', e => { if(e.target.closest && e.target.closest('#hnSide a, #hnBar a, .hn-top .hn-logo')){ try{ sessionStorage.setItem(TK, '[]'); }catch(err){} } }, true);
-  window.LHQNav = {mount, refresh: () => draw(), layout, setLayout, lean, moreItems, pool, chosenKeys, DEF, section: s => { current = s; draw(); }, ic, visit, back, trail};
+  window.LHQNav = {pageOf, mount, refresh: () => draw(), layout, setLayout, lean, moreItems, pool, chosenKeys, DEF, section: s => { current = s; draw(); }, ic, visit, back, trail};
 })();

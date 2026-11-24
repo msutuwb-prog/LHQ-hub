@@ -64,8 +64,13 @@ function sbxStore(b) { const K = k => SBX_PASS(k) ? k : SBX_P + k;
     list: async (o = {}) => { const r = await b.list({ prefix: SBX_P + (o.prefix || "") }); return { blobs: r.blobs.map(x => Object.assign({}, x, { key: x.key.slice(SBX_P.length) })) }; },
     ...(b.getAll ? { getAll: p => b.getAll(SBX_P + p) } : {}) }; }
 const store = () => { const b = storeOnDb ? pgStore : blobs(); return inSbx() ? sbxStore(b) : b; };
+let _udb = { v: null, at: 0 };
 async function usesDbStore() {
   if (!dbMode()) return false;
+  if (_udb.v !== null && Date.now() - _udb.at < 60000 && !testDb) return _udb.v;   // asked once a minute, not on every request (one less trip to the database)
+  const v = await usesDbStore0(); _udb = { v, at: Date.now() }; return v;
+}
+async function usesDbStore0() {
   try {
     const r = await one("SELECT value FROM settings WHERE key = 'hub_store' AND NOT del"); if (r) return r.value === "db";
     /* Supabase only (24 Nov): a new Hub with nothing in the old storage keeps everything in the database from the start, and says so once */
@@ -1291,7 +1296,7 @@ async function hubStore(req, me) {
     const to = b.to === "db" ? "db" : "blobs";
     if (to === "db" && !(await pgStore.get("index"))) return fail("Copy the Hub into the database first.", 409);
     await q("INSERT INTO settings (id, key, scope, value) VALUES ('set_hub_store', 'hub_store', 'staff', $1) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, del = false", [JSON.stringify(to)]);
-    storeOnDb = to === "db";
+    storeOnDb = to === "db"; _udb = { v: storeOnDb, at: Date.now() };
     return json(await status());
   }
   return json(await status());
