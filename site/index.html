@@ -802,7 +802,7 @@ async function saveHome(cards){
   try{ await hub.api('people', {method:'POST', body:JSON.stringify({action:'home', cards})}); }catch(e){ toast('Couldn\'t save your Home online. It will look like this on this device.'); }
 }
 /* Needs attention: the same kind of task more than once becomes one line (tap it to see each) */
-const GL = {over:'invoices overdue', grace:'payments in their grace period', nocard:'paid without a tuition card', notutor:'cards with a subject without a tutor', end:'periods end this week', muend:'periods ended with make-ups owed',
+const GL = {late2:'students late twice or more this week', flag:'students flagged by tutors', tprof:'tutor profiles to finish', sprof:'student profiles with gaps', over:'invoices overdue', grace:'payments in their grace period', nocard:'paid without a tuition card', notutor:'cards with a subject without a tutor', end:'periods end this week', muend:'periods ended with make-ups owed',
   quote:'quotes waiting over a week', cant:"cards a tutor can't make", seen:"cards tutors haven't seen", tell:'families to tell about a move', disp:'disputed sessions',
   payq:'payslip queries', rprep:'tutors not prepared', rguide:'guides missing', rweek:'answers to look at', rnote:'notes from students', rmiss:"students who haven't reported", pkout:'packs not handed over', slip:'students slipping'};
 let attG = {};

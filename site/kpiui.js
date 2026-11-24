@@ -118,7 +118,10 @@ window.KPIUI = (function(){
   function attention(){
     if(!may()) return [];
     const C = ctx(), L = cached('list', () => K().tutors(C).map(n => ({n, s: K().status(C, n)}))), out = [];
-    L.filter(x => x.s.lvl === 'short').forEach(x => out.push({kind: 'kpi', col: 'var(--rd)', t: `${x.n}: falling short`, s: K().why(x.s), href: '#kpi/' + tId(x.n)}));
+    /* one line for everyone falling short (25 Nov): one line per tutor crowded Home */
+    const sh = L.filter(x => x.s.lvl === 'short');
+    if(sh.length === 1) out.push({kind: 'kpi', col: 'var(--rd)', t: `${sh[0].n}: falling short`, s: K().why(sh[0].s), href: '#kpi/' + tId(sh[0].n)});
+    else if(sh.length) out.push({kind: 'kpi', col: 'var(--rd)', t: `${sh.length} tutors falling short`, s: sh.map(x => x.n.split(' ')[0]).join(', '), href: '#kpi'});
     const sl = L.filter(x => x.s.lvl === 'slip'); if(sl.length) out.push({kind: 'kpi', col: 'var(--am)', t: `${sl.length} tutor${sl.length > 1 ? 's' : ''} slipping`, s: sl.map(x => x.n).join(', '), href: '#kpi'});
     if(isDir() && +C.t.slice(8) >= 25){ const m = C.t.slice(0, 7), todo = L.filter(x => x.s.lvl !== 'none' && !((C.kpi.rev || {})[K().nk(x.n) + '|' + m] || {}).note); if(todo.length) out.push({kind: 'kpi', col: 'var(--muted)', t: `${todo.length} ${MON[+m.slice(5, 7) - 1]} review${todo.length > 1 ? 's' : ''} to write`, s: '', href: '#kpi'}); }
     return out;
