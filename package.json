@@ -5,7 +5,6 @@
   "description": "LHQ Learning Solutions quote and invoice app",
   "dependencies": {
     "@netlify/blobs": "11.1.6",
-    "@netlify/database": "2.0.1",
     "nodemailer": "10.0.10",
     "pg": "^8.23.1",
     "web-push": "3.6.7"

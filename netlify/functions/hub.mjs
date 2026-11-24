@@ -36,7 +36,7 @@ import { fileURLToPath } from "node:url";
 let testDb = false;
 export const _setDbMode = v => { testDb = v; };
 const envGet = k => { try { return (globalThis.Netlify && globalThis.Netlify.env && globalThis.Netlify.env.get(k)) || process.env[k]; } catch { return process.env[k]; } };
-const dbMode = () => testDb || !!(envGet("NETLIFY_DB_URL") || envGet("DATABASE_URL") || envGet("NETLIFY_DATABASE_URL"));
+const dbMode = () => testDb || !!envGet("DATABASE_URL");   // Supabase only, never Netlify Database (see netlify/lib/db.mjs)
 let moved = false;
 
 let testStore = null;
@@ -2365,6 +2365,8 @@ export const tickKey = () => process.env.LHQ_TICK_KEY || crypto.createHash("sha2
 async function handle(req, context) {
   site = (context && context.deploy && context.deploy.context) || "production"; siteName = whichSite(req, context);
   if (!secret()) return fail("LHQ Hub isn't set up yet: add LHQ_SECRET in Netlify's environment variables.", 500);
+  /* the live Hub never runs without its Supabase database: a missing address would otherwise start an empty Hub elsewhere */
+  if (!dbMode() && !testSite() && !isPreview() && !testStore) return fail("LHQ Hub isn't connected to its database: add DATABASE_URL (Supabase) in Netlify's environment variables.", 503);
   storeOnDb = await usesDbStore();
   const path = new URL(req.url).pathname.replace(/^\/api\/hub\/?/, "").replace(/\/$/, "");
   try {
