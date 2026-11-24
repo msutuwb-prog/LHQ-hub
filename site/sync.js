@@ -236,7 +236,10 @@
     const box = overlay();
     box.innerHTML = `<img class="lhq-logo" src="${LOGO()}" alt="LHQ Learning Solutions"><p class="s">Loading…</p>`;
     try{
-      const r = await fetch(API + 'people?v=2', {cache:'no-store'}).then(r => r.json());
+      /* tried up to 3 times: just after a new version goes up, or when the server is waking, the first try can fail (25 Nov) */
+      let r = null, why = '';
+      for(let i = 0; i < 3 && !r; i++){ try{ const res = await fetch(API + 'people?v=2', {cache:'no-store'}); r = await res.json().catch(() => { why = 'The server answered ' + res.status + '.'; return null; }); }catch(e){ why = navigator.onLine === false ? 'This device is offline.' : 'The server didn\'t answer.'; } if(!r) await new Promise(ok => setTimeout(ok, 1500)); }
+      if(!r) throw new Error(why);
       if(r.error){ box.innerHTML = `<img class="lhq-logo" src="${LOGO()}" alt="LHQ"><h2>LHQ Hub isn't ready</h2><p class="s">${esc(r.error)}</p>`; return; }
       if(r.mode === 'password') return r.setup ? pwFirst() : pwSignIn(msg);
       if(r.setup) return showSetup();
@@ -245,7 +248,7 @@
         <div class="hub-who">${people.map(p => `<button type="button" data-id="${p.id}"><span><b>${esc(p.name)}</b><small>${[{director:'Director',admin:'Admin',tutor:'Tutor'}[p.role] || (p.admin?'Admin':'Tutor'), p.tutor && p.role !== 'tutor' ? 'Tutor' : ''].filter(Boolean).join(' + ')}</small></span><span>›</span></button>`).join('')}</div>`;
       box.querySelectorAll('[data-id]').forEach(b => b.onclick = () => { chosen = people.find(p => p.id === b.dataset.id); pinBuf = ''; showPin(); });
     }catch(e){
-      box.innerHTML = `<img class="lhq-logo" src="${LOGO()}" alt="LHQ"><h2>No connection</h2><p class="s">LHQ Hub needs the internet to sign in. Check your connection and try again.</p><button class="hub-go" onclick="location.reload()">Try again</button>`;
+      box.innerHTML = `<img class="lhq-logo" src="${LOGO()}" alt="LHQ"><h2>Can't reach the Hub</h2><p class="s">${esc((e && e.message) || '')} Check your connection and try again.</p><button class="hub-go" onclick="location.reload()">Try again</button>`;
     }
   }
   function showPin(err){
