@@ -2560,7 +2560,8 @@ export async function pushTick(context, at = Date.now()) {
     }
     await writeKv("lhq_push", old => { const o = Object.assign({}, old); Object.keys(o).forEach(id => { if ((o[id].q || []).length) o[id] = Object.assign({}, o[id], { q: [] }); }); return o; });
   }
-  const docs = (await readAll("doc/")).filter(d => d && !d.del), cards = docs.filter(d => d.type === "card");
+  /* the cards are read only on the runs that need them (on the hour, when something is due): reading every document every 15 minutes was the heaviest thing the Hub did */
+  let _cards = null; const getCards = async () => _cards || (_cards = (await readAll("doc/")).filter(d => d && !d.del && d.type === "card"));
   await import("../../site/schedule.js"); const S = globalThis.SCHED;
   const students = dbMode() ? await q("SELECT name, person_id FROM students WHERE NOT del AND person_id IS NOT NULL", []) : [];
   /* each student's reminder hours (Settings › Reminders): SRA days default 07:00; "off" only where LHQ allows it */
@@ -2569,7 +2570,7 @@ export async function pushTick(context, at = Date.now()) {
   if (top && sraNow.length) {
     await import("../../site/sra.js"); const SR = globalThis.SRA;
     const logs = (await store().get("kv/lhq_logs", { type: "json" })) || {}, E = Object.values(logs.e || {}).filter(e => e && !e.x), done = (await store().get("kv/lhq_sradone", { type: "json" })) || {};
-    const L = SR.build(S.items(cards, t, 45).map(it => ({ k: it.k, days: it.days, a: it.pa, b: it.b, st: it.st, sub: it.sub, periods: it.periods })), E, t)
+    const L = SR.build(S.items(await getCards(), t, 45).map(it => ({ k: it.k, days: it.days, a: it.pa, b: it.b, st: it.st, sub: it.sub, periods: it.periods })), E, t)
       .filter(x => x.doOn === t && !done[[x.k, x.topic, x.stage].join("|")] && (x.pack ? x.pack.on < t : x.given && x.status !== "in"));
     for (const r of sraNow) { const mine = L.filter(x => nk(x.st) === nk(r.name)); if (!mine.length) continue;
       await once(`${t}|${r.person_id}|sra`, () => pushTo([r.person_id], "sra", { title: mine.length === 1 ? `${mine[0].topic} R${mine[0].stage} today` : `${mine.length} SRAs today`, body: [...new Set(mine.map(x => x.sub))].join(", "), url: mine.some(x => x.pack) ? "/#me/practice/pack" : "/#me/practice" })); }
@@ -2581,7 +2582,7 @@ export async function pushTick(context, at = Date.now()) {
   }
   if (top && h === 16) {
     const reps = (await store().get("kv/lhq_treps", { type: "json" })) || {}, sentBy = new Set(Object.values(reps.e || {}).filter(r => r && r.d === t).map(r => nk(r.tutor)));
-    const teaching = new Set(S.sessions(cards, t, t).map(e => nk(e.tutor)).filter(Boolean));
+    const teaching = new Set(S.sessions(await getCards(), t, t).map(e => nk(e.tutor)).filter(Boolean));
     for (const p of ppl.filter(p => p.active !== false && isTutor(p) && teaching.has(nk(p.name)) && !sentBy.has(nk(p.name))))
       await once(`${t}|${p.id}|report`, () => pushTo([p.id], "report", { title: "Daily report", body: "Before you leave", url: "/#teach/report" }));
   }
@@ -2599,7 +2600,7 @@ export async function pushTick(context, at = Date.now()) {
   if (top && h >= 8 && h <= 19 && students.length) {
     const sr = (await store().get("kv/lhq_sreports", { type: "json" })) || {}, now = h * 60 + mw.getUTCMinutes();
     for (const r of students) {
-      const L = S.sessions(cards, t, t, { student: r.name }).filter(e => e.e); if (!L.length || ((sr[nk(r.name)] || {})[t])) continue;
+      const L = S.sessions(await getCards(), t, t, { student: r.name }).filter(e => e.e); if (!L.length || ((sr[nk(r.name)] || {})[t])) continue;
       const last = Math.max(...L.map(e => S.mins(e.e))); if (!(last <= now && now - last < 60)) continue;
       await once(`${t}|${r.person_id}|sreport`, () => pushTo([r.person_id], "sreport", { title: "Today's report · 2 min", body: [...new Set(L.map(e => e.sub))].join(", "), url: "/#me/report" }));
     }
