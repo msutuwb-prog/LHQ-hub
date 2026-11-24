@@ -28,6 +28,7 @@ import vm from "node:vm";
 import zlib from "node:zlib";
 import fs from "node:fs";
 import path from "node:path";
+import { AsyncLocalStorage } from "node:async_hooks";
 import { fileURLToPath } from "node:url";
 
 /* With the shared records' database switched on, people and sign-in live there (username or email + password, see
@@ -55,7 +56,14 @@ const blobs = () => testStore || getStore({ name: isPreview() ? "lhq-hub-preview
    document, list, money entry and tutor log is read and written there. Until then, and if it is ever switched back,
    Netlify Blobs are used as before. The switch is a setting, so it can be undone without a new deploy. */
 let storeOnDb = false;
-const store = () => storeOnDb ? pgStore : blobs();
+/* The Sandbox (release 3a, agreed 22 Nov): the Director's made-up LHQ. Every read and write in a Sandbox request goes under "sbx/",
+   so it never touches real documents or lists. People are shared (the real staff and tutors); nothing is sent; no activity is recorded. */
+const SBX = new AsyncLocalStorage(), inSbx = () => !!SBX.getStore(), SBX_P = "sbx/", SBX_PASS = k => k === "people" || k.startsWith("fails/");
+function sbxStore(b) { const K = k => SBX_PASS(k) ? k : SBX_P + k;
+  return { get: (k, o) => b.get(K(k), o), getWithMetadata: (k, o) => b.getWithMetadata(K(k), o), setJSON: (k, v, o) => b.setJSON(K(k), v, o), delete: k => b.delete(K(k)),
+    list: async (o = {}) => { const r = await b.list({ prefix: SBX_P + (o.prefix || "") }); return { blobs: r.blobs.map(x => Object.assign({}, x, { key: x.key.slice(SBX_P.length) })) }; },
+    ...(b.getAll ? { getAll: p => b.getAll(SBX_P + p) } : {}) }; }
+const store = () => { const b = storeOnDb ? pgStore : blobs(); return inSbx() ? sbxStore(b) : b; };
 async function usesDbStore() {
   if (!dbMode()) return false;
   try { const r = await one("SELECT value FROM settings WHERE key = 'hub_store' AND NOT del"); return !!r && r.value === "db"; } catch { return false; }
@@ -476,7 +484,7 @@ const dayL = d => { const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(d || ""));
 const docName = d => `${WORDT[d.type || "quote"] || "document"} ${d.number || ""}`.trim() + (d.student || d.name ? " · " + (d.student || d.name) : "");
 const monthL = m => { const [y, n] = String(m || "").split("-"); return n ? ["January","February","March","April","May","June","July","August","September","October","November","December"][+n - 1] + " " + y : String(m || ""); };
 async function act(me, area, action, summary, entity, entityId, data) {
-  if (!dbMode() || !me) return;
+  if (!dbMode() || !me || inSbx()) return;
   try { await q("INSERT INTO activity (id, actor_id, action, area, entity, entity_id, summary, data) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
     ["ac" + crypto.randomBytes(8).toString("hex"), me.id && /^p/.test(me.id) ? me.id : null, action, area, entity || null, entityId || null, String(summary).slice(0, 300), JSON.stringify(Object.assign({ who: me.name }, data || {}))]); }
   catch (e) { console.error("activity", e.message); }
@@ -1457,6 +1465,22 @@ async function demo(req, me) {
   await s.setJSON("index", { rev: now, docs, at: now, epoch: crypto.randomBytes(6).toString("hex") });
   return json({ ok: true, docs: b.docs.length, people: list.map(pub) });
 }
+/* the Sandbox's data arrives in parts (500 people and a year of documents is too big for one request) */
+async function sbxPost(req, me) {
+  if (!inSbx() || !isDirector(SBX.getStore().dir) || me.id !== SBX.getStore().dir.id) return fail("Only the Director, in the Sandbox.", 403);
+  const b = await req.json().catch(() => ({})), s = store(), now = Date.now();
+  if (b.action === "clear") { for (const prefix of ["doc/", "trash/", "kv/"]) { const { blobs: L } = await s.list({ prefix }); for (let i = 0; i < L.length; i += 25) await Promise.all(L.slice(i, i + 25).map(x => s.delete(x.key))); }
+    await s.setJSON("index", { rev: now, docs: {}, at: now, epoch: crypto.randomBytes(6).toString("hex") }); return json({ ok: true }); }
+  if (b.action === "docs") { const { data: idx } = await getIndex(), docs = Object.assign({}, idx.docs || {});
+    const L = Array.isArray(b.docs) ? b.docs.slice(0, 600) : [];
+    for (let i = 0; i < L.length; i += 25) await Promise.all(L.slice(i, i + 25).map(d => { docs[d.id] = { type: d.type || "quote", number: d.number, savedAt: d.savedAt || now, by: d.updatedBy || "", r: now }; return s.setJSON("doc/" + d.id, d); }));
+    await s.setJSON("index", { rev: now, docs, at: now, epoch: idx.epoch || crypto.randomBytes(6).toString("hex") }); return json({ ok: true, n: Object.keys(docs).length }); }
+  if (b.action === "kv") { const byName = {}; (await getPeople()).forEach(p => { if (p && p.name) byName[p.name] = p.id; });
+    const ids = v => JSON.parse(JSON.stringify(v).replace(/"@([^"|]+)(\||")/g, (m, n, end) => byName[n] ? '"' + byName[n] + end : m));
+    for (const [k, v] of Object.entries(b.kv || {})) if (/^lhq_[a-z0-9_]+$/i.test(k)) await s.setJSON("kv/" + k, ids(v));
+    const { data: idx } = await getIndex(); await s.setJSON("index", Object.assign({}, idx, { rev: now, at: now })); return json({ ok: true }); }
+  return fail("Unknown Sandbox action.");
+}
 async function reset(req, me) {
   if (!isPreview()) return fail("This only works on a preview, never on the live site.", 403);
   if (!isDirector(me)) return fail("Only the Director can empty the preview.", 403);
@@ -2219,6 +2243,7 @@ async function annPost(req, me) {
 }
 /* email through LHQ's Gmail when it's set up (GMAIL_USER, GMAIL_APP_PASSWORD); one message with everyone in Bcc */
 async function mailMany(list, subject, text) {
+  if (inSbx()) return 0;   // the Sandbox never sends
   const user = envGet("GMAIL_USER"), pass = envGet("GMAIL_APP_PASSWORD"); if (!list.length) return 0;
   if (!user || !pass) throw new Error("Email isn't set up on this Hub");
   const nm = (await import("nodemailer")).default, tr = nm.createTransport({ service: "gmail", auth: { user, pass } });
@@ -2393,8 +2418,16 @@ async function handle(req, context) {
       if (path === "dircode") return json(await A.directorCode({ code: b.code, ip }));
       return json(await A.choosePassword(Object.assign({}, b, { ua })));
     }
-    const me = await whoIs(req);
+    let me = await whoIs(req);
     if (!me) return fail("Please sign in again.", 401);
+    /* the Sandbox: the Director only; it can be seen as one of the real staff or tutors */
+    if (req.headers.get("x-lhq-sbx") === "1") {
+      if (!inSbx()) { if (!isDirector(me)) return fail("The Sandbox is for the Director.", 403); return await SBX.run({ dir: me }, () => handle(req, context)); }
+      if (req.method === "POST" && ["people", "account", "move", "store", "demo", "restore", "setup", "password"].includes(path) && !(path === "people" && ((await req.clone().json().catch(() => ({}))).action === "list"))) return fail("Not in the Sandbox: this changes the real Hub.", 409);
+      const as = req.headers.get("x-lhq-as");
+      if (as && as !== me.id) { const p = (await getPeople()).find(x => x.id === as && x.active !== false && !["student", "parent", "director"].includes(x.role)); if (!p) return fail("That person can't be viewed in the Sandbox.", 404); me = Object.assign({}, p); }
+    }
+    if (req.method === "POST" && path === "sbx") return await sbxPost(req, me);
     if (req.method === "GET" && path === "state") return await state(req, me);
     if (req.method === "GET" && path === "fullbackup") return await fullBackup(me);
     if (req.method === "GET" && path === "rev") return await rev(req, me);
@@ -2481,6 +2514,7 @@ async function sendPush(sub, payload) {
 }
 /* send to these people (ids), for this kind; held for later in quiet hours, or for the morning summary when not urgent */
 async function pushTo(ids, kind, msg, opts = {}) {
+  if (inSbx()) return 0;
   ids = [...new Set((ids || []).filter(Boolean))]; if (!ids.length) return 0;
   const all = (await store().get("kv/lhq_push", { type: "json" })) || {}, gone = {}, hold = {}; let n = 0;
   for (const id of ids) {

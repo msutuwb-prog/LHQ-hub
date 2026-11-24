@@ -9,7 +9,7 @@
   let seed = 7; const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
   const pick = a => a[Math.floor(rnd() * a.length)];
 
-  const ADMINS = ['Wanangwa Msutu', 'Catherine Mkwinda'];
+  let ADMINS = ['Wanangwa Msutu', 'Catherine Mkwinda'];
   const PEOPLE = [
     {name:'Catherine Mkwinda', role:'admin', pin:'1111', seen:Date.now() - 2 * 3600e3, perms:['quotes','cards','delete','restore','students','tutors','msgs','classes']},
     {name:'Benjamin Msutu', role:'admin', pin:'1111', seen:Date.now() - 3 * 3600e3, perms:['acct','receipts','money','tpay','spend','pl']},   /* the interim accountant, who also teaches (agreed 21 Nov) */
@@ -25,7 +25,7 @@
     {name:'Mayamiko Goliati', role:'tutor', pin:'1111', active:false, seen:Date.now() - 40 * DAY},
   ];
   /* who teaches what (two tutors per subject, so the load is shared) */
-  const POOL = {'Mathematics':['Ungweru Kaonga','Chisomo Banda'],'Pure Mathematics 1':['Ungweru Kaonga','Chisomo Banda'],'English':['Catherine Mkwinda','Grace Chinyama'],'English Language':['Catherine Mkwinda','Grace Chinyama'],
+  let POOL = {'Mathematics':['Ungweru Kaonga','Chisomo Banda'],'Pure Mathematics 1':['Ungweru Kaonga','Chisomo Banda'],'English':['Catherine Mkwinda','Grace Chinyama'],'English Language':['Catherine Mkwinda','Grace Chinyama'],
     'Physics':['Emmanuel Mkwamba','Peter Mvula'],'Chemistry':['Emmanuel Mkwamba','Dalitso Phiri'],'Science':['Peter Mvula','Dalitso Phiri'],'Biology':['Maureen Story','Dalitso Phiri'],
     'Business Studies':['Benjamin Msutu','Maureen Story'],'Economics':['Benjamin Msutu','Joseph Nkhoma'],'Accounting':['Joseph Nkhoma']};
   const tutorFor = (subj, i) => { const p = POOL[subj] || ['Grace Chinyama']; return p[i % p.length]; };
@@ -108,8 +108,33 @@
     return set.topics.map(t => typeof t === 'string' ? t : t.t).filter(Boolean);
   };
 
-  function build(){
-    seed = 7;
+  /* the Sandbox (release 3a): a made-up LHQ of any size, from the Director's settings, with the real staff and tutors */
+  const POOL0 = POOL, ADMINS0 = ADMINS;
+  function yearLevel(y){ const n = +((/(\d{1,2})/.exec(y) || [])[1] || 0); return n >= 13 ? 'Year 13 · A Level' : n === 12 ? 'Year 12 · AS Level' : n >= 10 ? `Year ${n} · IGCSE` : n === 9 ? 'Year 9 · Checkpoint' : y; }
+  function genList(o){
+    let r = (o.seed || 99) * 7 + 3; const R = () => (r = (r * 48271) % 2147483647) / 2147483647, P = a => a[Math.floor(R() * a.length)];
+    const LV = (o.years && o.years.length ? o.years : ['Year 7','Year 8','Year 9','Year 10','Year 10','Year 11','Year 11','Year 12','Year 13']).map(yearLevel), used = new Set(), usedP = new Set(), out = [];
+    const late = Math.max(0, 100 - (o.onTime == null ? 85 : o.onTime)) / 100, inst = (o.inst == null ? 30 : o.inst) / 100, kept = Math.min(.97, (o.kept == null ? 80 : o.kept) / 100), M = Math.max(1, o.months || 6);
+    for(let i = 0; i < o.n; i++){
+      let name, g = 0; do { name = P(FIRST) + ' ' + P(LAST) + (g > 30 ? ' ' + 'ABCDEFGHJKLMNPRSTW'[g % 18] + '.' : ''); g++; } while(used.has(name)); used.add(name);
+      const level = P(LV), pool = SUBJ(level).slice(), subs = [], x = R(), nS = x < .05 ? 1 : x < .3 ? 2 : x < .75 ? 3 : 4;
+      while(subs.length < Math.min(nS, pool.length)) subs.push(pool.splice(Math.floor(R() * pool.length), 1)[0]);
+      let per = 1; while(per < M && R() < kept) per++;
+      const y = R(), sit = y < .03 ? 'quote_new' : y < .05 ? 'quote_old' : y < .05 + (1 - kept) * .9 ? 'ended' : y < .05 + (1 - kept) * .9 + late * .5 ? 'overdue' : y < .05 + (1 - kept) * .9 + late * .8 ? 'grace' : y < .05 + (1 - kept) * .9 + late ? 'overdue_full' : 'active';
+      /* brothers and sisters: the same parent as the child before, at the rate set (children per family) */
+      const prev = out[out.length - 1], sib = prev && R() < Math.max(0, Math.min(.8, (o.perFam || 1.15) - 1));
+      if(sib){ const sn = prev[0].split(' ')[1]; let nm2, h = 0; do { nm2 = P(FIRST) + ' ' + sn + (h > 20 ? ' ' + h : ''); h++; } while(used.has(nm2)); used.delete(name); used.add(nm2); name = nm2; }
+      let par = sib ? prev[2] : '', q = 0; if(!sib){ do { par = P(['Mr','Mrs','Ms','Dr']) + ' ' + P(FIRST)[0] + '. ' + name.split(' ')[1] + (q > 20 ? ' ' + q : ''); q++; } while(usedP.has(par)); usedP.add(par); }
+      out.push([name, level, par, subs, sit, per, R() < inst]);
+    }
+    return out;
+  }
+  function build(o){
+    seed = o && o.seed ? o.seed : 7; Object.keys(BUSY).forEach(k => delete BUSY[k]);
+    POOL = POOL0; ADMINS = ADMINS0;
+    if(o && o.tutors && o.tutors.length){ const subjN = [...new Set(Object.keys(POOL0))], T = o.tutors; POOL = {}; subjN.forEach((x, i) => { POOL[x] = [T[i % T.length], T[(i + 1) % T.length]].filter((v, j, a) => a.indexOf(v) === j); }); }
+    if(o && o.admins && o.admins.length) ADMINS = o.admins;
+    const LIST = o ? genList(o) : STUDENTS;
     const now = new Date(); now.setHours(9, 0, 0, 0);
     const T = now.getTime(), at = (days, h = 10) => { const d = new Date(T + days * DAY); d.setHours(h, Math.floor(rnd() * 59), 0, 0); return d; };
     const docs = [], logs = {}, recs = {};
@@ -126,7 +151,7 @@
       if(extra.send && dayOff <= -0.02){ const w = d.getTime() + 12 * 60e3; doc.waSentAt = w; doc.waSentTo = s.phone; doc.log.push({a:'whatsapp', by:who, at:w, to:s.phone}); }
       docs.push(doc); return doc;
     }
-    STUDENTS.forEach(([name, level, parent, subjects, sit, periods, plan, opt], si) => {
+    LIST.forEach(([name, level, parent, subjects, sit, periods, plan, opt], si) => {
       const first = name.split(' ')[0];
       const s = {name, level, parent, phone:'09' + String(91000000 + si * 731117 % 8999999).slice(0, 8).replace(/(\d{2})(\d{3})(\d{3})/, '$1 $2 $3'),
         email: rnd() < 0.7 ? norm(parent).replace(/[^a-z]/g, '') + si + '@gmail.com' : '', address:pick(['Area 10','Area 43','Area 47','Area 12','Area 3','Area 18','Area 9']) + ', Lilongwe',
@@ -173,7 +198,7 @@
         });
         // tuition card
         if(!(isCur && sit === 'nocard') && !(isCur && sit === 'unpaid_new') && invDay + 2 < 0){
-          const subs = subjects.map((x, i) => { const tu = sit === 'notutor' && i === 0 ? '' : (si % 7 === 3 && x === 'Mathematics' && k > 1 ? 'Mayamiko Goliati' : tutorFor(x, si + i)), pl = placeAny(inv.periodStart, inv.periodEnd, x, tu, name, perWeek[i], si + i); return {name:x, list:listFor(level, x), tutor: pl.tutor,
+          const subs = subjects.map((x, i) => { const tu = sit === 'notutor' && i === 0 ? '' : (!o && si % 7 === 3 && x === 'Mathematics' && k > 1 ? 'Mayamiko Goliati' : tutorFor(x, si + i)), pl = placeAny(inv.periodStart, inv.periodEnd, x, tu, name, perWeek[i], si + i); return {name:x, list:listFor(level, x), tutor: pl.tutor,
             days: pl.days, perWeek:String(perWeek[i]), sessions:String(perWeek[i] * 4), mins:'1 hour', start:pl.start, end:pl.end, tier: /IGCSE/.test(level) && ['Mathematics','Physics','Chemistry','Biology'].includes(x) ? 'Extended' : '',
             mode:'full', picks:{}, details:{}, custom:[], grade: pick(['B','C','C','D','A','']), basis: 'End of term results', when:'', note:'', openCh:''}; });
           lastCard = mk('card', invDay + 3, s, {from:'@' + inv.id, f:{ref:'@' + inv.id, school:s.school, where:pick(['LHQ Centre','LHQ Centre','Online']), exam: /IGCSE|A Level|AS/.test(level) ? 'May/June 2027' : '',
@@ -182,6 +207,13 @@
         }
       }
       recs[norm(name)] = {name, level, school:s.school, parent, phone:s.phone, email:s.email, address:s.address, heard:s.heard, added:iso(at(curStart - 28 * (n - 1) - 9))};
+      /* the Sandbox: some students also take a programme (Fast Track, Marathon, IELTS…), and some take it again */
+      if(o && o.progs && o.progs.length && rnd() * 100 < (o.multi || 0)){ const y = +((/(\d{1,2})/.exec(level) || [])[1] || 0), yI = v => { const m = /(\d{1,2})/.exec(v || ''); return /reception/i.test(v || '') ? 0 : /college/i.test(v || '') ? 14 : /universit/i.test(v || '') ? 15 : m ? +m[1] : -1; };
+        const OK = o.progs.filter(p => p.type !== 'activity' && p.type !== 'weekly' && p.id !== 'weekly' && (!y || (yI(p.from) <= y && y <= yI(p.to))));
+        if(OK.length){ const p = pick(OK), times = rnd() * 100 < (o.kept || 80) / 2 ? 2 : 1;
+          for(let k = 0; k < times; k++){ const day = -Math.floor(rnd() * Math.max(20, (o.months || 6) * 28 - 20)) - 5, it = [{desc: p.name, days: '', sessions: '1', cost: String(p.fee || 150000), prog: p.id}];
+            const inv = mk('invoice', day, s, {send:true, f:{items: it, dueDate: iso(at(day + 7)), periodStart: iso(at(day + 7)), periodEnd: iso(at(day + 30))}});
+            if(rnd() * 100 < (o.onTime == null ? 85 : o.onTime) + 10){ const w = by(), amt = +(p.fee || 150000); mk('receipt', Math.min(-1, day + 2), s, {who: w, from: '@' + inv.id, f:{items: it, ref: '@' + inv.id, received: String(amt), method: pick(['Bank transfer','Airtel Money','Cash']), payRef: 'FT' + Math.floor(rnd() * 1e8), receivedBy: w, periodStart: inv.periodStart, periodEnd: inv.periodEnd}}); inv.paid = String(amt); } } } }
     });
     // renewal already made for Ruth (next period invoice, paid)
     // numbering in date order
@@ -304,7 +336,7 @@
       lhq_fu[id] = f; });
     /* bank rates (MWK per USD) for the MK / $ button: a slow drift over the last 12 months, no random draws */
     const lhq_fx = {days: {}, fix: {}, src: 'demo'}; for(let i = 365; i >= 0; i -= 1){ const d = iso(new Date(T - i * DAY)); lhq_fx.days[d] = Math.round((1735 + (365 - i) * 0.045 + Math.sin(i / 9) * 0.6) * 100) / 100; }
-    const NEW = newParts(T, docs, recs);
+    const NEW = newParts(T, docs, recs, o);
     return {docs, trash, people:PEOPLE, kv:{...NEW, lhq_fx, lhq_fu, lhq_focus, lhq_plan, lhq_treps:{e:treps}, lhq_makeups:makeups, lhq_students:recs, lhq_logs:{e:logs, imports}, lhq_counters:{quote:C.quote, invoice:C.invoice, receipt:C.receipt + 1, card:C.card}, lhq_spend:money.spend, lhq_budget:money.budget, lhq_targets:targets, lhq_reqs, lhq_pay:{rules: {trBy: {'catherine mkwinda': 15000, 'emmanuel mkwamba': 3000}},
       place: Object.fromEntries([...new Set(Object.values(POOL).flat())].map(n => [n.toLowerCase(), [{p: ['Catherine Mkwinda','Emmanuel Mkwamba'].includes(n) ? 'full' : 'part', from: '2026-01-01'}]])),
       items: {pi1: {id: 'pi1', tutor: 'Peter Mvula', m: iso(new Date(T)).slice(0, 7), kind: 'advance', amt: 30000, label: 'Advance', d: iso(new Date(T - 4 * DAY)), by: 'Wanangwa Msutu', at: T - 4 * DAY},
@@ -312,7 +344,7 @@
   }
   /* Release 2 parts (22 Nov): the plan, partners and children, enquiries, announcements, calendar entries, jobs, staff pay, app feedback and admin's reports.
      "@Name" stands for that person's id; the server swaps it in when the demo loads. */
-  function newParts(T, docs, recs){
+  function newParts(T, docs, recs, o){
     const d = n => iso(new Date(T + n * DAY)), t0 = d(0), ym = t0.slice(0, 7), fy = +t0.slice(5, 7) >= 9 ? +t0.slice(0, 4) : +t0.slice(0, 4) - 1;
     const R = docs.filter(x => x.type === 'receipt' && +x.received > 0), first = {}; R.forEach(r => { const k = norm(r.student); if(!first[k] || r.date < first[k]) first[k] = r.date; });
     const S = Object.values(recs), schools = [...new Set(S.map(r => r.school).filter(Boolean))];
@@ -348,7 +380,11 @@
     P3.forEach(p => p.log = [{d:d(-25), kind:'meeting', t:'Agreed the term plan.', by:'Anna Navilati'}]);
     schools.slice(0, 3).forEach((sc, i) => P3.push({id:'sch-' + norm(sc).replace(/[^a-z0-9]+/g, '-').slice(0, 40), kind:'school', name:sc, log:[{d:d(-6 - i * 9), kind:'visit', t:'Met the Head of Year 11.', by:'Anna Navilati'}]}));
     const KN = ['Chisomo Phiri','Tadala Banda','Kondwani Mvula','Thoko Gondwe','Wezi Kalua','Mphatso Zulu','Atupele Nkhoma','Limbani Chirwa','Dalitso Moyo','Takondwa Kaunda','Yamikani Phiri','Chimwemwe Tembo','Lusungu Mhango','Kumbukani Banda','Madalitso Gama','Tiyamike Chisi','Ulemu Kamanga','Pempho Mwale','Zione Lungu','Alinafe Soko'];
-    const kids = KN.map((n, i) => { const p = i < 8 ? 'ptchess' : i < 15 ? 'ptswim' : 'ptkart', a = {ptchess:'acch', ptswim:'acsw', ptkart:'ackt'}[p]; return {id:'kd' + i, name:n, parent:'Parent of ' + n.split(' ')[0], phone:'0999 1' + String(10000 + i * 7).slice(-5), school:schools[i % Math.max(1, schools.length)] || '', year:'Year ' + (7 + i % 5), act:a, partner:p, since:d(-70 + i * 2), src:'partner'}; }).reduce(it, {});
+    if(o && o.kids != null){ const SN = Object.values(recs).map(r => r.name), u = new Set(); KN.length = 0; for(let i = 0; i < o.kids; i++){
+      /* some activity children also do tuition (the same child), the rest are new names */
+      if(rnd() * 100 < (o.kidsTu || 0) && SN.length){ const nm = pick(SN); if(!u.has(nm)){ u.add(nm); KN.push(nm); continue; } }
+      let nm, g = 0; do { nm = pick(FIRST) + ' ' + pick(LAST) + (g > 30 ? ' ' + 'ABCDEFGHJKLMNPRSTW'[g % 18] + '.' : ''); g++; } while(u.has(nm) || SN.includes(nm)); u.add(nm); KN.push(nm); } }
+    const kids = KN.map((n, i) => { const f = i / Math.max(1, KN.length), p = o ? (f < .4 ? 'ptchess' : f < .75 ? 'ptswim' : 'ptkart') : i < 8 ? 'ptchess' : i < 15 ? 'ptswim' : 'ptkart', a = {ptchess:'acch', ptswim:'acsw', ptkart:'ackt'}[p]; return {id:'kd' + i, name:n, parent:'Parent of ' + n.split(' ')[0], phone:'0999 1' + String(10000 + i * 7).slice(-5), school:schools[i % Math.max(1, schools.length)] || '', year:'Year ' + (7 + i % 5), act:a, partner:p, since:d(-70 + i * 2), src:'partner'}; }).reduce(it, {});
     /* enquiries over four months: about half from the BDO's work; the enrolled ones are real students, with the date of their first payment */
     const SL = ['Facebook','Billboard','Website','Walk-in','A family we teach'], BL = ['BDO school visit','BDO partner','BDO event','BDO contact'], enq = {};
     const newStu = Object.entries(first).filter(([, f]) => f >= d(-110)).sort((a, b) => a[1].localeCompare(b[1]));

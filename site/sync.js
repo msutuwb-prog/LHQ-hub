@@ -27,6 +27,7 @@
   async function api(path, opts){
     const s = session(), headers = {'content-type':'application/json'};
     if(s && s.token) headers.authorization = 'Bearer ' + s.token;
+    if(window.lhqSandbox && lhqSandbox()){ headers['x-lhq-sbx'] = '1'; try{ const as = JSON.parse(localStorage.getItem('lhq_sbxas') || 'null'); if(as && as.id) headers['x-lhq-as'] = as.id; }catch(e){} }
     const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 20000);
     let r; try{ r = await fetch(API + path, Object.assign({headers, cache:'no-store', signal:ctl.signal}, opts || {})); } finally { clearTimeout(tm); }
     let j = {}; try{ j = await r.json(); }catch(e){}

@@ -9,9 +9,10 @@
   const pc = e => Number(e.mx) > 0 && e.sc != null && e.sc !== '' && !isNaN(+e.sc) ? Math.round(+e.sc / +e.mx * 100) : null;
   const TIMES = ['', 'once', 'twice', '3 times', '4 times', '5 times'];
   function slipping(items, entries, t, opts){
-    const out = [], E = (entries || []).filter(e => e && !e.x);
+    const out = [], BY = new Map();   // logs grouped by student + subject once (was a pass over every log per item: seconds at 500 students)
+    (entries || []).forEach(e => { if(e && !e.x){ if(!BY.has(e.k)) BY.set(e.k, []); BY.get(e.k).push(e); } });
     (items || []).forEach(it => {
-      const mine = E.filter(e => e.k === it.k), push = (level, kind, what, detail, extra) => out.push(Object.assign({k: it.k, st: it.st, sub: it.sub, tutor: it.tutor || '', level, kind, what, detail}, extra || {}));
+      const mine = BY.get(it.k) || [], push = (level, kind, what, detail, extra) => out.push(Object.assign({k: it.k, st: it.st, sub: it.sub, tutor: it.tutor || '', level, kind, what, detail}, extra || {}));
       /* attendance */
       const S = mine.filter(e => e.ty === 's' && e.a !== 'cancelled' && (!it.pa || e.d >= it.pa) && e.d <= t);
       const abs = S.filter(e => e.a === 'absent' && e.d > add(t, -14)), told = abs.filter(e => e.told).length;

@@ -42,7 +42,7 @@
   function figures(ctx, tutor, r){
     const S = G.SCHED, t = ctx.t, tn = nk(tutor), e = r.b < t ? r.b : t, E = (ctx.entries || []).filter(x => x && !x.x);
     const mineE = E.filter(x => nk(x.tutor) === tn);
-    const P = S.sessions(ctx.cards, r.a, e, {tutor}), logOf = p => E.find(x => x.ty === 's' && x.k === p.k && x.d === p.date && !x.mk);
+    const P = S.sessions(ctx.cards, r.a, e, {tutor}), LI = new Map(); E.forEach(x => { if(x.ty === 's' && !x.mk){ const key = x.k + '|' + x.d; if(!LI.has(key)) LI.set(key, x); } }); const logOf = p => LI.get(p.k + '|' + p.date);   // one lookup per session (was a pass over every log)
     const out = {};
     const put = (id, ok, bad, rows, extra) => { out[id] = Object.assign({id, k: ok, n: ok + bad, v: ok + bad ? Math.round(ok / (ok + bad) * 100) : null, rows}, extra || {}); };
     const row = (mk, title, sub, href, sort) => ({mk, t: title, s: sub, href: href || '', sort: sort || ''});
@@ -105,7 +105,7 @@
     /* ---------- watched ---------- */
     const its = S.items(ctx.cards, t).filter(it => nk(it.tutor) === tn), X = G.EXAMS;
     const pc = x => +x.mx > 0 && x.sc != null && x.sc !== '' ? Math.round(x.sc / x.mx * 100) : null;
-    const marksOf = k => E.filter(x => x.ty === 'w' && x.k === k && !x.abs && pc(x) != null && x.d <= e).sort((p, q) => p.d.localeCompare(q.d));
+    const WK = new Map(); E.forEach(x => { if(x.ty === 'w' && !x.abs && pc(x) != null && x.d <= e){ if(!WK.has(x.k)) WK.set(x.k, []); WK.get(x.k).push(x); } }); WK.forEach(L => L.sort((p, q) => p.d.localeCompare(q.d))); const marksOf = k => (WK.get(k) || []).slice();
     { const R = []; let ok = 0, n = 0;
       if(X) its.forEach(it => { const tg = (ctx.targets || {})[it.k]; if(!tg || !tg.g || !tg.ex) return; const tp = X.pctOf(tg.g, X.scale(tg.ex, tg.code), ctx.set || {}); const o = X.onTrack(marksOf(it.k).map(x => ({d: x.d, p: pc(x)})), tp); if(o.ok == null) return;
         n++; if(o.ok) ok++; R.push(row(o.ok ? 'ok' : 'bad', `${it.st} · ${it.sub}`, `${o.avg}% · target ${tg.g}`)); });

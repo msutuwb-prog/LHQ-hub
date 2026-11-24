@@ -17,7 +17,9 @@
     const byId = it.map(x => x.prog).find(Boolean); if(byId && P.find(p => p.id === byId)) return byId;
     const txt = nk(it.map(x => x.desc).join(' ') + ' ' + (inv.notes || '')), hit = P.filter(p => p.id !== 'weekly' && p.type !== 'activity').find(p => txt.includes(nk(p.name)));
     return hit ? hit.id : (P.find(p => p.type === 'weekly') || P[0] || {}).id || 'weekly'; }
+  let MEMO = {t: 0, v: null};   // one page draw asks many times (Families asks once per child): work it out once a moment
   function all(){
+    if(MEMO.v && Date.now() - MEMO.t < 1500) return MEMO.v;
     const out = [];
     (window.HD ? HD.students() : []).forEach(s => {
       const P = (s.periods || []).filter(p => p.inv && !p.inv.del && !p.inv.credit).slice().sort((a, b) => String(a.inv.date || '').localeCompare(String(b.inv.date || '')));
@@ -25,7 +27,7 @@
       P.forEach((p, i) => { const pg = progOf(p.inv), kind = i === 0 ? 'new' : seen.has(pg) ? 'ret' : 'add'; seen.add(pg);
         out.push({s, inv: p.inv, prog: pg, d: p.inv.date || '', kind, total: amt(p.inv.total || p.inv.amount), paid: (p.receipts || []).reduce((a, r) => a + amt(r.received), 0), receipts: p.receipts || []}); });
     });
-    return out;
+    MEMO = {t: Date.now(), v: out}; return out;
   }
   /* periods to look at */
   function ranges(){ const t = tday(), y = +t.slice(0, 4), m = +t.slice(5, 7), fy = m >= 9 ? y : y - 1, ym = (yy, mm) => yy + '-' + pad(mm);

@@ -134,12 +134,13 @@
       openSheet(`<div class="hx"><h3>New announcement</h3><button class="ib" data-close>✕</button></div>
         <label class="f"><span>Title</span><input class="in" id="anT" maxlength="120" value="${esc(st.t)}" placeholder="e.g. Centre closed on Friday"></label>
         <label class="f"><span>Message</span><textarea class="in" id="anB" rows="4">${esc(st.body)}</textarea></label>
-        <div class="f"><span>To</span><div class="chips" style="margin:4px 0 0">${Object.entries(AUD).map(([k, l]) => `<button type="button" class="chip ${st.aud === k ? 'on' : ''}" data-ana="${k}">${l}</button>`).join('')}</div></div>
-        ${st.aud === 'fams' ? `<div class="chips" style="max-height:160px;overflow:auto">${S.map(x => `<button type="button" class="chip ${st.fams.includes(x.key) ? 'on' : ''}" data-anf="${esc(x.key)}">${esc(x.name)}</button>`).join('')}</div>` : ''}
+        <label class="f"><span>To</span><select class="in" id="anA">${Object.entries(AUD).map(([k, l]) => `<option value="${k}" ${st.aud === k ? 'selected' : ''}>${l}</option>`).join('')}</select></label>
+        ${st.aud === 'fams' ? `<select class="in" id="anF" style="margin-bottom:8px"><option value="">+ Add a family…</option>${S.filter(x => !st.fams.includes(x.key)).map(x => `<option value="${esc(x.key)}">${esc(x.name)}</option>`).join('')}</select>${st.fams.length ? `<div class="chips" style="margin-bottom:10px">${st.fams.map(k => `<button type="button" class="chip on" data-anf="${esc(k)}">${esc((S.find(x => x.key === k) || {}).name || k)} ✕</button>`).join('')}</div>` : ''}` : ''}
         <div class="f"><span>How</span><div class="chips" style="margin:4px 0 0"><button type="button" class="chip ${st.imp ? '' : 'on'}" data-ani="0">Normal · in the bell</button><button type="button" class="chip ${st.imp ? 'on' : ''}" data-ani="1">Important · a strip until "Got it"</button></div></div>
         <div class="r2"><label class="f"><span>Until (optional)</span><input class="in" type="date" id="anU" value="${esc(st.until)}"></label><div class="f"><span>Email too</span><div class="chips" style="margin:4px 0 0"><button type="button" class="chip ${st.email ? 'on' : ''}" data-ane>${st.email ? 'Yes' : 'No'}</button></div></div></div>
         <div class="r2"><button class="btn" id="anWa">Copy for WhatsApp</button><button class="btn n" id="anGo">Send</button></div>`);
-      document.querySelectorAll('#sheet [data-ana]').forEach(b => b.onclick = () => { keep(); st.aud = b.dataset.ana; draw(); });
+      if($('anA')) $('anA').onchange = () => { keep(); st.aud = $('anA').value; draw(); };
+      if($('anF')) $('anF').onchange = () => { keep(); if($('anF').value && !st.fams.includes($('anF').value)) st.fams.push($('anF').value); draw(); };
       document.querySelectorAll('#sheet [data-anf]').forEach(b => b.onclick = () => { keep(); const i = st.fams.indexOf(b.dataset.anf); if(i >= 0) st.fams.splice(i, 1); else st.fams.push(b.dataset.anf); draw(); });
       document.querySelectorAll('#sheet [data-ani]').forEach(b => b.onclick = () => { keep(); st.imp = b.dataset.ani === '1'; draw(); });
       document.querySelector('#sheet [data-ane]').onclick = () => { keep(); st.email = !st.email; draw(); };

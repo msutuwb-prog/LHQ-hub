@@ -3,6 +3,21 @@
    Compressed they take roughly a tenth of the space. Every page still reads and writes localStorage as before:
    this file packs those keys on the way in and unpacks them on the way out. Needs pako.min.js first.
    Data saved before this existed is read as it is and packed the next time it is saved. */
+/* The Sandbox (release 3a): while it's on, this device keeps the Sandbox's copy of every LHQ list under "sbx:" keys,
+   so the real Hub's data on this device is never mixed with made-up data. The session and the switch itself are shared. */
+(function(){
+  const ls = window.localStorage, P = Storage.prototype, g = P.getItem, st = P.setItem, rm = P.removeItem;
+  const SHARED = ['lhq_sbxmode', 'lhq_sbxas', 'lhq_sbxset', 'lhq_theme', 'lhq_lean'];
+  const on = () => { try{ return g.call(ls, 'lhq_sbxmode') === '1'; }catch(e){ return false; } };
+  /* "View as": the Sandbox seen as one of the real staff or tutors keeps its own copy (and its own session record) */
+  const as = () => { try{ return (JSON.parse(g.call(ls, 'lhq_sbxas') || 'null') || {}).id || ''; }catch(e){ return ''; } };
+  const map = (o, k) => { if(o !== ls || typeof k !== 'string' || !k.startsWith('lhq_') || SHARED.includes(k) || !on()) return k; const a = as(); if(k === 'lhq_session' && !a) return k; return 'sbx:' + (a ? a + ':' : '') + k; };
+  P.getItem = function(k){ return g.call(this, map(this, k)); };
+  P.setItem = function(k, v){ return st.call(this, map(this, k), v); };
+  P.removeItem = function(k){ return rm.call(this, map(this, k)); };
+  window.lhqSandbox = on; window.lhqSandboxAs = as;
+  window.lhqRawGet = k => g.call(ls, k); window.lhqRawSet = (k, v) => st.call(ls, k, v); window.lhqRawDel = k => rm.call(ls, k);
+})();
 (function(){
   if(!window.pako) return;   // without the packer everything keeps working, just uncompressed
   const BIG = ['lhq_saved', 'lhq_logs', 'lhq_spend', 'lhq_income', 'lhq_students', 'lhq_repEdits', 'lhq_tlinks', 'lhq_people'];

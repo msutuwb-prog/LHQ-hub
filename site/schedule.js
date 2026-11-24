@@ -120,13 +120,16 @@
   /* a student's sessions in one subject this period: planned (from the card), expected by today, had, confirmed, waiting,
      disputed, missed and make-ups owed. it = {k, days, pa (period start), b (period end), cap}; entries = the logs;
      cf = a function giving a session's confirmation state (HD.cfState) */
+  /* session logs by student + subject, worked out once per list of logs (tally is called once per card and subject) */
+  const SK = new WeakMap();
+  function sessOf(entries, k){ if(!entries) return []; let c = SK.get(entries), m = c && c.n === entries.length ? c.m : null; if(!m){ m = new Map(); entries.forEach(e => { if(e && !e.x && e.ty === 's'){ if(!m.has(e.k)) m.set(e.k, []); m.get(e.k).push(e); } }); SK.set(entries, {n: entries.length, m}); } return m.get(k) || []; }
   function tally(it, entries, t, cf){
     const a = it.pa, b = it.b, D = it.days || [];
     const count = until => { if(!a || !D.length) return 0; const end = b && b < until ? b : until; if(end < a) return 0;
       let n = 0; for(let d = a; d <= end; d = addDays(d, 1)) if(D.includes(dayCode(d))) n++; return it.cap ? Math.min(it.cap, n) : n; };
     const plannedN = count(b || addDays(t, 365)), expected = count(t);
     const taught = x => x !== 'absent' && x !== 'cancelled';
-    const E = (entries || []).filter(e => !e.x && e.ty === 's' && e.k === it.k && (!a || e.d >= a) && (!b || e.d <= b)).sort((p, q) => (p.d + (p.t1 || '')).localeCompare(q.d + (q.t1 || '')));
+    const E = sessOf(entries, it.k).filter(e => (!a || e.d >= a) && (!b || e.d <= b)).sort((p, q) => (p.d + (p.t1 || '')).localeCompare(q.d + (q.t1 || '')));
     const T = E.filter(e => taught(e.a)), st = e => cf ? cf(e) : null;
     const had = T.length, made = T.filter(e => e.mk).length;
     const absent = E.filter(e => !e.mk && e.a === 'absent').length, cancelled = E.filter(e => !e.mk && e.a === 'cancelled').length;
