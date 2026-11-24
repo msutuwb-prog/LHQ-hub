@@ -188,6 +188,29 @@ table.says td.lo{color:var(--am);font-weight:800}table.says tr.all td{color:var(
 @media (max-width:899px){.grid2{grid-template-columns:minmax(0,1fr)}}
 /* wide screens: two columns where it helps */
 .hcols{display:grid;grid-template-columns:minmax(0,1fr);gap:0 16px;align-items:start}
+/* Home: Money first (Mockup 22) */
+.hero{display:grid;grid-template-columns:minmax(0,1fr);gap:12px;margin-bottom:12px}
+@container (min-width:860px){.hero.two{grid-template-columns:minmax(0,1.6fr) minmax(0,1fr)}}
+.hero .card{padding:16px 18px;margin:0;min-width:0}.hero a{color:inherit;text-decoration:none}.hero a:hover{text-decoration:underline}
+.hero .cap{display:block;font-size:11.5px;font-weight:800;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+.hero-v{display:block;font-size:34px;font-weight:800;line-height:1.15;margin:6px 0 6px;color:var(--ink)}.hero-v small.u{font-size:.45em;color:var(--muted);margin-right:4px}
+.hero .bar{display:flex;height:8px;border-radius:8px;background:var(--line);overflow:hidden;flex:1}.hero .bar i{display:block;height:100%;background:var(--accent,#0b3b66)}
+.hero .bar i.ok{background:var(--ok,#137a4b)}.hero .bar i.am{background:#d48a1c}.hero .bar i.bad{background:var(--bad,#b42318)}
+.hero-p{display:flex;align-items:center;gap:10px;font-size:12.5px;color:var(--muted)}.hero-s{margin:8px 0 0;font-size:12.5px;color:var(--muted)}.hero-s b.up{color:var(--ok,#137a4b)}.hero-s b.dn{color:var(--bad,#b42318)}
+.hero-m{display:grid;grid-template-columns:minmax(0,1fr);gap:14px}
+@container (min-width:640px){.hero-m{grid-template-columns:minmax(0,1fr) 210px;align-items:end}}
+.spk{display:flex;align-items:flex-end;gap:5px;height:40px}@container (min-width:640px){.spk{height:64px}}.spk a{flex:1;background:var(--line);border-radius:4px 4px 0 0;min-height:3px}.spk a.now{background:var(--accent,#0b3b66)}.spk a:hover{opacity:.8}
+.spk-l{display:flex;gap:5px;margin-top:4px}.spk-l span{flex:1;text-align:center;font-size:10.5px;color:var(--muted)}
+.age{margin:2px 0 8px}.age-l{display:flex;flex-wrap:wrap;gap:4px 12px;font-size:12px;color:var(--muted)}.age-l i{display:inline-block;width:8px;height:8px;border-radius:2px;margin-right:5px;vertical-align:middle}
+.age-l i.ok{background:var(--ok,#137a4b)}.age-l i.am{background:#d48a1c}.age-l i.bad{background:var(--bad,#b42318)}
+.mcs.chips{grid-template-columns:repeat(2,minmax(0,1fr))}.mcs.chips>.mc{padding:12px 14px}
+@container (min-width:700px){.mcs.chips{grid-template-columns:repeat(3,minmax(0,1fr))}}
+@container (min-width:980px){.mcs.chips{grid-template-columns:repeat(4,minmax(0,1fr))}.mcs.chips[data-n="1"],.mcs.chips[data-n="2"]{grid-template-columns:repeat(4,minmax(0,1fr))}}
+.h3c{display:grid;grid-template-columns:minmax(0,1fr);gap:0 16px;align-items:start}
+@container (min-width:860px){.h3c{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}.h3c>.h3c-t{grid-column:1/-1}}
+@container (min-width:1120px){.h3c{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr) minmax(0,1fr)}.h3c>.h3c-t{grid-column:auto}}
+.h3c small{overflow-wrap:anywhere}
+@container (min-width:860px){.h3c .card .it small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}}
 @container (min-width:860px){.hcols{grid-template-columns:minmax(0,1.4fr) minmax(0,1fr)}}
 .one .it .t small{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .one .it{padding:10px 0}
@@ -798,19 +821,46 @@ function attGroup(r){
 const PREVIEW_OR_DB = () => true;
 let attAll = false, attOpen = true; try{ attOpen = localStorage.getItem('lhq_attOpen') !== '0'; }catch(e){}
 
+/* the big pair on Home: Money in (how much of what's been invoiced has come in, against last month at the same point, and six months)
+   and Owed (how old the debt is). Every figure opens its list. */
+function heroHTML(big, m){
+  if(!big.length) return '';
+  const t = today(), thisM = ym(t), day = +t.slice(8, 10), rcts = saved.filter(x => x.type === 'receipt' && !x.del), invs = saved.filter(x => x.type === 'invoice' && !x.del);
+  const recvM = mm => rcts.filter(r => ym(r.date) === mm).reduce((a, r) => a + num(r.received), 0);
+  const mAgo = n => { const d = new Date(t + 'T00:00:00'); d.setDate(1); d.setMonth(d.getMonth() - n); return HD.isoOf(d).slice(0, 7); };
+  const lastSame = rcts.filter(r => ym(r.date) === mAgo(1) && +String(r.date).slice(8, 10) <= day).reduce((a, r) => a + num(r.received), 0);
+  const six = [5, 4, 3, 2, 1, 0].map(n => ({m: mAgo(n), v: recvM(mAgo(n))})), top = Math.max(1, ...six.map(x => x.v));
+  const mHref = can('pl') ? '#biz/money/' + thisM : '#docs/receipt/m-' + thisM, pct = m.invoiced ? Math.min(100, Math.round(m.recv / m.invoiced * 100)) : 0;
+  const tr = lastSame ? Math.round((m.recv - lastSame) / lastSame * 100) : null;
+  const money = `<div class="card hero-m"><div class="hero-l"><a class="cap" href="${mHref}">Money in · ${MONTHL[+thisM.slice(5) - 1]}</a><a class="hero-v" href="${mHref}">${mkV(mkShort(m.recv))}</a>
+      <div class="hero-p"><span class="bar"><i style="width:${pct}%"></i></span><a href="#docs/invoice/m-${thisM}">${pct}% of ${mkShort(m.invoiced)} invoiced</a></div>
+      <p class="hero-s">${tr == null ? 'First month with figures' : `<b class="${tr >= 0 ? 'up' : 'dn'}">${tr >= 0 ? '▲' : '▼'} ${Math.abs(tr)}%</b> on ${MONTHL[+mAgo(1).slice(5) - 1]} at the same point`}${m.invoiced > m.recv ? ` · ${mkShort(m.invoiced - m.recv)} still to come in` : ''}</p></div>
+    <div class="hero-r"><div class="spk">${six.map((x, i) => `<a href="${can('pl') ? '#biz/money/' + x.m : '#docs/receipt/m-' + x.m}" title="${MONTHL[+x.m.slice(5) - 1]} · ${mkShort(x.v)}" class="${i === 5 ? 'now' : ''}" style="height:${Math.max(4, Math.round(x.v / top * 100))}%"></a>`).join('')}</div><div class="spk-l">${six.map(x => `<span>${MONTHL[+x.m.slice(5) - 1].slice(0, 3)}</span>`).join('')}</div></div></div>`;
+  const B = {ok: 0, a: 0, b: 0}; invs.forEach(i => { const st = HD.invState(i); if(!(st.balance > 0.005)) return; const late = st.over && i.dueDate ? dayDiff(i.dueDate, t) : 0; if(!st.over) B.ok += st.balance; else if(late > 30) B.b += st.balance; else B.a += st.balance; });
+  const tot = B.ok + B.a + B.b || 1, w = v => (v / tot * 100).toFixed(1) + '%';
+  const owed = `<div class="card hero-o"><a class="cap" href="#biz/owed">Owed to LHQ</a><a class="hero-v" href="#biz/owed">${mkV(mkShort(m.owed))}</a>
+    <span class="bar age"><i class="ok" style="width:${w(B.ok)}"></i><i class="am" style="width:${w(B.a)}"></i><i class="bad" style="width:${w(B.b)}"></i></span>
+    <div class="age-l">${[['ok', 'Not due', B.ok], ['am', '1–30 days late', B.a], ['bad', '30+ days late', B.b]].filter(x => x[2] > 0.005).map(x => `<a href="#biz/owed"><i class="${x[0]}"></i>${x[1]} ${mkShort(x[2])}</a>`).join('')}</div>
+    <p class="hero-s"><a href="#biz/owed">${m.owingN} invoice${m.owingN === 1 ? '' : 's'} not fully paid ›</a></p></div>`;
+  return `<div class="hero ${big.length === 2 ? 'two' : ''}">${big.map(k => k === 'money' ? money : owed).join('')}</div>`;
+}
 P.home = () => {
   const list = HD.students(), att = attention(list).filter(x => !(bdoOnly() && ['over','grace','nocard','quote','end','muend'].includes(x.g))), AR = attRows(att.filter(x => !x.job)), m = metrics(list), cards = myCards();
+  /* Money first (Mockup 22, agreed 25 Nov): Money in and Owed, when on Home and the person has money access, are the big pair; the other cards are compact */
+  const big = can('money') ? cards.filter(k => k === 'money' || k === 'owed') : [], rest = cards.filter(k => !big.includes(k));
   const h = new Date().getHours(), greet = h < 12 ? 'Good morning' : h < 17 ? 'Good afternoon' : 'Good evening', d = new Date();
   const recent = shownDocs(saved).slice().sort((a, b) => (b.savedAt || 0) - (a.savedAt || 0)).slice(0, 6);
   const draft = store.get('lhq_draft', null);
   const draftRow = draft && !draft.id && (draft.student || draft.name) ? `<div class="card"><a class="it" href="doc.html#draft"><span class="ico">${ic('edit')}</span><span class="t"><b>Unsaved ${esc(WORD[draft.type || 'quote'].toLowerCase())} · ${esc(draft.student || draft.name)}</b><small>Not saved yet</small></span><span class="tag am">Draft</span></a></div>` : '';
   return `<div class="ph"><div class="tt"><h1>${greet}${me().name ? '<span class="x-ph">, ' + esc(window.PROF ? PROF.myName() : first(me().name)) + '</span>' : ''}</h1><p>${['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'][d.getDay()]} ${d.getDate()} ${MONTHL[d.getMonth()]}</p></div>
     <div class="acts"><a class="btn" href="#edithome" title="Edit Home" aria-label="Edit Home">${ic('edit',16)}</a>${can('quotes') || can('receipts') || can('cards') || can('spend') ? `<a class="btn n hnew" href="#new">${ic('plus',16,2.4)} New</a>` : ''}</div></div>
-  ${cards.length ? `<div class="mcs" data-n="${cards.length}">${cards.map(k => { const c = CARDS[k]; return `<div class="mc" data-go="${typeof c.href === 'function' ? c.href() : c.href}" role="link" tabindex="0" aria-label="${esc(c.t)}"><span class="l">${ic(c.ic,15,2)}${LEAN() && c.s ? c.s : c.t}</span>${c.html(m)}</div>`; }).join('')}</div>` : ''}
+  ${heroHTML(big, m)}
+  ${rest.length ? `<div class="mcs chips" data-n="${rest.length}">${rest.map(k => { const c = CARDS[k]; return `<div class="mc" data-go="${typeof c.href === 'function' ? c.href() : c.href}" role="link" tabindex="0" aria-label="${esc(c.t)}"><span class="l">${ic(c.ic,15,2)}${LEAN() && c.s ? c.s : c.t}</span>${c.html(m)}</div>`; }).join('')}</div>` : ''}
   ${draftRow}
-  ${window.TODAY ? TODAY.block({hub: att.filter(x => x.job).map(x => ({key:x.job, t:x.s.name, sub:x.sub, href:x.btn ? x.btn[1] : x.href})).concat(window.BDO ? BDO.enqJobs() : [], window.FAMS ? FAMS.famJobs() : [], window.COMMS ? COMMS.arepJob() : [], window.PLAN && isDir() ? (PLAN.load(), PLAN.boardDue()) : []), ready: hub.session() && saved.length > 0}) : ''}
   ${PREVIEW && isDir() && !saved.length ? `<div class="card pad" style="border-color:var(--gold)"><div class="cap">Preview</div><p class="note" style="margin:0 0 10px">This preview has its own storage and is empty. Load six months of demo data to try every page.</p><a class="btn n" href="#set/demo">Demo data</a></div>` : ''}
-  <div class="hcols"><div><div class="h2">Needs attention <span class="acts" style="align-items:center"><em>${AR.length || ''}</em><button class="btn sm" id="attTog">${attOpen ? 'Hide' : 'Show'}</button></span></div>
+  <div class="h3c"><div class="h3c-t">
+  ${window.TODAY ? TODAY.block({hub: att.filter(x => x.job).map(x => ({key:x.job, t:x.s.name, sub:x.sub, href:x.btn ? x.btn[1] : x.href})).concat(window.BDO ? BDO.enqJobs() : [], window.FAMS ? FAMS.famJobs() : [], window.COMMS ? COMMS.arepJob() : [], window.PLAN && isDir() ? (PLAN.load(), PLAN.boardDue()) : []), ready: hub.session() && saved.length > 0}) : ''}
+  </div><div><div class="h2">Needs attention <span class="acts" style="align-items:center"><em>${AR.length || ''}</em><button class="btn sm" id="attTog">${attOpen ? 'Hide' : 'Show'}</button></span></div>
   ${attOpen ? `<div class="card one">${AR.slice(0, attAll ? 999 : 15).map(r => r.grp ? attGroup(r) : attRow(r.x)).join('') || '<p class="empty">Nothing needs attention. ✓</p>'}${AR.length > 15 && !attAll ? `<button class="it" id="attAll" style="justify-content:center"><b>Show all ${AR.length}</b></button>` : ''}</div>`
     : `<p class="note" style="margin:-2px 2px 18px">${att.length} item${att.length === 1 ? '' : 's'} hidden. Needs attention always stays on Home so nothing is missed.</p>`}
   </div><div><div class="h2">Recent <a class="btn sm" href="#docs">All documents</a></div>
