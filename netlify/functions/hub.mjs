@@ -66,8 +66,13 @@ function sbxStore(b) { const K = k => SBX_PASS(k) ? k : SBX_P + k;
 const store = () => { const b = storeOnDb ? pgStore : blobs(); return inSbx() ? sbxStore(b) : b; };
 async function usesDbStore() {
   if (!dbMode()) return false;
-  /* Supabase only (24 Nov): a new, empty Hub keeps everything in the database from the start; only an explicit switch back says otherwise */
-  try { const r = await one("SELECT value FROM settings WHERE key = 'hub_store' AND NOT del"); return !r || r.value === "db"; } catch { return false; }
+  try {
+    const r = await one("SELECT value FROM settings WHERE key = 'hub_store' AND NOT del"); if (r) return r.value === "db";
+    /* Supabase only (24 Nov): a new Hub with nothing in the old storage keeps everything in the database from the start, and says so once */
+    if (await blobs().get("index", { type: "json" }).catch(() => null)) return false;
+    await q("INSERT INTO settings (id, key, scope, value) VALUES ($1, 'hub_store', 'staff', $2) ON CONFLICT DO NOTHING", ["se" + crypto.randomBytes(8).toString("hex"), JSON.stringify("db")]);
+    return true;
+  } catch { return false; }
 }
 
 /* compare two values whatever order their keys come in (the database keeps keys in its own order) */
@@ -160,7 +165,7 @@ const pub = p => Object.assign({ id: p.id, name: p.name, role: p.role, admin: st
 
 async function getPeople() {
   if (dbMode()) {
-    if (!moved) { await A.moveFromBlobs((await store().get("people", { type: "json" })) || []); moved = true; }
+    if (!moved) { await A.moveFromBlobs((await blobs().get("people", { type: "json" }).catch(() => null)) || []); moved = true; }   // the people from before the database (Blobs), once
     return A.listPeople();
   }
   const list = (await store().get("people", { type: "json" })) || [];
