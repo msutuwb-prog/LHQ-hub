@@ -80,7 +80,9 @@
   /* a back link: if the page is in the steps behind, go back to it there; otherwise false (the link opens it as usual) */
   function backTo(h){ const H = SG('lhq_hist', []), i = SG('lhq_hcur', 0), t = hashOf(h); for(let j = i - 1; j >= 0; j--) if(H[j] === t){ history.go(j - i); return true; } return false; }
   window.hubGo = h => { h = String(h || ''); const cur = location.hash || '#home'; if(h === cur) return; if(pageOf(h) === pageOf(cur)) replaceHash(h); else location.hash = h; };
-  const pageOf = u => String(u || '').replace(/^[^#]*#?/, '').split('/').slice(0, 2).join('/');
+  /* "the same page": the same first two parts of the address; the Plan's tabs (Overview, Streams, Costs…) count as one page */
+  const PLAN_TABS = new Set(['', 'streams', 'costs', 'five', 'planner', 'partners', 'schools', 'who']);
+  const pageOf = u => { const a = String(u || '').replace(/^[^#]*#?/, '').split('/'); return a[0] === 'plan' && PLAN_TABS.has(a[1] || '') ? 'plan' : a.slice(0, 2).join('/'); };
   function trail(){ try{ return JSON.parse(sessionStorage.getItem(TK) || '[]'); }catch(e){ return []; } }
   function visit(label){
     const u = norm(here()); let t = trail();

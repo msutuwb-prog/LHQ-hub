@@ -215,7 +215,7 @@ window.BIZ = (function(){
       return `<div class="ph"><div class="tt"><h1>Business</h1><p>Financial year ${fyLabel(fy)}${isDir() ? '' : ' · shared with you by the Director'}</p></div>${acts}</div>
         ${periodBar('home', period)}
         ${window.PC ? PC.block('biz', {period}, 'Your cards') : ''}
-        <div class="h2">All sections</div><div class="bz-secs">${isDir() || (window.PLAN && (PLAN.data() || {}).vis && Object.values(PLAN.data().vis).some(Boolean)) ? '<a href="#plan">Plan · year, five years, targets<span>›</span></a>' : ''}${isDir() ? '<a href="#board">Board reports<span>›</span></a>' : ''}${T.map(([k, l]) => `<a href="#biz/${k}/${k === 'owed' ? '' : period}">${esc(l)}<span>›</span></a>`).join('')}</div>
+        <div class="h2">All sections</div><div class="bz-secs">${isDir() || (window.PLAN && (PLAN.data() || {}).vis && Object.values(PLAN.data().vis).some(Boolean)) ? '<a href="#plan">Business plan<span>›</span></a>' : ''}${isDir() ? '<a href="#board">Board reports<span>›</span></a>' : ''}${T.map(([k, l]) => `<a href="#biz/${k}/${k === 'owed' ? '' : period}">${esc(l)}<span>›</span></a>`).join('')}</div>
         ${can('pl') ? `<p class="note" style="margin-top:14px">Reports to download or send are under <a href="#reports">Reports</a>.</p>` : ''}`;
     }
     if(tab === 'cat' && T.some(x => x[0] === 'spending')){ /* a payment category's own page */ }

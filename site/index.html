@@ -292,7 +292,7 @@ html.lean .mc .s{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-w
 .snav a:hover{background:var(--hover)}
 .snav a.on{background:var(--surface);box-shadow:0 0 0 1px var(--line);color:var(--brand)}
 .snav a.on svg{color:var(--brand)}
-.sw .crumb{display:none}
+/* settings pages keep their back link on wide screens too (24 Nov) */
 @media (max-width:899px){
   .sw{display:block}
   .sw.page .snav{display:none}
@@ -526,6 +526,14 @@ function render(){
   if(!['new','makeups'].includes(route.page)) LHQNav.visit(pageLabel());
   bind();
   fillAsk();
+  /* every back link goes back to the page you came from (24 Nov): a page's own fixed link (e.g. "‹ Business") is only used when
+     there's nothing behind it (a link opened fresh); a page without one gets one. Home pages and the first page of a section show none. */
+  const TOP = ['home','teach','me','students','docs','biz','reports','settings'];   // the first page of each section: no back link, so nothing can loop
+  if(['new','makeups'].includes(route.page) || (TOP.includes(route.page) && !route.args.length)) m.querySelectorAll('a.crumb').forEach(c => { if(TOP.includes(route.page)) c.remove(); });
+  else {
+    const pv = LHQNav.back(null, null), cr = m.querySelector('a.crumb');
+    if(pv && pv.href){ const lab = '‹ ' + (pv.label || 'Back'); if(cr){ cr.setAttribute('href', pv.href.replace(/^[^#]*#/, '#')); cr.textContent = lab; } else m.insertAdjacentHTML('afterbegin', `<a class="crumb" href="${esc(pv.href.replace(/^[^#]*#/, '#'))}">${esc(lab)}</a>`); }
+  }
   /* every back link the same: the arrow icon, not a typed ‹ */
   document.querySelectorAll('#main a.crumb').forEach(el => { const t = el.textContent; if(/^\s*‹/.test(t) && !el.querySelector('svg')) el.innerHTML = ic('back', 16, 2.2) + ' ' + esc(t.replace(/^\s*‹\s*/, '')); });
   /* every row that opens a page ends with › */
