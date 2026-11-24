@@ -28,8 +28,12 @@
     const s = session(), headers = {'content-type':'application/json'};
     if(s && s.token) headers.authorization = 'Bearer ' + s.token;
     if(window.lhqSandbox && lhqSandbox()){ headers['x-lhq-sbx'] = '1'; try{ const as = JSON.parse(localStorage.getItem('lhq_sbxas') || 'null'); if(as && as.id) headers['x-lhq-as'] = as.id; }catch(e){} }
-    const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), 20000);
-    let r; try{ r = await fetch(API + path, Object.assign({headers, cache:'no-store', signal:ctl.signal}, opts || {})); } finally { clearTimeout(tm); }
+    /* a big upload (demo data, the Sandbox, a move) gets 2 minutes: on a slow connection sending it alone can take longer than 20 seconds (fixed 24 Nov) */
+    const big = opts && typeof opts.body === 'string' && opts.body.length > 150000;
+    const ctl = new AbortController(), tm = setTimeout(() => ctl.abort(), big ? 120000 : 20000);
+    let r; try{ r = await fetch(API + path, Object.assign({headers, cache:'no-store', signal:ctl.signal}, opts || {})); }
+    catch(e){ if(e && e.name === 'AbortError') throw new Error(big ? 'Still sending after 2 minutes: the connection is too slow. Try again on Wi-Fi.' : 'The Hub took too long to answer. Check your connection and try again.'); throw e; }
+    finally { clearTimeout(tm); }
     let j = {}; try{ j = await r.json(); }catch(e){}
     if(r.status === 401 && path !== 'login' && session()){ signedOut('Please sign in again.'); throw new Error('signed out'); }
     if(!r.ok) throw Object.assign(new Error(j.error || 'Something went wrong. Try again.'), {status:r.status, denied:!!j.denied});
