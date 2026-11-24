@@ -747,9 +747,17 @@ const CARDS = {
     html:m => `${L('#students/ending', `${m.ending}`, 'v')}${L('#students/ending', `period${m.ending === 1 ? '' : 's'} end in the next 7 days`)}<div class="s">${m.renewed} renewed already</div>${m.endingNext ? `<div class="tr fl">Next: ${esc(m.endingNext.name)}, ${nice(m.endingNext.cur.inv.periodEnd)}</div>` : ''}`},
   tutors:{s:'Tutors', t:'Tutors', ic:'user', d:'Tutors teaching now, and subjects with no tutor', href:'#tutors',
     html:m => `${L('#tutors', `${m.tutors} <small>teaching</small>`, 'v')}<div class="s">${m.perTutor ? `About ${m.perTutor} students each` : 'From the current tuition cards'}</div>${m.noTutor ? L('#tutors/none', `${m.noTutor} subject${m.noTutor === 1 ? ' has' : 's have'} no tutor yet`, 's warn') : '<div class="s">Every subject has a tutor</div>'}`},
-  sessions:{t:'Sessions this week', ic:'clock', step2:true, d:'Sessions done and still to come, from tutors\' logs'},
-  sras:{t:'SRAs due', ic:'restore', step2:true, d:'Spaced repetition reviews due this week'},
-  reports:{t:'Reports to send', ic:'rep', step2:true, d:'Weekly reports ready for parents'},
+  sessions:{s:'Sessions', t:'Sessions this week', ic:'clock', d:'Sessions this week from the tuition cards: done and still to come', href:'#calendar',
+    html:() => { const w = weekSess(); return `${L('#calendar', `${w.all} <small>this week</small>`, 'v')}${L('#calendar', `${w.done} done · ${w.left} to come`)}${w.today ? `<div class="s">${w.today} today</div>` : ''}`; }},
+  /* the BDO's cards (25 Nov): were a fixed block on Home; now cards like the rest, added and removed in Edit Home */
+  enqs:{s:'Enquiries', t:'Enquiries this month', ic:'quote', need:'bdo', d:'Enquiries this month, the BDO\'s, enrolled, follow-ups due', href:'#enq',
+    html:() => { const f = BDO.figs(); return `${L('#enq', `${f.n} <small>in ${f.mon}</small>`, 'v')}${L('#enq', `${f.mine} from the BDO · ${f.enrolled} enrolled${f.n ? ' · ' + Math.round(f.enrolled / f.n * 100) + '%' : ''}`)}${f.due ? L('#enq', `${f.due} follow-up${f.due === 1 ? '' : 's'} due`, 's bad') : f.ready ? L('#enq', `${f.ready} ready to enrol`) : '<div class="s">No follow-ups due</div>'}`; }},
+  partners:{s:'Partners', t:'Partners', ic:'users', need:'bdo', d:'Partners, their children, and those moved into tuition', href:'#plan/partners',
+    html:() => { const f = BDO.figs(); return `${L('#plan/partners', `${f.kids} <small>children</small>`, 'v')}${L('#plan/partners', `${f.partners} partner${f.partners === 1 ? '' : 's'} · ${f.moved} moved into tuition`)}`; }},
+  schools:{s:'Schools', t:'Schools', ic:'user', need:'bdo', d:'Schools our students come from, and visits', href:'#plan/schools',
+    html:() => { const f = BDO.figs(); return `${L('#plan/schools', `${f.schools} <small>schools</small>`, 'v')}${L('#plan/schools', 'Students, partner children, visits')}`; }},
+  score:{s:'Scorecard', t:'BDO scorecard', ic:'rep', need:'bdo', d:'The BDO\'s month: enquiries, enrolments, and the weekly report', href:'#score',
+    html:() => { const f = BDO.figs(); return `${L('#score', `${f.enrolled} <small>enrolled</small>`, 'v')}${L('#score', `from ${f.n} enquir${f.n === 1 ? 'y' : 'ies'} in ${f.mon}`)}${L('#bweek', 'Weekly report ›')}`; }},
   profit:{s:'Profit', t:'Profit this month', ic:'cash', need:'pl', d:'Money in less payments this month, and the margin', href:'#biz/pl', html:() => BIZ.cardProfit()},
   spend:{s:'Payments', t:'Payments this month', ic:'box', need:'spend', d:'What has been spent this month, against the budget', href:'#biz/spending', html:() => BIZ.cardSpend()},
   bal:{s:'Balances', t:'All accounts', ic:'cash', need:'acct', d:'Money in every bank and mobile money account, from the daily entry', href:'#biz/balances',
@@ -757,7 +765,13 @@ const CARDS = {
   tpay:{s:'Tutor pay', t:'Tutor pay this month', ic:'cash', need:'tpay', d:'Tutor pay so far this month', href:'#pay',
     html:() => { const c = TPAYUI.card(); return `${L('#pay', mkShort(c.tot), 'v')}${L('#pay', `${c.sessions} session${c.sessions === 1 ? '' : 's'} · ${c.n} tutor${c.n === 1 ? '' : 's'}`)}<div class="s">${c.conf} of ${c.n} payslips approved</div>`; }},
 };
-const DEFAULT_HOME = () => can('acct') && !isDir() ? ['bal','money','spend','tpay'] : LEAN() ? (can('money') ? ['money','owed','students'] : ['students','enrol','renew']) : can('money') ? ['money','students','enrol','tutors'] : ['students','enrol','renew','tutors'];
+/* this week's sessions from the tuition cards (Mon–Sun): done = before today, or today and already ended */
+function weekSess(){ const t = today(), d = new Date(t + 'T00:00:00'), mon = new Date(d); mon.setDate(d.getDate() - ((d.getDay() + 6) % 7)); const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  const iso = x => x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') + '-' + String(x.getDate()).padStart(2, '0');
+  const L = window.SCHED ? SCHED.sessions(HD.load().filter(x => x.type === 'card' && !x.del), iso(mon), iso(sun)) : [], now = new Date().toTimeString().slice(0, 5);
+  const done = L.filter(e => e.date < t || (e.date === t && (e.e || '') <= now)).length;
+  return {all: L.length, done, left: L.length - done, today: L.filter(e => e.date === t).length}; }
+const DEFAULT_HOME = () => window.BDO && BDO.isBdo() && !isDir() && !can('money') ? ['enqs','partners','schools','score'] : can('acct') && !isDir() ? ['bal','money','spend','tpay'] : LEAN() ? (can('money') ? ['money','owed','students'] : ['students','enrol','renew']) : can('money') ? ['money','students','enrol','tutors'] : ['students','enrol','renew','tutors'];
 function myCards(){ const h = me().home; return (Array.isArray(h) ? h : DEFAULT_HOME()).filter(k => CARDS[k] && !CARDS[k].step2 && (!CARDS[k].need || can(CARDS[k].need))); }
 async function saveHome(cards){
   const s = hub.session(); if(s && s.me){ s.me.home = cards; localStorage.setItem('lhq_session', JSON.stringify(s)); }
@@ -794,7 +808,6 @@ P.home = () => {
     <div class="acts"><a class="btn" href="#edithome" title="Edit Home" aria-label="Edit Home">${ic('edit',16)}</a>${can('quotes') || can('receipts') || can('cards') || can('spend') ? `<a class="btn n hnew" href="#new">${ic('plus',16,2.4)} New</a>` : ''}</div></div>
   ${cards.length ? `<div class="mcs" data-n="${cards.length}">${cards.map(k => { const c = CARDS[k]; return `<div class="mc" data-go="${typeof c.href === 'function' ? c.href() : c.href}" role="link" tabindex="0" aria-label="${esc(c.t)}"><span class="l">${ic(c.ic,15,2)}${LEAN() && c.s ? c.s : c.t}</span>${c.html(m)}</div>`; }).join('')}</div>` : ''}
   ${draftRow}
-  ${window.BDO ? BDO.homeBlock() : ''}
   ${window.TODAY ? TODAY.block({hub: att.filter(x => x.job).map(x => ({key:x.job, t:x.s.name, sub:x.sub, href:x.btn ? x.btn[1] : x.href})).concat(window.BDO ? BDO.enqJobs() : [], window.FAMS ? FAMS.famJobs() : [], window.COMMS ? COMMS.arepJob() : [], window.PLAN && isDir() ? (PLAN.load(), PLAN.boardDue()) : []), ready: hub.session() && saved.length > 0}) : ''}
   ${PREVIEW && isDir() && !saved.length ? `<div class="card pad" style="border-color:var(--gold)"><div class="cap">Preview</div><p class="note" style="margin:0 0 10px">This preview has its own storage and is empty. Load six months of demo data to try every page.</p><a class="btn n" href="#set/demo">Demo data</a></div>` : ''}
   <div class="hcols"><div><div class="h2">Needs attention <span class="acts" style="align-items:center"><em>${AR.length || ''}</em><button class="btn sm" id="attTog">${attOpen ? 'Hide' : 'Show'}</button></span></div>

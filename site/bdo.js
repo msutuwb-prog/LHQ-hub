@@ -142,6 +142,11 @@
     return `<div class="bd-kv"><a href="#enq"><span>Enquiries · ${MO[+ym.slice(5) - 1]}</span><b>${E.length}</b><small>${E.filter(e => e.srcOwner === 'bdo').length} yours</small></a><a href="#enq"><span>Enrolled</span><b>${E.filter(e => e.stage === 'enrolled').length}</b><small>${pc(E.filter(e => e.stage === 'enrolled').length, E.length)}%</small></a><a href="#plan/partners"><span>Partner children</span><b>${K.length}</b><small>${PA.length} partner${PA.length === 1 ? '' : 's'}</small></a></div>
       <div class="card one" style="margin-bottom:14px"><a class="it" href="#enq"><span class="t"><b>Enquiries</b><small>New, follow-ups, ready to enrol</small></span><span class="chev">›</span></a><a class="it" href="#plan/partners"><span class="t"><b>Partners</b></span><span class="chev">›</span></a><a class="it" href="#plan/schools"><span class="t"><b>Schools</b><small>Students, partner children, visits</small></span><span class="chev">›</span></a><a class="it" href="#score"><span class="t"><b>Scorecard</b></span><span class="chev">›</span></a><a class="it" href="#bweek"><span class="t"><b>Weekly report</b></span><span class="chev">›</span></a></div>`;
   }
+  /* the figures behind the BDO's Home cards (Edit Home: Enquiries, Partners, Schools; 25 Nov) */
+  function figs(){ if(window.PLAN) PLAN.load(); const ym = tday().slice(0, 7), A = enqs(), E = A.filter(e => (e.d || '').startsWith(ym)), K = window.PLAN ? PLAN.kids() : [], PA = window.PLAN ? PLAN.partners() : [];
+    const sch = new Set((window.HD ? HD.students() : []).map(x => nk(x.school)).filter(Boolean)).size;
+    return {mon: MO[+ym.slice(5) - 1], n: E.length, mine: E.filter(e => e.srcOwner === 'bdo').length, enrolled: E.filter(e => e.stage === 'enrolled').length, ready: A.filter(e => e.stage === 'ready').length, due: A.filter(late).length,
+      kids: K.length, moved: K.filter(k => k.moved).length, partners: PA.filter(p => p.kind !== 'school').length, schools: sch}; }
   /* Needs attention for the BDO: contracts renewing within a month */
   function bdoAttention(){ if(!isBdo() && !isDir() || !window.PLAN) return []; const t = tday(); return PLAN.partners().filter(p => p.renew && p.renew >= t && p.renew <= addD(t, 31)).map(p => ({t: `${p.name} contract renews`, sub: nice(p.renew), href: '#plan/partner/' + p.id})); }
 
@@ -235,5 +240,5 @@
     .bd-kv{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0 0 12px}.bd-kv a{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:10px 12px;text-decoration:none;color:var(--ink);min-width:0}.bd-kv span{display:block;font-size:12px;color:var(--muted);font-weight:700}.bd-kv b{font-size:22px}.bd-kv small{display:block;font-size:12px;color:var(--muted)}`;
   const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
 
-  window.BDO = {enqPage, enqJobs, scorePage, weekPage, homeBlock, bdoAttention, spayPage, spayPerson, paySettings, myPay, probAttention, loadSp, schoolLog, isBdo};
+  window.BDO = {figs, enqPage, enqJobs, scorePage, weekPage, homeBlock, bdoAttention, spayPage, spayPerson, paySettings, myPay, probAttention, loadSp, schoolLog, isBdo};
 })();
